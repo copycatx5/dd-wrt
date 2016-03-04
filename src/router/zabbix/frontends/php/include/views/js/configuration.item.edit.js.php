@@ -8,13 +8,21 @@
 	}
 
 	function displayNewDeleyFlexInterval() {
-		// delay_flex_visible is in massupdate, no delay_flex_visible in items
-		if ((jQuery('#delay_flex_visible').length == 0 || jQuery('#delay_flex_visible').is(':checked'))
-				&& jQuery('#delayFlexTable tr').length <= 7) {
-			jQuery('#row_new_delay_flex').css('display', 'block');
+		// visible_delay_flex is in massupdate, no visible_delay_flex in items
+		if (jQuery('#visible_delay_flex').length == 0 || jQuery('#visible_delay_flex').is(':checked')) {
+			jQuery('#row_new_delay_flex').show();
 		}
 		else {
-			jQuery('#row_new_delay_flex').css('display', 'none');
+			jQuery('#row_new_delay_flex').hide();
+		}
+
+		if (jQuery('#delayFlexTable tr').length <= 7) {
+			jQuery('#row-new-delay-flex-fields').show();
+			jQuery('#row-new-delay-flex-max-reached').hide();
+		}
+		else {
+			jQuery('#row-new-delay-flex-fields').hide();
+			jQuery('#row-new-delay-flex-max-reached').show();
 		}
 	}
 
@@ -39,7 +47,7 @@
 			selectedInterfaceOption = jQuery('#interfaceid option[value="' + selectedInterfaceId + '"]');
 		}
 
-		if (jQuery('#interface_visible').data('multipleInterfaceTypes') && !jQuery('#type_visible').is(':checked')) {
+		if (jQuery('#visible_interface').data('multipleInterfaceTypes') && !jQuery('#visible_type').is(':checked')) {
 			jQuery('#interface_not_defined').html(<?php echo CJs::encodeJson(_('To set a host interface select a single item type for all items')); ?>).show();
 			jQuery('#interfaceid').hide();
 		}
@@ -132,6 +140,7 @@
 	}
 
 	jQuery(document).ready(function() {
+		// field switchers
 		<?php if (!empty($this->data['dataTypeVisibility'])) { ?>
 		var dataTypeSwitcher = new CViewSwitcher('data_type', 'change',
 			<?php echo zbx_jsvalue($this->data['dataTypeVisibility'], true); ?>);
@@ -155,16 +164,14 @@
 				<?php echo zbx_jsvalue($this->data['securityLevelVisibility'], true); ?>);
 		<?php } ?>
 
+		// multiplier
 		var multpStat = document.getElementById('multiplier');
+
 		if (multpStat && multpStat.onclick) {
 			multpStat.onclick();
 		}
 
-		var maxReached = <?php echo $this->data['maxReached'] ? 'true' : 'false'; ?>;
-		if (maxReached) {
-			jQuery('#row_new_delay_flex').css('display', 'none');
-		}
-
+		// type
 		jQuery('#type')
 			.change(function() {
 				// update the interface select with each item type change
@@ -173,28 +180,60 @@
 				setAuthTypeLabel();
 			})
 			.trigger('change');
-		jQuery('#type_visible, #interface_visible').click(function() {
+
+		jQuery('#visible_type, #visible_interface').click(function() {
 			// if no item type is selected, reset the interfaces to default
-			if (!jQuery('#type_visible').is(':checked')) {
+			if (!jQuery('#visible_type').is(':checked')) {
 				organizeInterfaces(itemTypeInterface(<?php echo CJs::encodeJson($data['initial_item_type']) ?>));
 			}
 			else {
 				jQuery('#type').trigger('change');
 			}
+
 			displayKeyButton();
 		});
 
+		// authentication type
 		jQuery('#authtype').bind('change', function() {
 			setAuthTypeLabel();
 		});
 
 		// mass update page
-		if (jQuery('#delay_flex_visible').length != 0) {
+		if (jQuery('#visible_delay_flex').length != 0) {
 			displayNewDeleyFlexInterval();
 
-			jQuery('#delay_flex_visible').click(function() {
+			jQuery('#visible_delay_flex').click(function() {
 				displayNewDeleyFlexInterval();
 			});
 		}
+
+		// mass update page, create jquery buttonset object when authprotocol visible box is switched on
+		jQuery('#visible_authprotocol').one('click', function() {
+			jQuery('#authprotocol_div').buttonset();
+		});
+
+		// mass update page, create jquery buttonset object when privprotocol visible box is switched on
+		jQuery('#visible_privprotocol').one('click', function() {
+			jQuery('#privprotocol_div').buttonset();
+		});
+
+		// flexible interval max reached
+		var maxReached = <?php echo $this->data['maxReached'] ? 'true' : 'false'; ?>;
+
+		if (maxReached) {
+			jQuery('#row-new-delay-flex-fields').hide();
+			jQuery('#row-new-delay-flex-max-reached').show();
+		}
+
+		// add flexible interval
+		jQuery('#add_delay_flex').click(function() {
+			var addDelayFlex = jQuery('<input>', {
+				type: 'hidden',
+				name: 'add_delay_flex',
+				value: 'add'
+			});
+
+			jQuery('form[name="itemForm"]').append(addDelayFlex).submit();
+		});
 	});
 </script>

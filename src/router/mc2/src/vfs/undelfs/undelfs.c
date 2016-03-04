@@ -7,7 +7,7 @@
    Parts of this program were taken from the lsdel.c and dump.c files
    written by Ted Ts'o (tytso@mit.edu) for the ext2fs package.
 
-   Copyright (C) 1995-2014
+   Copyright (C) 1995-2015
    Free Software Foundation, Inc.
 
    Written by:
@@ -48,7 +48,6 @@
 #include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <fcntl.h>
 
 #ifdef HAVE_EXT2FS_EXT2_FS_H
 #include <ext2fs/ext2_fs.h>
@@ -63,6 +62,7 @@
 
 #include "lib/global.h"
 
+#include "lib/util.h"
 #include "lib/widget.h"         /* message() */
 #include "lib/vfs/utilvfs.h"
 #include "lib/vfs/vfs.h"
@@ -140,12 +140,9 @@ undelfs_shutdown (void)
     if (fs)
         ext2fs_close (fs);
     fs = NULL;
-    g_free (ext2_fname);
-    ext2_fname = NULL;
-    g_free (delarray);
-    delarray = NULL;
-    g_free (block_buf);
-    block_buf = NULL;
+    MC_PTR_FREE (ext2_fname);
+    MC_PTR_FREE (delarray);
+    MC_PTR_FREE (block_buf);
 }
 
 /* --------------------------------------------------------------------------------------------- */
@@ -181,13 +178,13 @@ undelfs_get_path (const vfs_path_t * vpath, char **fsname, char **file)
 #if 0
     /* Strip trailing ./
      */
-    if (p - dirname > 2 && *(p - 1) == '/' && *(p - 2) == '.')
+    if (p - dirname > 2 && IS_PATH_SEP (p[-1]) && p[-2] == '.')
         *(p = p - 2) = 0;
 #endif
 
     while (p > dirname)
     {
-        if (*p == '/')
+        if (IS_PATH_SEP (*p))
         {
             char *tmp;
 
@@ -328,11 +325,9 @@ undelfs_loaddel (void)
   error_out:
     ext2fs_close_inode_scan (scan);
   free_block_buf:
-    g_free (block_buf);
-    block_buf = NULL;
+    MC_PTR_FREE (block_buf);
   free_delarray:
-    g_free (delarray);
-    delarray = NULL;
+    MC_PTR_FREE (delarray);
     return 0;
 }
 
@@ -373,13 +368,13 @@ undelfs_opendir (const vfs_path_t * vpath)
         message (D_ERROR, undelfserr, _("Cannot open file %s"), ext2_fname);
         return 0;
     }
-    vfs_print_message (_("undelfs: reading inode bitmap..."));
+    vfs_print_message ("%s", _("undelfs: reading inode bitmap..."));
     if (ext2fs_read_inode_bitmap (fs))
     {
         message (D_ERROR, undelfserr, _("Cannot load inode bitmap from:\n%s"), ext2_fname);
         goto quit_opendir;
     }
-    vfs_print_message (_("undelfs: reading block bitmap..."));
+    vfs_print_message ("%s", _("undelfs: reading block bitmap..."));
     if (ext2fs_read_block_bitmap (fs))
     {
         message (D_ERROR, undelfserr, _("Cannot load block bitmap from:\n%s"), ext2_fname);
@@ -418,8 +413,6 @@ undelfs_readdir (void *vfs_info)
         g_snprintf (dirent_dest, MC_MAXPATHLEN, "%ld:%d",
                     (long) delarray[readdir_ptr].ino, delarray[readdir_ptr].num_blocks);
     readdir_ptr++;
-
-    compute_namelen (&undelfs_readdir_data.dent);
 
     return &undelfs_readdir_data;
 }

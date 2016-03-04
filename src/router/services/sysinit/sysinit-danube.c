@@ -214,8 +214,8 @@ void start_sysinit(void)
 
 		strncpy(ifr.ifr_name, "eth0", IFNAMSIZ);
 		ioctl(s, SIOCGIFHWADDR, &ifr);
-		nvram_set("et0macaddr", ether_etoa((unsigned char *)ifr.ifr_hwaddr.sa_data, eabuf));
-		nvram_set("et0macaddr_safe", ether_etoa((unsigned char *)ifr.ifr_hwaddr.sa_data, eabuf));
+		nvram_set("et0macaddr", ether_etoa((char *)ifr.ifr_hwaddr.sa_data, eabuf));
+		nvram_set("et0macaddr_safe", ether_etoa((char *)ifr.ifr_hwaddr.sa_data, eabuf));
 		close(s);
 	}
 #ifdef HAVE_WMBR_G300NH
@@ -241,21 +241,13 @@ void start_sysinit(void)
 	writeproc("/proc/sys/dev/wifi0/softled", "1");
 
 #endif
-	led_control(LED_POWER, LED_ON);
-	led_control(LED_SES, LED_OFF);
-	led_control(LED_SES2, LED_OFF);
-	led_control(LED_DIAG, LED_OFF);
-	led_control(LED_BRIDGE, LED_OFF);
-	led_control(LED_WLAN0, LED_OFF);
-	led_control(LED_WLAN1, LED_OFF);
-	led_control(LED_CONNECTED, LED_OFF);
 	set_gpio(1, 0);
 	set_gpio(18, 0);
 
-	system("swconfig dev eth0 set reset 1");
-	system("swconfig dev eth0 set enable_vlan 0");
-	system("swconfig dev eth0 vlan 1 set ports \"0 1 2 3 4 5\"");
-	system("swconfig dev eth0 set apply");
+	eval("swconfig", "dev", "eth0", "set", "reset", "1");
+	eval("swconfig", "dev", "eth0", "set", "enable_vlan", "0");
+	eval("swconfig", "dev", "eth0", "vlan", "1", "set", "ports", "0 1 2 3 4 5");
+	eval("swconfig", "dev", "eth0", "set", "apply");
 #endif
 #ifdef HAVE_SX763
 	char mac[18];

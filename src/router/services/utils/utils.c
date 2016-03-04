@@ -40,11 +40,9 @@
 
 void getLANMac(char *newmac)
 {
-	if (getRouterBrand() == ROUTER_ASUS_AC87U) {
-		strcpy(newmac, nvram_safe_get("et1macaddr"));
-	} else {
-		strcpy(newmac, nvram_safe_get("et0macaddr"));
-	}
+
+	getSystemMac(newmac);
+
 #ifndef HAVE_BUFFALO
 
 	if (nvram_match("port_swap", "1")) {
@@ -73,57 +71,57 @@ void getWirelessMac(char *newmac, int instance)
 #else
 	if (instance < 0)
 		instance = 0;
-	// if (strlen(nvram_safe_get ("il0macaddr")) != 0)
-	// {
-	// strcpy (newmac, nvram_safe_get ("il0macaddr"));
-	// }
-	// else
-	{
-		if (nvram_match("port_swap", "1")) {
-			if (strlen(nvram_safe_get("et1macaddr")) != 0)	// safe:
-				// maybe
-				// et1macaddr 
-				// not there?
-			{
-				strcpy(newmac, nvram_safe_get("et1macaddr"));
-				MAC_ADD(newmac);	// et1macaddr +2
-				MAC_ADD(newmac);
-			} else {
-				strcpy(newmac, nvram_safe_get("et0macaddr"));
-				MAC_ADD(newmac);	// et0macaddr +3
-				MAC_ADD(newmac);
-				MAC_ADD(newmac);
-			}
+
+	if (nvram_match("port_swap", "1")) {
+		if (strlen(nvram_safe_get("et1macaddr")) != 0)	// safe:
+			// maybe
+			// et1macaddr 
+			// not there?
+		{
+			strcpy(newmac, nvram_safe_get("et1macaddr"));
+			MAC_ADD(newmac);	// et1macaddr +2
+			MAC_ADD(newmac);
 		} else {
-
-			if (getRouterBrand() == ROUTER_ASUS_AC87U) {
-				strcpy(newmac, nvram_safe_get("et1macaddr"));
-				MAC_ADD(newmac);	// et0macaddr +2
-				MAC_ADD(newmac);
-				if (instance)
-					MAC_ADD(newmac);
-			} else if (getRouterBrand() != ROUTER_ASUS_AC66U) {
-				char *et0 = nvram_get("et0macaddr");
-				strcpy(newmac, nvram_safe_get("et0macaddr"));
-				MAC_ADD(newmac);	// et0macaddr +2
-				MAC_ADD(newmac);
-				if (instance)
-					MAC_ADD(newmac);
-			} else {
-				switch (instance) {
-				case 0:
-					strcpy(newmac, nvram_safe_get("pci/1/1/macaddr"));
-					break;
-				case 1:
-					strcpy(newmac, nvram_safe_get("pci/2/1/macaddr"));
-					break;
-
-				}
+			strcpy(newmac, nvram_safe_get("et0macaddr"));
+			MAC_ADD(newmac);	// et0macaddr +3
+			MAC_ADD(newmac);
+			MAC_ADD(newmac);
+		}
+	} else {
+		if (getRouterBrand() == ROUTER_ASUS_AC66U) {
+			switch (instance) {
+			case 0:
+				strcpy(newmac, nvram_safe_get("pci/1/1/macaddr"));
+				break;
+			case 1:
+				strcpy(newmac, nvram_safe_get("pci/2/1/macaddr"));
+				break;
 
 			}
+
+		} else {
+			getSystemMac(newmac);
+			MAC_ADD(newmac);	// et0macaddr +2
+			MAC_ADD(newmac);
+			if (instance > 0)
+				MAC_ADD(newmac);
+			if (instance > 1)
+				MAC_ADD(newmac);
 
 		}
+
 	}
+#endif
+#if defined(HAVE_MVEBU) || defined(HAVE_IPQ806X)
+/* NOTE: this is a workaround for EA8500 Device and might generate wrong macs for other IPQ devices. custom handling might be required here */
+	if (instance < 0)
+		instance = 0;
+
+	strcpy(newmac, nvram_safe_get("et0macaddr"));
+	MAC_ADD(newmac);
+	MAC_ADD(newmac);
+	if (instance)
+		MAC_ADD(newmac);
 #endif
 	return;
 }
@@ -152,11 +150,8 @@ void getWANMac(char *newmac)
 		return;
 	}
 #endif
-	if (getRouterBrand() == ROUTER_ASUS_AC87U) {
-		strcpy(newmac, nvram_safe_get("et1macaddr"));
-	} else {
-		strcpy(newmac, nvram_safe_get("et0macaddr"));
-	}
+	getSystemMac(newmac);
+
 #if !defined(HAVE_BUFFALO) && !defined(HAVE_WZRG300NH) && !defined(HAVE_WHRHPGN)
 	if (getRouterBrand() != ROUTER_ASUS_AC66U) {
 		if (nvram_invmatch("wan_proto", "disabled")) {

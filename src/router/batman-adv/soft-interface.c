@@ -585,6 +585,11 @@ static void batadv_softif_free(struct net_device *dev)
 	free_netdev(dev);
 }
 
+#ifndef SET_ETHTOOL_OPS
+					/* source back-compat hooks */
+#define SET_ETHTOOL_OPS(netdev,ops) \
+	( (netdev)->ethtool_ops = (ops) )
+#endif
 /**
  * batadv_softif_init_early - early stage initialization of soft interface
  * @dev: registered network device to modify
@@ -614,12 +619,19 @@ static void batadv_softif_init_early(struct net_device *dev)
 	memset(priv, 0, sizeof(*priv));
 }
 
+#if LINUX_VERSION_CODE > KERNEL_VERSION(3,16,0)
+typedef struct ctl_table ctl_table;
+#define m_alloc_netdev(a,b,c) alloc_netdev(a,b,NET_NAME_UNKNOWN, c)
+#else
+#define m_alloc_netdev alloc_netdev
+#endif
+
 struct net_device *batadv_softif_create(const char *name)
 {
 	struct net_device *soft_iface;
 	int ret;
 
-	soft_iface = alloc_netdev(sizeof(struct batadv_priv), name,
+	soft_iface = m_alloc_netdev(sizeof(struct batadv_priv), name,
 				  batadv_softif_init_early);
 	if (!soft_iface)
 		return NULL;

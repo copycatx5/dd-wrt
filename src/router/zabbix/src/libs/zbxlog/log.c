@@ -1,6 +1,6 @@
 /*
 ** Zabbix
-** Copyright (C) 2001-2013 Zabbix SIA
+** Copyright (C) 2001-2015 Zabbix SIA
 **
 ** This program is free software; you can redistribute it and/or modify
 ** it under the terms of the GNU General Public License as published by
@@ -29,7 +29,7 @@ static HANDLE		system_log_handle = INVALID_HANDLE_VALUE;
 
 static char		log_filename[MAX_STRING_LEN];
 static int		log_type = LOG_TYPE_UNDEFINED;
-static ZBX_MUTEX	log_file_access;
+static ZBX_MUTEX	log_file_access = ZBX_MUTEX_NULL;
 #ifdef DEBUG
 static int		log_level = LOG_LEVEL_DEBUG;
 #else
@@ -37,6 +37,10 @@ static int		log_level = LOG_LEVEL_WARNING;
 #endif
 
 #define ZBX_MESSAGE_BUF_SIZE	1024
+
+#define ZBX_CHECK_LOG_LEVEL(level)	\
+		((LOG_LEVEL_INFORMATION != level && (level > log_level || LOG_LEVEL_EMPTY == level)) ? FAIL : SUCCEED)
+
 
 #if !defined(_WINDOWS)
 void	redirect_std(const char *filename)
@@ -97,7 +101,7 @@ int zabbix_open_log(int type, int level, const char *filename)
 		system_log_handle = RegisterEventSource(NULL, wevent_source);
 		zbx_free(wevent_source);
 #else
-		openlog(title_message, LOG_PID, LOG_DAEMON);
+		openlog(syslog_app_name, LOG_PID, LOG_DAEMON);
 #endif
 	}
 	else if (LOG_TYPE_FILE == type)
@@ -192,6 +196,21 @@ void zabbix_errlog(zbx_err_codes_t err, ...)
 	zbx_free(s);
 }
 
+/******************************************************************************
+ *                                                                            *
+ * Function: zabbix_check_log_level                                           *
+ *                                                                            *
+ * Purpose: checks if the specified log level must be logged                  *
+ *                                                                            *
+ * Return value: SUCCEED - the log level must be logged                       *
+ *               FAIL    - otherwise                                          *
+ *                                                                            *
+ ******************************************************************************/
+int zabbix_check_log_level(int level)
+{
+	return ZBX_CHECK_LOG_LEVEL(level);
+}
+
 void __zbx_zabbix_log(int level, const char *fmt, ...)
 {
 	FILE			*log_file = NULL;
@@ -200,7 +219,7 @@ void __zbx_zabbix_log(int level, const char *fmt, ...)
 	static zbx_uint64_t	old_size = 0;
 	va_list			args;
 	struct tm		*tm;
-	struct stat		buf;
+	zbx_stat_t		buf;
 #ifdef _WINDOWS
 	struct _timeb		current_time;
 	WORD			wType;
@@ -209,14 +228,14 @@ void __zbx_zabbix_log(int level, const char *fmt, ...)
 	struct timeval		current_time;
 #endif
 
-	if (LOG_LEVEL_INFORMATION != level && (level > log_level || LOG_LEVEL_EMPTY == level))
+	if (SUCCEED != ZBX_CHECK_LOG_LEVEL(level))
 		return;
 
 	if (LOG_TYPE_FILE == log_type)
 	{
 		zbx_mutex_lock(&log_file_access);
 
-		if (0 != CONFIG_LOG_FILE_SIZE && 0 == stat(log_filename, &buf))
+		if (0 != CONFIG_LOG_FILE_SIZE && 0 == zbx_stat(log_filename, &buf))
 		{
 			if (CONFIG_LOG_FILE_SIZE * ZBX_MEBIBYTE < buf.st_size)
 			{
@@ -349,7 +368,7 @@ void __zbx_zabbix_log(int level, const char *fmt, ...)
 			0,
 			MSG_ZABBIX_MESSAGE,
 			NULL,
-			sizeof(*strings)-1,
+			sizeof(strings) / sizeof(*strings),
 			0,
 			strings,
 			NULL);
@@ -433,7 +452,8 @@ char *strerror_from_system(unsigned long error)
 
 	offset += zbx_snprintf(utf8_string, sizeof(utf8_string), "[0x%08lX] ", error);
 
-	if (0 == FormatMessage(FORMAT_MESSAGE_FROM_SYSTEM, NULL, error,
+	/* we don't know the inserts so we pass NULL and enable appropriate flag */
+	if (0 == FormatMessage(FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS, NULL, error,
 			MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), wide_string, sizeof(wide_string), NULL))
 	{
 		zbx_snprintf(utf8_string + offset, sizeof(utf8_string) - offset,
@@ -458,17 +478,16 @@ char	*strerror_from_module(unsigned long error, LPCTSTR module)
 	size_t		offset = 0;
 	TCHAR		wide_string[ZBX_MESSAGE_BUF_SIZE];
 	static char	utf8_string[ZBX_MESSAGE_BUF_SIZE];	/* !!! Attention: static !!! not thread-safe for Win32 */
-	char		*strings[2];
 	HMODULE		hmodule;
 
-	memset(strings, 0, sizeof(char *) * 2);
 	*utf8_string = '\0';
 	hmodule = GetModuleHandle(module);
 
 	offset += zbx_snprintf(utf8_string, sizeof(utf8_string), "[0x%08lX] ", error);
 
-	if (0 == FormatMessage(FORMAT_MESSAGE_FROM_HMODULE | FORMAT_MESSAGE_ARGUMENT_ARRAY, hmodule, error,
-			MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), wide_string, sizeof(wide_string), strings))
+	/* we don't know the inserts so we pass NULL and enable appropriate flag */
+	if (0 == FormatMessage(FORMAT_MESSAGE_FROM_HMODULE | FORMAT_MESSAGE_IGNORE_INSERTS, hmodule, error,
+			MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), wide_string, sizeof(wide_string), NULL))
 	{
 		zbx_snprintf(utf8_string + offset, sizeof(utf8_string) - offset,
 				"unable to find message text: %s", strerror_from_system(GetLastError()));

@@ -34,9 +34,8 @@
 #define IF_ZEBRA_MULTICAST_OFF    2
 
 /* For interface shutdown configuration. */
-#define IF_ZEBRA_SHUTDOWN_UNSPEC 0
+#define IF_ZEBRA_SHUTDOWN_OFF    0
 #define IF_ZEBRA_SHUTDOWN_ON     1
-#define IF_ZEBRA_SHUTDOWN_OFF    2
 
 /* Router advertisement feature. */
 #if (defined(LINUX_IPV6) && (defined(__GLIBC__) && __GLIBC__ >= 2 && __GLIBC_MINOR__ >= 1)) || defined(KAME)
@@ -236,9 +235,5 @@ extern int interface_list_proc (void);
 #ifdef HAVE_PROC_NET_IF_INET6
 extern int ifaddr_proc_ipv6 (void);
 #endif /* HAVE_PROC_NET_IF_INET6 */
-
-#ifdef BSDI
-extern int if_kvm_get_mtu (struct interface *);
-#endif /* BSDI */
 
 #endif /* _ZEBRA_INTERFACE_H */

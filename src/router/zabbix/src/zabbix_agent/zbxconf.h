@@ -1,6 +1,6 @@
 /*
 ** Zabbix
-** Copyright (C) 2001-2013 Zabbix SIA
+** Copyright (C) 2001-2015 Zabbix SIA
 **
 ** This program is free software; you can redistribute it and/or modify
 ** it under the terms of the GNU General Public License as published by
@@ -23,6 +23,8 @@
 extern char	*CONFIG_HOSTS_ALLOWED;
 extern char	*CONFIG_HOSTNAME;
 extern char	*CONFIG_HOSTNAME_ITEM;
+extern char	*CONFIG_HOST_METADATA;
+extern char	*CONFIG_HOST_METADATA_ITEM;
 extern int	CONFIG_ENABLE_REMOTE_COMMANDS;
 extern int	CONFIG_UNSAFE_USER_PARAMETERS;
 extern int	CONFIG_LISTEN_PORT;
@@ -32,6 +34,8 @@ extern int	CONFIG_LOG_LEVEL;
 extern int	CONFIG_MAX_LINES_PER_SECOND;
 extern char	**CONFIG_ALIASES;
 extern char	**CONFIG_USER_PARAMETERS;
+extern char	*CONFIG_LOAD_MODULE_PATH;
+extern char	**CONFIG_LOAD_MODULE;
 #ifdef _WINDOWS
 extern char	**CONFIG_PERF_COUNTERS;
 #endif

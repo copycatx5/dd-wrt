@@ -1,6 +1,6 @@
 /*
 ** Zabbix
-** Copyright (C) 2001-2013 Zabbix SIA
+** Copyright (C) 2001-2015 Zabbix SIA
 **
 ** This program is free software; you can redistribute it and/or modify
 ** it under the terms of the GNU General Public License as published by
@@ -30,8 +30,9 @@ typedef struct zbx_alias
 }
 ALIAS;
 
-void	add_alias(const char *name, const char *value);
-void	alias_list_free();
-void	alias_expand(const char *orig, char *expanded, size_t exp_buf_len);
+void		test_aliases();
+void		add_alias(const char *name, const char *value);
+void		alias_list_free();
+const char	*zbx_alias_get(const char *orig);
 
 #endif	/* ZABBIX_ALIAS_H */

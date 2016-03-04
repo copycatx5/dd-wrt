@@ -1,7 +1,7 @@
 /*
    Editor text drawing.
 
-   Copyright (C) 1996-2014
+   Copyright (C) 1996-2015
    Free Software Foundation, Inc.
 
    Written by:
@@ -119,10 +119,10 @@ status_string (WEdit * edit, char *s, int w)
         if (edit->utf8)
         {
             unsigned int cur_utf = 0;
-            int cw = 1;
+            int char_length = 1;
 
-            cur_utf = edit_buffer_get_utf (&edit->buffer, edit->buffer.curs1, &cw);
-            if (cw > 0)
+            cur_utf = edit_buffer_get_utf (&edit->buffer, edit->buffer.curs1, &char_length);
+            if (char_length > 0)
             {
                 g_snprintf (byte_str, sizeof (byte_str), "%04d 0x%03X",
                             (unsigned) cur_utf, (unsigned) cur_utf);
@@ -210,7 +210,12 @@ edit_status_fullscreen (WEdit * edit, int color)
     status_len = (int) str_term_width1 (status);
 
     if (edit->filename_vpath != NULL)
-        fname = x_basename (vfs_path_get_last_path_str (edit->filename_vpath));
+    {
+        fname = vfs_path_get_last_path_str (edit->filename_vpath);
+
+        if (!option_state_full_filename)
+            fname = x_basename (fname);
+    }
 
     fname_len = str_term_width1 (fname);
     if (fname_len < preferred_fname_len)
@@ -232,10 +237,9 @@ edit_status_fullscreen (WEdit * edit, int color)
 
     if (simple_statusbar && w > EDITOR_MINIMUM_TERMINAL_WIDTH)
     {
-        size_t percent = 100;
+        int percent;
 
-        if (edit->buffer.lines + 1 != 0)
-            percent = (edit->buffer.curs_line + 1) * 100 / (edit->buffer.lines + 1);
+        percent = edit_buffer_calc_percent (&edit->buffer, edit->buffer.curs1);
         widget_move (h, 0, w - 6 - 6);
         tty_printf (" %3d%%", percent);
     }
@@ -265,7 +269,10 @@ edit_status_window (WEdit * edit)
 
         if (edit->filename_vpath != NULL)
         {
-            fname = x_basename (vfs_path_as_str (edit->filename_vpath));
+            fname = vfs_path_get_last_path_str (edit->filename_vpath);
+
+            if (!option_state_full_filename)
+                fname = x_basename (fname);
         }
 #ifdef ENABLE_NLS
         else
@@ -311,10 +318,10 @@ edit_status_window (WEdit * edit)
         else if (edit->utf8)
         {
             unsigned int cur_utf;
-            int cw = 1;
+            int char_length = 1;
 
-            cur_utf = edit_buffer_get_utf (&edit->buffer, edit->buffer.curs1, &cw);
-            if (cw <= 0)
+            cur_utf = edit_buffer_get_utf (&edit->buffer, edit->buffer.curs1, &char_length);
+            if (char_length <= 0)
                 cur_utf = edit_buffer_get_current_byte (&edit->buffer);
             tty_printf ("[%05d 0x%04X]", cur_utf, cur_utf);
         }
@@ -579,7 +586,7 @@ edit_draw_this_line (WEdit * edit, off_t b, long row, long start_col, long end_c
 
             while (col <= end_col - edit->start_col)
             {
-                int cw = 1;
+                int char_length = 1;
                 unsigned int c;
                 gboolean wide_width_char = FALSE;
                 gboolean control_char = FALSE;
@@ -611,7 +618,7 @@ edit_draw_this_line (WEdit * edit, off_t b, long row, long start_col, long end_c
 
 #ifdef HAVE_CHARSET
                 if (edit->utf8)
-                    c = edit_buffer_get_utf (&edit->buffer, q, &cw);
+                    c = edit_buffer_get_utf (&edit->buffer, q, &char_length);
                 else
 #endif
                     c = edit_buffer_get_byte (&edit->buffer, q);
@@ -800,10 +807,8 @@ edit_draw_this_line (WEdit * edit, off_t b, long row, long start_col, long end_c
                 }               /* case */
 
                 q++;
-                if (cw > 1)
-                {
-                    q += cw - 1;
-                }
+                if (char_length > 1)
+                    q += char_length - 1;
 
                 if (col > (end_col - edit->start_col + 1))
                 {
@@ -907,7 +912,8 @@ render_edit_text (WEdit * edit, long start_row, long start_column, long end_row,
      */
     if ((force & REDRAW_CHAR_ONLY) == 0 || (force & REDRAW_PAGE) != 0)
     {
-        long row, b;
+        long row = 0;
+        long b;
 
         if ((force & REDRAW_PAGE) != 0)
         {

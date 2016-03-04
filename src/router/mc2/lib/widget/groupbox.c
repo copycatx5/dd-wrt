@@ -1,7 +1,7 @@
 /*
    Widgets for the Midnight Commander
 
-   Copyright (C) 1994-2014
+   Copyright (C) 1994-2015
    Free Software Foundation, Inc.
 
    Authors:
@@ -39,6 +39,7 @@
 #include "lib/tty/tty.h"
 #include "lib/tty/color.h"
 #include "lib/skin.h"
+#include "lib/util.h"
 #include "lib/widget.h"
 
 /*** global variables ****************************************************************************/
@@ -66,18 +67,18 @@ groupbox_callback (Widget * w, Widget * sender, widget_msg_t msg, int parm, void
 
     case MSG_DRAW:
         {
+            WDialog *h = w->owner;
+
             gboolean disabled;
 
             disabled = (w->options & W_DISABLED) != 0;
-            tty_setcolor (disabled ? DISABLED_COLOR : COLOR_NORMAL);
+            tty_setcolor (disabled ? DISABLED_COLOR : h->color[DLG_COLOR_NORMAL]);
             tty_draw_box (w->y, w->x, w->lines, w->cols, TRUE);
 
             if (g->title != NULL)
             {
-                Widget *wo = WIDGET (w->owner);
-
-                tty_setcolor (disabled ? DISABLED_COLOR : COLOR_TITLE);
-                widget_move (wo, w->y - wo->y, w->x - wo->x + 1);
+                tty_setcolor (disabled ? DISABLED_COLOR : h->color[DLG_COLOR_TITLE]);
+                widget_move (w, 0, 1);
                 tty_print_string (g->title);
             }
             return MSG_HANDLED;
@@ -120,8 +121,7 @@ groupbox_new (int y, int x, int height, int width, const char *title)
 void
 groupbox_set_title (WGroupbox * g, const char *title)
 {
-    g_free (g->title);
-    g->title = NULL;
+    MC_PTR_FREE (g->title);
 
     /* Strip existing spaces, add one space before and after the title */
     if (title != NULL && *title != '\0')

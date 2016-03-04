@@ -67,7 +67,7 @@ static uint32_t msg_buffer_aligned[(MAXMESSAGESIZE - OLSR_HEADERSIZE) / sizeof(u
 static unsigned char *const msg_buffer = (unsigned char *)msg_buffer_aligned;
 
 static void
-create_lq_hello(struct lq_hello_message *lq_hello, struct interface *outif)
+create_lq_hello(struct lq_hello_message *lq_hello, struct interface_olsr *outif)
 {
   struct link_entry *walker;
 
@@ -150,7 +150,7 @@ destroy_lq_hello(struct lq_hello_message *lq_hello)
 }
 
 static void
-create_lq_tc(struct lq_tc_message *lq_tc, struct interface *outif)
+create_lq_tc(struct lq_tc_message *lq_tc, struct interface_olsr *outif)
 {
   struct link_entry *lnk;
   struct neighbor_entry *walker;
@@ -322,7 +322,7 @@ serialize_common(struct olsr_common *comm)
 }
 
 static void
-serialize_lq_hello(struct lq_hello_message *lq_hello, struct interface *outif)
+serialize_lq_hello(struct lq_hello_message *lq_hello, struct interface_olsr *outif)
 {
   static const int LINK_ORDER[] = { SYM_LINK, UNSPEC_LINK, ASYM_LINK, LOST_LINK };
   int rem, size, req, expected_size = 0;
@@ -360,8 +360,8 @@ serialize_lq_hello(struct lq_hello_message *lq_hello, struct interface *outif)
   /*
    * Initially, we want to put the complete lq_hello into the message.
    * For this flush the output buffer (if there are some bytes in).
-   * This is a hack/fix, which prevents message fragementation resulting
-   * in instable links. The ugly lq/genmsg code should be reworked anyhow.
+   * This is a hack/fix, which prevents message fragmentation resulting
+   * in unstable links. The ugly lq/genmsg code should be reworked anyhow.
    */
   if (0 < net_output_pending(outif)) {
     for (i = 0; i <= MAX_NEIGH; i++) {
@@ -408,7 +408,7 @@ serialize_lq_hello(struct lq_hello_message *lq_hello, struct interface *outif)
         req = olsr_cnf->ipsize + olsr_sizeof_hello_lqdata();
 
         // no, we also need space for an info header, as this is the
-        // first neighbor with the current neighor type and link type
+        // first neighbor with the current neighbor type and link type
 
         if (is_first)
           req += sizeof(struct lq_hello_info_header);
@@ -513,7 +513,7 @@ calculate_border_flag(void *lower_border, void *higher_border)
 }
 
 static void
-serialize_lq_tc(struct lq_tc_message *lq_tc, struct interface *outif)
+serialize_lq_tc(struct lq_tc_message *lq_tc, struct interface_olsr *outif)
 {
   int off, rem, size, expected_size = 0;
   struct lq_tc_header *head;
@@ -552,8 +552,8 @@ serialize_lq_tc(struct lq_tc_message *lq_tc, struct interface *outif)
   /*
    * Initially, we want to put the complete lq_tc into the message.
    * For this flush the output buffer (if there are some bytes in).
-   * This is a hack/fix, which prevents message fragementation resulting
-   * in instable links. The ugly lq/genmsg code should be reworked anyhow.
+   * This is a hack/fix, which prevents message fragmentation resulting
+   * in unstable links. The ugly lq/genmsg code should be reworked anyhow.
    */
   if (0 < net_output_pending(outif)) {
     for (neigh = lq_tc->neigh; neigh != NULL; neigh = neigh->next) {
@@ -622,7 +622,7 @@ void
 olsr_output_lq_hello(void *para)
 {
   struct lq_hello_message lq_hello;
-  struct interface *outif = para;
+  struct interface_olsr *outif = para;
 
   if (outif == NULL) {
     return;
@@ -651,7 +651,7 @@ olsr_output_lq_tc(void *para)
 {
   static int prev_empty = 1;
   struct lq_tc_message lq_tc;
-  struct interface *outif = para;
+  struct interface_olsr *outif = para;
 
   if (outif == NULL) {
     return;

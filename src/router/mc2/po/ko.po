@@ -8,10 +8,10 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Midnight Commander\n"
 "Report-Msgid-Bugs-To: http://www.midnight-commander.org/\n"
-"POT-Creation-Date: 2014-04-01 14:47+0300\n"
-"PO-Revision-Date: 2014-02-19 09:12+0000\n"
-"Last-Translator: aborodin <aborodin@vmail.ru>\n"
-"Language-Team: Korean (http://www.transifex.com/projects/p/mc/language/ko/)\n"
+"POT-Creation-Date: 2015-11-06 14:43+0300\n"
+"PO-Revision-Date: 2015-06-04 08:38+0000\n"
+"Last-Translator: Piotr Drąg <piotrdrag@gmail.com>\n"
+"Language-Team: Korean (http://www.transifex.com/mc/mc/language/ko/)\n"
 "Language: ko\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
@@ -336,6 +336,9 @@ msgstr "아포스트로피"
 msgid "Colon"
 msgstr "콜론"
 
+msgid "Semicolon"
+msgstr ""
+
 msgid "Exclamation mark"
 msgstr "느낌표"
 
@@ -432,6 +435,27 @@ msgstr ""
 "화면크기 %dx%d은(는) 지원되지 않습니다.\n"
 "TERM 환경변수를 확인해 보세요.\n"
 
+msgid "Cannot create pipe descriptor"
+msgstr ""
+
+msgid "Cannot parse command for pipe"
+msgstr ""
+
+msgid "Cannot create pipe streams"
+msgstr ""
+
+#, c-format
+msgid ""
+"Unexpected error in select() reading data from a child process:\n"
+"%s"
+msgstr ""
+
+#, c-format
+msgid ""
+"Unexpected error in waitpid():\n"
+"%s"
+msgstr ""
+
 msgid "Warning"
 msgstr "경고"
 
@@ -448,7 +472,15 @@ msgstr "Error dup'ing old error pipe"
 msgid "Directory cache expired for %s"
 msgstr "%s 디렉터리 캐쉬 만료"
 
+#, c-format
+msgid "%s: %s: %s %3d%% %<PRIuMAX> %s"
+msgstr ""
+
 msgid "bytes transferred"
+msgstr ""
+
+#, c-format
+msgid "%s: %s: %s %<PRIuMAX> %s"
 msgstr ""
 
 msgid "Starting linear transfer..."
@@ -530,6 +562,13 @@ msgstr "배경 프로세스:"
 
 msgid "Error"
 msgstr "에러"
+
+#, c-format
+msgid "%d: %s"
+msgstr ""
+
+msgid "&Abort"
+msgstr "중단(&A)"
 
 msgid "Displays the current version"
 msgstr "현재 버전 출력"
@@ -624,7 +663,7 @@ msgid ""
 "   Editor:       editnormal, editbold, editmarked, editwhitespace,\n"
 "                 editlinestate, editbg, editframe, editframeactive\n"
 "                 editframedrag\n"
-"   Viewer:       viewbold, viewunderline, viewselected\n"
+"   Viewer:       viewnormal,viewbold, viewunderline, viewselected\n"
 "   Help:         helpnormal, helpitalic, helpbold, helplink, helpslink\n"
 msgstr ""
 
@@ -639,7 +678,7 @@ msgid ""
 "   color16 to color255, or rgb000 to rgb555 and gray0 to gray23\n"
 "\n"
 "Attributes:\n"
-"   bold, underline, reverse, blink; append more with '+'\n"
+"   bold, italic, underline, reverse, blink; append more with '+'\n"
 msgstr ""
 
 msgid "Color options"
@@ -676,8 +715,14 @@ msgstr ""
 msgid "No arguments given to the viewer."
 msgstr ""
 
-msgid "Two files are required to evoke the diffviewer."
+msgid "Two files are required to envoke the diffviewer."
 msgstr ""
+
+msgid "Background protocol error"
+msgstr ""
+
+msgid "Reading failed"
+msgstr "읽기 실패함"
 
 msgid "Background process error"
 msgstr ""
@@ -687,12 +732,6 @@ msgstr ""
 
 msgid "Child died unexpectedly"
 msgstr ""
-
-msgid "Background protocol error"
-msgstr ""
-
-msgid "Reading failed"
-msgstr "읽기 실패함"
 
 msgid ""
 "Background process sent us a request for more arguments\n"
@@ -848,7 +887,17 @@ msgid "< Reload Current Syntax >"
 msgstr "<현재 구문 새로 고침>"
 
 #, c-format
+msgid "Loading: %3d%%"
+msgstr ""
+
+msgid "Loading..."
+msgstr ""
+
+#, c-format
 msgid "Cannot open %s for reading"
+msgstr ""
+
+msgid "Load file"
 msgstr ""
 
 #, c-format
@@ -877,6 +926,14 @@ msgstr ""
 msgid "Cannot open pipe for reading: %s"
 msgstr ""
 
+#, c-format
+msgid "Searching %s: %3d%%"
+msgstr ""
+
+#, c-format
+msgid "Searching %s"
+msgstr "%s 찾는 중"
+
 msgid "File has hard-links. Detach before saving?"
 msgstr ""
 
@@ -895,9 +952,8 @@ msgstr ""
 msgid "Cannot open file for writing: %s"
 msgstr ""
 
-#, fuzzy
 msgid "The file you are saving does not end with a newline."
-msgstr "줄 바꿈과 완료되지 않은 파일을 저장 중 입니다."
+msgstr ""
 
 msgid "C&ontinue"
 msgstr "계속(&O)"
@@ -924,6 +980,9 @@ msgid "Save As"
 msgstr ""
 
 msgid "Block is large, you may not be able to undo this action"
+msgstr ""
+
+msgid "Collect completions"
 msgstr ""
 
 msgid "&Quick save"
@@ -1445,7 +1504,7 @@ msgid ""
 "written for the Midnight Commander."
 msgstr ""
 
-msgid "Copyright (C) 1996-2014 the Free Software Foundation"
+msgid "Copyright (C) 1996-2015 the Free Software Foundation"
 msgstr ""
 
 msgid "About"
@@ -1474,6 +1533,78 @@ msgstr "ButtonBar|삭제"
 
 msgid "ButtonBar|PullDn"
 msgstr "ButtonBar|풀다운"
+
+msgid "Breton"
+msgstr ""
+
+msgid "Czech"
+msgstr ""
+
+msgid "Welsh"
+msgstr ""
+
+msgid "Danish"
+msgstr ""
+
+msgid "German"
+msgstr ""
+
+msgid "Greek"
+msgstr ""
+
+msgid "English"
+msgstr ""
+
+msgid "British English"
+msgstr ""
+
+msgid "Canadian English"
+msgstr ""
+
+msgid "American English"
+msgstr ""
+
+msgid "Esperanto"
+msgstr ""
+
+msgid "Spanish"
+msgstr ""
+
+msgid "Faroese"
+msgstr ""
+
+msgid "French"
+msgstr ""
+
+msgid "Italian"
+msgstr ""
+
+msgid "Dutch"
+msgstr ""
+
+msgid "Norwegian"
+msgstr ""
+
+msgid "Polish"
+msgstr ""
+
+msgid "Portuguese"
+msgstr ""
+
+msgid "Romanian"
+msgstr ""
+
+msgid "Russian"
+msgstr ""
+
+msgid "Slovak"
+msgstr ""
+
+msgid "Swedish"
+msgstr ""
+
+msgid "Ukrainian"
+msgstr ""
 
 msgid "&Add word"
 msgstr ""
@@ -1560,6 +1691,12 @@ msgid ""
 "%s"
 msgstr ""
 
+msgid "< Default >"
+msgstr ""
+
+msgid "Skins"
+msgstr ""
+
 msgid "Other 8 bit"
 msgstr "다른 8 비트"
 
@@ -1644,12 +1781,6 @@ msgstr ""
 msgid "Configure options"
 msgstr "환경설정 선택항목"
 
-msgid "< Default >"
-msgstr ""
-
-msgid "Skins"
-msgstr ""
-
 msgid "Skin:"
 msgstr ""
 
@@ -1732,14 +1863,17 @@ msgstr ""
 msgid "&Full file list"
 msgstr "전체 보여주기(&F)"
 
-msgid "&Brief file list"
-msgstr "간단히 보여주기(&B)"
+msgid "&Brief file list:"
+msgstr ""
 
 msgid "&Long file list"
 msgstr "길게 보여주기(&L)"
 
 msgid "&User defined:"
 msgstr "사용자 정의(&U):"
+
+msgid "columns"
+msgstr ""
 
 msgid "User &mini status"
 msgstr ""
@@ -1977,15 +2111,6 @@ msgstr ""
 msgid "Set expression for filtering filenames"
 msgstr ""
 
-msgid "&Files only"
-msgstr "크기로만(&F)"
-
-msgid "&Using shell patterns"
-msgstr "명령해석기 패턴 사용(&U)"
-
-msgid "&Case sensitive"
-msgstr "대소문자 구분(&C)"
-
 #, c-format
 msgid "Link %s to:"
 msgstr "링크 %s 로:"
@@ -2024,12 +2149,6 @@ msgid "Create a new Directory"
 msgstr "새로운 디렉터리를 만들기"
 
 msgid "Enter directory name:"
-msgstr ""
-
-msgid "Select"
-msgstr ""
-
-msgid "Unselect"
 msgstr ""
 
 msgid "Extension file edit"
@@ -2110,6 +2229,9 @@ msgid ""
 "Enter device (without /dev/) to undelete\n"
 "files on: (F1 for details)"
 msgstr ""
+
+msgid "Directory scanning"
+msgstr "디렉터리 경로"
 
 msgid "Setup"
 msgstr ""
@@ -2229,9 +2351,6 @@ msgid ""
 "Cannot create target symlink \"%s\"\n"
 "%s"
 msgstr ""
-
-msgid "&Abort"
-msgstr "중단(&A)"
 
 msgid "Ski&p all"
 msgstr ""
@@ -2449,13 +2568,8 @@ msgid ""
 "%s"
 msgstr ""
 
-msgid "Directory scanning"
-msgstr "디렉터리 경로"
-
 #, c-format
-msgid ""
-"%s\n"
-"Directories: %zd, total size: %s"
+msgid "Directories: %zd, total size: %s"
 msgstr ""
 
 msgid "Cannot operate on \"..\"!"
@@ -2563,6 +2677,12 @@ msgstr "원본"
 msgid "Target"
 msgstr "대상"
 
+msgid "Deleting"
+msgstr ""
+
+msgid "&Using shell patterns"
+msgstr "명령해석기 패턴 사용(&U)"
+
 msgid "to:"
 msgstr "대상:"
 
@@ -2654,10 +2774,6 @@ msgstr "끝났어요"
 msgid "Finished (ignored %zd directory)"
 msgid_plural "Finished (ignored %zd directories)"
 msgstr[0] ""
-
-#, c-format
-msgid "Searching %s"
-msgstr "%s 찾는 중"
 
 msgid "Searching"
 msgstr "찾는 중"
@@ -2777,40 +2893,40 @@ msgid "Free space: %s/%s (%d%%)"
 msgstr ""
 
 #, c-format
-msgid "Type:      %s"
+msgid "Type:       %s"
 msgstr ""
 
 msgid "non-local vfs"
 msgstr "원격 vfs"
 
 #, c-format
-msgid "Device:    %s"
-msgstr "디바이스: %s"
+msgid "Device:     %s"
+msgstr ""
 
 #, c-format
 msgid "Filesystem: %s"
 msgstr "파일체계: %s"
 
 #, c-format
-msgid "Accessed:  %s"
-msgstr "액세스일: %s"
+msgid "Accessed:   %s"
+msgstr ""
 
 #, c-format
-msgid "Modified:  %s"
-msgstr "수정일: %s"
+msgid "Modified:   %s"
+msgstr ""
 
 #. TRANSLATORS: Time of last status change as in stat(2) man.
 #, c-format
-msgid "Changed:   %s"
-msgstr "변경됨:  %s"
+msgid "Changed:    %s"
+msgstr ""
 
 #, c-format
 msgid "Dev. type: major %lu, minor %lu"
 msgstr "Dev. type: 주요 %lu, 기여 %lu"
 
 #, c-format
-msgid "Size:      %s"
-msgstr "크기: %s"
+msgid "Size:       %s"
+msgstr ""
 
 #, c-format
 msgid " (%ld block)"
@@ -2818,20 +2934,20 @@ msgid_plural " (%ld blocks)"
 msgstr[0] ""
 
 #, c-format
-msgid "Owner:     %s/%s"
-msgstr "소유자: %s/%s"
+msgid "Owner:      %s/%s"
+msgstr ""
 
 #, c-format
-msgid "Links:     %d"
-msgstr "링크: %d"
+msgid "Links:      %d"
+msgstr ""
 
 #, c-format
-msgid "Mode:      %s (%04o)"
-msgstr "모드: %s (%04o)"
+msgid "Mode:       %s (%04o)"
+msgstr ""
 
 #, c-format
-msgid "Location:  %Xh:%Xh"
-msgstr "위치: %Xh:%Xh"
+msgid "Location:   %Xh:%Xh"
+msgstr ""
 
 msgid "&Equal split"
 msgstr "같은 너비로(&E)"
@@ -3208,6 +3324,18 @@ msgstr ""
 msgid "Unknown tag on display format:"
 msgstr ""
 
+msgid "&Files only"
+msgstr "크기로만(&F)"
+
+msgid "&Case sensitive"
+msgstr "대소문자 구분(&C)"
+
+msgid "Select"
+msgstr ""
+
+msgid "Unselect"
+msgstr ""
+
 msgid "Do you really want to execute?"
 msgstr ""
 
@@ -3337,12 +3465,6 @@ msgstr ""
 
 #, c-format
 msgid "The %%var macro has no variable"
-msgstr ""
-
-#, c-format
-msgid ""
-"Cannot open file%s\n"
-"%s"
 msgstr ""
 
 #, c-format
@@ -3811,9 +3933,6 @@ msgstr ""
 msgid "sftp: Invalid host name."
 msgstr ""
 
-msgid "sftp: Invalid port value."
-msgstr ""
-
 #, c-format
 msgid "sftp: %s"
 msgstr ""
@@ -3988,14 +4107,8 @@ msgid ""
 "Save modified file?"
 msgstr ""
 
-msgid "Cannot spawn child process"
+msgid "&Line number"
 msgstr ""
-
-msgid "Empty output from child filter"
-msgstr "이 하위필터는 내보내기 충분"
-
-msgid "&Line number (decimal)"
-msgstr "줄 번호 (10 진수)(&L)"
 
 msgid "Pe&rcents"
 msgstr "퍼센트(&R)"
@@ -4041,6 +4154,12 @@ msgstr "ButtonBar|포맷"
 
 #, c-format
 msgid ""
+"Failed to read data from child stdout:\n"
+"%s"
+msgstr ""
+
+#, c-format
+msgid ""
 "Error while closing the file:\n"
 "%s\n"
 "Data may have been written or not"
@@ -4070,9 +4189,6 @@ msgid ""
 "%s"
 msgstr ""
 
-msgid "Seeking to search result"
-msgstr "검색 결과 추구"
-
 msgid "Search done"
 msgstr "검색결과 없음"
 
@@ -4081,6 +4197,3 @@ msgstr ""
 
 msgid "Cannot fetch a local copy of /ftp://some.host/editme.txt"
 msgstr ""
-
-#~ msgid "&Select"
-#~ msgstr "선택(&S)"

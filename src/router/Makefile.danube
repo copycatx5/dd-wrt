@@ -156,6 +156,8 @@ build_date:
 drop-sections	= .comment
 strip-flags	= $(addprefix --remove-section=,$(drop-sections))
 
+include kernel-features.mk
+
 kernel:
         # Also build kernel
 	# Also build kernel
@@ -172,9 +174,7 @@ endif
 ifeq ($(CONFIG_WMBR_G300NH),y)
 	cp $(LINUXDIR)/.config_wmbr $(LINUXDIR)/.config
 endif
-ifeq ($(CONFIG_IPETH),y)
-	sed -i 's/\# CONFIG_USB_IPHETH is not set/CONFIG_USB_IPHETH=m/g' $(LINUXDIR)/.config
-endif
+	$(kernelfeatures)
 	$(MAKE) -C $(LINUXDIR) oldconfig	
 
 	$(MAKE) -j 4 -C $(LINUXDIR) CROSS_COMPILE="ccache $(ARCH)-linux-uclibc-"
@@ -263,7 +263,7 @@ realclean: $(obj-clean)
 	-rm -f $(ARCH)-uclibc/*
 
 		
-clean: rc-clean httpd-clean services-clean shared-clean libutils-clean madwifi-clean busybox-clean dnsmasq-clean iptables-clean pppd-clean nvram-clean
+clean: rc-clean httpd-clean services-clean shared-clean libutils-clean madwifi-clean busybox-clean dnsmasq-clean iptables-clean pppd-clean nvram-clean iproute2-clean
 	rm -f .config.old .config.cmd
 	#umount $(TARGETDIR)
 	rm -rf $(INSTALLDIR)
@@ -296,6 +296,12 @@ endif
 ifeq ($(CONFIG_LIBRT),y)
 	-cp ${shell $(ARCH)-linux-gcc -print-file-name=librt.so.0} $(ARCH)-uclibc/target/lib/librt.so.0 
 endif
+ifeq ($(CONFIG_LIBATOMIC),y)
+	-cp ${shell $(ARCH)-linux-gcc -print-file-name=libatomic.so.1} $(ARCH)-uclibc/target/lib/libatomic.so.1 
+endif
+ifeq ($(CONFIG_SQUID),y)
+	-cp ${shell $(ARCH)-linux-gcc -print-file-name=libatomic.so.1} $(ARCH)-uclibc/target/lib/libatomic.so.1 
+endif
 ifeq ($(CONFIG_LIBNSL),y)
 	-cp ${shell $(ARCH)-linux-gcc -print-file-name=libnsl.so.0} $(ARCH)-uclibc/target/lib/libnsl.so.0 
 endif
@@ -324,7 +330,7 @@ ifneq ($(CONFIG_NOOPT),y)
 	rm -rf /tmp/$(ARCHITECTURE)/mklibs-out
 	rm -f /tmp/$(ARCHITECTURE)/mklibs-progs
 	-mkdir -p /tmp/$(ARCHITECTURE)/
-	find $(TARGETDIR) -type f -perm +100 -exec \
+	find $(TARGETDIR) -type f -perm /100 -exec \
 		file -r -N -F '' {} + | \
 		awk ' /executable.*dynamically/ { print $$1 }' > /tmp/$(ARCHITECTURE)/mklibs-progs
 
@@ -473,7 +479,12 @@ endif
 #	umount $(TARGETDIR)
 	find $(TARGETDIR)/lib/modules -name *.ko -exec mips-linux-strip --strip-unneeded --remove-section=.comment {} +		
 	#e2fsck -y -f $(ARCH)-uclibc/root.fs
-#	./busybox/examples/depmod.pl -F $(LINUXDIR)/System.map -b $(ARCH)-uclibc/target/lib/modules
+	-find $(TARGETDIR)/lib/modules/$(KERNELRELEASE)/kernel -name *.ko -exec mv {} $(TARGETDIR)/lib/modules/$(KERNELRELEASE) \;
+	-find $(TARGETDIR)/lib/modules/$(KERNELRELEASE)/net -name *.ko -exec mv {} $(TARGETDIR)/lib/modules/$(KERNELRELEASE) \;
+	rm -rf $(TARGETDIR)/lib/modules/$(KERNELRELEASE)/kernel
+	rm -rf $(TARGETDIR)/lib/modules/$(KERNELRELEASE)/net
+	#e2fsck -y -f $(ARCH)-uclibc/root.fs
+	./busybox/examples/depmod.pl -F $(LINUXDIR)/System.map -b $(ARCH)-uclibc/target/lib/modules
 	
 	#cd $(TARGETDIR)
 #	tar --directory=$(TARGETDIR) --remove-files -cvvjf $(TARGETDIR)/etc/local.tar.bz2 usr/local
@@ -483,6 +494,7 @@ endif
 	export STRIP="sstrip" && \
 	$(LINUXDIR)/scripts/rstrip.sh $(TARGETDIR)
 	@true
+	$(TOP)/../../tools/removewhitespace.sh $(TOP)/../../tools $(TARGETDIR)/etc/config
 	$(LINUXDIR)/scripts/squashfs/mksquashfs-lzma $(ARCH)-uclibc/target $(ARCH)-uclibc/root.fs -noappend -be
 	mkfs.jffs2 --pad --big-endian --squash -e 0x10000 -o $(ARCH)-uclibc/dd-wrt.jffs2 -d $(ARCH)-uclibc/target
 	

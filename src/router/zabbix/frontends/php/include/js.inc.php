@@ -1,7 +1,7 @@
 <?php
 /*
 ** Zabbix
-** Copyright (C) 2001-2013 Zabbix SIA
+** Copyright (C) 2001-2015 Zabbix SIA
 **
 ** This program is free software; you can redistribute it and/or modify
 ** it under the terms of the GNU General Public License as published by
@@ -161,12 +161,12 @@ function insert_javascript_for_editable_combobox() {
 }
 
 function insert_show_color_picker_javascript() {
-	global $SHOW_COLOR_PICKER_SCRIPT_ISERTTED;
+	global $SHOW_COLOR_PICKER_SCRIPT_INSERTED;
 
-	if ($SHOW_COLOR_PICKER_SCRIPT_ISERTTED) {
+	if ($SHOW_COLOR_PICKER_SCRIPT_INSERTED) {
 		return;
 	}
-	$SHOW_COLOR_PICKER_SCRIPT_ISERTTED = true;
+	$SHOW_COLOR_PICKER_SCRIPT_INSERTED = true;
 	$table = new CTable();
 
 	// gray colors
@@ -409,7 +409,7 @@ function insert_js_function($fnct_name) {
 			break;
 		case 'addSelectedValues':
 			insert_js('
-				function addSelectedValues(form, object) {
+				function addSelectedValues(form, object, parentId) {
 					form = $(form);
 					if (is_null(form)) {
 						return close_window()
@@ -418,7 +418,12 @@ function insert_js_function($fnct_name) {
 					if (!parent) {
 						return close_window();
 					}
-					var items = { object: object, values: [] };
+
+					if (typeof parentId === "undefined") {
+						var parentId = null;
+					}
+
+					var data = { object: object, values: [], parentId: parentId };
 					var chkBoxes = form.getInputs("checkbox");
 					for (var i = 0; i < chkBoxes.length; i++) {
 						if (chkBoxes[i].checked && (chkBoxes[i].name.indexOf("all_") < 0)) {
@@ -429,16 +434,17 @@ function insert_js_function($fnct_name) {
 							else {
 								value[object] = chkBoxes[i].value;
 							}
-							items["values"].push(value);
+							data["values"].push(value);
 						}
 					}
-					parent.addPopupValues(items);
 					close_window();
+
+					parent.jQuery(parent.document).trigger("add.popup", data);
 				}');
 			break;
 		case 'addValue':
 			insert_js('
-				function addValue(object, singleValue) {
+				function addValue(object, singleValue, parentId) {
 					var parent = window.opener;
 					if (!parent) {
 						return close_window();
@@ -450,9 +456,15 @@ function insert_js_function($fnct_name) {
 					else {
 						value[object] = singleValue;
 					}
-					var items = { object: object, values: [value] };
-					parent.addPopupValues(items);
+
+					if (typeof parentId === "undefined") {
+						var parentId = null;
+					}
+					var data = { object: object, values: [value], parentId: parentId };
+
 					close_window();
+
+					parent.jQuery(parent.document).trigger("add.popup", data);
 				}');
 			break;
 		case 'addValues':
@@ -474,7 +486,7 @@ function insert_js_function($fnct_name) {
 						if (parentDocumentForms.length > 0) {
 							frmStorage = jQuery(parentDocumentForms[0]).find("#" + key).get(0);
 						}
-						if (typeof(frmStorage) == "undefined" || is_null(frmStorage)) {
+						if (typeof frmStorage === "undefined" || is_null(frmStorage)) {
 							frmStorage = parentDocument.getElementById(key);
 						}
 
@@ -498,27 +510,6 @@ function insert_js_function($fnct_name) {
 						e.checked = value;
 					});
 				}');
-			break;
-		case 'removeSelectedItems':
-			insert_js('
-				function removeSelectedItems(formobject, name) {
-					formobject = $(formobject);
-					if (is_null(formobject)) {
-						return false;
-					}
-					for (var i = 0; i < formobject.options.length; i++) {
-						if (!isset(i, formobject.options)) {
-							continue;
-						}
-						if (formobject.options[i].selected) {
-							var obj = $(name + "_" + formobject.options[i].value);
-							if (!is_null(obj)) {
-								obj.remove();
-							}
-						}
-					}
-				}
-			');
 			break;
 		default:
 			insert_js('throw("JS function not found ['.$fnct_name.']");');

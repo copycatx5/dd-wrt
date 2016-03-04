@@ -95,10 +95,10 @@ void start_sysinit(void)
 		eval("ifconfig", "eth1", "hw", "ether", mac);
 	}
 #ifdef HAVE_SWCONFIG
-	system("swconfig dev eth1 set reset 1");
-	system("swconfig dev eth1 set enable_vlan 0");
-	system("swconfig dev eth1 vlan 1 set ports \"0 1 2 3 4\"");
-	system("swconfig dev eth1 set apply");
+	eval("swconfig", "dev", "eth1", "set", "reset", "1");
+	eval("swconfig", "dev", "eth1", "set", "enable_vlan", "1");
+	eval("swconfig", "dev", "eth1", "vlan", "1", "set", "ports", "0 1 2 3 4");
+	eval("swconfig", "dev", "eth1", "set", "apply");
 #endif
 	eval("ifconfig", "eth0", "up");
 	eval("ifconfig", "eth1", "up");
@@ -110,21 +110,13 @@ void start_sysinit(void)
 
 		strncpy(ifr.ifr_name, "eth0", IFNAMSIZ);
 		ioctl(s, SIOCGIFHWADDR, &ifr);
-		nvram_set("et0macaddr", ether_etoa((unsigned char *)ifr.ifr_hwaddr.sa_data, eabuf));
-		nvram_set("et0macaddr_safe", ether_etoa((unsigned char *)ifr.ifr_hwaddr.sa_data, eabuf));
+		nvram_set("et0macaddr", ether_etoa((char *)ifr.ifr_hwaddr.sa_data, eabuf));
+		nvram_set("et0macaddr_safe", ether_etoa((char *)ifr.ifr_hwaddr.sa_data, eabuf));
 		close(s);
 	}
 
 	detect_wireless_devices();
 
-	led_control(LED_POWER, LED_ON);
-	led_control(LED_SES, LED_OFF);
-	led_control(LED_SES2, LED_OFF);
-	led_control(LED_DIAG, LED_OFF);
-	led_control(LED_BRIDGE, LED_OFF);
-	led_control(LED_WLAN0, LED_OFF);
-	led_control(LED_WLAN1, LED_OFF);
-	led_control(LED_CONNECTED, LED_OFF);
 #ifdef HAVE_WNR2200
 	set_gpio(38, 1);
 	get_gpio(38);

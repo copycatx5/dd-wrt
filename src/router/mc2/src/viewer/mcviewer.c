@@ -2,7 +2,7 @@
    Internal file viewer for the Midnight Commander
    Interface functions
 
-   Copyright (C) 1994-2014
+   Copyright (C) 1994-2015
    Free Software Foundation, Inc
 
    Written by:
@@ -35,7 +35,6 @@
 
 #include <config.h>
 #include <errno.h>
-#include <fcntl.h>
 
 #include "lib/global.h"
 #include "lib/tty/tty.h"
@@ -84,7 +83,7 @@ char *mcview_show_eof = NULL;
 
 /** Both views */
 static gboolean
-do_mcview_event (mcview_t * view, Gpm_Event * event, int *result)
+do_mcview_event (WView * view, Gpm_Event * event, int *result)
 {
     screen_dimen y, x;
     Gpm_Event local;
@@ -106,7 +105,7 @@ do_mcview_event (mcview_t * view, Gpm_Event * event, int *result)
     if ((local.type & (GPM_DOWN | GPM_DRAG)) == 0)
         return FALSE;
 
-    /* Wheel events */
+    /* Wheel events. Allow them in the inactive panel */
     if ((local.buttons & GPM_B_UP) != 0 && (local.type & GPM_DOWN) != 0)
     {
         mcview_move_up (view, 2);
@@ -117,6 +116,10 @@ do_mcview_event (mcview_t * view, Gpm_Event * event, int *result)
         mcview_move_down (view, 2);
         return TRUE;
     }
+
+    /* Grab focus */
+    if (mcview_is_in_panel (view) && !view->active)
+        change_panel ();
 
     x = local.x;
     y = local.y;
@@ -176,7 +179,7 @@ do_mcview_event (mcview_t * view, Gpm_Event * event, int *result)
 static int
 mcview_event (Gpm_Event * event, void *data)
 {
-    mcview_t *view = (mcview_t *) data;
+    WView *view = (WView *) data;
     int result;
 
     if (!mouse_global_in_widget (event, WIDGET (data)))
@@ -191,12 +194,12 @@ mcview_event (Gpm_Event * event, void *data)
 /*** public functions ****************************************************************************/
 /* --------------------------------------------------------------------------------------------- */
 
-mcview_t *
+WView *
 mcview_new (int y, int x, int lines, int cols, gboolean is_panel)
 {
-    mcview_t *view;
+    WView *view;
 
-    view = g_new0 (mcview_t, 1);
+    view = g_new0 (WView, 1);
     widget_init (WIDGET (view), y, x, lines, cols, mcview_callback, mcview_event);
 
     view->hex_mode = FALSE;
@@ -207,6 +210,7 @@ mcview_new (int y, int x, int lines, int cols, gboolean is_panel)
     view->text_wrap_mode = FALSE;
     view->magic_mode = FALSE;
 
+    view->active = FALSE;
     view->dpy_frame_size = is_panel ? 1 : 0;
     view->converter = str_cnv_from_term;
 
@@ -228,10 +232,11 @@ mcview_new (int y, int x, int lines, int cols, gboolean is_panel)
 /** Real view only */
 
 gboolean
-mcview_viewer (const char *command, const vfs_path_t * file_vpath, int start_line)
+mcview_viewer (const char *command, const vfs_path_t * file_vpath, int start_line,
+               off_t search_start, off_t search_end)
 {
     gboolean succeeded;
-    mcview_t *lc_mcview;
+    WView *lc_mcview;
     WDialog *view_dlg;
 
     /* Create dialog and widgets, put them on the dialog */
@@ -245,7 +250,9 @@ mcview_viewer (const char *command, const vfs_path_t * file_vpath, int start_lin
 
     view_dlg->get_title = mcview_get_title;
 
-    succeeded = mcview_load (lc_mcview, command, vfs_path_as_str (file_vpath), start_line);
+    succeeded =
+        mcview_load (lc_mcview, command, vfs_path_as_str (file_vpath), start_line, search_start,
+                     search_end);
 
     if (succeeded)
         dlg_run (view_dlg);
@@ -263,7 +270,8 @@ mcview_viewer (const char *command, const vfs_path_t * file_vpath, int start_lin
 /* --------------------------------------------------------------------------------------------- */
 
 gboolean
-mcview_load (mcview_t * view, const char *command, const char *file, int start_line)
+mcview_load (WView * view, const char *command, const char *file, int start_line,
+             off_t search_start, off_t search_end)
 {
     gboolean retval = FALSE;
     vfs_path_t *vpath = NULL;
@@ -289,7 +297,7 @@ mcview_load (mcview_t * view, const char *command, const char *file, int start_l
         }
         else
         {
-            /* try extract path form filename */
+            /* try extract path from filename */
             const char *fname;
             char *dir;
 
@@ -320,6 +328,7 @@ mcview_load (mcview_t * view, const char *command, const char *file, int start_l
         {
             g_snprintf (tmp, sizeof (tmp), _("Cannot open \"%s\"\n%s"),
                         file, unix_error_string (errno));
+            mcview_close_datasource (view);
             mcview_show_error (view, tmp);
             vfs_path_free (view->filename_vpath);
             view->filename_vpath = NULL;
@@ -334,6 +343,7 @@ mcview_load (mcview_t * view, const char *command, const char *file, int start_l
             mc_close (fd);
             g_snprintf (tmp, sizeof (tmp), _("Cannot stat \"%s\"\n%s"),
                         file, unix_error_string (errno));
+            mcview_close_datasource (view);
             mcview_show_error (view, tmp);
             vfs_path_free (view->filename_vpath);
             view->filename_vpath = NULL;
@@ -345,6 +355,7 @@ mcview_load (mcview_t * view, const char *command, const char *file, int start_l
         if (!S_ISREG (st.st_mode))
         {
             mc_close (fd);
+            mcview_close_datasource (view);
             mcview_show_error (view, _("Cannot view: not a regular file"));
             vfs_path_free (view->filename_vpath);
             view->filename_vpath = NULL;
@@ -377,6 +388,7 @@ mcview_load (mcview_t * view, const char *command, const char *file, int start_l
                 {
                     g_snprintf (tmp, sizeof (tmp), _("Cannot open \"%s\" in parse mode\n%s"),
                                 file, unix_error_string (errno));
+                    mcview_close_datasource (view);
                     mcview_show_error (view, tmp);
                 }
                 else
@@ -397,8 +409,10 @@ mcview_load (mcview_t * view, const char *command, const char *file, int start_l
   finish:
     view->command = g_strdup (command);
     view->dpy_start = 0;
-    view->search_start = 0;
-    view->search_end = 0;
+    view->dpy_paragraph_skip_lines = 0;
+    mcview_state_machine_init (&view->dpy_state_top, 0);
+    view->dpy_wrap_dirty = FALSE;
+    view->force_max = -1;
     view->dpy_text_column = 0;
 
     mcview_compute_areas (view);
@@ -416,7 +430,10 @@ mcview_load (mcview_t * view, const char *command, const char *file, int start_l
         else
             new_offset = min (new_offset, max_offset);
         if (!view->hex_mode)
+        {
             view->dpy_start = mcview_bol (view, new_offset, 0);
+            view->dpy_wrap_dirty = TRUE;
+        }
         else
         {
             view->dpy_start = new_offset - new_offset % view->bytes_per_line;
@@ -426,6 +443,8 @@ mcview_load (mcview_t * view, const char *command, const char *file, int start_l
     else if (start_line > 0)
         mcview_moveto (view, start_line - 1, 0);
 
+    view->search_start = search_start;
+    view->search_end = search_end;
     view->hexedit_lownibble = FALSE;
     view->hexview_in_text = FALSE;
     view->change_list = NULL;

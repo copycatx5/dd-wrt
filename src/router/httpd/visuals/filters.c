@@ -74,9 +74,8 @@ int tod_data_null = 0;
  * 192.168.1.250-192.168.1.260) 
  */
 
-char *filter_ip_get(char *type, int which)
+static char *filter_ip_get(char *type, int which, char *word)
 {
-	static char word[256];
 	char *start, *end, *wordlist, *next;
 	int temp;
 	char filter_ip[] = "filter_ip_grpXXX";
@@ -212,9 +211,8 @@ char *filter_ip_get(char *type, int which)
  * Example: tcp:100-200 udp:210-220 both:250-260 
  */
 
-char *filter_dport_get(char *type, int which)
+static char *filter_dport_get(char *type, int which, char *word)
 {
-	static char word[256];
 	char *wordlist, *next;
 	char *start, *end, *proto;
 	int temp;
@@ -272,6 +270,7 @@ void ej_filter_dport_get(webs_t wp, int argc, char_t ** argv)
 {
 	int which;
 	char *type;
+	char word[256];
 
 	D("ej filter dport get");
 	if (ejArgs(argc, argv, "%s %d", &type, &which) < 2) {
@@ -279,8 +278,7 @@ void ej_filter_dport_get(webs_t wp, int argc, char_t ** argv)
 		D("bad value");
 		return;
 	}
-
-	websWrite(wp, "%s", filter_dport_get(type, which));
+	websWrite(wp, "%s", filter_dport_get(type, which, word));
 	D("good value");
 
 	return;
@@ -291,9 +289,8 @@ void ej_filter_dport_get(webs_t wp, int argc, char_t ** argv)
  * Example: tcp:100-200 udp:210-220 both:250-260 
  */
 
-char *filter_port_get(char *type, int which)
+static char *filter_port_get(char *type, int which, char *word)
 {
-	static char word[256];
 	char *wordlist, *next;
 	char *start, *end, *proto;
 	int temp;
@@ -345,6 +342,7 @@ void ej_filter_port_get(webs_t wp, int argc, char_t ** argv)
 {
 	int which;
 	char *type;
+	char word[256];
 
 	D("ej filter port get");
 	if (ejArgs(argc, argv, "%s %d", &type, &which) < 2) {
@@ -352,8 +350,7 @@ void ej_filter_port_get(webs_t wp, int argc, char_t ** argv)
 		D("bad value");
 		return;
 	}
-
-	websWrite(wp, "%s", filter_port_get(type, which));
+	websWrite(wp, "%s", filter_port_get(type, which, word));
 
 	D("good value");
 	return;
@@ -364,9 +361,8 @@ void ej_filter_port_get(webs_t wp, int argc, char_t ** argv)
  * Example: 00:11:22:33:44:55 00:11:22:33:44:56 
  */
 
-char *filter_mac_get(int which)
+static char *filter_mac_get(int which, char *word)
 {
-	static char word[256];
 	char *wordlist, *next;
 	char *mac;
 	int temp;
@@ -396,6 +392,7 @@ void ej_filter_ip_get(webs_t wp, int argc, char_t ** argv)
 {
 	int which;
 	char *type;
+	char word[256];
 
 	D("ej-filter ip get");
 	if (ejArgs(argc, argv, "%s %d", &type, &which) < 2) {
@@ -404,8 +401,7 @@ void ej_filter_ip_get(webs_t wp, int argc, char_t ** argv)
 		D("BAD VALUE");
 		return;
 	}
-
-	websWrite(wp, "%s", filter_ip_get(type, which));
+	websWrite(wp, "%s", filter_ip_get(type, which, word));
 
 	D("good value");
 	return;
@@ -414,6 +410,7 @@ void ej_filter_ip_get(webs_t wp, int argc, char_t ** argv)
 void ej_filter_mac_get(webs_t wp, int argc, char_t ** argv)
 {
 	int which;
+	char word[256];
 
 	D("ej filter mac get");
 	if (ejArgs(argc, argv, "%d", &which) < 1) {
@@ -422,7 +419,7 @@ void ej_filter_mac_get(webs_t wp, int argc, char_t ** argv)
 		return;
 	}
 
-	websWrite(wp, "%s", filter_mac_get(which));
+	websWrite(wp, "%s", filter_mac_get(which, word));
 	D("good value");
 	return;
 }
@@ -795,25 +792,27 @@ void ej_filter_summary_show(webs_t wp, int argc, char_t ** argv)
 
 		filter_tod_init(i + 1);
 
-		websWrite(wp, " \
-		<tr align=\"center\" bgcolor=\"#CCCCCC\" >\n\
-			<td width=\"50\" ><font face=\"Arial\" size=\"2\" >%d.</font></td>\n\
-			<td width=\"200\" ><font face=\"Arial\" size=\"2\" >%s</font></td>\n\
-			<td height=\"30\" width=\"150\" >\n\
-			<table width=\"150\" height=\"30\" border=\"1\" cellspacing=\"1\" bordercolor=\"#000000\" bgcolor=\"#FFFFFF\" style=\"border-collapse:collapse\" >\n\
-				<tr>\n", i + 1, name);
-		websWrite(wp, " \
-			<td align=\"center\" width=\"17\" bgcolor=\"%s\" style=\"border-style: solid\"><script type=\"text/javascript\">Capture(%s)</script></td>\n\
-			<td align=\"center\" width=\"17\" bgcolor=\"%s\" style=\"border-style: solid\"><script type=\"text/javascript\">Capture(%s)</script></td>\n\
-			<td align=\"center\" width=\"17\" bgcolor=\"%s\" style=\"border-style: solid\"><script type=\"text/javascript\">Capture(%s)</script></td>\n\
-			<td align=\"center\" width=\"17\" bgcolor=\"%s\" style=\"border-style: solid\"><script type=\"text/javascript\">Capture(%s)</script></td>\n", tod_data_null == 0 && (day_all == 1 || week0 == 1) ? "#C0C0C0" : "#FFFFFF", w[0], tod_data_null == 0 && (day_all == 1 || week1 == 1) ? "#C0C0C0" : "#FFFFFF", w[1], tod_data_null == 0 && (day_all == 1 || week2 == 1) ? "#C0C0C0" : "#FFFFFF", w[2], tod_data_null == 0 && (day_all == 1 || week3 == 1) ? "#C0C0C0" : "#FFFFFF", w[3]);
-		websWrite(wp, " \
-    		<td align=\"center\" width=\"17\" bgcolor=\"%s\" style=\"border-style: solid\"><script type=\"text/javascript\">Capture(%s)</script></td>\n\
-			<td align=\"center\" width=\"17\" bgcolor=\"%s\" style=\"border-style: solid\"><script type=\"text/javascript\">Capture(%s)</script></td>\n\
-			<td align=\"center\" width=\"17\" bgcolor=\"%s\" style=\"border-style: solid\"><script type=\"text/javascript\">Capture(%s)</script></td>\n\
-		</tr>\n\
-		</table>\n\
-		</td>\n", tod_data_null == 0 && (day_all == 1 || week4 == 1) ? "#C0C0C0" : "#FFFFFF", w[4], tod_data_null == 0 && (day_all == 1 || week5 == 1) ? "#C0C0C0" : "#FFFFFF", w[5], tod_data_null == 0 && (day_all == 1 || week6 == 1) ? "#C0C0C0" : "#FFFFFF", w[6]);
+		websWrite(wp, "<tr align=\"center\" bgcolor=\"#CCCCCC\" >\n"
+			  "<td width=\"50\" ><font face=\"Arial\" size=\"2\" >%d.</font></td>\n"
+			  "<td width=\"200\" ><font face=\"Arial\" size=\"2\" >%s</font></td>\n"
+			  "<td height=\"30\" width=\"150\" >\n"
+			  "<table width=\"150\" height=\"30\" border=\"1\" cellspacing=\"1\" bordercolor=\"#000000\" bgcolor=\"#FFFFFF\" style=\"border-collapse:collapse\" >\n" "<tr>\n", i + 1, name);
+		websWrite(wp, "<td align=\"center\" width=\"17\" bgcolor=\"%s\" style=\"border-style: solid\"><script type=\"text/javascript\">Capture(%s)</script></td>\n"
+			  "<td align=\"center\" width=\"17\" bgcolor=\"%s\" style=\"border-style: solid\"><script type=\"text/javascript\">Capture(%s)</script></td>\n"
+			  "<td align=\"center\" width=\"17\" bgcolor=\"%s\" style=\"border-style: solid\"><script type=\"text/javascript\">Capture(%s)</script></td>\n"
+			  "<td align=\"center\" width=\"17\" bgcolor=\"%s\" style=\"border-style: solid\"><script type=\"text/javascript\">Capture(%s)</script></td>\n", tod_data_null == 0 && (day_all == 1
+																								|| week0 ==
+																								1) ? "#C0C0C0" : "#FFFFFF",
+			  w[0], tod_data_null == 0 && (day_all == 1 || week1 == 1) ? "#C0C0C0" : "#FFFFFF", w[1], tod_data_null == 0 && (day_all == 1 || week2 == 1) ? "#C0C0C0" : "#FFFFFF", w[2], tod_data_null == 0
+			  && (day_all == 1 || week3 == 1) ? "#C0C0C0" : "#FFFFFF", w[3]);
+		websWrite(wp,
+			  "<td align=\"center\" width=\"17\" bgcolor=\"%s\" style=\"border-style: solid\"><script type=\"text/javascript\">Capture(%s)</script></td>\n"
+			  "<td align=\"center\" width=\"17\" bgcolor=\"%s\" style=\"border-style: solid\"><script type=\"text/javascript\">Capture(%s)</script></td>\n"
+			  "<td align=\"center\" width=\"17\" bgcolor=\"%s\" style=\"border-style: solid\"><script type=\"text/javascript\">Capture(%s)</script></td>\n" "</tr>\n" "</table>\n" "</td>\n", tod_data_null == 0
+			  && (day_all == 1 || week4 == 1) ? "#C0C0C0" : "#FFFFFF", w[4], tod_data_null == 0 && (day_all == 1 || week5 == 1) ? "#C0C0C0" : "#FFFFFF", w[5], tod_data_null == 0 && (day_all == 1
+																								  || week6 ==
+																								  1) ? "#C0C0C0" :
+			  "#FFFFFF", w[6]);
 
 		if (tod_data_null == 0) {
 			if (time_all == 1)
@@ -822,10 +821,7 @@ void ej_filter_summary_show(webs_t wp, int argc, char_t ** argv)
 				snprintf(time_buf, sizeof(time_buf), "%02d:%02d - %02d:%02d", start_hour, start_min, end_hour, end_min);
 			}
 		}
-		websWrite(wp, " \
-        <td width=\"150\" ><font face=\"Arial\" size=\"2\" > %s </font></td>\n\
-        <td width=\"70\" ><input type=\"checkbox\" name=\"sum%d\" value=\"1\" ></td>\n\
-      </tr>\n", time_buf, i + 1);
+		websWrite(wp, "<td width=\"150\" ><font face=\"Arial\" size=\"2\" > %s </font></td>\n" "<td width=\"70\" ><input type=\"checkbox\" name=\"sum%d\" value=\"1\" ></td>\n" "</tr>\n", time_buf, i + 1);
 	}
 	D("okay");
 	return;
@@ -848,17 +844,16 @@ void ej_filter_init(webs_t wp, int argc, char_t ** argv)
 
 void ej_filter_port_services_get(webs_t wp, int argc, char_t ** argv)
 {
-	char *type;
-	int which;
+	int which = atoi(argv[1]);
+	filter_port_services_get(wp, argv[0], which);
+}
+
+void filter_port_services_get(webs_t wp, char *type, int which)
+{
 	char word[1024], *next;
 	char delim[] = "<&nbsp;>";
 
 	D("ej_filter_port_services get");
-
-	if (argc < 2)
-		return;
-	type = argv[0];
-	which = atoi(argv[1]);
 
 	char *services;
 

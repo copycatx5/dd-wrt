@@ -1,7 +1,7 @@
 <?php
 /*
 ** Zabbix
-** Copyright (C) 2001-2013 Zabbix SIA
+** Copyright (C) 2001-2015 Zabbix SIA
 **
 ** This program is free software; you can redistribute it and/or modify
 ** it under the terms of the GNU General Public License as published by
@@ -17,27 +17,29 @@
 ** along with this program; if not, write to the Free Software
 ** Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 **/
-?>
-<?php
-$table = new CTableInfo(_('No icon map defined.'));
-$table->setHeader(array(_('Name'), _('Icon map')));
-$table->addItem(BR());
 
-foreach ($this->data['iconmaps'] as $iconmap) {
-	$mappings = $iconmap['mappings'];
-	order_result($mappings, 'sortorder');
 
+$iconMapTable = new CTableInfo(_('No icon maps found.'));
+$iconMapTable->setHeader(array(
+	$this->data['displayNodes'] ? _('Node') : null,
+	_('Name'),
+	_('Icon map')
+));
+$iconMapTable->addItem(BR());
+
+foreach ($this->data['iconmaps'] as $iconMap) {
 	$row = array();
-	foreach ($mappings as $mapping) {
-		$row[] = $this->data['inventoryList'][$mapping['inventory_link']].':'.
+	foreach ($iconMap['mappings'] as $mapping) {
+		$row[] = $this->data['inventoryList'][$mapping['inventory_link']].NAME_DELIMITER.
 				$mapping['expression'].SPACE.RARR.SPACE.$this->data['iconList'][$mapping['iconid']];
 		$row[] = BR();
 	}
-	$table->addRow(array(
-		new CLink($iconmap['name'], 'adm.iconmapping.php?form=update&iconmapid='.$iconmap['iconmapid']),
+
+	$iconMapTable->addRow(array(
+		$this->data['displayNodes'] ? $iconMap['nodename'] : null,
+		new CLink($iconMap['name'], 'adm.iconmapping.php?form=update&iconmapid='.$iconMap['iconmapid']),
 		$row
 	));
 }
 
-return $table;
-?>
+return $iconMapTable;

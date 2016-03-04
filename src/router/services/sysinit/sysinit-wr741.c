@@ -105,20 +105,23 @@ void start_sysinit(void)
 #ifdef HAVE_SWCONFIG
 
 #ifdef HAVE_WDR2543
-	system("swconfig dev switch0 set reset 1");
-	system("swconfig dev switch0 set enable_vlan 1");
-	system("swconfig dev switch0 vlan 1 set ports \"1 2 3 4 9t\"");
-	system("swconfig dev switch0 vlan 2 set ports \"0 9t\"");
-	system("swconfig dev switch0 set apply");
+
+	eval("swconfig", "dev", "switch0", "set", "reset", "1");
+	eval("swconfig", "dev", "switch0", "set", "enable_vlan", "1");
+	eval("swconfig", "dev", "switch0", "vlan", "1", "set", "ports", "1 2 3 4 9t");
+	eval("swconfig", "dev", "switch0", "vlan", "2", "set", "ports", "0 9t");
+	eval("swconfig", "dev", "switch0", "set", "apply");
+
 	eval("vconfig", "set_name_type", "VLAN_PLUS_VID_NO_PAD");
 	eval("vconfig", "add", "eth0", "1");
 	eval("vconfig", "add", "eth0", "2");
 
 #else
-	system("swconfig dev eth1 set reset 1");
-	system("swconfig dev eth1 set enable_vlan 0");
-	system("swconfig dev eth1 vlan 1 set ports \"0 1 2 3 4\"");
-	system("swconfig dev eth1 set apply");
+	eval("swconfig", "dev", "eth1", "set", "reset", "1");
+	eval("swconfig", "dev", "eth1", "set", "enable_vlan", "1");
+	eval("swconfig", "dev", "eth1", "vlan", "1", "set", "ports", "0 1 2 3 4");
+	eval("swconfig", "dev", "eth1", "set", "apply");
+
 	setEthLED(17, "eth0");
 	setSwitchLED(13, 0x2);
 	setSwitchLED(14, 0x4);
@@ -136,8 +139,8 @@ void start_sysinit(void)
 
 		strncpy(ifr.ifr_name, "eth0", IFNAMSIZ);
 		ioctl(s, SIOCGIFHWADDR, &ifr);
-		nvram_set("et0macaddr", ether_etoa((unsigned char *)ifr.ifr_hwaddr.sa_data, eabuf));
-		nvram_set("et0macaddr_safe", ether_etoa((unsigned char *)ifr.ifr_hwaddr.sa_data, eabuf));
+		nvram_set("et0macaddr", ether_etoa((char *)ifr.ifr_hwaddr.sa_data, eabuf));
+		nvram_set("et0macaddr_safe", ether_etoa((char *)ifr.ifr_hwaddr.sa_data, eabuf));
 		close(s);
 	}
 	detect_wireless_devices();
@@ -151,15 +154,6 @@ void start_sysinit(void)
 #else
 	setWirelessLedPhy0(1);
 #endif
-	led_control(LED_POWER, LED_ON);
-	led_control(LED_SES, LED_OFF);
-	led_control(LED_SES2, LED_OFF);
-	led_control(LED_DIAG, LED_OFF);
-	led_control(LED_BRIDGE, LED_OFF);
-	led_control(LED_WLAN0, LED_OFF);
-	led_control(LED_WLAN1, LED_OFF);
-	led_control(LED_CONNECTED, LED_OFF);
-
 	/*
 	 * Set a sane date 
 	 */

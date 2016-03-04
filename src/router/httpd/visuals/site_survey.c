@@ -38,6 +38,46 @@
 
 #include <wlutils.h>
 
+float getfloatrate(int rate, int bw)
+{
+	float result = (float)rate;
+	switch (rate) {
+	case 150:
+		if (bw == 20)
+			result = 72.2f;
+		if (bw == 80)
+			result = 433.3f;
+		if (bw == 160)
+			result = 866.7f;
+		break;
+	case 300:
+		if (bw == 20)
+			result = 144.4f;
+		if (bw == 80)
+			result = 866.7f;
+		if (bw == 160)
+			result = 1733.3f;
+		break;
+	case 450:
+		if (bw == 20)
+			result = 216.7f;
+		if (bw == 80)
+			result = 1300.0f;
+		if (bw == 160)
+			result = 2340.0f;	// this rate is not specified
+		break;
+	case 600:
+		if (bw == 20)
+			result = 288.9f;
+		if (bw == 80)
+			result = 1733.3f;
+		if (bw == 160)
+			result = 3466.7f;
+		break;
+	}
+	return result;
+}
+
 static struct site_survey_list site_survey_lists[SITE_SURVEY_NUM];
 
 static int open_site_survey(void)
@@ -54,13 +94,22 @@ static int open_site_survey(void)
 	return FALSE;
 }
 
+static char *dtim_period(int dtim, char *mem)
+{
+	if (dtim)
+		snprintf(mem, 32, "%d", dtim);
+	else
+		snprintf(mem, 32, "%s", "None");
+	return mem;
+}
+
 #ifdef FBNFW
 
 void ej_list_fbn(webs_t wp, int argc, char_t ** argv)
 {
 	int i;
 
-	system2("site_survey");
+	eval("site_survey");
 
 	open_site_survey();
 	for (i = 0; i < SITE_SURVEY_NUM; i++) {
@@ -83,15 +132,14 @@ void ej_list_fbn(webs_t wp, int argc, char_t ** argv)
 void ej_dump_site_survey(webs_t wp, int argc, char_t ** argv)
 {
 	int i;
-	char buf[10] = { 0 };
 	char *rates = NULL;
 	char *name;
 
 	name = websGetVar(wp, "hidden_scan", NULL);
 	if (name == NULL || strlen(name) == 0)
-		system2("site_survey");
+		eval("site_survey");
 	else {
-		sysprintf("site_survey \"%s\"", name);
+		eval("site_survey", name);
 	}
 
 	open_site_survey();
@@ -126,69 +174,80 @@ void ej_dump_site_survey(webs_t wp, int argc, char_t ** argv)
 			//0x000 = 80 mhz
 			//0x100 = 8080 mhz
 			//0x200 = 160 mhz
-			int speed = site_survey_lists[i].rate_count;
+			float speed = (float)site_survey_lists[i].rate_count;
 
 			switch (cbw) {
 			case 0:
-				if (speed == 150)
-					speed = 433;
-				else if (speed == 300)
-					speed = 867;
-				else if (speed == 450)
-					speed = 1300;
+				speed = getfloatrate((int)speed, 80);
+				break;
 			case 0x100:
 			case 0x200:
-				if (speed == 150)
-					speed = 867;
-				else if (speed == 300)
-					speed = 1733;
-				else if (speed == 450)
-					speed = 2600;
+				speed = getfloatrate((int)speed, 160);
+				break;
 			}
 			rates = strbuf;
 
 			if ((site_survey_lists[i].channel & 0xff) < 15) {
-				sprintf(rates, "%d(b/g/n/ac)", speed);
+				sprintf(rates, "%0.1f(b/g/n/ac)", speed);
 			} else {
-				sprintf(rates, "%d(a/n/ac)", speed);
+				sprintf(rates, "%0.1f(a/n/ac)", speed);
+			}
+
+		} else if (site_survey_lists[i].channel & 0x2000) {
+
+			float speed = 0;
+			int rc = site_survey_lists[i].rate_count;
+			switch (rc) {
+			case 4:
+			case 11:
+				rc = 4;
+				speed = 11.0f;
+				break;
+			case 12:
+			case 54:
+				rc = 12;
+				speed = 54.0f;
+				break;
+			case 13:
+				speed = 108.0f;
+				break;
+			default:
+				speed = (float)rc;
+			}
+			rates = strbuf;
+
+			if ((site_survey_lists[i].channel & 0xff) < 15) {
+				sprintf(rates, "%0.1f%s", speed, rc == 4 ? "(b)" : rc < 14 ? "(b/g)" : "(b/g/n)");
+			} else {
+				sprintf(rates, "%0.1f%s", speed, rc < 14 ? "(a)" : "(a/n)");
 			}
 
 		} else {
-			if ((site_survey_lists[i].channel & 0xff) < 15) {
-				if (site_survey_lists[i].rate_count == 4)
-					rates = "11(b)";
-				else if (site_survey_lists[i].rate_count == 12)
-					rates = "54(b/g)";
-				else if (site_survey_lists[i].rate_count == 13)
-					rates = "108(b/g)";
-				else if (site_survey_lists[i].rate_count == 300)
-					rates = "300(b/g/n)";
-				else if (site_survey_lists[i].rate_count == 450)
-					rates = "450(b/g/n)";
-				else if (site_survey_lists[i].rate_count == 150)
-					rates = "150(b/g/n)";
-				else {
-					rates = buf;
-					snprintf(rates, 9, "%d", site_survey_lists[i].rate_count);
-				}
-			} else {
-				if (site_survey_lists[i].rate_count == 4)
-					rates = "11(b)";	//bogus, never shown. but if, its definitly b with weired channel setting
-				else if (site_survey_lists[i].rate_count == 12)
-					rates = "54(a)";
-				else if (site_survey_lists[i].rate_count == 13)
-					rates = "108(a)";
-				else if (site_survey_lists[i].rate_count == 300)
-					rates = "300(a/n)";
-				else if (site_survey_lists[i].rate_count == 450)
-					rates = "450(a/n)";
-				else if (site_survey_lists[i].rate_count == 150)
-					rates = "150(a/n)";
-				else {
-					rates = buf;
-					snprintf(rates, 9, "%d", site_survey_lists[i].rate_count);
-				}
+			float speed = 0;
+			int rc = site_survey_lists[i].rate_count;
+			switch (rc) {
+			case 4:
+			case 11:
+				rc = 4;
+				speed = 11.0f;
+				break;
+			case 12:
+			case 54:
+				rc = 12;
+				speed = 54.0f;
+				break;
+			case 13:
+				speed = 108.0f;
+				break;
+			default:
+				speed = getfloatrate(rc, 20);
+			}
+			rates = strbuf;
 
+			if ((site_survey_lists[i].channel & 0xff) < 15) {
+				sprintf(rates, "%0.1f%s", speed, rc == 4 ? "(b)" : rc < 14 ? "(b/g)" : "(b/g/n)");
+			} else {
+				sprintf(rates, "%0.1f%s", speed, rc < 14 ? "(a)" : "(a/n)");
 			}
 		}
 
@@ -219,12 +278,13 @@ void ej_dump_site_survey(webs_t wp, int argc, char_t ** argv)
 		strcpy(net, netmode);
 		websWrite(wp, "%c\"", i ? ',' : ' ');
 		tf_webWriteJS(wp, tssid);
+		char dtim[32];
 		websWrite(wp,
-			  "\",\"%s\",\"%s\",\"%d (%d MHz)\",\"%d\",\"%d\",\"%d\",\"%s\",\"%s\",\"%d\",\"%s\"\n",
+			  "\",\"%s\",\"%s\",\"%d (%d MHz)\",\"%d\",\"%d\",\"%d\",\"%s\",\"%s\",\"%s\",\"%s\"\n",
 			  net, site_survey_lists[i].BSSID,
 			  site_survey_lists[i].channel & 0xff,
 			  site_survey_lists[i].frequency,
-			  site_survey_lists[i].RSSI, site_survey_lists[i].phy_noise, site_survey_lists[i].beacon_period, open, site_survey_lists[i].ENCINFO, site_survey_lists[i].dtim_period, rates);
+			  site_survey_lists[i].RSSI, site_survey_lists[i].phy_noise, site_survey_lists[i].beacon_period, open, site_survey_lists[i].ENCINFO, dtim_period(site_survey_lists[i].dtim_period, dtim), rates);
 
 	}
 

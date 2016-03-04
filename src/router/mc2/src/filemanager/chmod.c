@@ -1,7 +1,7 @@
 /*
    Chmod command -- for the Midnight Commander
 
-   Copyright (C) 1994-2014
+   Copyright (C) 1994-2015
    Free Software Foundation, Inc.
 
    This file is part of the Midnight Commander.
@@ -540,6 +540,9 @@ chmod_cmd (void)
                     and_mask &= ~check_perm[i].mode;
 
             apply_mask (&sf_stat);
+            break;
+
+        default:
             break;
         }
 

@@ -11,19 +11,28 @@ function to_submit(F, I) {
 		F.ping.value = sbutton.cmd;
 		applytype=1;
 	}
-	else if (I == "startup")
-		F.startup.value = sbutton.saving;
-	else if (I == "shutdown")
-		F.shutdown.value = sbutton.saving;
-	else if (I == "firewall")
-		F.firewall.value = sbutton.saving;
-	else if (I == "custom")
-		F.custom.value = sbutton.saving;
+	else { 
+		if (I == "startup") {
+		    F.startup.value = sbutton.saving;
+		} else { if (I == "shutdown") {
+			    F.shutdown.value = sbutton.saving;
+			    } else { 
+				    if (I == "firewall") {
+					F.firewall.value = sbutton.saving;
+				    } else {  
+					    if (I == "custom") {
+						    F.custom.value = sbutton.saving;
+					    }
+				    }
+			    }
+		}
+	}
 		
-	if (applytype)
+	if (applytype) {
 		applytake(F);
-	else
+	}else {
 		apply(F);
+	}
 }
 
 function valid(F,I) {
@@ -75,7 +84,7 @@ addEvent(window, "unload", function() {
 								<legend><% tran("diag.legend"); %></legend>
 								<div class="setting">
 									<div class="label"><% tran("diag.cmd"); %></div>
-									<textarea id="ping_ip" name="ping_ip" rows="6" cols="40" style="font-family:Courier, Courier New" wrap="off"><% nvg("ping_ip"); %></textarea>
+									<textarea id="ping_ip" name="ping_ip" rows="6" cols="80" style="font-family:Courier, Courier New" wrap="off"><% nvg("ping_ip"); %></textarea>
 								</div>
 									<script type="text/javascript">
 									//<![CDATA[
@@ -148,11 +157,11 @@ addEvent(window, "unload", function() {
 							<div class="submitFooter">
 								<script type="text/javascript">
 								//<![CDATA[
-								document.write("<input class=\"button\" type=\"button\" name=\"ping\" value=\"" + sbutton.runcmd + "\" onclick=\"to_submit(this.form, 'start');\" />")
-								document.write("<input class=\"button\" type=\"button\" name=\"startup\" value=\"" + sbutton.startup + "\" onclick=\"to_submit(this.form, 'startup');\" />")
-								document.write("<input class=\"button\" type=\"button\" name=\"shutdown\" value=\"" + sbutton.shutdown + "\" onclick=\"to_submit(this.form, 'shutdown');\" />")
-								document.write("<input class=\"button\" type=\"button\" name=\"firewall\" value=\"" + sbutton.firewall + "\" onclick=\"to_submit(this.form, 'firewall');\" />")
-								document.write("<input class=\"button\" type=\"button\" name=\"custom\" value=\"" + sbutton.custom + "\" onclick=\"to_submit(this.form, 'custom');\" />")
+								document.write("<input class=\"button\" type=\"button\" name=\"ping\" value=\"" + sbutton.runcmd + "\" onclick=\"to_submit(this.form, 'start');\" />");
+								document.write("<input class=\"button\" type=\"button\" name=\"startup\" value=\"" + sbutton.startup + "\" onclick=\"to_submit(this.form, 'startup');\" />");
+								document.write("<input class=\"button\" type=\"button\" name=\"shutdown\" value=\"" + sbutton.shutdown + "\" onclick=\"to_submit(this.form, 'shutdown');\" />");
+								document.write("<input class=\"button\" type=\"button\" name=\"firewall\" value=\"" + sbutton.firewall + "\" onclick=\"to_submit(this.form, 'firewall');\" />");
+								document.write("<input class=\"button\" type=\"button\" name=\"custom\" value=\"" + sbutton.custom + "\" onclick=\"to_submit(this.form, 'custom');\" />");
 								//]]>
 								</script>
 							</div>

@@ -39,7 +39,7 @@
 
 #include <qtnapi.h>
 
-//#define dbG(a,...)
+#define dbG(a,...)
 
 #define dbg(fmt, args...) fprintf(stderr, fmt, ## args)
 #define dbG(fmt, args...) dbg("%s(0x%04x): " fmt , __FUNCTION__ , __LINE__, ## args)
@@ -224,6 +224,26 @@ int rpc_qcsapi_set_SSID_broadcast(const char *ifname, const char *option)
 	}
 	dbG("Set Broadcast SSID of interface %s as: %s\n", ifname, OPTION ? "TRUE" : "FALSE");
 
+	return 0;
+}
+
+int enable_qtn_telnetsrv(int enable_flag)
+{
+	int ret;
+
+	if (!rpc_qtn_ready()) {
+		fprintf(stderr, "ATE command error\n");
+		return -1;
+	}
+	if (enable_flag == 0) {
+		ret = qcsapi_wifi_run_script("set_test_mode", "enable_telnet_srv 0");
+	} else {
+		ret = qcsapi_wifi_run_script("set_test_mode", "enable_telnet_srv 1");
+	}
+	if (ret < 0) {
+		fprintf(stderr, "[ate] set telnet server error\n");
+		return -1;
+	}
 	return 0;
 }
 
@@ -1173,11 +1193,11 @@ int rpc_get_temperature(void)
 {
 	int statval = 0;
 	int qcsapi_retval;
-	int temp_external, temp_internal;
+	int temp_rficinternal, temp_rficexternal, temp_internal;
 
 	if (!rpc_qtn_ready())
 		return 0;
-	qcsapi_retval = qcsapi_get_temperature_info(&temp_external, &temp_internal);
+	qcsapi_retval = qcsapi_get_temperature_info(&temp_rficinternal, &temp_rficexternal, &temp_internal);
 	if (qcsapi_retval >= 0) {
 		return temp_internal;
 	}
@@ -1666,4 +1686,77 @@ char *getWPSEncrypType_qtn()
 		return "TKIP+AES";
 	else
 		return "AES";
+}
+
+int getassoclist_qtn(char *name, unsigned char *list)
+{
+	qcsapi_unsigned_int count;
+	qcsapi_mac_addr the_mac_addr;
+	int ret, i;
+	if (!rpc_qtn_ready())
+		return -1;
+	ret = qcsapi_wifi_get_count_associations(WIFINAME, &count);
+	if (ret < 0) {
+		qtn_init = 0;
+		return 0;
+	}
+	unsigned int *cnt = (unsigned int *)list;
+	unsigned char *maclist = &list[4];
+	cnt[0] = 0;
+	for (i = 0; i < count; i++) {
+		ret = qcsapi_wifi_get_associated_device_mac_addr(WIFINAME, i, the_mac_addr);
+		if (ret < 0)
+			break;
+		cnt[0]++;
+		memcpy(maclist, the_mac_addr, 6);
+		maclist += 6;
+	}
+	return cnt[0];
+}
+
+int getRssiIndex_qtn(char *name, int index)
+{
+
+	unsigned int rssi;
+	if (!rpc_qtn_ready())
+		return -1;
+	int ret = qcsapi_wifi_get_rssi_per_association(WIFINAME, index, &rssi);
+	if (ret < 0) {
+		qtn_init = 0;
+		return 0;
+	}
+	return -rssi;
+}
+
+int getNoiseIndex_qtn(char *name, int index)
+{
+
+	int noise;
+	if (!rpc_qtn_ready())
+		return -1;
+	int ret = qcsapi_wifi_get_hw_noise_per_association(WIFINAME, index, &noise);
+	if (ret < 0) {
+		qtn_init = 0;
+		return 0;
+	}
+	return noise / 10;
+}
+
+int getTXRate_qtn(char *name, int index)
+{
+	int rate;
+	if (!rpc_qtn_ready())
+		return -1;
+	qcsapi_wifi_get_tx_phy_rate_per_association(WIFINAME, index, &rate);
+	return rate;
+}
+
+int getRXRate_qtn(char *name, int index)
+{
+	int rate;
+	if (!rpc_qtn_ready())
+		return -1;
+	qcsapi_wifi_get_rx_phy_rate_per_association(WIFINAME, index, &rate);
+	return rate;
+
 }

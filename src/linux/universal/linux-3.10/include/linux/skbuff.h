@@ -412,7 +412,6 @@ struct sk_buff {
 
 	struct sock		*sk;
 	struct net_device	*dev;
-	struct net_device	*orig_dev;
 
 	/*
 	 * This is the control buffer. It is free to use for every
@@ -646,6 +645,7 @@ extern int skb_save_cb(struct sk_buff *skb);
 extern int skb_restore_cb(struct sk_buff *skb);
 #endif
 
+extern void skb_release_head_state(struct sk_buff *skb);
 extern void kfree_skb(struct sk_buff *skb);
 extern void kfree_skb_list(struct sk_buff *segs);
 extern void skb_tx_error(struct sk_buff *skb);
@@ -2389,6 +2389,9 @@ static inline void skb_postpull_rcsum(struct sk_buff *skb,
 {
 	if (skb->ip_summed == CHECKSUM_COMPLETE)
 		skb->csum = csum_sub(skb->csum, csum_partial(start, len, 0));
+	else if (skb->ip_summed == CHECKSUM_PARTIAL &&
+		 skb_checksum_start_offset(skb) < 0)
+		skb->ip_summed = CHECKSUM_NONE;
 }
 
 unsigned char *skb_pull_rcsum(struct sk_buff *skb, unsigned int len);

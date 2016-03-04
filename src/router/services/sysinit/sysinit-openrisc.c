@@ -53,7 +53,7 @@
 #include <linux/mii.h>
 #include "devices/wireless.c"
 
-#define sys_reboot() sysprintf("startservice run_rc_shutdown"); eval("sync"); eval("event","3","1","15")
+#define sys_reboot() eval("startservice","run_rc_shutdown"); eval("sync"); eval("event","3","1","15")
 
 static void install_sdcard(void)
 {
@@ -159,8 +159,8 @@ void start_sysinit(void)
 
 		strncpy(ifr.ifr_name, "eth0", IFNAMSIZ);
 		ioctl(s, SIOCGIFHWADDR, &ifr);
-		nvram_set("et0macaddr", ether_etoa((unsigned char *)ifr.ifr_hwaddr.sa_data, eabuf));
-		nvram_set("et0macaddr_safe", ether_etoa((unsigned char *)ifr.ifr_hwaddr.sa_data, eabuf));
+		nvram_set("et0macaddr", ether_etoa((char *)ifr.ifr_hwaddr.sa_data, eabuf));
+		nvram_set("et0macaddr_safe", ether_etoa((char *)ifr.ifr_hwaddr.sa_data, eabuf));
 		close(s);
 	}
 

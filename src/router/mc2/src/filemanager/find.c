@@ -1,7 +1,7 @@
 /*
    Find file command for the Midnight Commander
 
-   Copyright (C) 1995-2014
+   Copyright (C) 1995-2015
    Free Software Foundation, Inc.
 
    Written  by:
@@ -35,7 +35,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <fcntl.h>
 #include <sys/stat.h>
 #include <sys/time.h>
 
@@ -112,6 +111,13 @@ typedef struct
     char *ignore_dirs;
 } find_file_options_t;
 
+typedef struct
+{
+    char *dir;
+    gsize start;
+    gsize end;
+} find_match_location_t;
+
 /*** file scope variables ************************************************************************/
 
 /* button callbacks */
@@ -158,6 +164,8 @@ static struct timeval last_refresh;
 static gboolean resuming;
 static int last_line;
 static int last_pos;
+static off_t last_off;
+static int last_i;
 
 static size_t ignore_count = 0;
 
@@ -166,17 +174,7 @@ static WLabel *status_label;    /* Finished, Searching etc. */
 static WLabel *found_num_label; /* Number of found items */
 
 /* This keeps track of the directory stack */
-#if GLIB_CHECK_VERSION (2, 14, 0)
 static GQueue dir_queue = G_QUEUE_INIT;
-#else
-typedef struct dir_stack
-{
-    vfs_path_t *name;
-    struct dir_stack *prev;
-} dir_stack;
-
-static dir_stack *dir_stack_base = 0;
-#endif /* GLIB_CHECK_VERSION */
 
 /* *INDENT-OFF* */
 static struct
@@ -203,13 +201,14 @@ static struct
 /* *INDENT-ON* */
 
 static const size_t fbuts_num = G_N_ELEMENTS (fbuts);
-const size_t quit_button = 4;   /* index of "Quit" button */
+static const size_t quit_button = 4;    /* index of "Quit" button */
 
 static WListbox *find_list;     /* Listbox with the file list */
 
 static find_file_options_t options = {
     TRUE, TRUE, TRUE, FALSE, FALSE,
-    FALSE, TRUE, FALSE, FALSE, FALSE, FALSE
+    FALSE, TRUE, FALSE, FALSE, FALSE, FALSE,
+    FALSE, NULL
 };
 
 static char *in_start_dir = INPUT_LAST_TEXT;
@@ -249,8 +248,7 @@ parse_ignore_dirs (const char *ignore_dirs)
         if (find_ignore_dirs[r][0] == '\0')
         {
             /* empty entry -- skip it */
-            g_free (find_ignore_dirs[r]);
-            find_ignore_dirs[r] = NULL;
+            MC_PTR_FREE (find_ignore_dirs[r]);
             continue;
         }
 
@@ -265,10 +263,7 @@ parse_ignore_dirs (const char *ignore_dirs)
         if (find_ignore_dirs[w][0] != '\0')
             w++;
         else
-        {
-            g_free (find_ignore_dirs[w]);
-            find_ignore_dirs[w] = NULL;
-        }
+            MC_PTR_FREE (find_ignore_dirs[w]);
     }
 
     if (find_ignore_dirs[0] == NULL)
@@ -315,10 +310,7 @@ find_load_options (void)
     options.ignore_dirs = mc_config_get_string (mc_main_config, "FindFile", "ignore_dirs", "");
 
     if (options.ignore_dirs[0] == '\0')
-    {
-        g_free (options.ignore_dirs);
-        options.ignore_dirs = NULL;
-    }
+        MC_PTR_FREE (options.ignore_dirs);
 }
 
 /* --------------------------------------------------------------------------------------------- */
@@ -349,7 +341,7 @@ find_save_options (void)
 static inline char *
 add_to_list (const char *text, void *data)
 {
-    return listbox_add_item (find_list, LISTBOX_APPEND_AT_END, 0, text, data);
+    return listbox_add_item (find_list, LISTBOX_APPEND_AT_END, 0, text, data, TRUE);
 }
 
 /* --------------------------------------------------------------------------------------------- */
@@ -381,9 +373,25 @@ found_num_update (void)
 /* --------------------------------------------------------------------------------------------- */
 
 static void
-get_list_info (char **file, char **dir)
+get_list_info (char **file, char **dir, gsize * start, gsize * end)
 {
-    listbox_get_current (find_list, file, (void **) dir);
+    find_match_location_t *location;
+
+    listbox_get_current (find_list, file, (void **) &location);
+    if (location != NULL)
+    {
+        if (dir != NULL)
+            *dir = location->dir;
+        if (start != NULL)
+            *start = location->start;
+        if (end != NULL)
+            *end = location->end;
+    }
+    else
+    {
+        if (dir != NULL)
+            *dir = NULL;
+    }
 }
 
 /* --------------------------------------------------------------------------------------------- */
@@ -815,7 +823,6 @@ find_parameters (char **start_dir, ssize_t * start_dir_len,
 
 /* --------------------------------------------------------------------------------------------- */
 
-#if GLIB_CHECK_VERSION (2, 14, 0)
 static inline void
 push_directory (const vfs_path_t * dir)
 {
@@ -842,59 +849,14 @@ clear_stack (void)
 
 /* --------------------------------------------------------------------------------------------- */
 
-#else /* GLIB_CHECK_VERSION */
 static void
-push_directory (const vfs_path_t * dir)
-{
-    dir_stack *new;
-
-    new = g_new (dir_stack, 1);
-    new->name = (vfs_path_t *) dir;
-    new->prev = dir_stack_base;
-    dir_stack_base = new;
-}
-
-/* --------------------------------------------------------------------------------------------- */
-
-static vfs_path_t *
-pop_directory (void)
-{
-    vfs_path_t *name = NULL;
-
-    if (dir_stack_base != NULL)
-    {
-        dir_stack *next;
-        name = dir_stack_base->name;
-        next = dir_stack_base->prev;
-        g_free (dir_stack_base);
-        dir_stack_base = next;
-    }
-
-    return name;
-}
-
-/* --------------------------------------------------------------------------------------------- */
-/** Remove all the items from the stack */
-
-static void
-clear_stack (void)
-{
-    vfs_path_t *dir = NULL;
-
-    while ((dir = pop_directory ()) != NULL)
-        vfs_path_free (dir);
-}
-#endif /* GLIB_CHECK_VERSION */
-
-/* --------------------------------------------------------------------------------------------- */
-
-static void
-insert_file (const char *dir, const char *file)
+insert_file (const char *dir, const char *file, gsize start, gsize end)
 {
     char *tmp_name = NULL;
     static char *dirname = NULL;
+    find_match_location_t *location;
 
-    while (dir[0] == PATH_SEP && dir[1] == PATH_SEP)
+    while (IS_PATH_SEP (dir[0]) && IS_PATH_SEP (dir[1]))
         dir++;
 
     if (old_dir)
@@ -913,16 +875,20 @@ insert_file (const char *dir, const char *file)
     }
 
     tmp_name = g_strdup_printf ("    %s", file);
-    add_to_list (tmp_name, dirname);
+    location = g_malloc (sizeof (*location));
+    location->dir = dirname;
+    location->start = start;
+    location->end = end;
+    add_to_list (tmp_name, location);
     g_free (tmp_name);
 }
 
 /* --------------------------------------------------------------------------------------------- */
 
 static void
-find_add_match (const char *dir, const char *file)
+find_add_match (const char *dir, const char *file, gsize start, gsize end)
 {
-    insert_file (dir, file);
+    insert_file (dir, file, start, end);
 
     /* Don't scroll */
     if (matches == 0)
@@ -1031,11 +997,14 @@ search_content (WDialog * h, const char *directory, const char *filename)
         int line = 1;
         int pos = 0;
         int n_read = 0;
+        off_t off = 0;          /* file_fd's offset corresponding to strbuf[0] */
         gboolean found = FALSE;
         gsize found_len;
+        gsize found_start;
         char result[BUF_MEDIUM];
         char *strbuf = NULL;    /* buffer for fetched string */
         int strbuf_size = 0;
+        int i = -1;             /* compensate for a newline we'll add when we first enter the loop */
 
         if (resuming)
         {
@@ -1043,12 +1012,15 @@ search_content (WDialog * h, const char *directory, const char *filename)
             resuming = FALSE;
             line = last_line;
             pos = last_pos;
+            off = last_off;
+            i = last_i;
         }
 
         while (!ret_val)
         {
             char ch = '\0';
-            int i = 0;
+            off += i + 1;       /* the previous line, plus a newline character */
+            i = 0;
 
             /* read to buffer and get line from there */
             while (TRUE)
@@ -1066,7 +1038,10 @@ search_content (WDialog * h, const char *directory, const char *filename)
                 {
                     /* skip possible leading zero(s) */
                     if (i == 0)
+                    {
+                        off++;
                         continue;
+                    }
                     break;
                 }
 
@@ -1109,7 +1084,8 @@ search_content (WDialog * h, const char *directory, const char *filename)
                 }
 
                 g_snprintf (result, sizeof (result), "%d:%s", line, filename);
-                find_add_match (directory, result);
+                found_start = off + search_content_handle->normal_offset + 1;   /* off by one: ticket 3280 */
+                find_add_match (directory, result, found_start, found_start + found_len);
                 found = TRUE;
             }
 
@@ -1137,6 +1113,8 @@ search_content (WDialog * h, const char *directory, const char *filename)
                     resuming = TRUE;
                     last_line = line;
                     last_pos = pos;
+                    last_off = off;
+                    last_i = i;
                     ret_val = TRUE;
                     break;
                 default:
@@ -1188,7 +1166,7 @@ find_ignore_dir_search (const char *dir)
                 {
                     /* be sure that ignore dir is not a part of dir like:
                        ignore dir is "h", dir is "home" */
-                    if (dir[ilen] == '\0' || dir[ilen] == PATH_SEP)
+                    if (dir[ilen] == '\0' || IS_PATH_SEP (dir[ilen]))
                         return TRUE;
                 }
                 break;
@@ -1197,7 +1175,8 @@ find_ignore_dir_search (const char *dir)
                     char *d;
 
                     d = strstr (dir, *ignore_dir);
-                    if (d != NULL && d[-1] == PATH_SEP && (d[ilen] == '\0' || d[ilen] == PATH_SEP))
+                    if (d != NULL && IS_PATH_SEP (d[-1])
+                        && (d[ilen] == '\0' || IS_PATH_SEP (d[ilen])))
                         return TRUE;
                 }
                 break;
@@ -1241,7 +1220,6 @@ do_search (WDialog * h)
     static DIR *dirp = NULL;
     static char *directory = NULL;
     struct stat tmp_stat;
-    static int subdirs_left = 0;
     gsize bytes_found;
     unsigned short count;
 
@@ -1252,8 +1230,7 @@ do_search (WDialog * h)
             mc_closedir (dirp);
             dirp = NULL;
         }
-        g_free (directory);
-        directory = NULL;
+        MC_PTR_FREE (directory);
         dp = NULL;
         return 1;
     }
@@ -1319,13 +1296,6 @@ do_search (WDialog * h)
                     g_snprintf (buffer, sizeof (buffer), _("Searching %s"), directory);
                     status_update (str_trunc (directory, WIDGET (h)->cols - 8));
                 }
-                /* mc_stat should not be called after mc_opendir
-                   because vfs_s_opendir modifies the st_nlink
-                 */
-                if (mc_stat (tmp_vpath, &tmp_stat) == 0)
-                    subdirs_left = tmp_stat.st_nlink - 2;
-                else
-                    subdirs_left = 0;
 
                 dirp = mc_opendir (tmp_vpath);
                 vfs_path_free (tmp_vpath);
@@ -1349,7 +1319,7 @@ do_search (WDialog * h)
         {
             gboolean search_ok;
 
-            if ((subdirs_left != 0) && options.find_recurs && (directory != NULL))
+            if (options.find_recurs && (directory != NULL))
             {                   /* Can directory be NULL ? */
                 /* handle relative ignore dirs here */
                 if (options.ignore_dirs_enable && find_ignore_dir_search (dp->d_name))
@@ -1361,10 +1331,7 @@ do_search (WDialog * h)
                     tmp_vpath = vfs_path_build_filename (directory, dp->d_name, (char *) NULL);
 
                     if (mc_lstat (tmp_vpath, &tmp_stat) == 0 && S_ISDIR (tmp_stat.st_mode))
-                    {
                         push_directory (tmp_vpath);
-                        subdirs_left--;
-                    }
                     else
                         vfs_path_free (tmp_vpath);
                 }
@@ -1376,7 +1343,7 @@ do_search (WDialog * h)
             if (search_ok)
             {
                 if (content_pattern == NULL)
-                    find_add_match (directory, dp->d_name);
+                    find_add_match (directory, dp->d_name, 0, 0);
                 else if (search_content (h, directory, dp->d_name))
                     return 1;
             }
@@ -1397,8 +1364,7 @@ do_search (WDialog * h)
 static void
 init_find_vars (void)
 {
-    g_free (old_dir);
-    old_dir = NULL;
+    MC_PTR_FREE (old_dir);
     matches = 0;
     ignore_count = 0;
 
@@ -1412,7 +1378,8 @@ init_find_vars (void)
 /* --------------------------------------------------------------------------------------------- */
 
 static void
-find_do_view_edit (gboolean unparsed_view, gboolean edit, char *dir, char *file)
+find_do_view_edit (gboolean unparsed_view, gboolean edit, char *dir, char *file, off_t search_start,
+                   off_t search_end)
 {
     char *fullname = NULL;
     const char *filename = NULL;
@@ -1434,7 +1401,8 @@ find_do_view_edit (gboolean unparsed_view, gboolean edit, char *dir, char *file)
     if (edit)
         edit_file_at_line (fullname_vpath, use_internal_edit != 0, line);
     else
-        view_file_at_line (fullname_vpath, unparsed_view, use_internal_view != 0, line);
+        view_file_at_line (fullname_vpath, unparsed_view, use_internal_view != 0, line,
+                           search_start, search_end);
     vfs_path_free (fullname_vpath);
     g_free (fullname);
 }
@@ -1444,15 +1412,15 @@ find_do_view_edit (gboolean unparsed_view, gboolean edit, char *dir, char *file)
 static cb_ret_t
 view_edit_currently_selected_file (gboolean unparsed_view, gboolean edit)
 {
-    char *dir = NULL;
     char *text = NULL;
+    find_match_location_t *location;
 
-    listbox_get_current (find_list, &text, (void **) &dir);
+    listbox_get_current (find_list, &text, (void **) &location);
 
-    if ((text == NULL) || (dir == NULL))
+    if ((text == NULL) || (location == NULL) || (location->dir == NULL))
         return MSG_NOT_HANDLED;
 
-    find_do_view_edit (unparsed_view, edit, dir, text);
+    find_do_view_edit (unparsed_view, edit, location->dir, text, location->start, location->end);
     return MSG_HANDLED;
 }
 
@@ -1723,7 +1691,7 @@ do_find (const char *start_dir, ssize_t start_dir_len, const char *ignore_dirs,
     /* Clear variables */
     init_find_vars ();
 
-    get_list_info (&file_tmp, &dir_tmp);
+    get_list_info (&file_tmp, &dir_tmp, NULL, NULL);
 
     if (dir_tmp)
         *dirname = g_strdup (dir_tmp);
@@ -1746,9 +1714,10 @@ do_find (const char *start_dir, ssize_t start_dir_len, const char *ignore_dirs,
         {
             const char *lc_filename = NULL;
             WLEntry *le = LENTRY (entry->data);
+            find_match_location_t *location = le->data;
             char *p;
 
-            if ((le->text == NULL) || (le->data == NULL))
+            if ((le->text == NULL) || (location == NULL) || (location->dir == NULL))
                 continue;
 
             if (content_pattern != NULL)
@@ -1756,14 +1725,14 @@ do_find (const char *start_dir, ssize_t start_dir_len, const char *ignore_dirs,
             else
                 lc_filename = le->text + 4;
 
-            name = mc_build_filename (le->data, lc_filename, (char *) NULL);
+            name = mc_build_filename (location->dir, lc_filename, (char *) NULL);
             /* skip initial start dir */
             if (start_dir_len < 0)
                 p = name;
             else
             {
                 p = name + (size_t) start_dir_len;
-                if (*p == PATH_SEP)
+                if (IS_PATH_SEP (*p))
                     p++;
             }
 
@@ -1824,8 +1793,7 @@ do_find (const char *start_dir, ssize_t start_dir_len, const char *ignore_dirs,
     g_free (content_pattern);
     kill_gui ();
     do_search (NULL);           /* force do_search to release resources */
-    g_free (old_dir);
-    old_dir = NULL;
+    MC_PTR_FREE (old_dir);
     rotate_dash (FALSE);
 
     return return_value;
@@ -1840,21 +1808,23 @@ find_file (void)
 {
     char *start_dir = NULL, *pattern = NULL, *content = NULL, *ignore_dirs = NULL;
     ssize_t start_dir_len;
-    char *filename = NULL, *dirname = NULL;
 
     while (find_parameters (&start_dir, &start_dir_len, &ignore_dirs, &pattern, &content))
     {
-        int v;
+        char *filename = NULL, *dirname = NULL;
+        int v = B_CANCEL;
 
-        if (pattern[0] == '\0')
-            break;              /* nothing search */
+        if (pattern[0] != '\0')
+        {
+            last_refresh.tv_sec = 0;
+            last_refresh.tv_usec = 0;
 
-        last_refresh.tv_sec = 0;
-        last_refresh.tv_usec = 0;
+            is_start = FALSE;
+            v = do_find (start_dir, start_dir_len, ignore_dirs, pattern, content, &dirname,
+                         &filename);
+        }
 
-        dirname = filename = NULL;
-        is_start = FALSE;
-        v = do_find (start_dir, start_dir_len, ignore_dirs, pattern, content, &dirname, &filename);
+        g_free (start_dir);
         g_free (ignore_dirs);
         g_free (pattern);
 
@@ -1880,17 +1850,13 @@ find_file (void)
                 do_cd (filename_vpath, cd_exact);
                 vfs_path_free (filename_vpath);
             }
-
-            g_free (dirname);
-            g_free (filename);
-            break;
         }
 
         g_free (content);
         g_free (dirname);
         g_free (filename);
 
-        if (v == B_CANCEL)
+        if (v == B_ENTER || v == B_CANCEL)
             break;
 
         if (v == B_PANELIZE)

@@ -7,6 +7,10 @@ extern void stop_httpd(void);
 extern void start_telnetd(void);
 extern void stop_telnetd(void);
 #endif
+#ifdef HAVE_MACTELNET
+extern void start_mactelnetd(void);
+extern void stop_mactelnetd(void);
+#endif
 
 extern void start_resetbutton(void);
 extern void stop_resetbutton(void);
@@ -16,6 +20,9 @@ extern void stop_tftpd(void);
 
 extern void start_cron(void);
 extern void stop_cron(void);
+
+extern void start_pppmodules(void);
+extern void stop_pppmodules(void);
 
 extern void start_zebra(void);
 extern void stop_zebra(void);
@@ -29,6 +36,11 @@ extern void stop_ddns(void);
 #ifdef HAVE_UPNP
 extern void start_upnp(void);
 extern void stop_upnp(void);
+#endif
+
+#ifdef HAVE_IPVS
+extern void start_ipvs(void);
+extern void stop_ipvs(void);
 #endif
 
 #ifdef HAVE_QTN
@@ -103,6 +115,11 @@ extern void stop_firewall(void);
 #ifdef HAVE_MULTICAST
 extern void start_igmprt(void);
 extern void stop_igmprt(void);
+#endif
+
+#ifdef HAVE_UNBOUND
+extern void start_unbound(void);
+extern void stop_unbound(void);
 #endif
 
 #ifdef HAVE_UDPXY
@@ -186,7 +203,6 @@ void start_wanup(void);
 
 char *getMTU(char *ifname);
 char *getTXQ(char *ifname);
-char *getBridgeMTU(char *ifname);
 
 int br_add_bridge(const char *brname);
 int br_del_bridge(const char *brname);
@@ -200,7 +216,7 @@ int br_set_bridge_prio(const char *br, char *prio);
 void reset_hwaddr(char *ifname);
 void start_force_to_dial(void);
 
-int stop_process(char *name,char *desc);
+int stop_process(char *name, char *desc);
 
 char *getMacAddr(char *ifname, char *mac);
 
@@ -211,7 +227,6 @@ void ath9k_start_supplicant(int count);
 #endif
 int ifconfig(char *name, int flags, char *addr, char *netmask);
 
-
 #define IFUP (IFF_UP | IFF_RUNNING | IFF_BROADCAST | IFF_MULTICAST)
 
 #ifdef HAVE_NINTENDO
@@ -220,6 +235,7 @@ void stop_spotpass(void);
 void start_spotpass_defaults(void);
 #endif
 
+int wlconf_up(char *name);
 #ifdef HAVE_ClOUD4WI
 void start_cloud4wi_provisioning(void);
 #endif

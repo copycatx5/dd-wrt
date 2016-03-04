@@ -72,12 +72,19 @@ void start_sysinit(void)
 	insmod("mbcache");
 	insmod("jbd2");
 	insmod("ext4");
-
-	if (mount("/dev/sda3", "/jffs", "ext2", MS_MGC_VAL, NULL)) {
-		eval("/sbin/mkfs.ext2", "-F", "-b", "1024", "/dev/sda3");
-		mount("/dev/sda3", "/jffs", "ext2", MS_MGC_VAL, NULL);
-		eval("mount", "--bind", "/jffs", "/usr/local");
+	FILE *check = fopen("/dev/sda3", "rb");
+	char drive[64];
+	if (check) {
+		fclose(check);
+		sprintf(drive, "/dev/sda3");
+	} else {
+		sprintf(drive, "/dev/mmcblk0p3");
 	}
+	if (mount(drive, "/jffs", "ext2", MS_MGC_VAL, NULL)) {
+		eval("/sbin/mkfs.ext2", "-F", "-b", "1024", drive);
+		mount(drive, "/jffs", "ext2", MS_MGC_VAL, NULL);
+	}
+	eval("mount", "--bind", "/jffs", "/usr/local");
 
 	int brand = getRouterBrand();
 
@@ -98,8 +105,8 @@ void start_sysinit(void)
 
 		strncpy(ifr.ifr_name, "eth0", IFNAMSIZ);
 		ioctl(s, SIOCGIFHWADDR, &ifr);
-		nvram_set("et0macaddr", ether_etoa((unsigned char *)ifr.ifr_hwaddr.sa_data, eabuf));
-		nvram_set("et0macaddr_safe", ether_etoa((unsigned char *)ifr.ifr_hwaddr.sa_data, eabuf));
+		nvram_set("et0macaddr", ether_etoa((char *)ifr.ifr_hwaddr.sa_data, eabuf));
+		nvram_set("et0macaddr_safe", ether_etoa((char *)ifr.ifr_hwaddr.sa_data, eabuf));
 		close(s);
 	}
 

@@ -18,7 +18,7 @@ curl-clean:
 	$(MAKE) -C curl clean
 
 curl-configure:
-	cd curl && ./configure --prefix=/usr ac_cv_host=$(ARCH)-uclibc-linux --libdir=/usr/lib --target=$(ARCH)-linux --host=$(ARCH) CC="ccache $(ARCH)-linux-uclibc-gcc" \
+	cd curl && aclocal && automake && ./configure --prefix=/usr ac_cv_host=$(ARCH)-uclibc-linux --libdir=/usr/lib --target=$(ARCH)-linux --host=$(ARCH) CC="ccache $(ARCH)-linux-uclibc-gcc" \
 	CFLAGS="$(COPTS) $(MIPS16_OPT) -I$(TOP)/zlib  -I$(TOP)/openssl/include -ffunction-sections -fdata-sections -Wl,--gc-sections" \
 	LDFLAGS="$(COPTS) $(MIPS16_OPT) -L$(TOP)/zlib -L$(TOP)/openssl -lcrypto -lssl -ldl" 
 	CC="ccache $(ARCH)-linux-uclibc-gcc" \
@@ -54,4 +54,6 @@ transmission-configure: libevent-configure curl-configure
 	LIBCURL_CFLAGS="-I$(TOP)/curl/include" \
 	LIBCURL_LIBS="-L$(TOP)/curl/lib/.libs -lcurl" \
 	LIBEVENT_CFLAGS="-I$(TOP)/libevent/include" \
-	LIBEVENT_LIBS="-L$(TOP)/libevent/.libs -levent"
+	LIBEVENT_LIBS="-L$(TOP)/libevent/.libs -levent" \
+	OPENSSL_CFLAGS="-I$(TOP)/openssl/include" \
+	OPENSSL_LIBS="-L$(TOP)/openssl"

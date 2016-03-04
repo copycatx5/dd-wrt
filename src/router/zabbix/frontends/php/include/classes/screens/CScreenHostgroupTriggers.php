@@ -1,7 +1,7 @@
 <?php
 /*
 ** Zabbix
-** Copyright (C) 2001-2013 Zabbix SIA
+** Copyright (C) 2001-2015 Zabbix SIA
 **
 ** This program is free software; you can redistribute it and/or modify
 ** it under the terms of the GNU General Public License as published by
@@ -34,11 +34,16 @@ class CScreenHostgroupTriggers extends CScreenBase {
 			'hostids' => null,
 			'maintenance' => null,
 			'severity' => null,
-			'limit' => $this->screenitem['elements']
+			'limit' => $this->screenitem['elements'],
+			'backUrl' => $this->pageFile
 		);
 
 		// by default triggers are sorted by date desc, do we need to override this?
 		switch ($this->screenitem['sort_triggers']) {
+			case SCREEN_SORT_TRIGGERS_DATE_DESC:
+				$params['sortfield'] = 'lastchange';
+				$params['sortorder'] = ZBX_SORT_DOWN;
+				break;
 			case SCREEN_SORT_TRIGGERS_SEVERITY_DESC:
 				$params['sortfield'] = 'priority';
 				$params['sortorder'] = ZBX_SORT_DOWN;
@@ -58,7 +63,7 @@ class CScreenHostgroupTriggers extends CScreenBase {
 			));
 			$hostgroup = reset($hostgroup);
 
-			$item = new CSpan(_('Group').': '.$hostgroup['name'], 'white');
+			$item = new CSpan(_('Group').NAME_DELIMITER.$hostgroup['name'], 'white');
 			$params['groupids'] = $hostgroup['groupid'];
 		}
 		else {
@@ -98,18 +103,18 @@ class CScreenHostgroupTriggers extends CScreenBase {
 				$params['hostids'] = $hostid;
 			}
 
-			$item = new CForm();
+			$item = new CForm(null, $this->pageFile);
 
 			$groupComboBox = new CComboBox('tr_groupid', $groupid, 'submit()');
 			$groupComboBox->addItem(0, _('all'));
 			foreach ($groups as $group) {
-				$groupComboBox->addItem($group['groupid'], get_node_name_by_elid($group['groupid'], null, ': ').$group['name']);
+				$groupComboBox->addItem($group['groupid'], get_node_name_by_elid($group['groupid'], null, NAME_DELIMITER).$group['name']);
 			}
 
 			$hostComboBox = new CComboBox('tr_hostid', $hostid, 'submit()');
 			$hostComboBox->addItem(0, _('all'));
 			foreach ($hosts as $host) {
-				$hostComboBox->addItem($host['hostid'], get_node_name_by_elid($host['hostid'], null, ': ').$host['host']);
+				$hostComboBox->addItem($host['hostid'], get_node_name_by_elid($host['hostid'], null, NAME_DELIMITER).$host['host']);
 			}
 
 			if ($this->mode == SCREEN_MODE_EDIT) {
@@ -124,7 +129,7 @@ class CScreenHostgroupTriggers extends CScreenBase {
 		$params['screenid'] = $this->screenid;
 
 		$output = new CUIWidget('hat_htstatus', make_latest_issues($params, true));
-		$output->setDoubleHeader(array(_('STATUS OF TRIGGERS'), SPACE, zbx_date2str(_('[H:i:s]')), SPACE), $item);
+		$output->setDoubleHeader(array(_('HOST GROUP ISSUES'), SPACE, zbx_date2str(_('[H:i:s]')), SPACE), $item);
 
 		return $this->getOutput($output);
 	}

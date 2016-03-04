@@ -48,6 +48,14 @@ typedef enum
     UP_ONLY_CURRENT = 2
 } panel_update_flags_t;
 
+/* selection flags */
+typedef enum
+{
+    SELECT_FILES_ONLY = 1 << 0,
+    SELECT_MATCH_CASE = 1 << 1,
+    SELECT_SHELL_PATTERNS = 1 << 2
+} panel_select_flags_t;
+
 /* run mode and params */
 
 enum cd_enum
@@ -64,7 +72,7 @@ typedef struct panel_field_struct
 {
     const char *id;
     int min_size;
-    int expands;
+    gboolean expands;
     align_crt_t default_just;
     const char *hotkey;
     const char *title_hotkey;
@@ -85,7 +93,7 @@ typedef struct
     Widget widget;
     dir_list dir;               /* Directory contents */
 
-    int list_type;              /* listing type (was view_type) */
+    enum list_types list_type;  /* listing type */
     int active;                 /* If panel is currently selected */
     vfs_path_t *cwd_vpath;      /* Current Working Directory */
     vfs_path_t *lwd_vpath;      /* Last Working Directory */
@@ -97,7 +105,8 @@ typedef struct
     uintmax_t total;            /* Bytes in marked files */
     int top_file;               /* The file showed on the top of the panel */
     int selected;               /* Index to the selected file */
-    int split;                  /* Split panel to allow two columns */
+    int list_cols;              /* Number of file list columns */
+    int brief_cols;             /* Number of columns in case of list_brief format */
     gboolean is_panelized;      /* Flag: special filelisting, can't reload */
     panel_display_t frame_size; /* half or full frame */
     char *filter;               /* File name filter */
@@ -145,7 +154,6 @@ extern mc_fhl_t *mc_filehighlight;
 
 /*** declarations of public functions ************************************************************/
 
-WPanel *panel_new (const char *panel_name);
 WPanel *panel_new_with_dir (const char *panel_name, const vfs_path_t * vpath);
 void panel_clean_dir (WPanel * panel);
 
@@ -187,5 +195,23 @@ void panel_init (void);
 void panel_deinit (void);
 gboolean do_cd (const vfs_path_t * new_dir_vpath, enum cd_enum cd_type);
 
+/* --------------------------------------------------------------------------------------------- */
 /*** inline functions ****************************************************************************/
+/* --------------------------------------------------------------------------------------------- */
+/**
+ * Panel creation.
+ *
+ * @param panel_name the name of the panel for setup retieving
+ *
+ * @return new instance of WPanel
+ */
+
+static inline WPanel *
+panel_new (const char *panel_name)
+{
+    return panel_new_with_dir (panel_name, NULL);
+}
+
+/* --------------------------------------------------------------------------------------------- */
+
 #endif /* MC__PANEL_H */

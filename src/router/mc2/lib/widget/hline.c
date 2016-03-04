@@ -1,7 +1,7 @@
 /*
    Widgets for the Midnight Commander
 
-   Copyright (C) 1994-2014
+   Copyright (C) 1994-2015
    Free Software Foundation, Inc.
 
    Authors:
@@ -108,6 +108,10 @@ hline_callback (Widget * w, Widget * sender, widget_msg_t msg, int parm, void *d
             widget_move (w, 0, (w->cols - text_width) / 2);
             tty_print_string (l->text);
         }
+        return MSG_HANDLED;
+
+    case MSG_DESTROY:
+        g_free (l->text);
         return MSG_HANDLED;
 
     default:

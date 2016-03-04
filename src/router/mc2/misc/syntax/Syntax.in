@@ -67,10 +67,10 @@ include tt.syntax
 file (.\*[Mm]akefile[\\\.A-Za-z0-9]\*|..\*\\.mk|..\*\\.mak|Kbuild)$ Makefile
 include makefile.syntax
 
-file CMakeLists.txt$ CMake
+file (CMakeLists.txt|.\*.cmake)$ CMake
 include cmake.syntax
 
-file ..\*\\.(pp|PP|pas|PAS|dpr|DPR|inc|INC)$ Pascal\sProgram
+file ..\*\\.(pas|PAS|dpr|DPR|inc|INC)$ Pascal\sProgram
 include pascal.syntax
 
 file ..\*\\.(ada|adb|ads|ADA|ADB|ADS)$ Ada\sProgram
@@ -178,7 +178,7 @@ include povray.syntax
 file .\*\\.(ebuild|eclass)$ Gentoo\sEbuild
 include ebuild.syntax
 
-file ..\*\\.([lL][uU][aA])$ LUA\sProgram ^#!.*/lua
+file ..\*\\.([lL][uU][aA])$ Lua\sProgram ^#!.\*[\s/]lua
 include lua.syntax
 
 file ..\*\\.([iI][dD][lL])$ CORBA\sIDL
@@ -255,6 +255,9 @@ include jal.syntax
 
 file ..\*\\.([lL][kK][rR])$ PIC\slinker\sscript\sfile
 include lkr.syntax
+
+file .\*\\.pp$ Puppet\smanifest\sfile
+include puppet.syntax
 
 file .\* unknown
 include unknown.syntax

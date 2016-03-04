@@ -3,15 +3,16 @@
 # This file is distributed under the same license as the PACKAGE package.
 #
 # Translators:
+# Joe Hansen <joedalton2@yahoo.dk>, 2014
 # Slava Zanko <slavazanko@gmail.com>, 2011
 msgid ""
 msgstr ""
 "Project-Id-Version: Midnight Commander\n"
 "Report-Msgid-Bugs-To: http://www.midnight-commander.org/\n"
-"POT-Creation-Date: 2014-04-01 14:47+0300\n"
-"PO-Revision-Date: 2014-02-19 09:12+0000\n"
-"Last-Translator: aborodin <aborodin@vmail.ru>\n"
-"Language-Team: Danish (http://www.transifex.com/projects/p/mc/language/da/)\n"
+"POT-Creation-Date: 2015-11-06 14:43+0300\n"
+"PO-Revision-Date: 2015-06-04 08:38+0000\n"
+"Last-Translator: Piotr Drąg <piotrdrag@gmail.com>\n"
+"Language-Team: Danish (http://www.transifex.com/mc/mc/language/da/)\n"
 "Language: da\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
@@ -107,19 +108,19 @@ msgid "Invalid token number %d"
 msgstr "Ugyldigt symbolantal %d"
 
 msgid "Regular expression error"
-msgstr ""
+msgstr "Fejl i regulært udtryk"
 
 msgid "No&rmal"
-msgstr ""
+msgstr "&Normal"
 
 msgid "Re&gular expression"
 msgstr "&Regulært udtryk"
 
 msgid "He&xadecimal"
-msgstr ""
+msgstr "&Hexadecimal"
 
 msgid "Wil&dcard search"
-msgstr ""
+msgstr "&Jokertegnsøgning"
 
 #, c-format
 msgid ""
@@ -143,9 +144,12 @@ msgid ""
 "on non-256 colors terminal.\n"
 "Default skin has been loaded"
 msgstr ""
+"Kunne ikke bruge »%s«-tema med 256 farveunderstøttelse\n"
+"på ikke-256 farveterminal.\n"
+"Standardtema er blevet indlæst"
 
 msgid "Escape"
-msgstr ""
+msgstr "Escape"
 
 msgid "Function key 1"
 msgstr "Funktionstast 1"
@@ -211,43 +215,43 @@ msgid "Completion/M-tab"
 msgstr "Fuldfør navn/M-tab"
 
 msgid "BackTab/S-tab"
-msgstr ""
+msgstr "BackTab/S-tab"
 
 msgid "Backspace"
-msgstr ""
+msgstr "Backspace"
 
 msgid "Up arrow"
-msgstr ""
+msgstr "Pil op"
 
 msgid "Down arrow"
-msgstr ""
+msgstr "Pil ned"
 
 msgid "Left arrow"
-msgstr ""
+msgstr "Venstre pil"
 
 msgid "Right arrow"
-msgstr ""
+msgstr "Højre pil"
 
 msgid "Insert"
-msgstr ""
+msgstr "Indsæt"
 
 msgid "Delete"
-msgstr ""
+msgstr "Slet"
 
 msgid "Home"
-msgstr ""
+msgstr "Home"
 
 msgid "End key"
 msgstr "End-tast"
 
 msgid "Page Up"
-msgstr ""
+msgstr "Side op"
 
 msgid "Page Down"
-msgstr ""
+msgstr "Side ned"
 
 msgid "/ on keypad"
-msgstr ""
+msgstr "/ på num. tastatur"
 
 msgid "* on keypad"
 msgstr "* på numerisk tastatur"
@@ -339,6 +343,9 @@ msgstr "Apostrof"
 msgid "Colon"
 msgstr "Kolon"
 
+msgid "Semicolon"
+msgstr ""
+
 msgid "Exclamation mark"
 msgstr "Udråbstegn"
 
@@ -355,7 +362,7 @@ msgid "Quotation mark"
 msgstr "Anførelsestegn"
 
 msgid "Percent sign"
-msgstr ""
+msgstr "Procenttegn"
 
 msgid "Caret"
 msgstr "Markør"
@@ -435,6 +442,31 @@ msgstr ""
 "Skærmstørrelse %dx%d er ikke understøttet.\n"
 "Tjek TERM-miljøvariabelen.\n"
 
+msgid "Cannot create pipe descriptor"
+msgstr "Kan ikke oprette datakanalbeskriver"
+
+msgid "Cannot parse command for pipe"
+msgstr "Kan ikke fortolke kommando for datakanal"
+
+msgid "Cannot create pipe streams"
+msgstr "Kan ikke oprette datakanalstrømme"
+
+#, c-format
+msgid ""
+"Unexpected error in select() reading data from a child process:\n"
+"%s"
+msgstr ""
+"Uventet fejl i select() læser data fra en underproces:\n"
+"%s"
+
+#, c-format
+msgid ""
+"Unexpected error in waitpid():\n"
+"%s"
+msgstr ""
+"Uventet fejl i waitpid():\n"
+"%s"
+
 msgid "Warning"
 msgstr "Advarsel"
 
@@ -451,8 +483,16 @@ msgstr "Fejl ved dupning af gammel fejldatakanal"
 msgid "Directory cache expired for %s"
 msgstr "Mellemlagermappe udløbet for %s"
 
+#, c-format
+msgid "%s: %s: %s %3d%% %<PRIuMAX> %s"
+msgstr ""
+
 msgid "bytes transferred"
 msgstr "byte overført"
+
+#, c-format
+msgid "%s: %s: %s %<PRIuMAX> %s"
+msgstr ""
 
 msgid "Starting linear transfer..."
 msgstr "Begynder lineær overførsel..."
@@ -534,6 +574,13 @@ msgstr "Baggrundsproces:"
 msgid "Error"
 msgstr "Fejl"
 
+#, c-format
+msgid "%d: %s"
+msgstr "%d: %s"
+
+msgid "&Abort"
+msgstr "&Afbryd"
+
 msgid "Displays the current version"
 msgstr "Udskriver versionsnummer"
 
@@ -541,10 +588,10 @@ msgid "Print data directory"
 msgstr "Udskriv datamappe"
 
 msgid "Print extended info about used data directories"
-msgstr ""
+msgstr "Udskriv udvidet information om brugte datamapper"
 
 msgid "Print configure options"
-msgstr ""
+msgstr "Udskriv konfigurationsindstillinger"
 
 msgid "Print last working directory to specified file"
 msgstr "Udskriv sidste arbejdsmappe til angivet fil"
@@ -565,13 +612,13 @@ msgid "Launches the file viewer on a file"
 msgstr "Bruger filfremviseren på en fil"
 
 msgid "Edit files"
-msgstr ""
+msgstr "Rediger filer"
 
 msgid "Forces xterm features"
 msgstr "Fremtvinger xterm-funktioner"
 
 msgid "Disable X11 support"
-msgstr ""
+msgstr "Deaktiver X11-understøttelse"
 
 msgid "Tries to use an old highlight mouse tracking"
 msgstr ""
@@ -627,7 +674,7 @@ msgid ""
 "   Editor:       editnormal, editbold, editmarked, editwhitespace,\n"
 "                 editlinestate, editbg, editframe, editframeactive\n"
 "                 editframedrag\n"
-"   Viewer:       viewbold, viewunderline, viewselected\n"
+"   Viewer:       viewnormal,viewbold, viewunderline, viewselected\n"
 "   Help:         helpnormal, helpitalic, helpbold, helplink, helpslink\n"
 msgstr ""
 
@@ -642,7 +689,7 @@ msgid ""
 "   color16 to color255, or rgb000 to rgb555 and gray0 to gray23\n"
 "\n"
 "Attributes:\n"
-"   bold, underline, reverse, blink; append more with '+'\n"
+"   bold, italic, underline, reverse, blink; append more with '+'\n"
 msgstr ""
 
 msgid "Color options"
@@ -679,8 +726,14 @@ msgstr ""
 msgid "No arguments given to the viewer."
 msgstr "Ingen argumenter givet til fremviseren."
 
-msgid "Two files are required to evoke the diffviewer."
-msgstr "To filer kræves for at vække forskelsfremviseren."
+msgid "Two files are required to envoke the diffviewer."
+msgstr ""
+
+msgid "Background protocol error"
+msgstr "Fejl i baggrundsprotokol"
+
+msgid "Reading failed"
+msgstr "Læsning fejlede"
 
 msgid "Background process error"
 msgstr "Fejl i baggrundsproces"
@@ -690,12 +743,6 @@ msgstr "Ukendt fejl i underproces"
 
 msgid "Child died unexpectedly"
 msgstr "Underproces døde uventet"
-
-msgid "Background protocol error"
-msgstr "Fejl i baggrundsprotokol"
-
-msgid "Reading failed"
-msgstr "Læsning fejlede"
 
 msgid ""
 "Background process sent us a request for more arguments\n"
@@ -824,19 +871,21 @@ msgid "Quit"
 msgstr "Afslut"
 
 msgid "File(s) was modified. Save with exit?"
-msgstr ""
+msgstr "Filer blev ændret. Gem ved afslut?"
 
 msgid ""
 "Midnight Commander is being shut down.\n"
 "Save modified file(s)?"
 msgstr ""
+"Midnight Commander bliver lukket ned.\n"
+"Gem ændrede filer?"
 
 msgid "Diff:"
 msgstr "Forskel:"
 
 #, c-format
 msgid "\"%s\" is a directory"
-msgstr ""
+msgstr "»%s« er en mappe"
 
 #, c-format
 msgid ""
@@ -862,8 +911,18 @@ msgid "< Reload Current Syntax >"
 msgstr "< Genindlæs aktuel syntaks >"
 
 #, c-format
+msgid "Loading: %3d%%"
+msgstr "Indlæser: %3d%%"
+
+msgid "Loading..."
+msgstr "Indlæser ..."
+
+#, c-format
 msgid "Cannot open %s for reading"
 msgstr "Kan ikke åbne %s til læsning"
+
+msgid "Load file"
+msgstr "Indlæs fil"
 
 #, c-format
 msgid "Error reading %s"
@@ -882,6 +941,8 @@ msgid ""
 "File \"%s\" is too large.\n"
 "Open it anyway?"
 msgstr ""
+"Filen »%s« er for stor.\n"
+"Åbn den alligevel?"
 
 #, c-format
 msgid "Error reading from pipe: %s"
@@ -890,6 +951,14 @@ msgstr "Der opstod en fejl under læsning fra datakanal: %s"
 #, c-format
 msgid "Cannot open pipe for reading: %s"
 msgstr "Kan ikke åbne datakanal til læsning: %s"
+
+#, c-format
+msgid "Searching %s: %3d%%"
+msgstr "Søger %s: %3d%%"
+
+#, c-format
+msgid "Searching %s"
+msgstr "Søger i %s"
 
 msgid "File has hard-links. Detach before saving?"
 msgstr "Fil har hårde henvisninger. Frigør før der gemmes?"
@@ -909,9 +978,8 @@ msgstr "Kan ikke åbne datakanal til skrivning: %s"
 msgid "Cannot open file for writing: %s"
 msgstr "Kan ikke åbne fil til skrivning: %s"
 
-#, fuzzy
 msgid "The file you are saving does not end with a newline."
-msgstr "Filen, du gemmer, er ikke afsluttet med et linjeskift"
+msgstr "Filen du gemmer slutter ikke med en nylinje."
 
 msgid "C&ontinue"
 msgstr "&Fortsæt"
@@ -940,6 +1008,9 @@ msgstr "Gem som"
 msgid "Block is large, you may not be able to undo this action"
 msgstr "Blok er stor, du vil måske ikke kunne fortryde denne handling"
 
+msgid "Collect completions"
+msgstr ""
+
 msgid "&Quick save"
 msgstr "&Hurtiggem"
 
@@ -959,7 +1030,7 @@ msgid "Save as"
 msgstr "Gem som"
 
 msgid "Cannot save: destination is not a regular file"
-msgstr ""
+msgstr "Kan ikke gemme: destination er ikke en normal fil"
 
 msgid "A file already exists with this name"
 msgstr "En fil findes allerede med dette navn"
@@ -977,7 +1048,7 @@ msgid "Press macro hotkey:"
 msgstr "Tast makrogenvej:"
 
 msgid "Macro not deleted"
-msgstr ""
+msgstr "Makro blev ikke slettet"
 
 msgid "Save macro"
 msgstr "Gem makro"
@@ -986,10 +1057,10 @@ msgid "Press the macro's new hotkey:"
 msgstr "Tast makroens nye genvej:"
 
 msgid "Repeat last commands"
-msgstr ""
+msgstr "Gentag de sidste kommandoer"
 
 msgid "Repeat times:"
-msgstr ""
+msgstr "Gentag antal gange:"
 
 #, c-format
 msgid "Confirm save file: \"%s\""
@@ -1014,7 +1085,7 @@ msgid "&User"
 msgstr "&Bruger"
 
 msgid "&System wide"
-msgstr ""
+msgstr "&Hele systemet"
 
 msgid "Menu edit"
 msgstr "Menuredigering"
@@ -1033,22 +1104,26 @@ msgid "%ld replacements made"
 msgstr "%ld erstatninger foretaget"
 
 msgid "[NoName]"
-msgstr ""
+msgstr "[IntetNavn]"
 
 #, c-format
 msgid ""
 "File %s was modified.\n"
 "Save before close?"
 msgstr ""
+"Filen %s blev ændret.\n"
+"Gem før afslutning?"
 
 msgid "Close file"
-msgstr ""
+msgstr "Luk fil"
 
 #, c-format
 msgid ""
 "Midnight Commander is being shut down.\n"
 "Save modified file %s?"
 msgstr ""
+"Midnight Commander bliver lukket ned.\n"
+"Gem ændret fil %s?"
 
 msgid "This function is not implemented"
 msgstr "Denne funktion er ikke implementeret"
@@ -1171,7 +1246,7 @@ msgstr ""
 "Fortsæt med at ændre disse ændringer"
 
 msgid "NoName"
-msgstr ""
+msgstr "IntetNavn"
 
 msgid "&Open file..."
 msgstr "&Åbn fil..."
@@ -1180,7 +1255,7 @@ msgid "&New"
 msgstr "&Ny"
 
 msgid "&Close"
-msgstr ""
+msgstr "&Luk"
 
 msgid "Save &as..."
 msgstr "Gem &som..."
@@ -1204,7 +1279,7 @@ msgid "&Undo"
 msgstr "&Fortryd"
 
 msgid "&Redo"
-msgstr ""
+msgstr "&Omgør"
 
 msgid "&Toggle ins/overw"
 msgstr "&Skift ins/overw"
@@ -1264,7 +1339,7 @@ msgid "&Prev bookmark"
 msgstr "&Forr. bogmærke"
 
 msgid "&Flush bookmarks"
-msgstr ""
+msgstr "&Fjern bogmærker"
 
 msgid "&Go to line..."
 msgstr "&Gå til linje..."
@@ -1294,22 +1369,22 @@ msgid "&Refresh screen"
 msgstr "&Opdater skærm"
 
 msgid "&Start/Stop record macro"
-msgstr ""
+msgstr "&Start/stop optagelse af makro"
 
 msgid "Delete macr&o..."
 msgstr "Slet makr&o..."
 
 msgid "Record/Repeat &actions"
-msgstr ""
+msgstr "Optag/gentag &handlinger"
 
 msgid "S&pell check"
-msgstr ""
+msgstr "&Stavekontrol"
 
 msgid "C&heck word"
-msgstr ""
+msgstr "&Kontroller ord"
 
 msgid "Change spelling &language..."
-msgstr ""
+msgstr "Ændr sprog for &stavekontrollen ..."
 
 msgid "&Mail..."
 msgstr "&Post..."
@@ -1336,19 +1411,19 @@ msgid "&Move"
 msgstr "&Flyt"
 
 msgid "&Resize"
-msgstr ""
+msgstr "&Ændr størrelse"
 
 msgid "&Toggle fullscreen"
 msgstr ""
 
 msgid "&Next"
-msgstr ""
+msgstr "&Næste"
 
 msgid "&Previous"
-msgstr ""
+msgstr "&Forrige"
 
 msgid "&List..."
-msgstr ""
+msgstr "&Liste ..."
 
 msgid "&General..."
 msgstr "&Generelt..."
@@ -1387,13 +1462,13 @@ msgid "For&mat"
 msgstr "For&mat"
 
 msgid "&Window"
-msgstr ""
+msgstr "&Vindue"
 
 msgid "&Options"
 msgstr "&Indstillinger"
 
 msgid "&None"
-msgstr ""
+msgstr "&Ingen"
 
 msgid "&Dynamic paragraphing"
 msgstr ""
@@ -1463,7 +1538,7 @@ msgid ""
 "written for the Midnight Commander."
 msgstr ""
 
-msgid "Copyright (C) 1996-2014 the Free Software Foundation"
+msgid "Copyright (C) 1996-2015 the Free Software Foundation"
 msgstr ""
 
 msgid "About"
@@ -1493,23 +1568,95 @@ msgstr "Slet"
 msgid "ButtonBar|PullDn"
 msgstr "Træk ned"
 
+msgid "Breton"
+msgstr ""
+
+msgid "Czech"
+msgstr ""
+
+msgid "Welsh"
+msgstr ""
+
+msgid "Danish"
+msgstr ""
+
+msgid "German"
+msgstr ""
+
+msgid "Greek"
+msgstr ""
+
+msgid "English"
+msgstr ""
+
+msgid "British English"
+msgstr ""
+
+msgid "Canadian English"
+msgstr ""
+
+msgid "American English"
+msgstr ""
+
+msgid "Esperanto"
+msgstr ""
+
+msgid "Spanish"
+msgstr ""
+
+msgid "Faroese"
+msgstr ""
+
+msgid "French"
+msgstr ""
+
+msgid "Italian"
+msgstr ""
+
+msgid "Dutch"
+msgstr ""
+
+msgid "Norwegian"
+msgstr ""
+
+msgid "Polish"
+msgstr ""
+
+msgid "Portuguese"
+msgstr ""
+
+msgid "Romanian"
+msgstr ""
+
+msgid "Russian"
+msgstr ""
+
+msgid "Slovak"
+msgstr ""
+
+msgid "Swedish"
+msgstr ""
+
+msgid "Ukrainian"
+msgstr ""
+
 msgid "&Add word"
 msgstr ""
 
 msgid "Language"
-msgstr ""
+msgstr "Sprog"
 
 msgid "Misspelled"
-msgstr ""
+msgstr "Stavefejl"
 
 msgid "Check word"
-msgstr ""
+msgstr "Kontroller ord"
 
 msgid "Suggest"
-msgstr ""
+msgstr "Foreslå"
 
 msgid "Select language"
-msgstr ""
+msgstr "Vælg sprog"
 
 msgid "Load syntax file"
 msgstr "Indlæs syntaksfil"
@@ -1588,6 +1735,12 @@ msgstr ""
 "Kan ikke chown »%s«\n"
 "%s"
 
+msgid "< Default >"
+msgstr ""
+
+msgid "Skins"
+msgstr "Temaer"
+
 msgid "Other 8 bit"
 msgstr "Andre 8-bit"
 
@@ -1607,7 +1760,7 @@ msgid "Alwa&ys"
 msgstr "&Altid"
 
 msgid "File operations"
-msgstr ""
+msgstr "Filoperationer"
 
 msgid "&Verbose operation"
 msgstr "&Uddybende handling"
@@ -1672,17 +1825,11 @@ msgstr "Opsætning for a&utomatisk gemning"
 msgid "Configure options"
 msgstr "Konfigurer indstillinger"
 
-msgid "< Default >"
-msgstr ""
-
-msgid "Skins"
-msgstr ""
-
 msgid "Skin:"
 msgstr ""
 
 msgid "Appearance"
-msgstr ""
+msgstr "Fremtoning"
 
 msgid "Case &insensitive"
 msgstr "Er ikke &versalfølsom"
@@ -1764,14 +1911,17 @@ msgstr ""
 msgid "&Full file list"
 msgstr "&Fuld filliste"
 
-msgid "&Brief file list"
-msgstr "&Kort filliste"
+msgid "&Brief file list:"
+msgstr ""
 
 msgid "&Long file list"
 msgstr "&Lang filliste"
 
 msgid "&User defined:"
 msgstr "&Brugerdefineret:"
+
+msgid "columns"
+msgstr ""
 
 msgid "User &mini status"
 msgstr "&Ministatus for bruger"
@@ -2010,15 +2160,6 @@ msgstr "Filter"
 msgid "Set expression for filtering filenames"
 msgstr "Angiv udtryk til filtrering af filnavne"
 
-msgid "&Files only"
-msgstr "&Kun filer"
-
-msgid "&Using shell patterns"
-msgstr "Br&uger skalmønstre"
-
-msgid "&Case sensitive"
-msgstr "%Store/små bogstaver"
-
 #, c-format
 msgid "Link %s to:"
 msgstr "Henvis %s til:"
@@ -2058,12 +2199,6 @@ msgstr "Opret en ny mappe"
 
 msgid "Enter directory name:"
 msgstr "Indtast mappenavn:"
-
-msgid "Select"
-msgstr "Vælg"
-
-msgid "Unselect"
-msgstr "Fravælg"
 
 msgid "Extension file edit"
 msgstr "Rediger filendelse"
@@ -2149,6 +2284,9 @@ msgid ""
 msgstr ""
 "Indtast enhed (uden /dev/) for at gendanne\n"
 "filer på: (F1 for detaljer)"
+
+msgid "Directory scanning"
+msgstr "Mappeskanning"
 
 msgid "Setup"
 msgstr "Opsætning"
@@ -2282,9 +2420,6 @@ msgid ""
 msgstr ""
 "Kan ikke oprette symbolsk målhenvisning »%s«\n"
 "%s"
-
-msgid "&Abort"
-msgstr "&Afbryd"
 
 msgid "Ski&p all"
 msgstr ""
@@ -2562,13 +2697,8 @@ msgstr ""
 "Kan ikke flytte mappe »%s« til »%s«\n"
 "%s"
 
-msgid "Directory scanning"
-msgstr "Mappeskanning"
-
 #, c-format
-msgid ""
-"%s\n"
-"Directories: %zd, total size: %s"
+msgid "Directories: %zd, total size: %s"
 msgstr ""
 
 msgid "Cannot operate on \"..\"!"
@@ -2676,6 +2806,12 @@ msgstr "Kilde"
 msgid "Target"
 msgstr "Mål"
 
+msgid "Deleting"
+msgstr ""
+
+msgid "&Using shell patterns"
+msgstr "Br&uger skalmønstre"
+
 msgid "to:"
 msgstr "til:"
 
@@ -2768,10 +2904,6 @@ msgid "Finished (ignored %zd directory)"
 msgid_plural "Finished (ignored %zd directories)"
 msgstr[0] ""
 msgstr[1] ""
-
-#, c-format
-msgid "Searching %s"
-msgstr "Søger i %s"
 
 msgid "Searching"
 msgstr "Søger"
@@ -2891,40 +3023,40 @@ msgid "Free space: %s/%s (%d%%)"
 msgstr ""
 
 #, c-format
-msgid "Type:      %s"
-msgstr "Type:      %s"
+msgid "Type:       %s"
+msgstr ""
 
 msgid "non-local vfs"
 msgstr "vfs der ikke er lokal"
 
 #, c-format
-msgid "Device:    %s"
-msgstr "Enhed:      %s"
+msgid "Device:     %s"
+msgstr ""
 
 #, c-format
 msgid "Filesystem: %s"
 msgstr "Filsystem:  %s"
 
 #, c-format
-msgid "Accessed:  %s"
-msgstr "Læst:      %s"
+msgid "Accessed:   %s"
+msgstr ""
 
 #, c-format
-msgid "Modified:  %s"
-msgstr "Ændret:    %s"
+msgid "Modified:   %s"
+msgstr ""
 
 #. TRANSLATORS: Time of last status change as in stat(2) man.
 #, c-format
-msgid "Changed:   %s"
-msgstr "Ændret:    %s"
+msgid "Changed:    %s"
+msgstr ""
 
 #, c-format
 msgid "Dev. type: major %lu, minor %lu"
 msgstr "Enhedstype: Stor %lu, lille %lu"
 
 #, c-format
-msgid "Size:      %s"
-msgstr "Størrelse: %s"
+msgid "Size:       %s"
+msgstr ""
 
 #, c-format
 msgid " (%ld block)"
@@ -2933,20 +3065,20 @@ msgstr[0] " (%ld blok)"
 msgstr[1] " (%ld blokke)"
 
 #, c-format
-msgid "Owner:     %s/%s"
-msgstr "Ejer:      %s/%s"
+msgid "Owner:      %s/%s"
+msgstr ""
 
 #, c-format
-msgid "Links:     %d"
-msgstr "Henvisninger: %d"
+msgid "Links:      %d"
+msgstr ""
 
 #, c-format
-msgid "Mode:      %s (%04o)"
-msgstr "Tilstand:  %s (%04o)"
+msgid "Mode:       %s (%04o)"
+msgstr ""
 
 #, c-format
-msgid "Location:  %Xh:%Xh"
-msgstr "Sted:      %Xh:%Xh"
+msgid "Location:   %Xh:%Xh"
+msgstr ""
 
 msgid "&Equal split"
 msgstr "&Ens opdeling"
@@ -3326,6 +3458,18 @@ msgstr ""
 msgid "Unknown tag on display format:"
 msgstr "Ukendt mærke på visningsformat:"
 
+msgid "&Files only"
+msgstr "&Kun filer"
+
+msgid "&Case sensitive"
+msgstr "%Store/små bogstaver"
+
+msgid "Select"
+msgstr "Vælg"
+
+msgid "Unselect"
+msgstr "Fravælg"
+
 msgid "Do you really want to execute?"
 msgstr "Ønsker du virkelig at køre?"
 
@@ -3458,14 +3602,6 @@ msgstr "Makroen %%var har ingen standard"
 #, c-format
 msgid "The %%var macro has no variable"
 msgstr "Makroen %%var har ingen variabel"
-
-#, c-format
-msgid ""
-"Cannot open file%s\n"
-"%s"
-msgstr ""
-"Kan ikke åbne fil %s\n"
-"%s"
 
 #, c-format
 msgid "No suitable entries found in %s"
@@ -3936,9 +4072,6 @@ msgstr ""
 msgid "sftp: Invalid host name."
 msgstr ""
 
-msgid "sftp: Invalid port value."
-msgstr ""
-
 #, c-format
 msgid "sftp: %s"
 msgstr ""
@@ -4121,14 +4254,8 @@ msgstr ""
 "Midnight Commander er ved at lukke ned.\n"
 "Gem ændret fil?"
 
-msgid "Cannot spawn child process"
-msgstr "Kan ikke spawn underproces"
-
-msgid "Empty output from child filter"
-msgstr "Tom uddata fra underfilter"
-
-msgid "&Line number (decimal)"
-msgstr "&Linjenummer (decimal)"
+msgid "&Line number"
+msgstr ""
 
 msgid "Pe&rcents"
 msgstr "&Procenter"
@@ -4174,6 +4301,12 @@ msgstr "Format"
 
 #, c-format
 msgid ""
+"Failed to read data from child stdout:\n"
+"%s"
+msgstr ""
+
+#, c-format
+msgid ""
 "Error while closing the file:\n"
 "%s\n"
 "Data may have been written or not"
@@ -4210,17 +4343,11 @@ msgid ""
 "%s"
 msgstr ""
 
-msgid "Seeking to search result"
-msgstr "Går til søgeresultat"
-
 msgid "Search done"
 msgstr "Søgning færdig"
 
 msgid "Continue from beginning?"
-msgstr ""
+msgstr "Fortsæt fra begyndelsen?"
 
 msgid "Cannot fetch a local copy of /ftp://some.host/editme.txt"
 msgstr ""
-
-#~ msgid "&Select"
-#~ msgstr "&Vælg"

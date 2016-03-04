@@ -1602,6 +1602,10 @@ static int device_rx_srv(PSDevice pDevice, unsigned int uIdx) {
 //        DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "pDevice->pCurrRD = %x, works = %d\n", pRD, works);
         if (works++>15)
             break;
+
+        if (!pRD->pRDInfo->skb)
+            break;
+
         if (device_receive_frame(pDevice, pRD)) {
             if (!device_alloc_rx_buf(pDevice,pRD)) {
                     DBG_PRT(MSG_LEVEL_ERR, KERN_ERR
@@ -2679,6 +2683,7 @@ static  irqreturn_t  device_intr(int irq,  void *dev_instance) {
     unsigned char byData = 0;
     int             ii= 0;
 //    unsigned char byRSSI;
+    unsigned long flags;
 
 
     MACvReadISR(pDevice->PortOffset, &pDevice->dwIsr);
@@ -2704,7 +2709,8 @@ static  irqreturn_t  device_intr(int irq,  void *dev_instance) {
 
     handled = 1;
     MACvIntDisable(pDevice->PortOffset);
-    spin_lock_irq(&pDevice->lock);
+
+    spin_lock_irqsave(&pDevice->lock, flags);
 
     //Make sure current page is 0
     VNSvInPortB(pDevice->PortOffset + MAC_REG_PAGE1SEL, &byOrgPageSel);
@@ -2952,7 +2958,8 @@ static  irqreturn_t  device_intr(int irq,  void *dev_instance) {
         MACvSelectPage1(pDevice->PortOffset);
     }
 
-    spin_unlock_irq(&pDevice->lock);
+    spin_unlock_irqrestore(&pDevice->lock, flags);
+
     MACvIntEnable(pDevice->PortOffset, IMR_MASK_VALUE);
 
     return IRQ_RETVAL(handled);

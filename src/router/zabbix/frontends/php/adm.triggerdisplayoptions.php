@@ -1,7 +1,7 @@
 <?php
 /*
 ** Zabbix
-** Copyright (C) 2001-2013 Zabbix SIA
+** Copyright (C) 2001-2015 Zabbix SIA
 **
 ** This program is free software; you can redistribute it and/or modify
 ** it under the terms of the GNU General Public License as published by
@@ -23,6 +23,7 @@ require_once dirname(__FILE__).'/include/config.inc.php';
 
 $page['title'] = _('Configuration of trigger displaying options');
 $page['file'] = 'adm.triggerdisplayoptions.php';
+$page['hist_arg'] = array();
 
 require_once dirname(__FILE__).'/include/page_header.php';
 
@@ -71,7 +72,7 @@ $form->cleanItems();
 $cmbConf = new CComboBox('configDropDown', 'adm.triggerdisplayoptions.php', 'redirect(this.options[this.selectedIndex].value);');
 $cmbConf->addItems(array(
 	'adm.gui.php' => _('GUI'),
-	'adm.housekeeper.php' => _('Housekeeper'),
+	'adm.housekeeper.php' => _('Housekeeping'),
 	'adm.images.php' => _('Images'),
 	'adm.iconmapping.php' => _('Icon mapping'),
 	'adm.regexps.php' => _('Regular expressions'),

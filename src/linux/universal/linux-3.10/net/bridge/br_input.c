@@ -50,7 +50,6 @@ static int br_pass_frame_up(struct sk_buff *skb)
 		return NET_RX_DROP;
 
 	indev = skb->dev;
-	skb->orig_dev = skb->dev;
 	skb->dev = brdev;
 
 	return BR_HOOK(NFPROTO_BRIDGE, NF_BR_LOCAL_IN, skb, indev, NULL,
@@ -103,7 +102,8 @@ int br_handle_frame_finish(struct sk_buff *skb)
 		skb2 = skb;
 	}else if (is_multicast_ether_addr(dest)) {
 		mdst = br_mdb_get(br, skb, vid);
-		if (mdst || BR_INPUT_SKB_CB_MROUTERS_ONLY(skb)) {
+		if ((mdst || BR_INPUT_SKB_CB_MROUTERS_ONLY(skb)) &&
+		    br_multicast_querier_exists(br, eth_hdr(skb))) {
 			if ((mdst && mdst->mglist) ||
 			    br_multicast_is_router(br))
 				skb2 = skb;

@@ -34,7 +34,7 @@
 /*
  * BPsmythe: Return the local network for the NOCAT conf file 
  */
-static char *_get_network(char *ipaddr, char *snmask)
+static char *_get_network(char *ipaddr, char *snmask, char *network)
 {
 	unsigned int ipaddr2long(char *ipstr) {
 		int ip[4];
@@ -58,17 +58,15 @@ static char *_get_network(char *ipaddr, char *snmask)
 		return ((ip[0] << 24) + (ip[1] << 16) + (ip[2] << 8) + ip[3]);
 	}
 
-	char *long2ipaddr(unsigned int addr) {
-		static char buff[32];
+	char *long2ipaddr(unsigned int addr, char *buff) {
 
 		sprintf(buff, "%d.%d.%d.%d", (addr >> 24 & 0xff), (addr >> 16 & 0xff), (addr >> 8 & 0xff), (addr & 0xff));
 
 		return buff;
 	}
 
-	static char network[32];
-
-	strcpy(network, long2ipaddr(ipaddr2long(ipaddr) & ipaddr2long(snmask)));
+	char buff[256];
+	strcpy(network, long2ipaddr(ipaddr2long(ipaddr) & ipaddr2long(snmask), buff));
 
 	return network;
 }
@@ -132,10 +130,16 @@ int mk_nocat_conf(void)
 
 	fprintf(fp, "InternalDevice\t%s\n", nvram_default_get("NC_ifname", nvram_safe_get("lan_ifname")));
 	fprintf(fp, "GatewayPort\t%s\n", nvram_safe_get("NC_GatewayPort"));
+
+	char mac[18];
+	getLANMac(mac);
+	if (strlen(mac) == 0)
+		strcpy(mac, nvram_safe_get("et0macaddr_safe"));
+
 	if (nvram_match("port_swap", "1"))
 		fprintf(fp, "GatewayMAC\t%s\n", nvram_safe_get("et1macaddr"));
 	else
-		fprintf(fp, "GatewayMAC\t%s\n", nvram_safe_get("et0macaddr"));
+		fprintf(fp, "GatewayMAC\t%s\n", mac);
 	fprintf(fp, "GatewayPassword\t%s\n", nvram_safe_get("NC_Password"));
 	fprintf(fp, "GatewayMode\t%s\n", nvram_safe_get("NC_GatewayMode"));
 	fprintf(fp, "DocumentRoot\t%s\n", nvram_safe_get("NC_DocumentRoot"));
@@ -240,7 +244,6 @@ int mk_nocat_conf(void)
 
 void start_splashd(void)
 {
-	int ret = 0;
 	FILE *fp;
 
 	if (!nvram_match("NC_enable", "1"))
@@ -252,10 +255,7 @@ void start_splashd(void)
 	 */
 	if (!strcmp(get_wan_ipaddr(), "0.0.0.0"))
 		return;
-	insmod("ipt_mark");
-	insmod("ipt_mac");
-	insmod("xt_mark");
-	insmod("xt_mac");
+	insmod("ipt_mark ipt_mac xt_mark xt_mac");
 	stop_firewall();	// evil
 	stop_wland();
 	stop_wshaper();

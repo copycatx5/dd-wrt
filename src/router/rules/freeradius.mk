@@ -1,10 +1,20 @@
 freeradius-configure: openssl
-	cd freeradius && \
+	cd freeradius && autoconf && \
 	sys_lib_dlsearch_path_spec="$(ARCH)-uclibc" \
 	sys_lib_search_path_spec="$(ARCH)-uclibc" \
 	MYSQL_CONFIG="no" \
 	ac_cv_lib_readline=no \
-	./configure --host=$(ARCH)-linux-uclibc CFLAGS="$(COPTS) $(MIPS16_OPT) -I$(TOP)/openssl/include " LTCFLAGS="$(COPTS) $(MIPS16_OPT)" LDFLAGS="$(COPTS) $(MIPS16_OPT) -L$(TOP)/openssl" --enable-shared \
+	ac_cv_lib_ssl_SSL_new=yes \
+	ac_cv_lib_crypto_DH_new=yes \
+	ac_cv_func_strncasecmp=yes \
+	ac_cv_func_strcasecmp=yes \
+	ac_cv_lib_crypt_crypt=yes \
+	ac_cv_func_gettimeofday=yes \
+	ac_cv_func_getnameinfo=yes \
+	ac_cv_func_getaddrinfo=yes \
+	ac_cv_func_setlinebuf=yes \
+	ac_cv_host=$(ARCH)-uclibc-linux \
+	./configure  --target=$(ARCH)-linux --host=$(ARCH) CFLAGS="$(COPTS) $(MIPS16_OPT) -fPIC -I$(TOP)/openssl/include " LDFLAGS="$(COPTS) $(MIPS16_OPT) -L$(TOP)/openssl" --enable-shared \
 	--program-prefix="" \
 	--program-suffix="" \
 	--prefix=/usr \
@@ -25,7 +35,7 @@ freeradius-configure: openssl
 	--enable-shared \
 	--disable-static \
 	--disable-developer \
-	--with-threads \
+	--without-threads \
 	--with-ltdl-include="$(TOP)/freeradius/libltdl/.libs" \
 	--with-ltdl-lib="$(TOP)/freeradius/libltdl" \
 	--with-openssl-includes="$(TOP)/openssl/include" \

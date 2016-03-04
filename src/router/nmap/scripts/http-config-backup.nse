@@ -1,3 +1,12 @@
+local coroutine = require "coroutine"
+local http = require "http"
+local io = require "io"
+local shortport = require "shortport"
+local stdnse = require "stdnse"
+local string = require "string"
+local table = require "table"
+local url = require "url"
+
 description = [[
 Checks for backups and swap files of common content management system
 and web server configuration files.
@@ -50,12 +59,9 @@ http://www.feross.org/cmsploit/.
 --
 
 author = "Riccardo Cecolin";
-license = "Same as Nmap--See http://nmap.org/book/man-legal.html";
+license = "Same as Nmap--See https://nmap.org/book/man-legal.html";
 categories = { "auth", "intrusive" };
 
-require 'http';
-require 'shortport';
-require 'url';
 
 portrule = shortport.http;
 
@@ -203,21 +209,21 @@ action = function (host, port)
       if (response.status == 200) then
         -- check it if is valid before inserting
         if cfg.check(response.body) then
-          local filename = ((host.targetname or host.ip) .. url_path):gsub("/", "-");
+          local filename = stdnse.escape_filename((host.targetname or host.ip) .. url_path)
 
           -- save the content
           if save then
             local status, err = write_file(save .. filename, response.body);
             if status then
-              stdnse.print_debug(1, "%s saved", filename);
+              stdnse.debug1("%s saved", filename);
             else
-              stdnse.print_debug(1, "error saving %s", err);
+              stdnse.debug1("error saving %s", err);
             end
           end
 
           table.insert(backups, url_path .. " " .. response["status-line"]);
         else
-          stdnse.print_debug(1, SCRIPT_NAME .. ": %s: found but not matching: %s",
+          stdnse.debug1("%s: found but not matching: %s",
             host.targetname or host.ip, url_path);
         end
       end

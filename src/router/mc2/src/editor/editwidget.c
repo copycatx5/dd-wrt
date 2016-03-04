@@ -1,7 +1,7 @@
 /*
    Editor initialisation and callback handler.
 
-   Copyright (C) 1996-2014
+   Copyright (C) 1996-2015
    Free Software Foundation, Inc.
 
    Written by:
@@ -144,7 +144,7 @@ edit_about (void)
         QUICK_LABEL (N_("A user friendly text editor\n"
                         "written for the Midnight Commander."), NULL),
         QUICK_SEPARATOR (FALSE),
-        QUICK_LABEL (N_("Copyright (C) 1996-2014 the Free Software Foundation"), NULL),
+        QUICK_LABEL (N_("Copyright (C) 1996-2015 the Free Software Foundation"), NULL),
         QUICK_START_BUTTONS (TRUE, TRUE),
             QUICK_BUTTON (N_("&OK"), B_ENTER, NULL, NULL),
         QUICK_END
@@ -342,7 +342,7 @@ edit_window_list (const WDialog * h)
                                      vfs_path_as_str (e->filename_vpath));
 
             listbox_add_item (listbox->list, LISTBOX_APPEND_AT_END, get_hotkey (i++),
-                              str_term_trim (fname, WIDGET (listbox->list)->cols - 2), NULL);
+                              str_term_trim (fname, WIDGET (listbox->list)->cols - 2), NULL, FALSE);
             g_free (fname);
         }
 
@@ -1458,6 +1458,8 @@ edit_handle_move_resize (WEdit * edit, unsigned long command)
             ret = TRUE;
             break;
         }
+        break;
+    default:
         break;
     }
 

@@ -96,6 +96,7 @@ var update;
 
 addEvent(window, "load", function() {
 
+		show_layer_ext(document.setup.tor_enable, 'idtor', <% nvem("tor_enable", "1", "1", "0"); %> == 1);
 		show_layer_ext(document.setup.zabbix_enable, 'idzabbix', <% nvem("zabbix_enable", "1", "1", "0"); %> == 1);
 		show_layer_ext(document.setup.sshd_enable, 'idssh', <% nvem("sshd_enable", "1", "1", "0"); %> == 1);
 		show_layer_ext(document.setup.dnsmasq_enable, 'iddnsmasq', <% nvem("dnsmasq_enable", "1", "1", "0"); %> == 1);
@@ -113,6 +114,7 @@ addEvent(window, "load", function() {
 		show_layer_ext(document.setup.usb_enable, 'idusb', <% nvem("usb_enable", "1", "1", "0"); %> == 1);
 		show_layer_ext(document.setup.usb_storage, 'idusbstor', <% nvem("usb_storage", "1", "1", "0"); %> == 1);
 		show_layer_ext(document.setup.gps, 'idgps', <% nvem("gps", "1", "1", "0"); %> == 1);
+		show_layer_ext(document.setup.mactelnetd_enable, 'idmactelnetd', <% nvem("mactelnetd_enable", "1", "1", "0"); %> == 1);
 		
 		if(document.setup.rstats_enable) {
 			rstats_select = '*user';

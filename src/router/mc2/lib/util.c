@@ -1,7 +1,7 @@
 /*
    Various utilities
 
-   Copyright (C) 1994-2014
+   Copyright (C) 1994-2015
    Free Software Foundation, Inc.
 
    Written by:
@@ -40,7 +40,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <fcntl.h>
 #include <sys/time.h>
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -52,6 +51,7 @@
 #include "lib/vfs/vfs.h"
 #include "lib/strutil.h"
 #include "lib/util.h"
+#include "lib/timer.h"
 
 /*** global variables ****************************************************************************/
 
@@ -78,11 +78,13 @@
 /*** file scope functions ************************************************************************/
 /* --------------------------------------------------------------------------------------------- */
 
+#ifndef HAVE_CHARSET
 static inline int
 is_7bit_printable (unsigned char c)
 {
     return (c > 31 && c < 127);
 }
+#endif
 
 /* --------------------------------------------------------------------------------------------- */
 
@@ -135,8 +137,7 @@ resolve_symlinks (const vfs_path_t * vpath)
         *q = 0;
         if (mc_lstat (vpath, &mybuf) < 0)
         {
-            g_free (buf);
-            buf = NULL;
+            MC_PTR_FREE (buf);
             goto ret;
         }
         if (!S_ISLNK (mybuf.st_mode))
@@ -148,33 +149,32 @@ resolve_symlinks (const vfs_path_t * vpath)
             len = mc_readlink (vpath, buf2, MC_MAXPATHLEN - 1);
             if (len < 0)
             {
-                g_free (buf);
-                buf = NULL;
+                MC_PTR_FREE (buf);
                 goto ret;
             }
             buf2[len] = 0;
-            if (*buf2 == PATH_SEP)
+            if (IS_PATH_SEP (*buf2))
                 strcpy (buf, buf2);
             else
                 strcpy (r, buf2);
         }
         canonicalize_pathname (buf);
         r = strchr (buf, 0);
-        if (!*r || *(r - 1) != PATH_SEP)
+        if (*r == '\0' || !IS_PATH_SEP (r[-1]))
             /* FIXME: this condition is always true because r points to the EOL */
         {
             *r++ = PATH_SEP;
-            *r = 0;
+            *r = '\0';
         }
         *q = c;
         p = q;
     }
     while (c != '\0');
 
-    if (!*buf)
+    if (*buf == '\0')
         strcpy (buf, PATH_SEP_STR);
-    else if (*(r - 1) == PATH_SEP && r != buf + 1)
-        *(r - 1) = 0;
+    else if (IS_PATH_SEP (r[-1]) && r != buf + 1)
+        r[-1] = '\0';
 
   ret:
     g_free (buf2);
@@ -246,28 +246,26 @@ is_printable (int c)
 /* --------------------------------------------------------------------------------------------- */
 /**
  * Quote the filename for the purpose of inserting it into the command
- * line.  If quote_percent is 1, replace "%" with "%%" - the percent is
+ * line.  If quote_percent is TRUE, replace "%" with "%%" - the percent is
  * processed by the mc command line.
  */
 char *
-name_quote (const char *s, int quote_percent)
+name_quote (const char *s, gboolean quote_percent)
 {
-    char *ret, *d;
+    GString *ret;
 
-    d = ret = g_malloc (strlen (s) * 2 + 2 + 1);
+    ret = g_string_sized_new (64);
+
     if (*s == '-')
-    {
-        *d++ = '.';
-        *d++ = '/';
-    }
+        g_string_append (ret, "." PATH_SEP_STR);
 
-    for (; *s; s++, d++)
+    for (; *s != '\0'; s++)
     {
         switch (*s)
         {
         case '%':
             if (quote_percent)
-                *d++ = '%';
+                g_string_append_c (ret, '%');
             break;
         case '\'':
         case '\\':
@@ -292,24 +290,26 @@ name_quote (const char *s, int quote_percent)
         case '*':
         case '(':
         case ')':
-            *d++ = '\\';
+            g_string_append_c (ret, '\\');
             break;
         case '~':
         case '#':
-            if (d == ret)
-                *d++ = '\\';
+            if (ret->len == 0)
+                g_string_append_c (ret, '\\');
+            break;
+        default:
             break;
         }
-        *d = *s;
+        g_string_append_c (ret, *s);
     }
-    *d = '\0';
-    return ret;
+
+    return g_string_free (ret, FALSE);
 }
 
 /* --------------------------------------------------------------------------------------------- */
 
 char *
-fake_name_quote (const char *s, int quote_percent)
+fake_name_quote (const char *s, gboolean quote_percent)
 {
     (void) quote_percent;
     return g_strdup (s);
@@ -648,22 +648,26 @@ x_basename (const char *s)
     url_delim = g_strrstr (s, VFS_PATH_URL_DELIMITER);
     path_sep = strrchr (s, PATH_SEP);
 
+    if (path_sep == NULL)
+        return s;
+
     if (url_delim == NULL
         || url_delim < path_sep - strlen (VFS_PATH_URL_DELIMITER)
         || url_delim - s + strlen (VFS_PATH_URL_DELIMITER) < strlen (s))
     {
         /* avoid trailing PATH_SEP, if present */
-        if (s[strlen (s) - 1] == PATH_SEP)
-        {
-            while (--path_sep > s && *path_sep != PATH_SEP);
-            return (path_sep != s) ? path_sep + 1 : s;
-        }
-        else
+        if (!IS_PATH_SEP (s[strlen (s) - 1]))
             return (path_sep != NULL) ? path_sep + 1 : s;
+
+        while (--path_sep > s && !IS_PATH_SEP (*path_sep))
+            ;
+        return (path_sep != s) ? path_sep + 1 : s;
     }
 
-    while (--url_delim > s && *url_delim != PATH_SEP);
-    while (--url_delim > s && *url_delim != PATH_SEP);
+    while (--url_delim > s && !IS_PATH_SEP (*url_delim))
+        ;
+    while (--url_delim > s && !IS_PATH_SEP (*url_delim))
+        ;
 
     return (url_delim == s) ? s : url_delim + 1;
 }
@@ -717,12 +721,12 @@ skip_numbers (const char *s)
  * "control sequence", in a sort of pidgin BNF, as follows:
  *
  * control-seq = Esc non-'['
- *             | Esc '[' (0 or more digits or ';' or '?') (any other char)
+ *             | Esc '[' (0 or more digits or ';' or ':' or '?') (any other char)
  *
- * This scheme works for all the terminals described in my termcap /
- * terminfo databases, except the Hewlett-Packard 70092 and some Wyse
- * terminals.  If I hear from a single person who uses such a terminal
- * with MC, I'll be glad to add support for it.  (Dugan)
+ * The 256-color and true-color escape sequences should allow either ';' or ':' inside as separator,
+ * actually, ':' is the more correct according to ECMA-48.
+ * Some terminal emulators (e.g. xterm, gnome-terminal) support this.
+ *
  * Non-printable characters are also removed.
  */
 
@@ -744,7 +748,7 @@ strip_ctrl_codes (char *s)
             if (*(++r) == '[' || *r == '(')
             {
                 /* strchr() matches trailing binary 0 */
-                while (*(++r) != '\0' && strchr ("0123456789;?", *r) != NULL)
+                while (*(++r) != '\0' && strchr ("0123456789;:?", *r) != NULL)
                     ;
             }
             else if (*r == ']')
@@ -772,6 +776,8 @@ strip_ctrl_codes (char *s)
                             r = new_r + 1;
                             goto osc_out;
                         }
+                    default:
+                        break;
                     }
                 }
               osc_out:
@@ -853,6 +859,8 @@ get_compression_type (int fd, const char *name)
             return COMPRESSION_BZIP;
         case 'h':
             return COMPRESSION_BZIP2;
+        default:
+            break;
         }
     }
 
@@ -900,6 +908,8 @@ decompress_extension (int type)
         return "/ulzma" VFS_PATH_URL_DELIMITER;
     case COMPRESSION_XZ:
         return "/uxz" VFS_PATH_URL_DELIMITER;
+    default:
+        break;
     }
     /* Should never reach this place */
     fprintf (stderr, "Fatal: decompress_extension called with an unknown argument\n");
@@ -1393,6 +1403,85 @@ guess_message_value (void)
         locale = "";
 
     return g_strdup (locale);
+}
+
+/* --------------------------------------------------------------------------------------------- */
+/**
+ * Propagate error in simple way.
+ *
+ * @param dest error return location
+ * @param code error code
+ * @param format printf()-style format for error message
+ * @param ... parameters for message format
+ */
+
+void
+mc_propagate_error (GError ** dest, int code, const char *format, ...)
+{
+    if (dest != NULL && *dest == NULL)
+    {
+        GError *tmp_error;
+        va_list args;
+
+        va_start (args, format);
+        tmp_error = g_error_new_valist (MC_ERROR, code, format, args);
+        va_end (args);
+
+        g_propagate_error (dest, tmp_error);
+    }
+}
+
+/* --------------------------------------------------------------------------------------------- */
+/**
+ * Replace existing error in simple way.
+ *
+ * @param dest error return location
+ * @param code error code
+ * @param format printf()-style format for error message
+ * @param ... parameters for message format
+ */
+
+void
+mc_replace_error (GError ** dest, int code, const char *format, ...)
+{
+    if (dest != NULL)
+    {
+        GError *tmp_error;
+        va_list args;
+
+        va_start (args, format);
+        tmp_error = g_error_new_valist (MC_ERROR, code, format, args);
+        va_end (args);
+
+        g_error_free (*dest);
+        *dest = NULL;
+        g_propagate_error (dest, tmp_error);
+    }
+}
+
+/* --------------------------------------------------------------------------------------------- */
+
+/**
+ * Returns if the given duration has elapsed since the given timestamp,
+ * and if it has then updates the timestamp.
+ *
+ * @param timestamp the last timestamp in microseconds, updated if the given time elapsed
+ * @param deleay amount of time in microseconds
+
+ * @return TRUE if clock skew detected, FALSE otherwise
+ */
+gboolean
+mc_time_elapsed (guint64 * timestamp, guint64 delay)
+{
+    guint64 now;
+
+    now = mc_timer_elapsed (mc_global.timer);
+
+    if (now >= *timestamp && now < *timestamp + delay)
+        return FALSE;
+
+    *timestamp = now;
+    return TRUE;
 }
 
 /* --------------------------------------------------------------------------------------------- */

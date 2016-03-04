@@ -68,6 +68,9 @@ endif
 ifeq ($(ARCH),i386)
 	cp busybox/.config_wrap busybox/.config
 endif
+ifeq ($(ARCH),mips64)
+	cp busybox/.config_fonera busybox/.config
+endif
 ifeq ($(ARCH),x86_64)
 	cp busybox/.config_wrap busybox/.config
 endif
@@ -254,6 +257,11 @@ else
 	echo "# CONFIG_MKFS_EXT2 is not set" >> busybox/.config
 endif
 endif
+ifeq ($(ARCHITECTURE),mvebu)	
+	cp busybox/.config_bcmmodern_std busybox/.config
+	sed -i 's/\# CONFIG_FEATURE_TOP_SMP_CPU is not set/CONFIG_FEATURE_TOP_SMP_CPU=y/g' busybox/.config
+	sed -i 's/\# CONFIG_FEATURE_TOP_SMP_PROCESS is not set/CONFIG_FEATURE_TOP_SMP_PROCESS=y/g' busybox/.config
+endif
 ifeq ($(ARCHITECTURE),laguna)
 	cp busybox/.config_laguna busybox/.config
 	echo "# CONFIG_MKFS_EXT2 is not set" >> busybox/.config
@@ -371,6 +379,7 @@ ifeq ($(CONFIG_SWAP),y)
 	echo "CONFIG_MKSWAP=y" >> busybox/.config
 	echo "CONFIG_SWAPONOFF=y" >> busybox/.config
 	echo "CONFIG_FEATURE_SWAPON_PRI=y" >> busybox/.config
+	echo "# CONFIG_FEATURE_SWAPON_DISCARD is not set" >> busybox/.config
 else
 	echo "# CONFIG_MKSWAP is not set" >> busybox/.config
 	echo "# CONFIG_SWAPONOFF is not set" >> busybox/.config
@@ -387,7 +396,29 @@ else
 	echo "# CONFIG_TASKSET is not set" >> busybox/.config
 	echo "# CONFIG_FEATURE_TASKSET_FANCY is not set" >> busybox/.config
 endif
-
+	echo "# CONFIG_FEATURE_GZIP_LEVELS is not set" >> busybox/.config
+	echo "# CONFIG_FEATURE_DD_STATUS is not set" >> busybox/.config
+	echo "# CONFIG_FEATURE_SYNC_FANCY is not set" >> busybox/.config
+	echo "# CONFIG_TRUNCATE is not set" >> busybox/.config
+	echo "CONFIG_UNAME_OSNAME=\"DD-WRT\"" >> busybox/.config
+	echo "# CONFIG_UEVENT is not set" >> busybox/.config
+	echo "# CONFIG_I2CGET is not set" >> busybox/.config
+	echo "# CONFIG_I2CSET is not set" >> busybox/.config
+	echo "# CONFIG_I2CDUMP is not set" >> busybox/.config
+	echo "# CONFIG_I2CDETECT is not set" >> busybox/.config
+	echo "# CONFIG_FEATURE_LESS_TRUNCATE is not set" >> busybox/.config
+	echo "# CONFIG_FEATURE_WGET_OPENSSL is not set" >> busybox/.config
+	echo "# CONFIG_FEATURE_WGET_SSL_HELPER is not set" >> busybox/.config
+	echo "# CONFIG_FEATURE_MOUNT_OTHERTAB is not set" >> busybox/.config
+	echo "CONFIG_FEATURE_IP_ROUTE_DIR=\"/etc/iproute2\"" >> busybox/.config
+	sed -i 's/\# CONFIG_ASH_OPTIMIZE_FOR_SIZE is not set/CONFIG_ASH_OPTIMIZE_FOR_SIZE=y/g' busybox/.config
+ifeq ($(CONFIG_TFTP),y)
+	sed -i 's/\# CONFIG_TFTP is not set/CONFIG_TFTP=y/g' busybox/.config
+	sed -i 's/\# CONFIG_FEATURE_TFTP_GET is not set/CONFIG_FEATURE_TFTP_GET=y/g' busybox/.config
+	sed -i 's/\# CONFIG_FEATURE_TFTP_PUT is not set/CONFIG_FEATURE_TFTP_PUT=y/g' busybox/.config
+	sed -i 's/\# CONFIG_FEATURE_TFTP_PROGRESS_BAR is not set/CONFIG_FEATURE_TFTP_PROGRESS_BAR=y/g' busybox/.config
+	sed -i 's/\# CONFIG_FEATURE_TFTP_BLOCKSIZE is not set/CONFIG_FEATURE_TFTP_BLOCKSIZE=y/g' busybox/.config
+endif
 	cd busybox && make oldconfig
 	
 	$(MAKE) -j 4 -C busybox STRIPTOOL=$(STRIP) PREFIX=$(INSTALLDIR)/busybox

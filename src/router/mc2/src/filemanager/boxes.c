@@ -1,13 +1,13 @@
 /*
    Some misc dialog boxes for the program.
 
-   Copyright (C) 1994-2014
+   Copyright (C) 1994-2015
    Free Software Foundation, Inc.
 
    Written by:
    Miguel de Icaza, 1994, 1995
    Jakub Jelinek, 1995
-   Andrew Borodin <aborodin@vmail.ru>, 2009, 2010, 2011, 2012, 2013
+   Andrew Borodin <aborodin@vmail.ru>, 2009-2015
 
    This file is part of the Midnight Commander.
 
@@ -93,17 +93,17 @@
 
 /*** file scope variables ************************************************************************/
 
-unsigned long configure_old_esc_mode_id, configure_time_out_id;
+static unsigned long configure_old_esc_mode_id, configure_time_out_id;
 
+/* Index in list_types[] for "brief" */
+static const int panel_listing_brief_idx = 1;
 /* Index in list_types[] for "user defined" */
 static const int panel_listing_user_idx = 3;
 
 static char **status_format;
 static int listing_user_hotkey = 'u';
-static unsigned long panel_listing_types_id, panel_user_format_id;
+static unsigned long panel_listing_types_id, panel_user_format_id, panel_brief_cols_id;
 static unsigned long mini_user_status_id, mini_user_format_id;
-
-static unsigned long skin_name_id;
 
 #ifdef HAVE_CHARSET
 static int new_display_codepage;
@@ -113,8 +113,8 @@ static int new_display_codepage;
 static unsigned long ftpfs_always_use_proxy_id, ftpfs_proxy_host_id;
 #endif /* ENABLE_VFS && ENABLE_VFS_FTP */
 
-GPtrArray *skin_names;
-gchar *current_skin_name;
+static GPtrArray *skin_names;
+static gchar *current_skin_name;
 
 #ifdef ENABLE_BACKGROUND
 static WListbox *bg_list = NULL;
@@ -147,6 +147,99 @@ configure_callback (Widget * w, Widget * sender, widget_msg_t msg, int parm, voi
     default:
         return dlg_default_callback (w, sender, msg, parm, data);
     }
+}
+
+/* --------------------------------------------------------------------------------------------- */
+
+static void
+skin_apply (const gchar * skin_override)
+{
+    GError *mcerror = NULL;
+
+    mc_skin_deinit ();
+    mc_skin_init (skin_override, &mcerror);
+    mc_fhl_free (&mc_filehighlight);
+    mc_filehighlight = mc_fhl_new (TRUE);
+    dlg_set_default_colors ();
+    input_set_default_colors ();
+    if (mc_global.mc_run_mode == MC_RUN_FULL)
+        command_set_default_colors ();
+    panel_deinit ();
+    panel_init ();
+    repaint_screen ();
+
+    mc_error_message (&mcerror, NULL);
+}
+
+/* --------------------------------------------------------------------------------------------- */
+
+static const gchar *
+skin_name_to_label (const gchar * name)
+{
+    if (strcmp (name, "default") == 0)
+        return _("< Default >");
+    return name;
+}
+
+/* --------------------------------------------------------------------------------------------- */
+
+static int
+sel_skin_button (WButton * button, int action)
+{
+    int result;
+    WListbox *skin_list;
+    WDialog *skin_dlg;
+    const gchar *skin_name;
+    int lxx, lyy;
+    unsigned int i;
+    unsigned int pos = 1;
+
+    (void) action;
+
+    lxx = COLS / 2;
+    lyy = (LINES - 13) / 2;
+    skin_dlg =
+        dlg_create (TRUE, lyy, lxx, 13, 24, dialog_colors, NULL, NULL, "[Appearance]", _("Skins"),
+                    DLG_COMPACT);
+
+    skin_list = listbox_new (1, 1, 11, 22, FALSE, NULL);
+    skin_name = "default";
+    listbox_add_item (skin_list, LISTBOX_APPEND_AT_END, 0, skin_name_to_label (skin_name),
+                      (void *) skin_name, FALSE);
+
+    if (strcmp (skin_name, current_skin_name) == 0)
+        listbox_select_entry (skin_list, 0);
+
+    for (i = 0; i < skin_names->len; i++)
+    {
+        skin_name = g_ptr_array_index (skin_names, i);
+        if (strcmp (skin_name, "default") != 0)
+        {
+            listbox_add_item (skin_list, LISTBOX_APPEND_AT_END, 0, skin_name_to_label (skin_name),
+                              (void *) skin_name, FALSE);
+            if (strcmp (skin_name, current_skin_name) == 0)
+                listbox_select_entry (skin_list, pos);
+            pos++;
+        }
+    }
+
+    add_widget (skin_dlg, skin_list);
+
+    result = dlg_run (skin_dlg);
+    if (result == B_ENTER)
+    {
+        gchar *skin_label;
+
+        listbox_get_current (skin_list, &skin_label, (void **) &skin_name);
+        g_free (current_skin_name);
+        current_skin_name = g_strdup (skin_name);
+        skin_apply (skin_name);
+
+        button_set_text (button, str_fit_to_term (skin_label, 20, J_LEFT_FIT));
+    }
+    dlg_destroy (skin_dlg);
+
+    return 0;
 }
 
 /* --------------------------------------------------------------------------------------------- */
@@ -217,17 +310,20 @@ panel_listing_callback (Widget * w, Widget * sender, widget_msg_t msg, int parm,
         if (sender != NULL && sender->id == panel_listing_types_id)
         {
             WCheck *ch;
-            WInput *in1, *in2;
+            WInput *in1, *in2, *in3;
 
             in1 = INPUT (dlg_find_by_id (h, panel_user_format_id));
+            in2 = INPUT (dlg_find_by_id (h, panel_brief_cols_id));
             ch = CHECK (dlg_find_by_id (h, mini_user_status_id));
-            in2 = INPUT (dlg_find_by_id (h, mini_user_format_id));
+            in3 = INPUT (dlg_find_by_id (h, mini_user_format_id));
 
             if (!(ch->state & C_BOOL))
-                input_assign_text (in2, status_format[RADIO (sender)->sel]);
-            input_update (in2, FALSE);
+                input_assign_text (in3, status_format[RADIO (sender)->sel]);
             input_update (in1, FALSE);
+            input_update (in2, FALSE);
+            input_update (in3, FALSE);
             widget_disable (WIDGET (in1), RADIO (sender)->sel != panel_listing_user_idx);
+            widget_disable (WIDGET (in2), RADIO (sender)->sel != panel_listing_brief_idx);
             return MSG_HANDLED;
         }
 
@@ -371,7 +467,7 @@ jobs_fill_listbox (WListbox * list)
         char *s;
 
         s = g_strconcat (state_str[tl->state], " ", tl->info, (char *) NULL);
-        listbox_add_item (list, LISTBOX_APPEND_AT_END, 0, s, (void *) tl);
+        listbox_add_item (list, LISTBOX_APPEND_AT_END, 0, s, (void *) tl, FALSE);
         g_free (s);
     }
 }
@@ -518,105 +614,6 @@ configure_box (void)
 
 /* --------------------------------------------------------------------------------------------- */
 
-static void
-skin_apply (const gchar * skin_override)
-{
-    GError *error = NULL;
-
-    mc_skin_deinit ();
-    mc_skin_init (skin_override, &error);
-    mc_fhl_free (&mc_filehighlight);
-    mc_filehighlight = mc_fhl_new (TRUE);
-    dlg_set_default_colors ();
-    input_set_default_colors ();
-    if (mc_global.mc_run_mode == MC_RUN_FULL)
-        command_set_default_colors ();
-    panel_deinit ();
-    panel_init ();
-    repaint_screen ();
-
-    if (error != NULL)
-    {
-        message (D_ERROR, _("Warning"), "%s", error->message);
-        g_error_free (error);
-    }
-}
-
-/* --------------------------------------------------------------------------------------------- */
-
-static const gchar *
-skin_name_to_label (const gchar * name)
-{
-    if (strcmp (name, "default") == 0)
-        return _("< Default >");
-    return name;
-}
-
-/* --------------------------------------------------------------------------------------------- */
-
-static int
-sel_skin_button (WButton * button, int action)
-{
-    int result;
-    WListbox *skin_list;
-    WDialog *skin_dlg;
-    const gchar *skin_name;
-    int lxx, lyy;
-    unsigned int i;
-    unsigned int pos = 1;
-
-    (void) action;
-
-    lxx = COLS / 2;
-    lyy = (LINES - 13) / 2;
-    skin_dlg =
-        dlg_create (TRUE, lyy, lxx, 13, 24, dialog_colors, NULL, NULL, "[Appearance]", _("Skins"),
-                    DLG_COMPACT);
-
-    skin_list = listbox_new (1, 1, 11, 22, FALSE, NULL);
-    skin_name = "default";
-    listbox_add_item (skin_list, LISTBOX_APPEND_AT_END, 0, skin_name_to_label (skin_name),
-                      (void *) skin_name);
-
-    if (strcmp (skin_name, current_skin_name) == 0)
-        listbox_select_entry (skin_list, 0);
-
-    for (i = 0; i < skin_names->len; i++)
-    {
-        skin_name = g_ptr_array_index (skin_names, i);
-        if (strcmp (skin_name, "default") != 0)
-        {
-            listbox_add_item (skin_list, LISTBOX_APPEND_AT_END, 0, skin_name_to_label (skin_name),
-                              (void *) skin_name);
-            if (strcmp (skin_name, current_skin_name) == 0)
-                listbox_select_entry (skin_list, pos);
-            pos++;
-        }
-    }
-
-    add_widget (skin_dlg, skin_list);
-
-    result = dlg_run (skin_dlg);
-    if (result == B_ENTER)
-    {
-        Widget *w;
-        gchar *skin_label;
-
-        listbox_get_current (skin_list, &skin_label, (void **) &skin_name);
-        g_free (current_skin_name);
-        current_skin_name = g_strdup (skin_name);
-        skin_apply (skin_name);
-
-        w = dlg_find_by_id (WIDGET (button)->owner, skin_name_id);
-        button_set_text (BUTTON (w), str_fit_to_term (skin_label, 20, J_LEFT_FIT));
-    }
-    dlg_destroy (skin_dlg);
-
-    return 0;
-}
-
-/* --------------------------------------------------------------------------------------------- */
-
 void
 appearance_box (void)
 {
@@ -630,7 +627,7 @@ appearance_box (void)
                 QUICK_LABEL (N_("Skin:"), NULL),
             QUICK_NEXT_COLUMN,
                 QUICK_BUTTON (str_fit_to_term (skin_name_to_label (current_skin_name), 20, J_LEFT_FIT),
-                              B_USER, sel_skin_button, &skin_name_id),
+                              B_USER, sel_skin_button, NULL),
             QUICK_STOP_COLUMNS,
             QUICK_BUTTONS_OK_CANCEL,
             QUICK_END
@@ -740,7 +737,8 @@ panel_options_box (void)
 
 /* return list type */
 int
-panel_listing_box (WPanel * panel, char **userp, char **minip, int *use_msformat, int num)
+panel_listing_box (WPanel * panel, int num, char **userp, char **minip, int *use_msformat,
+                   int *brief_cols)
 {
     int result = -1;
     char *section = NULL;
@@ -769,6 +767,8 @@ panel_listing_box (WPanel * panel, char **userp, char **minip, int *use_msformat
 
     {
         int mini_user_status;
+        char panel_brief_cols_in[BUF_TINY];
+        char *panel_brief_cols_out = NULL;
         char *panel_user_format = NULL;
         char *mini_user_format = NULL;
         const char *cp;
@@ -776,14 +776,21 @@ panel_listing_box (WPanel * panel, char **userp, char **minip, int *use_msformat
         /* Controls whether the array strings have been translated */
         const char *list_types[LIST_TYPES] = {
             N_("&Full file list"),
-            N_("&Brief file list"),
+            N_("&Brief file list:"),
             N_("&Long file list"),
             N_("&User defined:")
         };
 
         quick_widget_t quick_widgets[] = {
             /* *INDENT-OFF* */
-            QUICK_RADIO (LIST_TYPES, list_types, &result, &panel_listing_types_id),
+            QUICK_START_COLUMNS,
+                QUICK_RADIO (LIST_TYPES, list_types, &result, &panel_listing_types_id),
+            QUICK_NEXT_COLUMN,
+                QUICK_SEPARATOR (FALSE),
+                QUICK_LABELED_INPUT (_ ("columns"), input_label_right, panel_brief_cols_in,
+                                     "panel-brief-cols-input", &panel_brief_cols_out,
+                                     &panel_brief_cols_id, FALSE, FALSE, INPUT_COMPLETE_NONE),
+            QUICK_STOP_COLUMNS,
             QUICK_INPUT (panel->user_format, "user-fmt-input", &panel_user_format,
                          &panel_user_format_id, FALSE, FALSE, INPUT_COMPLETE_NONE),
             QUICK_SEPARATOR (TRUE),
@@ -810,19 +817,35 @@ panel_listing_box (WPanel * panel, char **userp, char **minip, int *use_msformat
         result = panel->list_type;
         status_format = panel->user_status_format;
 
-        if (panel->list_type != panel_listing_user_idx)
-            quick_widgets[1].options = W_DISABLED;
+        g_snprintf (panel_brief_cols_in, sizeof (panel_brief_cols_in), "%d", panel->brief_cols);
+
+        if ((int) panel->list_type != panel_listing_brief_idx)
+            quick_widgets[4].options = W_DISABLED;
+
+        if ((int) panel->list_type != panel_listing_user_idx)
+            quick_widgets[6].options = W_DISABLED;
 
         if (!mini_user_status)
-            quick_widgets[4].options = W_DISABLED;
+            quick_widgets[9].options = W_DISABLED;
 
         if (quick_dialog (&qdlg) == B_CANCEL)
             result = -1;
         else
         {
+            int cols;
+            char *error = NULL;
+
             *userp = panel_user_format;
             *minip = mini_user_format;
             *use_msformat = mini_user_status;
+
+            cols = strtol (panel_brief_cols_out, &error, 10);
+            if (*error == '\0')
+                *brief_cols = cols;
+            else
+                *brief_cols = panel->brief_cols;
+
+            g_free (panel_brief_cols_out);
         }
     }
 

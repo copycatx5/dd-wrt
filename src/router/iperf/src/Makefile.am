@@ -14,17 +14,20 @@ libiperf_la_SOURCES     = \
                         iperf_api.h \
                         iperf_error.c \
 			iperf_client_api.c \
+                        iperf_locale.c \
+                        iperf_locale.h \
                         iperf_server_api.c \
                         iperf_tcp.c \
                         iperf_tcp.h \
                         iperf_udp.c \
                         iperf_udp.h \
+			iperf_sctp.c \
+	                iperf_sctp.h \
                         iperf_util.c \
                         iperf_util.h \
-                        locale.c \
-                        locale.h \
                         net.c \
                         net.h \
+			portable_endian.h \
                         queue.h \
                         tcp_info.c \
                         tcp_window_size.c \

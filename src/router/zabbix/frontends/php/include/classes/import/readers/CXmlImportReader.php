@@ -1,7 +1,7 @@
 <?php
 /*
 ** Zabbix
-** Copyright (C) 2001-2013 Zabbix SIA
+** Copyright (C) 2001-2015 Zabbix SIA
 **
 ** This program is free software; you can redistribute it and/or modify
 ** it under the terms of the GNU General Public License as published by
@@ -32,7 +32,8 @@ class CXmlImportReader extends CImportReader {
 	 */
 	public function read($string) {
 		libxml_use_internal_errors(true);
-		$result = simplexml_load_string($string);
+		libxml_disable_entity_loader(true);
+		$result = simplexml_load_string($string, null, LIBXML_IMPORT_FLAGS);
 		if (!$result) {
 			$errors = libxml_get_errors();
 			libxml_clear_errors();

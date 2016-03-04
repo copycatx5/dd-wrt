@@ -1,6 +1,6 @@
 /*
 ** Zabbix
-** Copyright (C) 2001-2013 Zabbix SIA
+** Copyright (C) 2001-2015 Zabbix SIA
 **
 ** This program is free software; you can redistribute it and/or modify
 ** it under the terms of the GNU General Public License as published by
@@ -96,16 +96,15 @@ int	execute_action(DB_ALERT *alert, DB_MEDIATYPE *mediatype, char *error, int ma
 
 		if (0 == access(cmd, X_OK))
 		{
-			send_to = zbx_dyn_escape_string(alert->sendto, "\"\\");
-			subject = zbx_dyn_escape_string(alert->subject, "\"\\");
-			message = zbx_dyn_escape_string(alert->message, "\"\\");
+			send_to = zbx_dyn_escape_shell_single_quote(alert->sendto);
+			subject = zbx_dyn_escape_shell_single_quote(alert->subject);
+			message = zbx_dyn_escape_shell_single_quote(alert->message);
 
-			zbx_snprintf_alloc(&cmd, &cmd_alloc, &cmd_offset, " \"%s\" \"%s\" \"%s\"",
-					send_to, subject, message);
+			zbx_snprintf_alloc(&cmd, &cmd_alloc, &cmd_offset, " '%s' '%s' '%s'", send_to, subject, message);
 
-			zbx_free(send_to);
-			zbx_free(subject);
 			zbx_free(message);
+			zbx_free(subject);
+			zbx_free(send_to);
 
 			if (SUCCEED == (res = zbx_execute(cmd, &output, error, max_error_len, ALARM_ACTION_TIMEOUT)))
 			{
@@ -140,14 +139,15 @@ int	execute_action(DB_ALERT *alert, DB_MEDIATYPE *mediatype, char *error, int ma
  * Author: Alexei Vladishev                                                   *
  *                                                                            *
  ******************************************************************************/
-void	main_alerter_loop()
+void	main_alerter_loop(void)
 {
-	char			error[MAX_STRING_LEN], *error_esc;
-	int			res;
-	DB_RESULT		result;
-	DB_ROW			row;
-	DB_ALERT		alert;
-	DB_MEDIATYPE		mediatype;
+	char		error[MAX_STRING_LEN], *error_esc;
+	int		res, alerts_success, alerts_fail;
+	double		sec;
+	DB_RESULT	result;
+	DB_ROW		row;
+	DB_ALERT	alert;
+	DB_MEDIATYPE	mediatype;
 
 	zbx_setproctitle("%s [connecting to the database]", get_process_type_string(process_type));
 
@@ -157,6 +157,10 @@ void	main_alerter_loop()
 	{
 		zbx_setproctitle("%s [sending alerts]", get_process_type_string(process_type));
 
+		sec = zbx_time();
+
+		alerts_success = alerts_fail = 0;
+
 		result = DBselect(
 				"select a.alertid,a.mediatypeid,a.sendto,a.subject,a.message,a.status,mt.mediatypeid,"
 				"mt.type,mt.description,mt.smtp_server,mt.smtp_helo,mt.smtp_email,mt.exec_path,"
@@ -165,11 +169,11 @@ void	main_alerter_loop()
 				" where a.mediatypeid=mt.mediatypeid"
 					" and a.status=%d"
 					" and a.alerttype=%d"
-					DB_NODE
+					ZBX_SQL_NODE
 				" order by a.alertid",
 				ALERT_STATUS_NOT_SENT,
 				ALERT_TYPE_MESSAGE,
-				DBnode_local("mt.mediatypeid"));
+				DBand_node_local("mt.mediatypeid"));
 
 		while (NULL != (row = DBfetch(result)))
 		{
@@ -202,6 +206,7 @@ void	main_alerter_loop()
 						alert.alertid);
 				DBexecute("update alerts set status=%d,error='' where alertid=" ZBX_FS_UI64,
 						ALERT_STATUS_SENT, alert.alertid);
+				alerts_success++;
 			}
 			else
 			{
@@ -223,10 +228,18 @@ void	main_alerter_loop()
 				}
 
 				zbx_free(error_esc);
+
+				alerts_fail++;
 			}
 
 		}
 		DBfree_result(result);
+
+		sec = zbx_time() - sec;
+
+		zbx_setproctitle("%s [sent alerts: %d success, %d fail in " ZBX_FS_DBL " sec, idle %d sec]",
+				get_process_type_string(process_type), alerts_success, alerts_fail, sec,
+				CONFIG_SENDER_FREQUENCY);
 
 		zbx_sleep_loop(CONFIG_SENDER_FREQUENCY);
 	}

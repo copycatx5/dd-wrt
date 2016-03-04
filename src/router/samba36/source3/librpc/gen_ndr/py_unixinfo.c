@@ -346,9 +346,13 @@ static PyMethodDef unixinfo_methods[] = {
 void initunixinfo(void)
 {
 	PyObject *m;
+	PyObject *dep_samba_dcerpc_base;
 	PyObject *dep_samba_dcerpc_security;
 	PyObject *dep_talloc;
-	PyObject *dep_samba_dcerpc_base;
+
+	dep_samba_dcerpc_base = PyImport_ImportModule("samba.dcerpc.base");
+	if (dep_samba_dcerpc_base == NULL)
+		return;
 
 	dep_samba_dcerpc_security = PyImport_ImportModule("samba.dcerpc.security");
 	if (dep_samba_dcerpc_security == NULL)
@@ -356,10 +360,6 @@ void initunixinfo(void)
 
 	dep_talloc = PyImport_ImportModule("talloc");
 	if (dep_talloc == NULL)
-		return;
-
-	dep_samba_dcerpc_base = PyImport_ImportModule("samba.dcerpc.base");
-	if (dep_samba_dcerpc_base == NULL)
 		return;
 
 	dom_sid_Type = (PyTypeObject *)PyObject_GetAttrString(dep_samba_dcerpc_security, "dom_sid");

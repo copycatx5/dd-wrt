@@ -48,6 +48,7 @@ DYNDNS_ORG_SPECIFIC_DATA dyndns_org_custom = {"custom"};
 DYNDNS_ORG_SPECIFIC_DATA dyndns_org_static = {"statdns"};
 
 static int get_req_for_dyndns_server(DYN_DNS_CLIENT *this, int nr, DYNDNS_SYSTEM *p_sys_info);
+static int get_req_for_dtdns_server(DYN_DNS_CLIENT *this, int nr, DYNDNS_SYSTEM *p_sys_info);
 static int get_req_for_freedns_server(DYN_DNS_CLIENT *p_self, int cnt,  DYNDNS_SYSTEM *p_sys_info);
 static int get_req_for_generic_http_dns_server(DYN_DNS_CLIENT *p_self, int cnt,  DYNDNS_SYSTEM *p_sys_info);
 static int get_req_for_noip_http_dns_server(DYN_DNS_CLIENT *p_self, int cnt,  DYNDNS_SYSTEM *p_sys_info);
@@ -58,6 +59,7 @@ static int get_req_for_tzo_http_dns_server(DYN_DNS_CLIENT *p_self, int cnt,  DYN
 static int is_dyndns_server_rsp_ok( DYN_DNS_CLIENT *p_self, char*p_rsp, char* p_ok_string);
 static int is_freedns_server_rsp_ok( DYN_DNS_CLIENT *p_self, char*p_rsp, char* p_ok_string);
 static int is_generic_server_rsp_ok( DYN_DNS_CLIENT *p_self, char*p_rsp, char* p_ok_string);
+static int is_dtdns_server_rsp_ok( DYN_DNS_CLIENT *p_self, char*p_rsp, char* p_ok_string);
 static int is_zoneedit_server_rsp_ok( DYN_DNS_CLIENT *p_self, char*p_rsp, char* p_ok_string);
 static int is_easydns_server_rsp_ok( DYN_DNS_CLIENT *p_self, char*p_rsp, char* p_ok_string);
 static int is_tzo_server_rsp_ok( DYN_DNS_CLIENT *p_self, char*p_rsp, char* p_ok_string);
@@ -141,6 +143,13 @@ DYNDNS_SYSTEM_INFO dns_system_table[] =
              DYNDNS_MY_IP_SERVER, DYNDNS_MY_IP_SERVER_URL,
 			"dynsip.org", "/nic/update?hostname=", ""}},
 
+    {DTDNS_DEFAULT, 
+        {"default@dtdns.com", NULL, 
+            (DNS_SYSTEM_SRV_RESPONSE_OK_FUNC) is_dtdns_server_rsp_ok, 
+            (DNS_SYSTEM_REQUEST_FUNC) get_req_for_dtdns_server,
+             DYNDNS_DTDNS_MY_IP_SERVER, DYNDNS_DTDNS_MY_IP_SERVER_URL,
+			"www.dtdns.com", "/api/autodns.cfm?", ""}},
+
     {CUSTOM_HTTP_BASIC_AUTH, 
         {"custom@http_svr_basic_auth", NULL,  
             (DNS_SYSTEM_SRV_RESPONSE_OK_FUNC)is_generic_server_rsp_ok, 
@@ -208,6 +217,20 @@ static int get_req_for_dyndns_server(DYN_DNS_CLIENT *p_self, int cnt,DYNDNS_SYST
 		p_self->info.credentials.p_enc_usr_passwd_buffer
 		);
 }
+
+static int get_req_for_dtdns_server(DYN_DNS_CLIENT *p_self, int cnt, DYNDNS_SYSTEM *p_sys_info)
+{
+	(void)p_sys_info;
+	int ret = sprintf(p_self->p_req_buffer, DYNDNS_DTDNS_GET_MY_IP_HTTP_REQUEST_FORMAT,
+		p_self->info.dyndns_server_url,
+		p_self->info.credentials.my_username,
+		p_self->info.credentials.my_password,
+		p_self->info.my_ip_address.name,
+        p_self->info.dyndns_server_name.name);
+	return ret;
+}
+
+
 
 static int get_req_for_freedns_server(DYN_DNS_CLIENT *p_self, int cnt, DYNDNS_SYSTEM *p_sys_info)
 {
@@ -280,8 +303,7 @@ static int get_req_for_tzo_http_dns_server(DYN_DNS_CLIENT *p_self, int cnt,  DYN
 
 static int get_req_for_ip_server(DYN_DNS_CLIENT *p_self, void *p_specific_data)
 {
-    return sprintf(p_self->p_req_buffer, DYNDNS_GET_MY_IP_HTTP_REQUEST,
-        p_self->info.ip_server_name.name, p_self->info.ip_server_url);
+    return sprintf(p_self->p_req_buffer, DYNDNS_GET_MY_IP_HTTP_REQUEST, p_self->info.ip_server_url ,p_self->info.ip_server_name.name);
 }
 
 /* 
@@ -305,19 +327,19 @@ static RC_TYPE do_ip_server_transaction(DYN_DNS_CLIENT *p_self)
 		/*prepare request for IP server*/
 		{
 			HTTP_TRANSACTION *p_tr = &p_self->http_tr;
-
-            p_tr->req_len = get_req_for_ip_server((DYN_DNS_CLIENT*) p_self,
+        		p_tr->req_len = get_req_for_ip_server((DYN_DNS_CLIENT*) p_self,
                                                      p_self->info.p_dns_system->p_specific_data);
 			if (p_self->dbg.level > 2) 
+
 			{
 				DBG_PRINTF((LOG_DEBUG, "The request for IP server:\n%s\n",p_self->p_req_buffer));
 			}
-            p_tr->p_req = (char*) p_self->p_req_buffer;		
+        		p_tr->p_req = (char*) p_self->p_req_buffer;		
 			p_tr->p_rsp = (char*) p_self->p_work_buffer;
 			p_tr->max_rsp_len = p_self->work_buffer_size - 1;/*save place for a \0 at the end*/
 			p_tr->rsp_len = 0;
 
-			rc = http_client_transaction(&p_self->http_to_ip_server, &p_self->http_tr);		
+			rc = http_client_transaction(&p_self->http_to_ip_server, &p_self->http_tr);
 			p_self->p_work_buffer[p_tr->rsp_len] = 0;
 		}
 	}
@@ -350,7 +372,6 @@ static RC_TYPE do_parse_my_ip_address(DYN_DNS_CLIENT *p_self)
 	{
 		return RC_INVALID_POINTER;
 	}
-
 	found = FALSE;
 	do
 	{
@@ -442,16 +463,6 @@ static int is_dyndns_server_rsp_ok( DYN_DNS_CLIENT *p_self, char*p_rsp, char* p_
 		return RC_ERROR;
 }
 
-/* Freedns afraid.org.specific response validator.
-    ok blabla and n.n.n.n
-    fail blabla and n.n.n.n
-    are the good answers. We search our own IP address in response and that's enough.
-*/
-static int is_freedns_server_rsp_ok( DYN_DNS_CLIENT *p_self, char*p_rsp, char* p_ok_string)
-{
-	(void) p_ok_string;
-    return (strstr(p_rsp, p_self->info.my_ip_address.name) != NULL);
-}
 
 /** generic http dns server ok parser 
 	parses a given string. If found is ok,
@@ -465,6 +476,33 @@ static int is_generic_server_rsp_ok( DYN_DNS_CLIENT *p_self, char*p_rsp, char* p
 		return RC_OK;
 	if( (strstr(p_rsp, "good") != NULL) )
 		return RC_OK;
+	return RC_ERROR;
+}
+
+
+/* Freedns afraid.org.specific response validator.
+    ok blabla and n.n.n.n
+    fail blabla and n.n.n.n
+    are the good answers. We search our own IP address in response and that's enough.
+*/
+static int is_freedns_server_rsp_ok( DYN_DNS_CLIENT *p_self, char*p_rsp, char* p_ok_string)
+{
+	if (strstr(p_rsp,"OK"))
+		return RC_OK;
+
+	if (strstr(p_rsp, p_self->info.my_ip_address.name) != NULL)
+		return RC_OK;
+	else
+		return RC_DYNDNS_RSP_NOTOK;
+}
+
+
+static int is_dtdns_server_rsp_ok( DYN_DNS_CLIENT *p_self, char*p_rsp, char* p_ok_string)
+{
+	if( (strstr(p_rsp, "now points to") != NULL) ) // for dtdns
+		return RC_OK;
+	if( (strstr(p_rsp, "Too many failed requests") != NULL) ) // for dtdns
+		return RC_ERROR;
 	return RC_ERROR;
 }
 

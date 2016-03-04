@@ -1,7 +1,7 @@
 <?php
 /*
 ** Zabbix
-** Copyright (C) 2001-2013 Zabbix SIA
+** Copyright (C) 2001-2015 Zabbix SIA
 **
 ** This program is free software; you can redistribute it and/or modify
 ** it under the terms of the GNU General Public License as published by
@@ -19,7 +19,7 @@
 **/
 
 /**
- * String that is used to substitude macro when it cannot be resolved.
+ * String that is used to substitute macro when it cannot be resolved.
  */
 define('UNRESOLVED_MACRO_STRING', '*'._('UNKNOWN').'*');
 

@@ -2,6 +2,8 @@
 CONFIG_WR941=
 CONFIG_WA901=
 CONFIG_DIR615I=
+CONFIG_MMS344=
+CONFIG_IPVS=
 CONFIG_RB2011=
 CONFIG_WR741=
 CONFIG_WZRAG300NH=
@@ -146,6 +148,9 @@ endif
 ifeq ($(CONFIG_WZRG450),y)
 CFLAGS += -DHAVE_WZRG450
 endif
+ifeq ($(CONFIG_WZR450HP2),y)
+CFLAGS += -DHAVE_WZR450HP2
+endif
 ifeq ($(CONFIG_WZRG300NH2),y)
 CFLAGS += -DHAVE_WZRG300NH2
 endif
@@ -163,6 +168,18 @@ CFLAGS += -DHAVE_ACK
 endif
 ifeq ($(CONFIG_V25),y)
 CFLAGS += -DHAVE_V25
+endif
+ifeq ($(CONFIG_DIR860),y)
+CFLAGS += -DHAVE_DIR860
+endif
+ifeq ($(CONFIG_DIR859),y)
+CFLAGS += -DHAVE_DIR859
+endif
+ifeq ($(CONFIG_IPVS),y)
+CFLAGS += -DHAVE_IPVS
+endif
+ifeq ($(CONFIG_DIR862),y)
+CFLAGS += -DHAVE_DIR862
 endif
 ifeq ($(CONFIG_BCMMODERN),y)
 CFLAGS += -DHAVE_BCMMODERN
@@ -188,6 +205,9 @@ CFLAGS += -DHAVE_NP25G
 endif
 ifeq ($(CONFIG_UNIWIP),y)
 CFLAGS += -DHAVE_UNIWIP
+endif
+ifeq ($(CONFIG_MMS344),y)
+CFLAGS += -DHAVE_MMS344
 endif
 ifeq ($(CONFIG_OLSRD),y)
 CFLAGS += -DHAVE_OLSRD
@@ -219,6 +239,14 @@ endif
 ifeq ($(CONFIG_SANSFIL),y)
   CFLAGS += -DHAVE_SANSFIL
 endif
+ifeq ($(CONFIG_MVEBU),y)
+CFLAGS += -DHAVE_MVEBU
+CFLAGS += -DHAVE_CPUTEMP
+endif
+ifeq ($(CONFIG_IPQ806X),y)
+CFLAGS += -DHAVE_IPQ806X
+CFLAGS += -DHAVE_CPUTEMP
+endif
 include $(TOP)/rules/generic.mk
 CFLAGS += $(DD_CFLAGS)
 
@@ -247,6 +275,9 @@ endif
 
 ifeq ($(CONFIG_IDEXX),y)
 CFLAGS += -DHAVE_IDEXX
+ifeq ($(CONFIG_IDEXX_WORLD),y)
+CFLAGS += -DHAVE_IDEXX_WORLD
+endif
 endif
 
 ifeq ($(CONFIG_FREECWMP),y)
@@ -257,6 +288,7 @@ endif
 ifeq ($(CONFIG_UNFY),y)
 CLFAGS += -DHAVE_UNFY
 endif
+
 
 ifeq ($(CONFIG_RB500),y)
 CFLAGS += -DHAVE_RB500
@@ -417,6 +449,12 @@ endif
 ifeq ($(CONFIG_SUB6),y)
 CFLAGS += -DHAVE_SUB6
 endif
+ifeq ($(CONFIG_SUB9),y)
+CFLAGS += -DHAVE_SUB9
+endif
+ifeq ($(CONFIG_SUB12),y)
+CFLAGS += -DHAVE_SUB12
+endif
 ifeq ($(CONFIG_CARLSONWIRELESS),y)
 CFLAGS += -DHAVE_CARLSONWIRELESS
 endif
@@ -447,8 +485,14 @@ endif
 ifeq ($(CONFIG_KORENRON),y)
 CFLAGS += -DHAVE_KORENRON
 endif
+ifeq ($(CONFIG_TESTEM),y)
+CFLAGS += -DHAVE_TESTEM
+endif
 ifeq ($(CONFIG_HDWIFI),y)
 CFLAGS += -DHAVE_HDWIFI
+endif
+ifeq ($(CONFIG_HOBBIT),y)
+CFLAGS += -DHAVE_HOBBIT
 endif
 ifeq ($(CONFIG_STATUS_GPIO),y)
 CFLAGS += -DHAVE_STATUS_GPIO
@@ -982,6 +1026,9 @@ endif
 ifeq ($(CONFIG_JWAP003),y)
   CFLAGS += -DHAVE_JWAP003
 endif
+ifeq ($(CONFIG_UNBOUND),y)
+  CFLAGS += -DHAVE_UNBOUND
+endif
 ifeq ($(CONFIG_LSX),y)
 CFLAGS += -DHAVE_LSX
 endif
@@ -1027,6 +1074,23 @@ endif
 ifeq ($(CONFIG_JJAP93),y)
 CFLAGS += -DHAVE_JJAP93
 endif
+ifeq ($(CONFIG_DAP2230),y)
+CFLAGS += -DHAVE_DAP2230
+endif
+ifeq ($(CONFIG_DAP3320),y)
+CFLAGS += -DHAVE_DAP3320
+endif
+ifeq ($(CONFIG_DAP2330),y)
+CFLAGS += -DHAVE_DAP2330
+endif
+ifeq ($(CONFIG_DAP2660),y)
+CFLAGS += -DHAVE_DAP2660
+endif
+ifeq ($(CONFIG_DAP3662),y)
+  CFLAGS += -DHAVE_DAP3662
+endif
+
+
 ifeq ($(CONFIG_TIEXTRA1),y)
 CFLAGS += -DHAVE_TIEXTRA1 -Wl,-rpath,$(TOP)/jansson/src/.libs
 LDFLAGS +=   -Wl,-rpath,$(TOP)/jansson/src/.libs
@@ -1103,6 +1167,8 @@ ifeq ($(CONFIG_CUSTOMSSLCERT),y)
 CFLAGS += -DHAVE_CUSTOMSSLCERT
 endif
 
+
+
 #use this do disable number of arguments checking (less code and faster exec)
 CFLAGS += -DFASTWEB
 
@@ -1135,15 +1201,23 @@ ifeq ($(CONFIG_TOR),y)
 CONFIG_MATRIXSSL=n
 endif
 endif
+ifeq ($(CONFIG_POLARSSL),y)
+CONFIG_MATRIXSSL=n
+CFLAGS += -I$(TOP)/polarssl/include
+SSLLDFLAGS += -L$(TOP)/polarssl/library -lpolarssl -lpthread
+CFLAGS += -DHAVE_POLARSSL
+CFLAGS += -DHAVE_HTTPS
+endif
 
 ifneq ($(CONFIG_MATRIXSSL),y)
 ifeq ($(CONFIG_OPENSSL),y)
 CFLAGS += -I$(TOP)/openssl/include  -I$(TOP)/openssl/include/openssl
-SSLLDFLAGS += -L$(TOP)/openssl -L$(TOP)/openssl -lcrypto -lssl
+SSLLDFLAGS += -L$(TOP)/openssl -L$(TOP)/openssl -L$(TOP)/zlib -lssl -lcrypto
 CFLAGS += -DHAVE_OPENSSL
 CFLAGS += -DHAVE_HTTPS
 endif
 endif
+
 
 ifeq ($(CONFIG_MATRIXSSL),y)
 #CONFIG_XYSSL=y
@@ -1155,12 +1229,6 @@ CFLAGS += -DHAVE_HTTPS
 OBJS += matrixssl_xface.o
 endif
 
-ifeq ($(CONFIG_XYSSL),y)
-CFLAGS += -I$(TOP)/httpd/xyssl/include
-SSLLDFLAGS += -L$(TOP)/httpd/xyssl/library -lxyssl -lpthread
-CFLAGS += -DHAVE_XYSSL
-CFLAGS += -DHAVE_HTTPS
-endif
 
 endif
 
@@ -1179,7 +1247,6 @@ generate:
 	./gen > webs.h
 
 clean:
-	cd xyssl && make clean
 	rm -f *.o *~ httpd
 	rm -f modules/*.o
 	rm -f modules/*.*~
@@ -1218,12 +1285,9 @@ endif
 endif
 endif
 	
-httpd: cgi.o ej.o httpd.o broadcom.o \
+httpd: cgi.o ej.o httpd.o base.o \
        $(ADDOBJ) nvramsr.o callvalidate.o $(OBJS)
 #	gcc -o write_web write_web.c
-ifeq ($(CONFIG_XYSSL),y)
-	cd xyssl && make static
-endif
 #	./write_web www 
 	$(CC) -o $@ $^ $(CFLAGS) $(SSLCFLAGS) $(SSLLDFLAGS) $(LDFLAGS)
 #	ar arc -o $@ $^

@@ -35,11 +35,13 @@ int main(int argc, char **argv)
 {
 	idevice_t device = NULL;
 	lockdownd_client_t lckd = NULL;
+	lockdownd_error_t ldret = LOCKDOWN_E_UNKNOWN_ERROR;
 	screenshotr_client_t shotr = NULL;
 	lockdownd_service_descriptor_t service = NULL;
 	int result = -1;
 	int i;
 	const char *udid = NULL;
+	char *filename = NULL;
 
 	/* parse cmdline args */
 	for (i = 1; i < argc; i++) {
@@ -60,6 +62,10 @@ int main(int argc, char **argv)
 			print_usage(argc, argv);
 			return 0;
 		}
+		else if (argv[i][0] != '-' && !filename) {
+			filename = strdup(argv[i]);
+			continue;
+		}
 		else {
 			print_usage(argc, argv);
 			return 0;
@@ -75,9 +81,9 @@ int main(int argc, char **argv)
 		return -1;
 	}
 
-	if (LOCKDOWN_E_SUCCESS != lockdownd_client_new_with_handshake(device, &lckd, NULL)) {
+	if (LOCKDOWN_E_SUCCESS != (ldret = lockdownd_client_new_with_handshake(device, &lckd, NULL))) {
 		idevice_free(device);
-		printf("Exiting.\n");
+		printf("ERROR: Could not connect to lockdownd, error code %d\n", ldret);
 		return -1;
 	}
 
@@ -88,10 +94,12 @@ int main(int argc, char **argv)
 			printf("Could not connect to screenshotr!\n");
 		} else {
 			char *imgdata = NULL;
-			char filename[36];
 			uint64_t imgsize = 0;
-			time_t now = time(NULL);
-			strftime(filename, 36, "screenshot-%Y-%m-%d-%H-%M-%S.tiff", gmtime(&now));
+			if (!filename) {
+				time_t now = time(NULL);
+				filename = (char*)malloc(36);
+				strftime(filename, 36, "screenshot-%Y-%m-%d-%H-%M-%S.tiff", gmtime(&now));
+			}
 			if (screenshotr_take_screenshot(shotr, &imgdata, &imgsize) == SCREENSHOTR_E_SUCCESS) {
 				FILE *f = fopen(filename, "wb");
 				if (f) {
@@ -118,22 +126,25 @@ int main(int argc, char **argv)
 		lockdownd_service_descriptor_free(service);
 
 	idevice_free(device);
+	free(filename);
 
 	return result;
 }
 
 void print_usage(int argc, char **argv)
 {
-        char *name = NULL;
+	char *name = NULL;
 
-        name = strrchr(argv[0], '/');
-        printf("Usage: %s [OPTIONS]\n", (name ? name + 1: argv[0]));
-        printf("Gets a screenshot from a device.\n");
-        printf("The screenshot is saved as a TIFF image in the current directory.\n");
-        printf("NOTE: A mounted developer disk image is required on the device, otherwise\n");
-        printf("the screenshotr service is not available.\n\n");
-        printf("  -d, --debug\t\tenable communication debugging\n");
-        printf("  -u, --udid UDID\ttarget specific device by its 40-digit device UDID\n");
-        printf("  -h, --help\t\tprints usage information\n");
-        printf("\n");
+	name = strrchr(argv[0], '/');
+	printf("Usage: %s [OPTIONS] [FILE]\n", (name ? name + 1: argv[0]));
+	printf("Gets a screenshot from a device.\n");
+	printf("The screenshot is saved as a TIFF image with the given FILE name,\n");
+	printf("where the default name is \"screenshot-DATE.tiff\", e.g.:\n");
+	printf("   ./screenshot-2013-12-31-23-59-59.tiff\n\n");
+	printf("NOTE: A mounted developer disk image is required on the device, otherwise\n");
+	printf("the screenshotr service is not available.\n\n");
+	printf("  -d, --debug\t\tenable communication debugging\n");
+	printf("  -u, --udid UDID\ttarget specific device by its 40-digit device UDID\n");
+	printf("  -h, --help\t\tprints usage information\n");
+	printf("\n");
 }

@@ -226,7 +226,7 @@ union dns_rdata {
 	struct dns_mx_record mx_record;/* [case(DNS_QTYPE_MX)] */
 	const char * ipv6_record;/* [case(DNS_QTYPE_AAAA)] */
 	struct dns_srv_record srv_record;/* [case(DNS_QTYPE_SRV)] */
-}/* [public,nodiscriminant,flag(LIBNDR_FLAG_NOALIGN)] */;
+}/* [public,flag(LIBNDR_FLAG_NOALIGN),nodiscriminant] */;
 
 struct dns_res_rec {
 	const char * name;
@@ -236,7 +236,7 @@ struct dns_res_rec {
 	uint16_t length;
 	union dns_rdata rdata;/* [switch_is(rr_type)] */
 	DATA_BLOB unexpected;
-}/* [nopush,nopull,flag(LIBNDR_PRINT_ARRAY_HEX|LIBNDR_FLAG_NOALIGN)] */;
+}/* [nopush,flag(LIBNDR_PRINT_ARRAY_HEX|LIBNDR_FLAG_NOALIGN),nopull] */;
 
 struct dns_name_packet {
 	uint16_t id;

@@ -1,3 +1,10 @@
+local http = require "http"
+local nmap = require "nmap"
+local re = require "re"
+local shortport = require "shortport"
+local stdnse = require "stdnse"
+local table = require "table"
+
 description = [[
 Grabs affiliate network IDs (e.g. Google AdSense or Analytics, Amazon
 Associates, etc.) from a web page. These can be used to identify pages
@@ -35,23 +42,28 @@ Supported IDs:
 -- |   thisisphotobomb.memebase.com:80/
 -- |_  memebase.com:80/
 
-author = "Hani Benhabiles, Daniel Miller"
+author = "Hani Benhabiles, Daniel Miller, Patrick Donnelly"
 
-license = "Same as Nmap--See http://nmap.org/book/man-legal.html"
+license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
 
 categories = {"safe", "discovery"}
 
-require 'shortport'
-require 'http'
-require 'pcre'
-require 'stdnse'
 
 -- these are the regular expressions for affiliate IDs
 local AFFILIATE_PATTERNS = {
-	["Google Analytics ID"] = "(?P<id>UA-[0-9]{6,9}-[0-9]{1,2})",
-	["Google Adsense ID"] = "(?P<id>pub-[0-9]{16,16})",
-	["Amazon Associates ID"] = "http://(www%.amazon%.com/[^\"']*[\\?&;]tag|rcm%.amazon%.com/[^\"']*[\\?&;]t)=(?P<id>\\w+-\\d+)",
+  ["Google Analytics ID"] = re.compile [[{| ({'UA-' [%d]^6 [%d]^-3 '-' [%d][%d]?} / .)* |}]],
+  ["Google Adsense ID"] = re.compile [[{| ({'pub-' [%d]^16} / .)* |}]],
+  ["Amazon Associates ID"] = re.compile [[
+  body <- {| (uri / .)* |}
+  uri <- 'http://' ('www.amazon.com/' ([\?&;] 'tag=' tag / [^"'])*) / ('rcm.amazon.com/' ([\?&;] 't=' tag / [^"'])*)
+  tag <- {[%w]+ '-' [%d]+}
+]],
 }
+
+local URL_SHORTENERS = {
+  ["amzn.to"] = re.compile [[{| ( 'http://' ('www.')? 'amzn.to' {'/' ([%a%d])+ } / .)*|}]]
+}
+
 
 portrule = shortport.http
 
@@ -62,85 +74,92 @@ postrule = function() return (nmap.registry["http-affiliate-id"] ~= nil) end
 --@param port nmap port table
 --@param affid affiliate id table
 local add_key_to_registry = function(host, port, path, affid)
-	local site = host.targetname or host.ip
-	site = site .. ":" .. port.number .. path
-	nmap.registry["http-affiliate-id"] = nmap.registry["http-affiliate-id"] or {}
+  local site = host.targetname or host.ip
+  site = site .. ":" .. port.number .. path
+  nmap.registry["http-affiliate-id"] = nmap.registry["http-affiliate-id"] or {}
 
-	nmap.registry["http-affiliate-id"][site] = nmap.registry["http-affiliate-id"][site] or {}
-	table.insert(nmap.registry["http-affiliate-id"][site], affid)
-end
-
---- check for the presence of a value in a table
---@param tab the table to search into
---@param item the searched value
---@return a boolean indicating whether the value has been found or not
-local function contains(tab, item)
-	for _, val in pairs(tab) do
-		if val == item then
-			return true
-		end
-	end
-	return false
+  nmap.registry["http-affiliate-id"][site] = nmap.registry["http-affiliate-id"][site] or {}
+  table.insert(nmap.registry["http-affiliate-id"][site], affid)
 end
 
 portaction = function(host, port)
-	local result = {}
-	local url_path = stdnse.get_script_args("http-affiliate-id.url-path") or "/"
-	local body = http.get(host, port, url_path).body
+  local result = {}
+  local url_path = stdnse.get_script_args("http-affiliate-id.url-path") or "/"
+  local body = http.get(host, port, url_path).body
 
-	-- Here goes affiliate matching
-	for name, re in pairs(AFFILIATE_PATTERNS) do
-		local regex = pcre.new(re, 0, "C")
-		local limit, limit2, matches = regex:match(body)
-		if limit ~= nil then
-			local affiliateid = matches["id"]
-			result[#result + 1] = name .. ": " .. affiliateid
-			add_key_to_registry(host, port, url_path, result[#result])
-		end
-	end
+  if ( not(body) ) then
+    return
+  end
 
-	return stdnse.format_output(true, result)
+  local followed = {}
+
+  for shortener, pattern in pairs(URL_SHORTENERS) do
+    for i, shortened in ipairs(pattern:match(body)) do
+      stdnse.debug1("Found shortened Url: " .. shortened)
+      local response = http.get(shortener, 80, shortened)
+      stdnse.debug1("status code: %d", response.status)
+      if (response.status == 301 or response.status == 302) and response.header['location'] then
+        followed[#followed + 1] = response.header['location']
+      end
+    end
+  end
+  followed = table.concat(followed, "\n")
+
+  -- Here goes affiliate matching
+  for name, pattern in pairs(AFFILIATE_PATTERNS) do
+    local ids = {}
+    for i, id in ipairs(pattern:match(body..followed)) do
+      if not ids[id] then
+        result[#result + 1] = name .. ": " .. id
+        stdnse.debug1("found id:" .. result[#result])
+        add_key_to_registry(host, port, url_path, result[#result])
+        ids[id] = true
+      end
+    end
+  end
+
+  return stdnse.format_output(true, result)
 end
 
 --- iterate over the list of gathered ids and look for related sites (sharing the same siteids)
 local function postaction()
-	local siteids = {}
-	local output = {}
+  local siteids = {}
+  local output = {}
 
-	-- create a reverse mapping affiliate ids -> site(s)
-	for site, ids in pairs(nmap.registry["http-affiliate-id"]) do
-		for _, id in ipairs(ids) do
-			if not siteids[id] then
-				siteids[id] = {}
-			end
-			-- discard duplicate IPs
-			if not contains(siteids[id], site) then
-				table.insert(siteids[id], site)
-			end
-		end
-	end
+  -- create a reverse mapping affiliate ids -> site(s)
+  for site, ids in pairs(nmap.registry["http-affiliate-id"]) do
+    for _, id in ipairs(ids) do
+      if not siteids[id] then
+        siteids[id] = {}
+      end
+      -- discard duplicate IPs
+      if not stdnse.contains(siteids[id], site) then
+        table.insert(siteids[id], site)
+      end
+    end
+  end
 
-	-- look for sites using the same affiliate id
-	for id, sites in pairs(siteids) do
-		if #siteids[id] > 1 then
-			local str = id .. ' used by:'
-			for _, site in ipairs(siteids[id]) do
-				str = str .. '\n	' .. site
-			end
-			table.insert(output, str)
-		end
-	end
+  -- look for sites using the same affiliate id
+  for id, sites in pairs(siteids) do
+    if #siteids[id] > 1 then
+      local str = id .. ' used by:'
+      for _, site in ipairs(siteids[id]) do
+        str = str .. '\n  ' .. site
+      end
+      table.insert(output, str)
+    end
+  end
 
-	if #output > 0 then
-		return 'Possible related sites\n' .. table.concat(output, '\n')
-	end
+  if #output > 0 then
+    return 'Possible related sites\n' .. table.concat(output, '\n')
+  end
 end
 
 local ActionsTable = {
-	-- portrule: get affiliate ids
-	portrule = portaction,
-	-- postrule: look for related sites (same affiliate ids)
-	postrule = postaction
+  -- portrule: get affiliate ids
+  portrule = portaction,
+  -- postrule: look for related sites (same affiliate ids)
+  postrule = postaction
 }
 
 -- execute the action function corresponding to the current rule

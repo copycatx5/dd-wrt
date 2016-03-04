@@ -1,7 +1,7 @@
 <?php
 /*
 ** Zabbix
-** Copyright (C) 2001-2013 Zabbix SIA
+** Copyright (C) 2001-2015 Zabbix SIA
 **
 ** This program is free software; you can redistribute it and/or modify
 ** it under the terms of the GNU General Public License as published by
@@ -30,10 +30,9 @@ require_once dirname(__FILE__).'/include/html.inc.php';
 $page['title'] = _('Event details');
 $page['file'] = 'tr_events.php';
 $page['hist_arg'] = array('triggerid', 'eventid');
-$page['scripts'] = array();
 $page['type'] = detect_page_type(PAGE_TYPE_HTML);
 
-require_once 'include/page_header.php';
+require_once dirname(__FILE__).'/include/page_header.php';
 
 define('PAGE_SIZE', 100);
 
@@ -66,9 +65,6 @@ if (PAGE_TYPE_JS == $page['type'] || PAGE_TYPE_HTML_BLOCK == $page['type']) {
 	exit();
 }
 
-// js templates
-require_once dirname(__FILE__).'/include/views/js/general.script.confirm.js.php';
-
 // get triggers
 $options = array(
 	'triggerids' => $_REQUEST['triggerid'],
@@ -84,8 +80,10 @@ $trigger = reset($triggers);
 
 // get events
 $options = array(
+	'source' => EVENT_SOURCE_TRIGGERS,
+	'object' => EVENT_OBJECT_TRIGGER,
 	'eventids' => $_REQUEST['eventid'],
-	'triggerids' => $_REQUEST['triggerid'],
+	'objectids' => $_REQUEST['triggerid'],
 	'select_alerts' => API_OUTPUT_EXTEND,
 	'select_acknowledges' => API_OUTPUT_EXTEND,
 	'output' => API_OUTPUT_EXTEND,
@@ -98,7 +96,7 @@ $tr_event_wdgt = new CWidget();
 $tr_event_wdgt->setClass('header');
 
 // Main widget header
-$text = array(_('EVENTS').': "'.CTriggerHelper::expandDescription($trigger).'"');
+$text = array(_('EVENTS').': "'.CMacrosResolverHelper::resolveTriggerName($trigger).'"');
 
 $fs_icon = get_icon('fullscreen', array('fullscreen' => $_REQUEST['fullscreen']));
 $tr_event_wdgt->addHeader($text, $fs_icon);

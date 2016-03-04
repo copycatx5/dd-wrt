@@ -1,7 +1,6 @@
-
 /*
 ** Zabbix
-** Copyright (C) 2001-2013 Zabbix SIA
+** Copyright (C) 2001-2015 Zabbix SIA
 **
 ** This program is free software; you can redistribute it and/or modify
 ** it under the terms of the GNU General Public License as published by
@@ -43,14 +42,14 @@ AGENT_VALUE
 	int		timestamp;
 	int		severity;
 	int		logeventid;
-	unsigned char	status;
+	unsigned char	state;
 };
 
-int	get_proxy_id(struct zbx_json_parse *jp, zbx_uint64_t *hostid, char *host, char *error, int max_error_len);
+int	get_active_proxy_id(struct zbx_json_parse *jp, zbx_uint64_t *hostid, char *host, char **error);
 
 void	update_proxy_lastaccess(const zbx_uint64_t hostid);
 
-void	get_proxyconfig_data(zbx_uint64_t proxy_hostid, struct zbx_json *j);
+int	get_proxyconfig_data(zbx_uint64_t proxy_hostid, struct zbx_json *j, char **error);
 void	process_proxyconfig(struct zbx_json_parse *jp_data);
 
 int	get_host_availability_data(struct zbx_json *j);
@@ -63,15 +62,17 @@ void	proxy_set_hist_lastid(const zbx_uint64_t lastid);
 void	proxy_set_dhis_lastid(const zbx_uint64_t lastid);
 void	proxy_set_areg_lastid(const zbx_uint64_t lastid);
 
-void	calc_timestamp(char *line, int *timestamp, char *format);
+void	calc_timestamp(const char *line, int *timestamp, const char *format);
 
 void	process_mass_data(zbx_sock_t *sock, zbx_uint64_t proxy_hostid,
-		AGENT_VALUE *values, int value_num, int *processed);
+		AGENT_VALUE *values, size_t value_num, int *processed);
 int	process_hist_data(zbx_sock_t *sock, struct zbx_json_parse *jp,
 		const zbx_uint64_t proxy_hostid, char *info, int max_info_size);
 void	process_dhis_data(struct zbx_json_parse *jp);
 void	process_areg_data(struct zbx_json_parse *jp, zbx_uint64_t proxy_hostid);
 
-void	DBlld_process_discovery_rule(zbx_uint64_t discovery_itemid, char *value, zbx_timespec_t *ts);
+void	lld_process_discovery_rule(zbx_uint64_t lld_ruleid, char *value, zbx_timespec_t *ts);
+
+int	proxy_get_history_count();
 
 #endif

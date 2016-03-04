@@ -1,7 +1,7 @@
 /*
    Provides a log file to ease tracing the program.
 
-   Copyright (C) 2006-2014
+   Copyright (C) 2006-2015
    Free Software Foundation, Inc.
 
    Written by:
@@ -110,6 +110,7 @@ get_log_filename (void)
 /* --------------------------------------------------------------------------------------------- */
 
 static void
+G_GNUC_PRINTF (1, 0)
 mc_va_log (const char *fmt, va_list args)
 {
     char *logfilename;

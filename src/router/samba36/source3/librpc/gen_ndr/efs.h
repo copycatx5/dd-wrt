@@ -13,14 +13,14 @@
 
 struct EFS_HASH_BLOB {
 	uint32_t cbData;
-	uint8_t *pbData;/* [unique,size_is(cbData)] */
+	uint8_t *pbData;/* [size_is(cbData),unique] */
 };
 
 struct ENCRYPTION_CERTIFICATE_HASH {
 	uint32_t cbTotalLength;
 	struct dom_sid *pUserSid;/* [unique] */
 	struct EFS_HASH_BLOB *pHash;/* [unique] */
-	const char *lpDisplayInformation;/* [unique,charset(UTF16)] */
+	const char *lpDisplayInformation;/* [charset(UTF16),unique] */
 };
 
 struct ENCRYPTION_CERTIFICATE_HASH_LIST {
@@ -135,7 +135,7 @@ struct EfsRpcQueryRecoveryAgents {
 	} in;
 
 	struct {
-		struct ENCRYPTION_CERTIFICATE_HASH_LIST **pRecoveryAgents;/* [unique,ref] */
+		struct ENCRYPTION_CERTIFICATE_HASH_LIST **pRecoveryAgents;/* [ref,unique] */
 		WERROR result;
 	} out;
 

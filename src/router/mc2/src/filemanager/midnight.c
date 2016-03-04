@@ -1,7 +1,7 @@
 /*
    Main dialog (file panels) of the Midnight Commander
 
-   Copyright (C) 1994-2014
+   Copyright (C) 1994-2015
    Free Software Foundation, Inc.
 
    Written by:
@@ -39,7 +39,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <fcntl.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <sys/wait.h>
@@ -88,9 +87,6 @@
 #include "src/consaver/cons.saver.h"    /* show_console_contents */
 
 #include "midnight.h"
-
-/* TODO: merge content of layout.c here */
-extern int ok_to_refresh;
 
 /*** global variables ****************************************************************************/
 
@@ -533,41 +529,40 @@ static gboolean
 print_vfs_message (const gchar * event_group_name, const gchar * event_name,
                    gpointer init_data, gpointer data)
 {
-    char str[128];
     ev_vfs_print_message_t *event_data = (ev_vfs_print_message_t *) data;
 
     (void) event_group_name;
     (void) event_name;
     (void) init_data;
 
-    g_vsnprintf (str, sizeof (str), event_data->msg, event_data->ap);
-
     if (mc_global.midnight_shutdown)
-        return TRUE;
+        goto ret;
 
     if (!mc_global.message_visible || the_hint == NULL || WIDGET (the_hint)->owner == NULL)
     {
         int col, row;
 
         if (!nice_rotating_dash || (ok_to_refresh <= 0))
-            return TRUE;
+            goto ret;
 
         /* Preserve current cursor position */
         tty_getyx (&row, &col);
 
         tty_gotoyx (0, 0);
         tty_setcolor (NORMAL_COLOR);
-        tty_print_string (str_fit_to_term (str, COLS - 1, J_LEFT));
+        tty_print_string (str_fit_to_term (event_data->msg, COLS - 1, J_LEFT));
 
         /* Restore cursor position */
         tty_gotoyx (row, col);
         mc_refresh ();
-        return TRUE;
+        goto ret;
     }
 
     if (mc_global.message_visible)
-        set_hintbar (str);
+        set_hintbar (event_data->msg);
 
+  ret:
+    MC_PTR_FREE (event_data->msg);
     return TRUE;
 }
 
@@ -736,7 +731,7 @@ midnight_put_panel_path (WPanel * panel)
 
     command_insert (cmdline, cwd_vpath_str, FALSE);
 
-    if (cwd_vpath_str[strlen (cwd_vpath_str) - 1] != PATH_SEP)
+    if (!IS_PATH_SEP (cwd_vpath_str[strlen (cwd_vpath_str) - 1]))
         command_insert (cmdline, PATH_SEP_STR, FALSE);
 
     vfs_path_free (cwd_vpath);
@@ -918,13 +913,12 @@ done_mc (void)
      * We sync the profiles since the hotlist may have changed, while
      * we only change the setup data if we have the auto save feature set
      */
-    char *curr_dir;
+    const char *curr_dir;
 
     save_setup (auto_save_setup, panels_options.auto_save_setup);
 
     curr_dir = vfs_get_current_dir ();
     vfs_stamp_path (curr_dir);
-    g_free (curr_dir);
 
     if ((current_panel != NULL) && (get_current_type () == view_listing))
         vfs_stamp_path (vfs_path_as_str (current_panel->cwd_vpath));
@@ -1319,14 +1313,13 @@ midnight_execute_cmd (Widget * sender, unsigned long command)
         vfs_list ();
         break;
 #endif
-    case CK_SelectInvert:
-        select_invert_cmd ();
-        break;
     case CK_SaveSetup:
         save_setup_cmd ();
         break;
     case CK_Select:
-        select_cmd ();
+    case CK_Unselect:
+    case CK_SelectInvert:
+        res = send_message (current_panel, midnight_dlg, MSG_ACTION, command, NULL);
         break;
     case CK_Shell:
         view_other_cmd ();
@@ -1378,9 +1371,6 @@ midnight_execute_cmd (Widget * sender, unsigned long command)
         undelete_cmd ();
         break;
 #endif
-    case CK_Unselect:
-        unselect_cmd ();
-        break;
     case CK_UserMenu:
         user_file_menu_cmd ();
         break;
@@ -1464,6 +1454,16 @@ midnight_callback (Widget * w, Widget * sender, widget_msg_t msg, int parm, void
         {
             size_t i;
 
+            /* HACK: don't execute command in the command line if Enter was pressed
+               in the quick viewer panel. */
+            /* TODO: currently, when one of panels is other than view_listing,
+               current_panel points to view_listing panel all time independently of
+               it's activity. Thus, we can't use get_current_type() here.
+               current_panel should point to actualy current active panel
+               independently of it's type. */
+            if (current_panel->active == 0 && get_other_type () == view_quick)
+                return MSG_NOT_HANDLED;
+
             for (i = 0; cmdline->buffer[i] != '\0' &&
                  (cmdline->buffer[i] == ' ' || cmdline->buffer[i] == '\t'); i++)
                 ;
@@ -1501,46 +1501,31 @@ midnight_callback (Widget * w, Widget * sender, widget_msg_t msg, int parm, void
             {
                 /* Special treatement, since the input line will eat them */
                 if (parm == '+')
-                {
-                    select_cmd ();
-                    return MSG_HANDLED;
-                }
+                    return send_message (current_panel, midnight_dlg, MSG_ACTION, CK_Select, NULL);
 
                 if (parm == '\\' || parm == '-')
-                {
-                    unselect_cmd ();
-                    return MSG_HANDLED;
-                }
+                    return send_message (current_panel, midnight_dlg, MSG_ACTION, CK_Unselect,
+                                         NULL);
 
                 if (parm == '*')
-                {
-                    select_invert_cmd ();
-                    return MSG_HANDLED;
-                }
+                    return send_message (current_panel, midnight_dlg, MSG_ACTION, CK_SelectInvert,
+                                         NULL);
             }
-            else if (!command_prompt || !cmdline->buffer[0])
+            else if (!command_prompt || cmdline->buffer[0] == '\0')
             {
                 /* Special treatement '+', '-', '\', '*' only when this is
                  * first char on input line
                  */
-
                 if (parm == '+')
-                {
-                    select_cmd ();
-                    return MSG_HANDLED;
-                }
+                    return send_message (current_panel, midnight_dlg, MSG_ACTION, CK_Select, NULL);
 
                 if (parm == '\\' || parm == '-')
-                {
-                    unselect_cmd ();
-                    return MSG_HANDLED;
-                }
+                    return send_message (current_panel, midnight_dlg, MSG_ACTION, CK_Unselect,
+                                         NULL);
 
                 if (parm == '*')
-                {
-                    select_invert_cmd ();
-                    return MSG_HANDLED;
-                }
+                    return send_message (current_panel, midnight_dlg, MSG_ACTION, CK_SelectInvert,
+                                         NULL);
             }
         }
         return MSG_NOT_HANDLED;

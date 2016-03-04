@@ -1,6 +1,6 @@
 /*
 ** Zabbix
-** Copyright (C) 2001-2013 Zabbix SIA
+** Copyright (C) 2001-2015 Zabbix SIA
 **
 ** This program is free software; you can redistribute it and/or modify
 ** it under the terms of the GNU General Public License as published by
@@ -54,20 +54,19 @@ static int	get_minnextcheck(int now)
 
 	result = DBselect(
 			"select min(t.nextcheck)"
-			" from httptest t,applications a,hosts h"
-			" where t.applicationid=a.applicationid"
-				" and a.hostid=h.hostid"
+			" from httptest t,hosts h"
+			" where t.hostid=h.hostid"
 				" and " ZBX_SQL_MOD(t.httptestid,%d) "=%d"
 				" and t.status=%d"
 				" and h.proxy_hostid is null"
 				" and h.status=%d"
 				" and (h.maintenance_status=%d or h.maintenance_type=%d)"
-				DB_NODE,
+				ZBX_SQL_NODE,
 			CONFIG_HTTPPOLLER_FORKS, process_num - 1,
 			HTTPTEST_STATUS_MONITORED,
 			HOST_STATUS_MONITORED,
 			HOST_MAINTENANCE_STATUS_OFF, MAINTENANCE_TYPE_NORMAL,
-			DBnode_local("t.httptestid"));
+			DBand_node_local("t.httptestid"));
 
 	if (NULL == (row = DBfetch(result)) || SUCCEED == DBis_null(row[0]))
 	{
@@ -97,32 +96,60 @@ static int	get_minnextcheck(int now)
  * Comments: never returns                                                    *
  *                                                                            *
  ******************************************************************************/
-void	main_httppoller_loop()
+void	main_httppoller_loop(void)
 {
-	int	now, nextcheck, sleeptime;
-	double	sec;
+	int	now, nextcheck, sleeptime = -1, httptests_count = 0, old_httptests_count = 0;
+	double	sec, total_sec = 0.0, old_total_sec = 0.0;
+	time_t	last_stat_time;
 
-	zabbix_log(LOG_LEVEL_DEBUG, "In main_httppoller_loop() process_num:%d", process_num);
+#define STAT_INTERVAL	5	/* if a process is busy and does not sleep then update status not faster than */
+				/* once in STAT_INTERVAL seconds */
 
-	zbx_setproctitle("%s [connecting to the database]", get_process_type_string(process_type));
+	zbx_setproctitle("%s #%d [connecting to the database]", get_process_type_string(process_type), process_num);
+	last_stat_time = time(NULL);
 
 	DBconnect(ZBX_DB_CONNECT_NORMAL);
 
 	for (;;)
 	{
-		zbx_setproctitle("%s [getting values]", get_process_type_string(process_type));
+		if (0 != sleeptime)
+		{
+			zbx_setproctitle("%s #%d [got %d values in " ZBX_FS_DBL " sec, getting values]",
+					get_process_type_string(process_type), process_num, old_httptests_count,
+					old_total_sec);
+		}
 
 		now = time(NULL);
 		sec = zbx_time();
-		process_httptests(process_num, now);
-		sec = zbx_time() - sec;
-
-		zabbix_log(LOG_LEVEL_DEBUG, "%s #%d spent " ZBX_FS_DBL " seconds while updating HTTP tests",
-				get_process_type_string(process_type), process_num, sec);
+		httptests_count += process_httptests(process_num, now);
+		total_sec += zbx_time() - sec;
 
 		nextcheck = get_minnextcheck(now);
 		sleeptime = calculate_sleeptime(nextcheck, POLLER_DELAY);
 
+		if (0 != sleeptime || STAT_INTERVAL <= time(NULL) - last_stat_time)
+		{
+			if (0 == sleeptime)
+			{
+				zbx_setproctitle("%s #%d [got %d values in " ZBX_FS_DBL " sec, getting values]",
+						get_process_type_string(process_type), process_num, httptests_count,
+						total_sec);
+			}
+			else
+			{
+				zbx_setproctitle("%s #%d [got %d values in " ZBX_FS_DBL " sec, idle %d sec]",
+						get_process_type_string(process_type), process_num, httptests_count,
+						total_sec, sleeptime);
+				old_httptests_count = httptests_count;
+				old_total_sec = total_sec;
+			}
+			httptests_count = 0;
+			total_sec = 0.0;
+			last_stat_time = time(NULL);
+		}
+
 		zbx_sleep_loop(sleeptime);
 	}
+
+#undef STAT_INTERVAL
 }

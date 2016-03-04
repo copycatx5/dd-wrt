@@ -1,6 +1,6 @@
 /*
 ** Zabbix
-** Copyright (C) 2001-2013 Zabbix SIA
+** Copyright (C) 2001-2015 Zabbix SIA
 **
 ** This program is free software; you can redistribute it and/or modify
 ** it under the terms of the GNU General Public License as published by
@@ -21,24 +21,24 @@
 #include "sysinfo.h"
 #include "md5.h"
 #include "file.h"
+#include "zbxregexp.h"
 
 #define ZBX_MAX_DB_FILE_SIZE	64 * ZBX_KIBIBYTE	/* files larger than 64 KB cannot be stored in the database */
 
 extern int	CONFIG_TIMEOUT;
 
-int	VFS_FILE_SIZE(const char *cmd, const char *param, unsigned flags, AGENT_RESULT *result)
+int	VFS_FILE_SIZE(AGENT_REQUEST *request, AGENT_RESULT *result)
 {
-	struct stat	buf;
-	char		filename[MAX_STRING_LEN];
+	zbx_stat_t	buf;
+	char		*filename;
 	int		ret = SYSINFO_RET_FAIL;
 
-	if (1 < num_param(param))
+	if (1 < request->nparam)
 		goto err;
 
-	if (0 != get_param(param, 1, filename, sizeof(filename)))
-		goto err;
+	filename = get_rparam(request, 0);
 
-	if (0 != zbx_stat(filename, &buf))
+	if (NULL == filename || '\0' == *filename || 0 != zbx_stat(filename, &buf))
 		goto err;
 
 	SET_UI64_RESULT(result, buf.st_size);
@@ -48,25 +48,22 @@ err:
 	return ret;
 }
 
-int	VFS_FILE_TIME(const char *cmd, const char *param, unsigned flags, AGENT_RESULT *result)
+int	VFS_FILE_TIME(AGENT_REQUEST *request, AGENT_RESULT *result)
 {
-	struct stat	buf;
-	char		filename[MAX_STRING_LEN], type[8];
+	zbx_stat_t	buf;
+	char		*filename, *type;
 	int		ret = SYSINFO_RET_FAIL;
 
-	if (2 < num_param(param))
+	if (2 < request->nparam)
 		goto err;
 
-	if (0 != get_param(param, 1, filename, sizeof(filename)))
+	filename = get_rparam(request, 0);
+	type = get_rparam(request, 1);
+
+	if (NULL == filename || '\0' == *filename || 0 != zbx_stat(filename, &buf))
 		goto err;
 
-	if (0 != get_param(param, 2, type, sizeof(type)))
-		*type = '\0';
-
-	if (0 != zbx_stat(filename, &buf))
-		goto err;
-
-	if ('\0' == *type || 0 == strcmp(type, "modify"))	/* default parameter */
+	if (NULL == type || '\0' == *type || 0 == strcmp(type, "modify"))	/* default parameter */
 		SET_UI64_RESULT(result, buf.st_mtime);
 	else if (0 == strcmp(type, "access"))
 		SET_UI64_RESULT(result, buf.st_atime);
@@ -80,52 +77,57 @@ err:
 	return ret;
 }
 
-int	VFS_FILE_EXISTS(const char *cmd, const char *param, unsigned flags, AGENT_RESULT *result)
+int	VFS_FILE_EXISTS(AGENT_REQUEST *request, AGENT_RESULT *result)
 {
-	struct stat	buf;
-	char		filename[MAX_STRING_LEN];
-	int		ret = SYSINFO_RET_FAIL;
+	zbx_stat_t	buf;
+	char		*filename;
+	int		ret = SYSINFO_RET_FAIL, file_exists = -1;
 
-	if (1 < num_param(param))
+	if (1 < request->nparam)
 		goto err;
 
-	if (0 != get_param(param, 1, filename, sizeof(filename)))
-		goto err;
+	filename = get_rparam(request, 0);
 
-	SET_UI64_RESULT(result, 0);
+	if (NULL == filename || '\0' == *filename)
+		goto err;
 
 	if (0 == zbx_stat(filename, &buf))
-		if (S_ISREG(buf.st_mode))
-			SET_UI64_RESULT(result, 1);
+		file_exists = S_ISREG(buf.st_mode) ? 1 : 0;
+	else if (errno == ENOENT)
+		file_exists = 0;
 
-	ret = SYSINFO_RET_OK;
+	if (-1 != file_exists)
+	{
+		SET_UI64_RESULT(result, file_exists);
+		ret = SYSINFO_RET_OK;
+	}
 err:
 	return ret;
 }
 
-int	VFS_FILE_CONTENTS(const char *cmd, const char *param, unsigned flags, AGENT_RESULT *result)
+int	VFS_FILE_CONTENTS(AGENT_REQUEST *request, AGENT_RESULT *result)
 {
-	char		filename[MAX_STRING_LEN], encoding[32];
+	char		*filename, *tmp, encoding[32];
 	char		read_buf[MAX_BUFFER_LEN], *utf8, *contents = NULL;
-	size_t		contents_alloc = 512, contents_offset = 0;
+	size_t		contents_alloc = 0, contents_offset = 0;
 	int		nbytes, flen, f = -1, ret = SYSINFO_RET_FAIL;
-	struct stat	stat_buf;
+	zbx_stat_t	stat_buf;
 	double		ts;
 
 	ts = zbx_time();
 
-	if (2 < num_param(param))
+	if (2 < request->nparam)
 		goto err;
 
-	if (0 != get_param(param, 1, filename, sizeof(filename)))
-		goto err;
+	filename = get_rparam(request, 0);
+	tmp = get_rparam(request, 1);
 
-	if (0 != get_param(param, 2, encoding, sizeof(encoding)))
+	if (NULL == tmp)
 		*encoding = '\0';
+	else
+		strscpy(encoding, tmp);
 
-	zbx_strupper(encoding);
-
-	if (0 != zbx_stat(filename, &stat_buf))
+	if (NULL == filename || '\0' == *filename || 0 != zbx_stat(filename, &stat_buf))
 		goto err;
 
 	if (CONFIG_TIMEOUT < zbx_time() - ts)
@@ -139,8 +141,6 @@ int	VFS_FILE_CONTENTS(const char *cmd, const char *param, unsigned flags, AGENT_
 
 	if (CONFIG_TIMEOUT < zbx_time() - ts)
 		goto err;
-
-	contents = zbx_malloc(contents, contents_alloc);
 
 	flen = 0;
 
@@ -166,7 +166,7 @@ int	VFS_FILE_CONTENTS(const char *cmd, const char *param, unsigned flags, AGENT_
 	if (0 == contents_offset) /* empty file */
 	{
 		zbx_free(contents);
-		contents = zbx_strdup(contents, "EOF");
+		contents = zbx_strdup(contents, "");
 	}
 
 	SET_TEXT_RESULT(result, contents);
@@ -179,28 +179,49 @@ err:
 	return ret;
 }
 
-int	VFS_FILE_REGEXP(const char *cmd, const char *param, unsigned flags, AGENT_RESULT *result)
+int	VFS_FILE_REGEXP(AGENT_REQUEST *request, AGENT_RESULT *result)
 {
-	char	filename[MAX_STRING_LEN], regexp[MAX_STRING_LEN], encoding[32];
-	char	buf[MAX_BUFFER_LEN], *utf8;
-	int	nbytes, len, f = -1, ret = SYSINFO_RET_FAIL;
-	double	ts;
+	char		*filename, *regexp, encoding[32], *output, *start_line_str, *end_line_str;
+	char		buf[MAX_BUFFER_LEN], *utf8, *tmp, *ptr;
+	int		nbytes, f = -1, ret = SYSINFO_RET_FAIL;
+	uint32_t	start_line, end_line, current_line = 0;
+	double		ts;
 
 	ts = zbx_time();
 
-	if (3 < num_param(param))
+	if (6 < request->nparam)
 		goto err;
 
-	if (0 != get_param(param, 1, filename, sizeof(filename)))
+	filename = get_rparam(request, 0);
+	regexp = get_rparam(request, 1);
+	tmp = get_rparam(request, 2);
+	start_line_str = get_rparam(request, 3);
+	end_line_str = get_rparam(request, 4);
+	output = get_rparam(request, 5);
+
+	if (NULL == filename || '\0' == *filename)
 		goto err;
 
-	if (0 != get_param(param, 2, regexp, sizeof(regexp)))
+	if (NULL == regexp || '\0' == *regexp)
 		goto err;
 
-	if (0 != get_param(param, 3, encoding, sizeof(encoding)))
+	if (NULL == tmp)
 		*encoding = '\0';
+	else
+		strscpy(encoding, tmp);
 
-	zbx_strupper(encoding);
+	if (NULL == start_line_str || '\0' == *start_line_str)
+		start_line = 0;
+	else if (FAIL == is_uint32(start_line_str, &start_line))
+		goto err;
+
+	if (NULL == end_line_str || '\0' == *end_line_str)
+		end_line = 0xffffffff;
+	else if (FAIL == is_uint32(end_line_str, &end_line))
+		goto err;
+
+	if (start_line > end_line)
+		goto err;
 
 	if (-1 == (f = zbx_open(filename, O_RDONLY)))
 		goto err;
@@ -213,21 +234,33 @@ int	VFS_FILE_REGEXP(const char *cmd, const char *param, unsigned flags, AGENT_RE
 		if (CONFIG_TIMEOUT < zbx_time() - ts)
 			goto err;
 
+		if (++current_line < start_line)
+			continue;
+
 		utf8 = convert_to_utf8(buf, nbytes, encoding);
-		if (NULL != zbx_regexp_match(utf8, regexp, &len))
+		zbx_rtrim(utf8, "\r\n");
+		ptr = zbx_regexp_sub(utf8, regexp, output);
+		zbx_free(utf8);
+
+		if (NULL != ptr)
 		{
-			zbx_rtrim(utf8, "\r\n ");
-			SET_STR_RESULT(result, utf8);
+			SET_STR_RESULT(result, ptr);
 			break;
 		}
-		zbx_free(utf8);
+
+		if (current_line >= end_line)
+		{
+			/* force EOF state */
+			nbytes = 0;
+			break;
+		}
 	}
 
 	if (-1 == nbytes)	/* error occurred */
 		goto err;
 
 	if (0 == nbytes)	/* EOF */
-		SET_STR_RESULT(result, zbx_strdup(NULL, "EOF"));
+		SET_STR_RESULT(result, zbx_strdup(NULL, ""));
 
 	ret = SYSINFO_RET_OK;
 err:
@@ -237,28 +270,48 @@ err:
 	return ret;
 }
 
-int	VFS_FILE_REGMATCH(const char *cmd, const char *param, unsigned flags, AGENT_RESULT *result)
+int	VFS_FILE_REGMATCH(AGENT_REQUEST *request, AGENT_RESULT *result)
 {
-	char	filename[MAX_STRING_LEN], regexp[MAX_STRING_LEN], encoding[32];
-	char	buf[MAX_BUFFER_LEN], *utf8;
-	int	nbytes, len, res, f = -1, ret = SYSINFO_RET_FAIL;
-	double	ts;
+	char		*filename, *regexp, *tmp, encoding[32];
+	char		buf[MAX_BUFFER_LEN], *utf8, *start_line_str, *end_line_str;
+	int		nbytes, len, res, f = -1, ret = SYSINFO_RET_FAIL;
+	uint32_t	start_line, end_line, current_line = 0;
+	double		ts;
 
 	ts = zbx_time();
 
-	if (3 < num_param(param))
+	if (5 < request->nparam)
 		goto err;
 
-	if (0 != get_param(param, 1, filename, sizeof(filename)))
+	filename = get_rparam(request, 0);
+	regexp = get_rparam(request, 1);
+	tmp = get_rparam(request, 2);
+	start_line_str = get_rparam(request, 3);
+	end_line_str = get_rparam(request, 4);
+
+	if (NULL == filename || '\0' == *filename)
 		goto err;
 
-	if (0 != get_param(param, 2, regexp, sizeof(regexp)))
+	if (NULL == regexp || '\0' == *regexp)
 		goto err;
 
-	if (0 != get_param(param, 3, encoding, sizeof(encoding)))
+	if (NULL == tmp)
 		*encoding = '\0';
+	else
+		strscpy(encoding, tmp);
 
-	zbx_strupper(encoding);
+	if (NULL == start_line_str || '\0' == *start_line_str)
+		start_line = 0;
+	else if (FAIL == is_uint32(start_line_str, &start_line))
+		goto err;
+
+	if (NULL == end_line_str || '\0' == *end_line_str)
+		end_line = 0xffffffff;
+	else if (FAIL == is_uint32(end_line_str, &end_line))
+		goto err;
+
+	if (start_line > end_line)
+		goto err;
 
 	if (-1 == (f = zbx_open(filename, O_RDONLY)))
 		goto err;
@@ -273,10 +326,17 @@ int	VFS_FILE_REGMATCH(const char *cmd, const char *param, unsigned flags, AGENT_
 		if (CONFIG_TIMEOUT < zbx_time() - ts)
 			goto err;
 
+		if (++current_line < start_line)
+			continue;
+
 		utf8 = convert_to_utf8(buf, nbytes, encoding);
+		zbx_rtrim(utf8, "\r\n");
 		if (NULL != zbx_regexp_match(utf8, regexp, &len))
 			res = 1;
 		zbx_free(utf8);
+
+		if (current_line >= end_line)
+			break;
 	}
 
 	if (-1 == nbytes)	/* error occurred */
@@ -292,9 +352,9 @@ err:
 	return ret;
 }
 
-int	VFS_FILE_MD5SUM(const char *cmd, const char *param, unsigned flags, AGENT_RESULT *result)
+int	VFS_FILE_MD5SUM(AGENT_REQUEST *request, AGENT_RESULT *result)
 {
-	char		filename[MAX_STRING_LEN];
+	char		*filename;
 	int		i, nbytes, f = -1, ret = SYSINFO_RET_FAIL;
 	md5_state_t	state;
 	u_char		buf[16 * ZBX_KIBIBYTE];
@@ -305,10 +365,12 @@ int	VFS_FILE_MD5SUM(const char *cmd, const char *param, unsigned flags, AGENT_RE
 
 	ts = zbx_time();
 
-	if (1 < num_param(param))
+	if (1 < request->nparam)
 		goto err;
 
-	if (0 != get_param(param, 1, filename, sizeof(filename)))
+	filename = get_rparam(request, 0);
+
+	if (NULL == filename || '\0' == *filename)
 		goto err;
 
 	if (-1 == (f = zbx_open(filename, O_RDONLY)))
@@ -413,9 +475,9 @@ static u_long	crctab[] =
  * Comments: computes POSIX 1003.2 checksum                                   *
  *                                                                            *
  ******************************************************************************/
-int	VFS_FILE_CKSUM(const char *cmd, const char *param, unsigned flags, AGENT_RESULT *result)
+int	VFS_FILE_CKSUM(AGENT_REQUEST *request, AGENT_RESULT *result)
 {
-	char		filename[MAX_STRING_LEN];
+	char		*filename;
 	int		i, nr, f = -1, ret = SYSINFO_RET_FAIL;
 	uint32_t	crc, flen;
 	u_char		buf[16 * ZBX_KIBIBYTE];
@@ -424,10 +486,12 @@ int	VFS_FILE_CKSUM(const char *cmd, const char *param, unsigned flags, AGENT_RES
 
 	ts = zbx_time();
 
-	if (1 < num_param(param))
+	if (1 < request->nparam)
 		goto err;
 
-	if (0 != get_param(param, 1, filename, sizeof(filename)))
+	filename = get_rparam(request, 0);
+
+	if (NULL == filename || '\0' == *filename)
 		goto err;
 
 	if (-1 == (f = zbx_open(filename, O_RDONLY)))

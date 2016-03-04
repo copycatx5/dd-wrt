@@ -1,4 +1,4 @@
-/* include/config.h.in.  Generated from configure.in by autoheader.  */
+/* include/config.h.in.  Generated from configure.ac by autoheader.  */
 
 /* Define to OS name for code managing */
 #undef ARCH
@@ -30,6 +30,9 @@
 /* Define to 1 if you have the <dirent.h> header file. */
 #undef HAVE_DIRENT_H
 
+/* Define to 1 if you have the <dlfcn.h> header file. */
+#undef HAVE_DLFCN_H
+
 /* Define to 1 if you have the <errno.h> header file. */
 #undef HAVE_ERRNO_H
 
@@ -44,9 +47,6 @@
 
 /* Define to 1 if function 'initgroups' exists. */
 #undef HAVE_FUNCTION_INITGROUPS
-
-/* Define to 1 if 'PQserverVersion' exist. */
-#undef HAVE_FUNCTION_PQSERVERVERSION
 
 /* Define to 1 if functions 'seteuid' and 'setegid' exist. */
 #undef HAVE_FUNCTION_SETEUID
@@ -102,9 +102,6 @@
 /* Define to 1 if you have the <inttypes.h> header file. */
 #undef HAVE_INTTYPES_H
 
-/* Define to 1 if iODBC Driver Manager should be used. */
-#undef HAVE_IODBC
-
 /* Define to 1 if IPv6 should be enabled. */
 #undef HAVE_IPV6
 
@@ -138,9 +135,6 @@
 /* Define to 1 if you have the `gnutls' library (-lgnutls). */
 #undef HAVE_LIBGNUTLS
 
-/* Define to 1 if you have the `iodbc' library (-liodbc). */
-#undef HAVE_LIBIODBC
-
 /* Define to 1 if you have the `kvm' library (-lkvm). */
 #undef HAVE_LIBKVM
 
@@ -164,6 +158,9 @@
 
 /* Define to 1 if you have the `sasl2' library (-lsasl2). */
 #undef HAVE_LIBSASL2
+
+/* Define to 1 if libxml2 libraries are available */
+#undef HAVE_LIBXML2
 
 /* Define to 1 if you have the <linux/kernel.h> header file. */
 #undef HAVE_LINUX_KERNEL_H
@@ -201,8 +198,11 @@
 /* Define to 1 if you have the <netinet/in.h> header file. */
 #undef HAVE_NETINET_IN_H
 
-/* Define to 1 if NET-SNMP should be enabled. */
+/* Define to 1 if Net-SNMP should be enabled. */
 #undef HAVE_NETSNMP
+
+/* Define to 1 if 'session.localname' exist. */
+#undef HAVE_NETSNMP_SESSION_LOCALNAME
 
 /* Define to 1 if you have the <net/if.h> header file. */
 #undef HAVE_NET_IF_H
@@ -212,9 +212,6 @@
 
 /* Define to 1 if you have the <nlist.h> header file. */
 #undef HAVE_NLIST_H
-
-/* Define to 1 if ODBC Driver Manager should be used. */
-#undef HAVE_ODBC
 
 /* Define to 1 if OPENIPMI should be enabled. */
 #undef HAVE_OPENIPMI
@@ -270,8 +267,11 @@
 /* Define to 1 if you have the <resolv.h> header file. */
 #undef HAVE_RESOLV_H
 
-/* Define to 1 if you have the DNS functions */
-#undef HAVE_RES_QUERY
+/* Define if res_mkquery exists */
+#undef HAVE_RES_MKQUERY
+
+/* Define if res_send exists */
+#undef HAVE_RES_SEND
 
 /* Define to 1 if union 'semun' exists. */
 #undef HAVE_SEMUN
@@ -284,12 +284,6 @@
 
 /* Define to 1 if you have the `sigqueue' function. */
 #undef HAVE_SIGQUEUE
-
-/* Define to 1 if SNMP should be enabled. */
-#undef HAVE_SNMP
-
-/* Define to 1 if 'session.localname' exist. */
-#undef HAVE_SNMP_SESSION_LOCALNAME
 
 /* Define to 1 if 'sockaddr_storage.ss_family' exists. */
 #undef HAVE_SOCKADDR_STORAGE_SS_FAMILY
@@ -387,6 +381,9 @@
 /* Define to 1 if you have the <sys/resource.h> header file. */
 #undef HAVE_SYS_RESOURCE_H
 
+/* Define to 1 if you have the <sys/sched.h> header file. */
+#undef HAVE_SYS_SCHED_H
+
 /* Define to 1 if you have the <sys/sem.h> header file. */
 #undef HAVE_SYS_SEM_H
 
@@ -395,6 +392,12 @@
 
 /* Define to 1 if you have the <sys/socket.h> header file. */
 #undef HAVE_SYS_SOCKET_H
+
+/* Define to 1 if struct 'statfs64' exists. */
+#undef HAVE_SYS_STATFS64
+
+/* Define to 1 if you have the <sys/statfs.h> header file. */
+#undef HAVE_SYS_STATFS_H
 
 /* Define to 1 if struct 'statvfs64' exists. */
 #undef HAVE_SYS_STATVFS64
@@ -444,6 +447,9 @@
 /* Define to 1 if you have the <sys/user.h> header file. */
 #undef HAVE_SYS_USER_H
 
+/* Define to 1 if you have the <sys/utsname.h> header file. */
+#undef HAVE_SYS_UTSNAME_H
+
 /* Define to 1 if you have the <sys/var.h> header file. */
 #undef HAVE_SYS_VAR_H
 
@@ -464,9 +470,6 @@
 
 /* Define to 1 if 'tm.tm_gmtoff' exists. */
 #undef HAVE_TM_TM_GMTOFF
-
-/* Define to 1 if UCD-SNMP should be enabled. */
-#undef HAVE_UCDSNMP
 
 /* Define to 1 if you have the <unistd.h> header file. */
 #undef HAVE_UNISTD_H
@@ -494,6 +497,9 @@
 
 /* Define to 1 if you have the <ws2tcpip.h> header file. */
 #undef HAVE_WS2TCPIP_H
+
+/* Define to 1 if you have the <zone.h> header file. */
+#undef HAVE_ZONE_H
 
 /* Define to 1 if macro '__VA_ARGS__' exists. */
 #undef HAVE___VA_ARGS__
@@ -564,7 +570,7 @@
 /* Defined if libcurl supports TFTP */
 #undef LIBCURL_PROTOCOL_TFTP
 
-/* Define to 1 if you are using Mac OS X */
+/* Define to 1 if you are using Mac OS X. */
 #undef MAC_OS_X
 
 /* Define to 1 if your C compiler doesn't accept -c and -o together. */
@@ -597,8 +603,8 @@
 /* Define as the return type of signal handlers (`int' or `void'). */
 #undef RETSIGTYPE
 
-/* Disabling debugging messages from NET-SNMP library */
-#undef SNMP_NO_DEBUGGING
+/* The size of `void *', as computed by sizeof. */
+#undef SIZEOF_VOID_P
 
 /* Define to 1 if you have the ANSI C header files. */
 #undef STDC_HEADERS
@@ -611,6 +617,11 @@
 
 /* Define actual socklen_t parameter type in socket functions. */
 #undef ZBX_SOCKLEN_T
+
+/* Enable large inode numbers on Mac OS X 10.5.  */
+#ifndef _DARWIN_USE_64_BIT_INODE
+# define _DARWIN_USE_64_BIT_INODE 1
+#endif
 
 /* Number of bits in a file offset, on hosts where this is settable. */
 #undef _FILE_OFFSET_BITS

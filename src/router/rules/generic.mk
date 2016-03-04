@@ -25,6 +25,12 @@ endif
 ifeq ($(CONFIG_KORENRON),y)
 DD_CFLAGS += -DHAVE_KORENRON
 endif
+ifeq ($(CONFIG_TESTEM),y)
+DD_CFLAGS += -DHAVE_TESTEM
+endif
+ifeq ($(CONFIG_HOBBIT),y)
+DD_CFLAGS += -DHAVE_HOBBIT
+endif
 ifeq ($(CONFIG_ANTAIRA),y)
 DD_CFLAGS += -DHAVE_ANTAIRA
 endif
@@ -40,4 +46,10 @@ endif
 
 ifeq ($(CONFIG_UDPXY),y)
 DD_CFLAGS += -DHAVE_UDPXY  
+endif
+ifeq ($(CONFIG_ATH5K),y)
+CFLAGS += -DHAVE_ATH5K
+endif
+ifeq ($(CONFIG_E200),y)
+CFLAGS += -DHAVE_E200
 endif

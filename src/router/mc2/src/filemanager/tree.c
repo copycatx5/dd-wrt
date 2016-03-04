@@ -6,7 +6,7 @@
    created and destroyed.  This is required for the future vfs layer,
    it will be possible to have tree views over virtual file systems.
 
-   Copyright (C) 1994-2014
+   Copyright (C) 1994-2015
    Free Software Foundation, Inc.
 
    Written by:
@@ -14,7 +14,7 @@
    Norbert Warmuth, 1997
    Miguel de Icaza, 1996, 1999
    Slava Zanko <slavazanko@gmail.com>, 2013
-   Andrew Borodin <aborodin@vmail.ru>, 2013
+   Andrew Borodin <aborodin@vmail.ru>, 2013, 2014
 
    This file is part of the Midnight Commander.
 
@@ -306,7 +306,6 @@ show_tree (WTree * tree)
         i = 0;
         while (current->prev && i < tree->topdiff)
         {
-
             current = current->prev;
 
             if (current->sublevel < tree->selected_ptr->sublevel)
@@ -319,20 +318,16 @@ show_tree (WTree * tree)
                 const char *cname;
 
                 cname = vfs_path_as_str (current->name);
-                for (j = strlen (cname) - 1; cname[j] != PATH_SEP; j--)
+                for (j = strlen (cname) - 1; !IS_PATH_SEP (cname[j]); j--)
                     ;
                 if (vfs_path_equal_len (current->name, tree->selected_ptr->name, j))
                     i++;
             }
-            else
+            else if (current->sublevel == tree->selected_ptr->sublevel + 1)
             {
-                if (current->sublevel == tree->selected_ptr->sublevel + 1
-                    && vfs_path_len (tree->selected_ptr->name) > 1)
-                {
-                    if (vfs_path_equal_len (current->name, tree->selected_ptr->name,
-                                            vfs_path_len (tree->selected_ptr->name)))
-                        i++;
-                }
+                j = vfs_path_len (tree->selected_ptr->name);
+                if (j > 1 && vfs_path_equal_len (current->name, tree->selected_ptr->name, j))
+                    i++;
             }
         }
         tree->topdiff = i;
@@ -410,7 +405,7 @@ show_tree (WTree * tree)
                     const char *cname;
 
                     cname = vfs_path_as_str (current->name);
-                    for (j = strlen (cname) - 1; cname[j] != PATH_SEP; j--)
+                    for (j = strlen (cname) - 1; !IS_PATH_SEP (cname[j]); j--)
                         ;
                     if (vfs_path_equal_len (current->name, tree->selected_ptr->name, j))
                         break;
@@ -776,7 +771,7 @@ tree_copy (WTree * tree, const char *default_dest)
     if (dest != NULL && *dest != '\0')
     {
         file_op_context_t *ctx;
-        FileOpTotalContext *tctx;
+        file_op_total_context_t *tctx;
 
         ctx = file_op_context_new (OP_COPY);
         tctx = file_op_total_context_new ();
@@ -800,7 +795,7 @@ tree_move (WTree * tree, const char *default_dest)
     char *dest;
     struct stat buf;
     file_op_context_t *ctx;
-    FileOpTotalContext *tctx;
+    file_op_total_context_t *tctx;
 
     if (tree->selected_ptr == NULL)
         return;
@@ -865,7 +860,7 @@ tree_rmdir (void *data)
 {
     WTree *tree = data;
     file_op_context_t *ctx;
-    FileOpTotalContext *tctx;
+    file_op_total_context_t *tctx;
 
     if (!tree->selected_ptr)
         return;

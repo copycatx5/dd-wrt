@@ -171,6 +171,14 @@ config GPIO_MSM_V2
 	  Qualcomm MSM chips.  Most of the pins on the MSM can be
 	  selected for GPIO, and are controlled by this driver.
 
+config GPIO_OCTEON
+	tristate "Cavium OCTEON GPIO"
+	depends on GPIOLIB && CPU_CAVIUM_OCTEON
+	default y
+	help
+	  Say yes here to support the on-chip GPIO lines on the OCTEON
+	  family of SOCs.
+
 config GPIO_MVEBU
 	def_bool y
 	depends on PLAT_ORION
@@ -211,7 +219,7 @@ config GPIO_RCAR
 
 config GPIO_RALINK
 	bool "Ralink GPIO Support"
-	depends on RALINK_OPENWRT
+	depends on RALINK_OPENWRT && !SOC_MT7620_OPENWRT && !SOC_MT7621_OPENWRT 
 	help
 	  Say yes here to support the Ralink SoC GPIO device
 
@@ -709,6 +717,12 @@ config GPIO_MSIC
 	help
 	  Enable support for GPIO on intel MSIC controllers found in
 	  intel MID devices
+
+config GPIO_MT7621
+	bool "Mediatek GPIO Support"
+	depends on SOC_MT7620_OPENWRT || SOC_MT7621_OPENWRT
+	help
+	  Say yes here to support the Mediatek SoC GPIO device
 
 comment "USB GPIO expanders:"
 

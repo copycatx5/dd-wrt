@@ -146,6 +146,42 @@ int sysprintf(const char *fmt, ...)
 	return system2(varbuf);
 }
 
+int eval_va(const char *cmd, ...)
+{
+	char *s_args[128];
+	va_list args;
+	va_start(args, (char *)cmd);
+	char *next;
+	int i;
+	s_args[0] = cmd;
+	for (i = 0; i < 127; i++) {
+		const char *arg = va_arg(args, const char *);
+		s_args[i + 1] = arg;
+		if (arg == NULL)
+			break;
+	}
+	return _evalpid(s_args, ">/dev/console", 0, NULL);
+
+}
+
+int eval_va_silence(const char *cmd, ...)
+{
+	char *s_args[128];
+	va_list args;
+	va_start(args, (char *)cmd);
+	char *next;
+	int i;
+	s_args[0] = cmd;
+	for (i = 0; i < 127; i++) {
+		const char *arg = va_arg(args, const char *);
+		s_args[i + 1] = arg;
+		if (arg == NULL)
+			break;
+	}
+	return _evalpid(s_args, NULL, 0, NULL);
+
+}
+
 // FILE *debugfp=NULL;
 int _evalpid(char *const argv[], char *path, int timeout, int *ppid)
 {
@@ -238,6 +274,7 @@ int _evalpid(char *const argv[], char *path, int timeout, int *ppid)
 				perror(path);
 			else {
 				dup2(fd, STDOUT_FILENO);
+				dup2(fd, STDERR_FILENO);
 				close(fd);
 			}
 		}
@@ -381,7 +418,7 @@ int safe_fwrite(const void *ptr, size_t size, size_t nmemb, FILE * stream)
  * @param       e       binary data
  * @return      TRUE if conversion was successful and FALSE otherwise
  */
-int ether_atoe(const char *a, unsigned char *e)
+int ether_atoe(const char *a, char *e)
 {
 	char *c = (char *)a;
 	int i = 0;
@@ -401,7 +438,7 @@ int ether_atoe(const char *a, unsigned char *e)
  * @param       a       string in xx:xx:xx:xx:xx:xx notation
  * @return      a
  */
-char *ether_etoa(const unsigned char *e, char *a)
+char *ether_etoa(const char *e, char *a)
 {
 	char *c = a;
 	int i;
@@ -604,7 +641,7 @@ int osifname_to_nvifname(const char *osifname, char *nvifname_buf, int nvifname_
 		return -1;
 	}
 
-	memset(nvifname_buf, nvifname_buf_len, 0);
+	memset(nvifname_buf, 0, nvifname_buf_len);
 
 	if (strstr(osifname, "wl")) {
 		strncpy(nvifname_buf, osifname, nvifname_buf_len);

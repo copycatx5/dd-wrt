@@ -28,9 +28,6 @@
 #include <sys/mman.h>
 #include <bcmnvram.h>
 
-//#define DEBUG() if (nvram_match("service_debug","1")) fprintf(stderr,"%s: calling %s\n",__func__,name);
-#define DEBUG(a)
-
 #define SERVICE_MODULE "/lib/services.so"
 static int *stops_running = NULL;
 
@@ -41,25 +38,23 @@ static void init_shared(void)
 
 }
 
-void *load_service(const char *name)
+static void *load_service(const char *name)
 {
-	cprintf("load service %s\n", name);
 	void *handle = dlopen(SERVICE_MODULE, RTLD_LAZY);
+	if (!handle) {
+		fprintf(stderr, "Cannot open library: %s", dlerror());
+	}
 
-	cprintf("done()\n");
 	if (handle == NULL && name != NULL) {
-		cprintf("not found, try to load alternate\n");
 		char dl[64];
 
 		sprintf(dl, "/usr/lib/%s_service.so", name);
-		cprintf("try to load %s\n", dl);
 		handle = dlopen(dl, RTLD_LAZY);
 		if (handle == NULL) {
 			fprintf(stderr, "cannot load %s\n", dl);
 			return NULL;
 		}
 	}
-	cprintf("found it, returning handle\n");
 	return handle;
 }
 
@@ -77,6 +72,20 @@ static int _STOPPED(const char *method, const char *name)
 	FILE *fp = fopen(fname, "rb");
 	if (fp) {
 		fclose(fp);
+#ifdef HAVE_X86
+		if (!strcmp(method, "stop")) {
+			if (stops_running)
+				stops_running[0]--;
+		}
+#else
+		if (nvram_match("service_debug", "1"))
+			fprintf(stderr, "calling %s_%s not required!\n", method, name);
+		if (!strcmp(method, "stop")) {
+			if (stops_running)
+				stops_running[0]--;
+		}
+#endif
+
 		return 1;
 	}
 	fp = fopen(fname, "wb");
@@ -87,42 +96,32 @@ static int _STOPPED(const char *method, const char *name)
 	return 0;
 }
 
-#ifdef HAVE_X86
+static void _stopcondition(char *method, char *name)
+{
+
+}
+
 #define STOPPED() if (_STOPPED(method, name)) { \
-		    if (!strcmp(method, "stop")) { \
-			if (stops_running) \
-				stops_running[0]--; \
-		    } \
 		     return 0; \
 		    }
-#else
-#define STOPPED() if (_STOPPED(method, name)) { \
-		    if (nvram_match("service_debug","1")) \
-			    fprintf(stderr,"calling %s_%s not required!\n",method,name); \
-		    if (!strcmp(method, "stop")) { \
-			if (stops_running) \
-				stops_running[0]--; \
-		    } \
-		     return 0; \
-		    }
-#endif
+
 #define RELEASESTOPPED(a) _RELEASESTOPPED(a, name);
 
 static int handle_service(const char *method, const char *name)
 {
-	if (!strcmp(method, "start"))
-		RELEASESTOPPED("stop");
-	if (!strcmp(method, "stop")) {
-		RELEASESTOPPED("start");
-	}
-	STOPPED();
 
+	if (strcmp(name, "hotplug_block")) {
+		if (!strcmp(method, "start"))
+			RELEASESTOPPED("stop");
+		if (!strcmp(method, "stop"))
+			RELEASESTOPPED("start");
+		STOPPED();
+	}
 #ifndef HAVE_X86
 	if (nvram_match("service_debug", "1"))
 		fprintf(stderr, "calling %s_%s\n", method, name);
 #endif
 	// lcdmessaged("Starting Service",name);
-	cprintf("start_service\n");
 	char service[64];
 
 	sprintf(service, "/etc/config/%s", name);
@@ -130,7 +129,6 @@ static int handle_service(const char *method, const char *name)
 
 	if (ck != NULL) {
 		fclose(ck);
-		cprintf("found shell based service %s\n", service);
 		return sysprintf("%s %s", service, method);
 	}
 	void *handle = load_service(name);
@@ -141,7 +139,6 @@ static int handle_service(const char *method, const char *name)
 	void (*fptr) (void);
 
 	sprintf(service, "%s_%s", method, name);
-	cprintf("resolving %s\n", service);
 	fptr = (void (*)(void))dlsym(handle, service);
 	if (fptr)
 		(*fptr) ();
@@ -160,42 +157,33 @@ static int handle_service(const char *method, const char *name)
 			fprintf(stderr, "calling done %s_%s\n", method, name);
 	}
 #endif
-	cprintf("start_sevice done()\n");
 	return 0;
 }
 
-int start_service(char *name)
+static void start_service(char *name)
 {
-	DEBUG();
 	handle_service("start", name);
-	return 0;
 }
 
-int start_service_force(char *name)
+static void start_service_force(char *name)
 {
-	DEBUG();
 	RELEASESTOPPED("start");
-	return start_service(name);
+	start_service(name);
 }
 
-int start_service_f(char *name)
+static void start_service_f(char *name)
 {
-	DEBUG();
 	FORK(start_service(name));
-	return 0;
 }
 
-int start_service_force_f(char *name)
+static void start_service_force_f(char *name)
 {
-	DEBUG();
 	FORK(start_service_force(name));
-	return 0;
 }
 
-void start_servicei(char *name, int param)
+static void start_servicei(char *name, int param)
 {
 	// lcdmessaged("Starting Service",name);
-	cprintf("start_servicei\n");
 	void *handle = load_service(name);
 
 	if (handle == NULL) {
@@ -205,58 +193,52 @@ void start_servicei(char *name, int param)
 	char service[64];
 
 	sprintf(service, "start_%s", name);
-	cprintf("resolving %s\n", service);
 	fptr = (void (*)(int))dlsym(handle, service);
 	if (fptr)
 		(*fptr) (param);
 	else
 		fprintf(stderr, "function %s not found \n", service);
 	dlclose(handle);
-	cprintf("start_sevicei done()\n");
 	return;
 }
 
-void start_servicei_f(char *name, int param)
+static void start_servicei_f(char *name, int param)
 {
-	DEBUG();
 	FORK(start_servicei(name, param));
 }
 
-void start_main(char *name, int argc, char **argv)
+static int start_main(char *name, int argc, char **argv)
 {
-	cprintf("start_main\n");
+	int ret = -1;
 	void *handle = load_service(name);
 
 	if (handle == NULL) {
-		return;
+		return -1;
 	}
 	int (*fptr) (int, char **);
 	char service[64];
 
 	sprintf(service, "%s_main", name);
-	cprintf("resolving %s\n", service);
 	fptr = (int (*)(int, char **))dlsym(handle, service);
 	if (fptr)
-		(*fptr) (argc, argv);
+		ret = (*fptr) (argc, argv);
 	else
 		fprintf(stderr, "function %s not found \n", service);
 	dlclose(handle);
-	cprintf("start_main done()\n");
-	return;
+	return ret;
 }
 
-void start_main_f(char *name, int argc, char **argv)
+static void start_main_f(char *name, int argc, char **argv)
 {
-	DEBUG();
 	FORK(start_main(name, argc, argv));
 }
 
-int stop_running(void)
+static int stop_running(void)
 {
 	return stops_running[0] > 0;
 }
 
-int stop_running_main(int argc, char **argv)
+static int stop_running_main(int argc, char **argv)
 {
 	int dead = 0;
 	while (stops_running != NULL && stop_running() && dead < 100) {
@@ -279,34 +261,30 @@ int stop_running_main(int argc, char **argv)
 	return 0;
 }
 
-void stop_service(char *name)
+static void stop_service(char *name)
 {
-	DEBUG();
 	init_shared();
 	if (stops_running)
 		stops_running[0]++;
 	handle_service("stop", name);
 }
 
-void stop_service_force(char *name)
+static void stop_service_force(char *name)
 {
-	DEBUG();
 	RELEASESTOPPED("stop");
 	stop_service(name);
 }
 
-void stop_service_f(char *name)
+static void stop_service_f(char *name)
 {
-	DEBUG();
 	init_shared();
 	if (stops_running)
 		stops_running[0]++;
 	FORK(handle_service("stop", name));
 }
 
-void stop_service_force_f(char *name)
+static void stop_service_force_f(char *name)
 {
-	DEBUG();
 	RELEASESTOPPED("stop");
 	init_shared();
 	if (stops_running)
@@ -318,19 +296,17 @@ void stop_service_force_f(char *name)
 static void startstop_delay(char *name, int delay)
 {
 	void *handle = NULL;
-	DEBUG();
 	if (delay)
 		sleep(delay);
 	RELEASESTOPPED("stop");
 	RELEASESTOPPED("start");
-	cprintf("stop and start service\n");
 	handle_service("stop", name);
 	handle_service("start", name);
 	if (handle)
 		dlclose(handle);
 }
 
-void startstop(char *name)
+static void startstop(char *name)
 {
 	init_shared();
 	if (stops_running)
@@ -338,27 +314,26 @@ void startstop(char *name)
 	startstop_delay(name, 0);
 }
 
-void startstop_fdelay(char *name, int delay)
+static void startstop_fdelay(char *name, int delay)
 {
-	DEBUG();
 	init_shared();
 	if (stops_running)
 		stops_running[0]++;
-	FORK(startstop_delay(name, 0));
+	FORK(startstop_delay(name, delay));
 }
 
-void startstop_f(char *name)
+static void startstop_f(char *name)
 {
 	startstop_fdelay(name, 0);
 }
 
-int startstop_main(int argc, char **argv)
+static int startstop_main(int argc, char **argv)
 {
 	startstop(argv[1]);
 	return 0;
 }
 
-int startstop_main_f(int argc, char **argv)
+static int startstop_main_f(int argc, char **argv)
 {
 	char *name = argv[1];
 	RELEASESTOPPED("stop");

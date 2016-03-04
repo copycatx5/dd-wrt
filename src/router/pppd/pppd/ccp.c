@@ -28,7 +28,7 @@
  * OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-#define RCSID	"$Id: ccp.c,v 1.48 2004/11/13 02:28:15 paulus Exp $"
+#define RCSID	"$Id: ccp.c,v 1.50 2005/06/26 19:34:41 carlsonj Exp $"
 
 #include <stdlib.h>
 #include <string.h>
@@ -62,6 +62,9 @@ static int setdeflate __P((char **));
 static char bsd_value[8];
 static char deflate_value[8];
 
+/*
+ * Option variables.
+ */
 #ifdef MPPE
 static int setmppe(char **);
 static int setnomppe(void);
@@ -1077,6 +1080,7 @@ ccp_nakci(f, p, len, treat_as_reject)
     fsm *f;
     u_char *p;
     int len;
+    int treat_as_reject;
 {
     ccp_options *go = &ccp_gotoptions[f->unit];
     ccp_options *ao = &ccp_allowoptions[f->unit];
@@ -1360,6 +1364,7 @@ ccp_reqci(f, p, lenp, dont_nak)
     int *lenp;
     int dont_nak;
 {
+    int mtu;
     int ret, newret, res;
     u_char *p0, *retp, p2, p5;
     int len, clen, type, nb;
@@ -1651,7 +1656,7 @@ ccp_reqci(f, p, lenp, dont_nak)
 		 * because MPPE frames **grow**.  The kernel [must]
 		 * allocate MPPE_PAD extra bytes in xmit buffers.
 		 */
-/*
+#ifndef BROADCOM
 		mtu = netif_get_mtu(f->unit);
 		if (mtu) {
 		    netif_set_mtu(f->unit, mtu - MPPE_PAD);
@@ -1662,7 +1667,7 @@ ccp_reqci(f, p, lenp, dont_nak)
 			lcp_close(f->unit, "Cannot adjust MTU needed by MPPE.");
 		    }
 		}
-*/
+#endif
 		break;
 #endif /* MPPE */
 
@@ -2182,3 +2187,4 @@ ccp_rack_timeout(arg)
     } else
 	ccp_localstate[f->unit] &= ~RACK_PENDING;
 }
+

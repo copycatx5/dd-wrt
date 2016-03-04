@@ -1,7 +1,7 @@
 <?php
 /*
 ** Zabbix
-** Copyright (C) 2001-2013 Zabbix SIA
+** Copyright (C) 2001-2015 Zabbix SIA
 **
 ** This program is free software; you can redistribute it and/or modify
 ** it under the terms of the GNU General Public License as published by
@@ -17,19 +17,14 @@
 ** along with this program; if not, write to the Free Software
 ** Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 **/
-?>
-<?php
+
 
 class CListItem extends CTag {
 
 	public function __construct($value, $class = null, $id = null) {
 		parent::__construct('li', 'yes');
-
 		$this->addItem($value);
 		$this->addClass($class);
-		if (!empty($id)) {
-			$this->setAttribute('id', $id);
-		}
+		$this->attr('id', $id);
 	}
 }
-?>

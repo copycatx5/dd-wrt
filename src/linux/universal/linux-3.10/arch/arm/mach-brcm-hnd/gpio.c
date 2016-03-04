@@ -230,18 +230,15 @@ static int __init gpio_init(void)
 	if (nvram_match("model","RT-AC68U")) {
 		printk(KERN_EMERG "Asus-RT-AC68U init\n");
 		isac68 = 1;
-	} else if ((boardnum != 24) && nvram_match("boardtype", "0x0646") && (nvram_match("boardrev", "0x1100"))) {
-		printk(KERN_EMERG "Asus-RT-AC68U init\n");
-		isac68 = 1;
 	}
 
-	if ((boardnum == 24) && nvram_match("boardtype", "0x0646") && (nvram_match("boardrev", "0x1110"))) {
+	if ((boardnum == 24) && nvram_match("boardtype", "0x0646") && nvram_match("boardrev", "0x1110") && !nvram_match("gpio6", "wps_led")) {
 		printk(KERN_EMERG "DLink DIR-868 init\n");
 		isac66 = 1;
 	}
 
 	if ((boardnum == 679) && nvram_match("boardtype", "0x0646") && (nvram_match("boardrev", "0x1110"))) {
-		printk(KERN_EMERG "Netgear AC1450/R6250/R6300v2 init\n");
+		printk(KERN_EMERG "Netgear AC1450/R6250/R6300v2/EX6200 init\n");
 		gpios = 1<<0 | 1<<1 | 1<<2 | 1<<3 | 1<<4 | 1<<5 | 1<<6 | 1<<7 | 1<<8 | 1<<9 | 1<<10 | 1<<11 | 1<<15;
 	}
 
@@ -249,10 +246,21 @@ static int __init gpio_init(void)
 		printk(KERN_EMERG "Netgear R7000 init\n");
 		gpios = 1<<0 | 1<<1 | 1<<2 | 1<<3 | 1<<4 | 1<<5 | 1<<6 | 1<<7 | 1<<8 | 1<<9 | 1<<10 | 1<<11 | 1<<15;
 	}
+	
+	if ((boardnum == 32) && nvram_match("boardtype", "0x0665") && (nvram_match("boardrev", "0x1101"))) {
+		printk(KERN_EMERG "Netgear R8000 init\n");
+		gpios = 1<<0 | 1<<1 | 1<<2 | 1<<3 | 1<<4 | 1<<5 | 1<<6 | 1<<7 | 1<<8 | 1<<9 | 1<<10 | 1<<11 | 1<<15;
+	}
+	
+	if ((boardnum == 32) && nvram_match("boardtype", "0x072F") && (nvram_match("boardrev", "0x1101"))) {
+		printk(KERN_EMERG "Netgear R8500 init\n");
+		gpios = 1<<0 | 1<<1 | 1<<2 | 1<<3 | 1<<4 | 1<<5 | 1<<6 | 1<<7 | 1<<8 | 1<<9 | 1<<10 | 1<<11 | 1<<12 | 1<<13 | 1<<14 | 1<<15 | 1<<16 | 1<<17 | 1<<18 | 1<<19 | 1<<20 | 1<<21 | 1<<22 | 1<<23  | 1<<24 ;
+	}
+	
+	
 
-
-	for (i = 0; i < 16; i++) {
-		if (gpios&1) {
+	for (i = 0; i < 32; i++) {
+		if (gpios& 1<<i) {
 			si_gpioreserve(gpio_sih, 1 << i, GPIO_APP_PRIORITY);
 		}
 	}

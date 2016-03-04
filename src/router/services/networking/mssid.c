@@ -49,16 +49,17 @@ void config_macs(char *wlifname)	// reconfigure macs which
 	char var[80];
 
 	if (!strcmp(mbss, "0") || nvram_nmatch("apsta", "wl%d_mode", unit) || nvram_nmatch("ap", "wl%d_mode", unit)) {
-		if (vifs != NULL)
+		if (vifs != NULL) {
 			foreach(var, vifs, next) {
-			eval("ifconfig", "%s", "down", var);
-			eval("wl", "-i", var, "down");
-			eval("wl", "-i", var, "cur_etheraddr", nvram_nget("%s_hwaddr", var));
-			fprintf(stderr, "Setting %s BSSID:  %s \n", var, nvram_nget("%s_hwaddr", var));
-			eval("wl", "-i", var, "bssid", nvram_nget("%s_hwaddr", var));
-			eval("wl", "-i", var, "up");
-			eval("ifconfig", "%s", "up", var);
+				eval("ifconfig", "%s", "down", var);
+				eval("wl", "-i", var, "down");
+				eval("wl", "-i", var, "cur_etheraddr", nvram_nget("%s_hwaddr", var));
+				fprintf(stderr, "Setting %s BSSID:  %s \n", var, nvram_nget("%s_hwaddr", var));
+				eval("wl", "-i", var, "bssid", nvram_nget("%s_hwaddr", var));
+				eval("wl", "-i", var, "up");
+				eval("ifconfig", "%s", "up", var);
 			}
+		}
 	}
 }
 
@@ -70,7 +71,7 @@ void do_mssid(char *wlifname)
 	char *next;
 	char var[80];
 	char *vifs = nvram_nget("wl%d_vifs", get_wl_instance(wlifname));
-
+	char tmp[256];
 	if ((s = socket(AF_INET, SOCK_RAW, IPPROTO_RAW)) < 0)
 		return;
 	if (vifs != NULL)
@@ -83,7 +84,7 @@ void do_mssid(char *wlifname)
 			eval("ifconfig", var, "down");
 			ioctl(s, SIOCSIFHWADDR, &ifr);
 			eval("ifconfig", var, "up");
-			br_add_interface(getBridge(var), var);
+			br_add_interface(getBridge(var, tmp), var);
 		} else {
 			eval("ifconfig", var, "down");
 			ioctl(s, SIOCSIFHWADDR, &ifr);
@@ -107,15 +108,16 @@ void set_vifsmac(char *base)	// corrects hwaddr and bssid assignment
 
 	if ((s = socket(AF_INET, SOCK_RAW, IPPROTO_RAW)) < 0)
 		return;
-	if (vifs != NULL)
+	if (vifs != NULL) {
 		foreach(var, vifs, next) {
-		eval("ifconfig", var, "down");
-		wl_getbssid(var, mac);
-		ether_atoe(mac, ifr.ifr_hwaddr.sa_data);
-		ifr.ifr_hwaddr.sa_family = ARPHRD_ETHER;
-		strncpy(ifr.ifr_name, var, IFNAMSIZ);
-		ioctl(s, SIOCSIFHWADDR, &ifr);
+			eval("ifconfig", var, "down");
+			wl_getbssid(var, mac);
+			ether_atoe(mac, ifr.ifr_hwaddr.sa_data);
+			ifr.ifr_hwaddr.sa_family = ARPHRD_ETHER;
+			strncpy(ifr.ifr_name, var, IFNAMSIZ);
+			ioctl(s, SIOCSIFHWADDR, &ifr);
 		}
+	}
 	close(s);
 }
 

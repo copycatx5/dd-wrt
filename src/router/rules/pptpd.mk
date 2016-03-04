@@ -1,7 +1,8 @@
 pptpd-configure:
 ifeq ($(CONFIG_PPTP_ACCEL),y)
 	cd pptpd-accel && ./configure CC="$(CC)" CFLAGS="$(COPTS) $(MIPS16_OPT) -DNEED_PRINTF" --prefix=/usr --with-bcrelay --host=$(ARCH)-linux
-
+else
+	cd pptpd && ./configure  --enable-bcrelay  CC="$(CC)" CFLAGS="$(COPTS) $(MIPS16_OPT) -D_GNU_SOURCE -ffunction-sections -fdata-sections -Wl,--gc-sections  -I$(TOP)/pppd/include -DNEED_PRINTF" CPPFLAGS="$(COPTS) $(MIPS16_OPT) -D_GNU_SOURCE -ffunction-sections -fdata-sections -Wl,--gc-sections  -I$(TOP)/pppd.new/include" --prefix=/usr --host=$(ARCH)-linux
 endif
 	@true
 
@@ -10,6 +11,8 @@ ifeq ($(CONFIG_PPTPD),y)
 ifeq ($(CONFIG_PPTP_ACCEL),y)
 	$(MAKE) -C pptpd-accel
 else
+	CFLAGS="$(COPTS) $(MIPS16_OPT) -D_GNU_SOURCE -ffunction-sections -fdata-sections -Wl,--gc-sections   -I$(TOP)/pppd/include -DNEED_PRINTF" \
+	CPPFLAGS="$(COPTS)$(MIPS16_OPT) -D_GNU_SOURCE -ffunction-sections -fdata-sections -Wl,--gc-sections   -I$(TOP)/pppd/include" \
 	$(MAKE) -C pptpd
 endif
 else

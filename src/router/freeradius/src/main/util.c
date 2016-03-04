@@ -1,7 +1,7 @@
 /*
  * util.c	Various utility functions.
  *
- * Version:     $Id: aebaff0bfdd7f069ef2fa77ee2cbf508dae56656 $
+ * Version:     $Id: c717fdd0fe52475e79d44809f5d7c1401fbdc4cd $
  *
  *   This program is free software; you can redistribute it and/or modify
  *   it under the terms of the GNU General Public License as published by
@@ -21,7 +21,7 @@
  */
 
 #include <freeradius-devel/ident.h>
-RCSID("$Id: aebaff0bfdd7f069ef2fa77ee2cbf508dae56656 $")
+RCSID("$Id: c717fdd0fe52475e79d44809f5d7c1401fbdc4cd $")
 
 #include <freeradius-devel/radiusd.h>
 #include <freeradius-devel/rad_assert.h>
@@ -31,6 +31,21 @@ RCSID("$Id: aebaff0bfdd7f069ef2fa77ee2cbf508dae56656 $")
 
 #include <sys/stat.h>
 #include <fcntl.h>
+#include <unistd.h>
+#include <pwd.h>
+#include <grp.h>
+
+struct pwgrnam_buffer {
+	struct passwd pwd;
+	char *pwbuffer;
+	int pwsize;
+
+	struct group grp;
+	char *grbuffer;
+	int grsize;
+};
+
+fr_thread_local_setup(struct pwgrnam_buffer *, fr_pwgrnam_buffer); /* macro */
 
 /*
  *	The signal() function in Solaris 2.5.1 sets SA_NODEFER in
@@ -336,6 +351,105 @@ int rad_mkdir(char *directory, int mode)
 	return mkdir(directory, mode);
 }
 
+/** Escapes the raw string such that it should be safe to use as part of a file path
+ *
+ * This function is designed to produce a string that's still readable but portable
+ * across the majority of file systems.
+ *
+ * For security reasons it cannot remove characters from the name, and must not allow
+ * collisions to occur between different strings.
+ *
+ * With that in mind '-' has been chosen as the escape character, and will be double
+ * escaped '-' -> '--' to avoid collisions.
+ *
+ * Escaping should be reversible if the original string needs to be extracted.
+ *
+ * @note function takes additional arguments so that it may be used as an xlat escape
+ *	function but it's fine to call it directly.
+ *
+ * @note OSX/Unix/NTFS/VFAT/vfat have a max filename size of 255 bytes.
+ *
+ * @param request Current request (may be NULL).
+ * @param out Output buffer.
+ * @param outlen Size of the output buffer.
+ * @param in string to escape.
+ * @param arg Context arguments (unused, should be NULL).
+ */
+size_t rad_filename_escape(char *out, size_t outlen, char const *in)
+{
+	size_t freespace = outlen;
+
+	while (in[0]) {
+		size_t utf8_len;
+
+		/*
+		 *	Encode multibyte UTF8 chars
+		 */
+		utf8_len = fr_utf8_char((uint8_t const *) in);
+		if (utf8_len > 1) {
+			if (freespace <= (utf8_len * 3)) break;
+
+			switch (utf8_len) {
+			case 2:
+				snprintf(out, freespace, "-%x-%x", in[0], in[1]);
+				break;
+
+			case 3:
+				snprintf(out, freespace, "-%x-%x-%x", in[0], in[1], in[2]);
+				break;
+
+			case 4:
+				snprintf(out, freespace, "-%x-%x-%x-%x", in[0], in[1], in[2], in[3]);
+				break;
+			}
+
+			freespace -= (utf8_len * 3);
+			out += (utf8_len * 3);
+			in += utf8_len;
+
+			continue;
+		}
+
+		/*
+		 *	Safe chars
+		 */
+		if (((in[0] >= 'A') && (in[0] <= 'Z')) ||
+		    ((in[0] >= 'a') && (in[0] <= 'z')) ||
+		    ((in[0] >= '0') && (in[0] <= '9')) ||
+		    (in[0] == '_') || (in[0] == '.')) {
+		    	if (freespace <= 1) break;
+
+		 	*out++ = *in;
+		 	in++;
+		 	freespace--;
+		 	continue;
+		}
+
+		if (freespace <= 2) break;
+
+		/*
+		 *	Double escape '-' (like \\)
+		 */
+		if (in[0] == '-') {
+			*out++ = '-';
+			*out++ = '-';
+
+			freespace -= 2;
+			in++;
+			continue;
+		}
+
+		/*
+		 *	Unsafe chars
+		 */
+		*out++ = '-';
+		fr_bin2hex((uint8_t *)in++, out, 1);
+		out += 2;
+		freespace -= 3;
+	}
+	*out = '\0';
+	return outlen - freespace;
+}
 
 /*
  *	Module malloc() call, which does stuff if the malloc fails.
@@ -461,7 +575,7 @@ REQUEST *request_alloc_fake(REQUEST *request)
   fake->packet->id = fake->number & 0xff;
   fake->packet->code = request->packet->code;
   fake->timestamp = request->timestamp;
- 
+
   /*
    *	Required for new identity support
    */
@@ -778,3 +892,132 @@ int rad_expand_xlat(REQUEST *request, const char *cmd,
 	return argc;
 }
 
+/*
+ *	Explicitly cleanup the memory allocated to the pwgrnam
+ *	buffer.
+ */
+static void _fr_pwgrnam_free(void *arg)
+{
+	struct pwgrnam_buffer *p = (struct pwgrnam_buffer *)arg;
+	free(p->pwbuffer);
+	free(p->grbuffer);
+	free(p);
+}
+
+/*
+ *	Allocate buffers for our getpwnam/getgrnam wrappers.
+ */
+static struct pwgrnam_buffer *init_pwgrnam_buffer(void) {
+	struct pwgrnam_buffer *p;
+	int ret;
+
+	p = fr_thread_local_init(fr_pwgrnam_buffer, _fr_pwgrnam_free);
+	if (p)
+		return p;
+
+	p = malloc(sizeof(struct pwgrnam_buffer));
+	if (!p) {
+		fr_perror("Failed allocating pwnam/grnam buffer");
+		return NULL;
+	}
+
+#ifdef _SC_GETPW_R_SIZE_MAX
+	p->pwsize = sysconf(_SC_GETPW_R_SIZE_MAX);
+	if (p->pwsize <= 0)
+#endif
+		p->pwsize = 16384;
+
+#ifdef _SC_GETGR_R_SIZE_MAX
+	p->grsize = sysconf(_SC_GETGR_R_SIZE_MAX);
+	if (p->grsize <= 0)
+#endif
+		p->grsize = 16384;
+
+	p->pwbuffer = malloc(p->pwsize);
+	if (!p->pwbuffer) {
+		fr_perror("Failed allocating pwnam buffer");
+		free(p);
+		return NULL;
+	}
+
+	p->grbuffer = malloc(p->grsize);
+	if (!p->grbuffer) {
+		fr_perror("Failed allocating grnam buffer");
+		free(p->pwbuffer);
+		free(p);
+		return NULL;
+	}
+
+	ret = fr_thread_local_set(fr_pwgrnam_buffer, p);
+	if (ret != 0) {
+		fr_perror("Failed setting up TLS for pwnam buffer: %s", fr_syserror(ret));
+		_fr_pwgrnam_free(p);
+		return NULL;
+	}
+
+	return p;
+}
+
+/** Wrapper around getpwnam, search user database for a name
+ *
+ * getpwnam is not threadsafe so provide a thread-safe variant that
+ * uses TLS.
+ *
+ * @param name then username to search for
+ * @return NULL on error or not found, else pointer to thread local struct passwd buffer
+ */
+struct passwd *rad_getpwnam(const char *name)
+{
+	struct pwgrnam_buffer *p;
+	struct passwd *result;
+	int ret;
+
+	p = init_pwgrnam_buffer();
+	if (!p)
+		return NULL;
+
+	while ((ret = getpwnam_r(name, &p->pwd, p->pwbuffer, p->pwsize, &result)) == ERANGE) {
+		char *tmp = realloc(p->pwbuffer, p->pwsize * 2);
+		if (!tmp) {
+			fr_perror("Failed reallocating pwnam buffer");
+			return NULL;
+		}
+		p->pwsize *= 2;
+		p->pwbuffer = tmp;
+	}
+	if (ret < 0 || result == NULL)
+		return NULL;
+	return result;
+}
+
+/** Wrapper around getgrnam, search group database for a name
+ *
+ * getgrnam is not threadsafe so provide a thread-safe variant that
+ * uses TLS.
+ *
+ * @param name the name to search for
+ * @return NULL on error or not found, else pointer to thread local struct group buffer
+ */
+struct group *rad_getgrnam(const char *name)
+{
+	struct pwgrnam_buffer *p;
+	struct group *result;
+	int ret;
+
+	p = init_pwgrnam_buffer();
+	if (!p)
+		return NULL;
+
+	while ((ret = getgrnam_r(name, &p->grp, p->grbuffer, p->grsize, &result)) == ERANGE) {
+		char *tmp = realloc(p->grbuffer, p->grsize * 2);
+		if (!tmp) {
+			fr_perror("Failed reallocating pwnam buffer");
+			return NULL;
+		}
+		p->grsize *= 2;
+		p->grbuffer = tmp;
+	}
+	if (ret < 0 || result == NULL)
+		return NULL;
+	return result;
+}

@@ -13,11 +13,11 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Midnight Commander\n"
 "Report-Msgid-Bugs-To: http://www.midnight-commander.org/\n"
-"POT-Creation-Date: 2014-04-01 14:47+0300\n"
-"PO-Revision-Date: 2014-02-19 09:12+0000\n"
-"Last-Translator: aborodin <aborodin@vmail.ru>\n"
-"Language-Team: Chinese (China) (http://www.transifex.com/projects/p/mc/"
-"language/zh_CN/)\n"
+"POT-Creation-Date: 2015-11-06 14:43+0300\n"
+"PO-Revision-Date: 2015-06-04 08:38+0000\n"
+"Last-Translator: Piotr Drąg <piotrdrag@gmail.com>\n"
+"Language-Team: Chinese (China) (http://www.transifex.com/mc/mc/language/"
+"zh_CN/)\n"
 "Language: zh_CN\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
@@ -354,6 +354,9 @@ msgstr "撇号"
 msgid "Colon"
 msgstr "冒号"
 
+msgid "Semicolon"
+msgstr ""
+
 msgid "Exclamation mark"
 msgstr "感叹号"
 
@@ -450,6 +453,27 @@ msgstr ""
 "不支持屏幕大小 %dx%d。\n"
 "检查 TERM 环境变量。\n"
 
+msgid "Cannot create pipe descriptor"
+msgstr ""
+
+msgid "Cannot parse command for pipe"
+msgstr ""
+
+msgid "Cannot create pipe streams"
+msgstr ""
+
+#, c-format
+msgid ""
+"Unexpected error in select() reading data from a child process:\n"
+"%s"
+msgstr ""
+
+#, c-format
+msgid ""
+"Unexpected error in waitpid():\n"
+"%s"
+msgstr ""
+
 msgid "Warning"
 msgstr "警告"
 
@@ -466,8 +490,16 @@ msgstr "复制原有出错管道时发生错误"
 msgid "Directory cache expired for %s"
 msgstr "%s 的目录缓存已过期"
 
+#, c-format
+msgid "%s: %s: %s %3d%% %<PRIuMAX> %s"
+msgstr ""
+
 msgid "bytes transferred"
 msgstr "已传输字节数"
+
+#, c-format
+msgid "%s: %s: %s %<PRIuMAX> %s"
+msgstr ""
 
 msgid "Starting linear transfer..."
 msgstr "正在开始线性传输..."
@@ -548,6 +580,13 @@ msgstr "后台进程: "
 
 msgid "Error"
 msgstr "错误"
+
+#, c-format
+msgid "%d: %s"
+msgstr ""
+
+msgid "&Abort"
+msgstr "中止(&A)"
 
 msgid "Displays the current version"
 msgstr "显示当前版本"
@@ -642,27 +681,9 @@ msgid ""
 "   Editor:       editnormal, editbold, editmarked, editwhitespace,\n"
 "                 editlinestate, editbg, editframe, editframeactive\n"
 "                 editframedrag\n"
-"   Viewer:       viewbold, viewunderline, viewselected\n"
+"   Viewer:       viewnormal,viewbold, viewunderline, viewselected\n"
 "   Help:         helpnormal, helpitalic, helpbold, helplink, helpslink\n"
 msgstr ""
-"--colors KEYWORD={FORE},{BACK},{ATTR}:KEYWORD2=...\n"
-"\n"
-"{FORE}, {BACK} 及 {ATTR} 可以忽略，忽略时使用默认值\n"
-"\n"
-" 关键词: \n"
-"   全局:         errors, disabled, reverse, gauge, header\n"
-"                 input, inputmark, inputunchanged, commandlinemark\n"
-"                 bbarhotkey, bbarbutton, statusbar\n"
-"   文件显示:     normal, selected, marked, markselect\n"
-"   对话框窗口:   dnormal, dfocus, dhotnormal, dhotfocus, errdhotnormal,\n"
-"                 errdhotfocus\n"
-"   菜单:         menunormal, menuhot, menusel, menuhotsel, menuinactive\n"
-"   弹出菜单:     pmenunormal, pmenusel, pmenutitle\n"
-"   编辑器:       editnormal, editbold, editmarked, editwhitespace,\n"
-"                 editlinestate, editbg, editframe, editframeactive\n"
-"                 editframedrag\n"
-"   查看器:       viewbold, viewunderline, viewselected\n"
-"   帮助:         helpnormal, helpi talic, helpbold, helplink, helpslink\n"
 
 #. TRANSLATORS: don't translate color names and attributes
 msgid ""
@@ -675,18 +696,8 @@ msgid ""
 "   color16 to color255, or rgb000 to rgb555 and gray0 to gray23\n"
 "\n"
 "Attributes:\n"
-"   bold, underline, reverse, blink; append more with '+'\n"
+"   bold, italic, underline, reverse, blink; append more with '+'\n"
 msgstr ""
-"标准颜色: \n"
-"   black, gray, red, brightred, green, brightgreen, brown,\n"
-"   yellow, blue, brightblue, magenta, brightmagenta, cyan,\n"
-"   brightcyan, lightgray and white\n"
-"\n"
-"扩展颜色，当256色可用时: \n"
-"   color16 到 color255，或者 rgb000 到 rgb555 或者 gray0 到 gray23\n"
-"\n"
-"属性: \n"
-"   bold, underline, reverse, blink; 添加更多用 “+”\n"
 
 msgid "Color options"
 msgstr "颜色选项"
@@ -725,8 +736,14 @@ msgstr "参数解析错误!"
 msgid "No arguments given to the viewer."
 msgstr "查看器没有指定参数。"
 
-msgid "Two files are required to evoke the diffviewer."
-msgstr "两个文件需要调用差异查看器。"
+msgid "Two files are required to envoke the diffviewer."
+msgstr ""
+
+msgid "Background protocol error"
+msgstr "后台协议错误"
+
+msgid "Reading failed"
+msgstr "读失败"
 
 msgid "Background process error"
 msgstr "后台进程错误"
@@ -736,12 +753,6 @@ msgstr "子进程未知错误"
 
 msgid "Child died unexpectedly"
 msgstr "子进程异常退出"
-
-msgid "Background protocol error"
-msgstr "后台协议错误"
-
-msgid "Reading failed"
-msgstr "读失败"
 
 msgid ""
 "Background process sent us a request for more arguments\n"
@@ -910,8 +921,18 @@ msgid "< Reload Current Syntax >"
 msgstr "<重新加载当前语法>"
 
 #, c-format
+msgid "Loading: %3d%%"
+msgstr ""
+
+msgid "Loading..."
+msgstr ""
+
+#, c-format
 msgid "Cannot open %s for reading"
 msgstr "无法打开 %s 读取内容"
+
+msgid "Load file"
+msgstr ""
 
 #, c-format
 msgid "Error reading %s"
@@ -941,6 +962,14 @@ msgstr "读取管道时发生错误: %s"
 msgid "Cannot open pipe for reading: %s"
 msgstr "无法打开管道读取: %s"
 
+#, c-format
+msgid "Searching %s: %3d%%"
+msgstr ""
+
+#, c-format
+msgid "Searching %s"
+msgstr "正在搜索 %s"
+
 msgid "File has hard-links. Detach before saving?"
 msgstr "文件有硬链接。保存文件前分离该链接吗?"
 
@@ -959,9 +988,8 @@ msgstr "试图打开管道写入时失败: %s"
 msgid "Cannot open file for writing: %s"
 msgstr "无法打开文件进行写操作: %s"
 
-#, fuzzy
 msgid "The file you are saving does not end with a newline."
-msgstr "您要保存的文件没有以换行符结束"
+msgstr ""
 
 msgid "C&ontinue"
 msgstr "继续(&O)"
@@ -989,6 +1017,9 @@ msgstr "另存为"
 
 msgid "Block is large, you may not be able to undo this action"
 msgstr "块过大，您可能无法撤消这个操作"
+
+msgid "Collect completions"
+msgstr ""
 
 msgid "&Quick save"
 msgstr "快速保存(&Q)"
@@ -1519,7 +1550,7 @@ msgstr ""
 "为 Midnight Commander 编写的\n"
 "一个界面友好的文本编辑器。"
 
-msgid "Copyright (C) 1996-2014 the Free Software Foundation"
+msgid "Copyright (C) 1996-2015 the Free Software Foundation"
 msgstr ""
 
 msgid "About"
@@ -1548,6 +1579,78 @@ msgstr "ButtonBar|删除"
 
 msgid "ButtonBar|PullDn"
 msgstr "ButtonBar|菜单"
+
+msgid "Breton"
+msgstr ""
+
+msgid "Czech"
+msgstr ""
+
+msgid "Welsh"
+msgstr ""
+
+msgid "Danish"
+msgstr ""
+
+msgid "German"
+msgstr ""
+
+msgid "Greek"
+msgstr ""
+
+msgid "English"
+msgstr ""
+
+msgid "British English"
+msgstr ""
+
+msgid "Canadian English"
+msgstr ""
+
+msgid "American English"
+msgstr ""
+
+msgid "Esperanto"
+msgstr ""
+
+msgid "Spanish"
+msgstr ""
+
+msgid "Faroese"
+msgstr ""
+
+msgid "French"
+msgstr ""
+
+msgid "Italian"
+msgstr ""
+
+msgid "Dutch"
+msgstr ""
+
+msgid "Norwegian"
+msgstr ""
+
+msgid "Polish"
+msgstr ""
+
+msgid "Portuguese"
+msgstr ""
+
+msgid "Romanian"
+msgstr ""
+
+msgid "Russian"
+msgstr ""
+
+msgid "Slovak"
+msgstr ""
+
+msgid "Swedish"
+msgstr ""
+
+msgid "Ukrainian"
+msgstr ""
 
 msgid "&Add word"
 msgstr "添加单词(&A)"
@@ -1643,6 +1746,12 @@ msgstr ""
 "无法 chown“%s”\n"
 "%s"
 
+msgid "< Default >"
+msgstr ""
+
+msgid "Skins"
+msgstr ""
+
 msgid "Other 8 bit"
 msgstr "其它 8 位"
 
@@ -1726,12 +1835,6 @@ msgstr "自动保存设置(&U)"
 
 msgid "Configure options"
 msgstr "配置选项"
-
-msgid "< Default >"
-msgstr ""
-
-msgid "Skins"
-msgstr ""
 
 msgid "Skin:"
 msgstr ""
@@ -1818,14 +1921,17 @@ msgstr ""
 msgid "&Full file list"
 msgstr "完整文件列表(&F)"
 
-msgid "&Brief file list"
-msgstr "简要文件列表(&B)"
+msgid "&Brief file list:"
+msgstr ""
 
 msgid "&Long file list"
 msgstr "长文件列表(&L)"
 
 msgid "&User defined:"
 msgstr "用户自定义(&U): "
+
+msgid "columns"
+msgstr ""
 
 msgid "User &mini status"
 msgstr "用户简要状态(&M)"
@@ -2063,15 +2169,6 @@ msgstr "过滤"
 msgid "Set expression for filtering filenames"
 msgstr "设置过滤文件名的表达式"
 
-msgid "&Files only"
-msgstr "仅文件(&F)"
-
-msgid "&Using shell patterns"
-msgstr "使用 shell 模式(&U)"
-
-msgid "&Case sensitive"
-msgstr "大小写敏感(&C)"
-
 #, c-format
 msgid "Link %s to:"
 msgstr "链接 %s 到: "
@@ -2111,12 +2208,6 @@ msgstr "创建新目录"
 
 msgid "Enter directory name:"
 msgstr "输入目录名称: "
-
-msgid "Select"
-msgstr "选择"
-
-msgid "Unselect"
-msgstr "取消选择"
 
 msgid "Extension file edit"
 msgstr "扩展文件编辑"
@@ -2202,6 +2293,9 @@ msgid ""
 msgstr ""
 "输入要反删除的文件所在的设备(不带 /dev/)\n"
 "(F1 获取详细信息)"
+
+msgid "Directory scanning"
+msgstr "扫描目录"
 
 msgid "Setup"
 msgstr "设置"
@@ -2336,9 +2430,6 @@ msgid ""
 msgstr ""
 "无法创建目标符号链接“%s”\n"
 "%s"
-
-msgid "&Abort"
-msgstr "中止(&A)"
 
 msgid "Ski&p all"
 msgstr "路过全部(&I)"
@@ -2623,16 +2714,9 @@ msgstr ""
 "无法移动目录“%s”到“%s”\n"
 "%s"
 
-msgid "Directory scanning"
-msgstr "扫描目录"
-
 #, c-format
-msgid ""
-"%s\n"
-"Directories: %zd, total size: %s"
+msgid "Directories: %zd, total size: %s"
 msgstr ""
-"%s\n"
-"目录: %zd, 总体积: %s"
 
 msgid "Cannot operate on \"..\"!"
 msgstr "无法操作\"..\"!"
@@ -2739,6 +2823,12 @@ msgstr "来源"
 msgid "Target"
 msgstr "目标"
 
+msgid "Deleting"
+msgstr ""
+
+msgid "&Using shell patterns"
+msgstr "使用 shell 模式(&U)"
+
 msgid "to:"
 msgstr "至: "
 
@@ -2830,10 +2920,6 @@ msgstr "完成"
 msgid "Finished (ignored %zd directory)"
 msgid_plural "Finished (ignored %zd directories)"
 msgstr[0] "完成 (忽略 %zd 个目录)"
-
-#, c-format
-msgid "Searching %s"
-msgstr "正在搜索 %s"
 
 msgid "Searching"
 msgstr "正在搜索"
@@ -2957,40 +3043,40 @@ msgid "Free space: %s/%s (%d%%)"
 msgstr "空余空间: %s/%s (%d%%)"
 
 #, c-format
-msgid "Type:      %s"
-msgstr "类型: %s"
+msgid "Type:       %s"
+msgstr ""
 
 msgid "non-local vfs"
 msgstr "非本地 vfs"
 
 #, c-format
-msgid "Device:    %s"
-msgstr "设备: %s"
+msgid "Device:     %s"
+msgstr ""
 
 #, c-format
 msgid "Filesystem: %s"
 msgstr "文件系统: %s"
 
 #, c-format
-msgid "Accessed:  %s"
-msgstr "最后访问时间: %s"
+msgid "Accessed:   %s"
+msgstr ""
 
 #, c-format
-msgid "Modified:  %s"
-msgstr "最后修改时间: %s"
+msgid "Modified:   %s"
+msgstr ""
 
 #. TRANSLATORS: Time of last status change as in stat(2) man.
 #, c-format
-msgid "Changed:   %s"
-msgstr "创建时间: %s"
+msgid "Changed:    %s"
+msgstr ""
 
 #, c-format
 msgid "Dev. type: major %lu, minor %lu"
 msgstr "设备类型: 主要%lu，次要%lu"
 
 #, c-format
-msgid "Size:      %s"
-msgstr "文件大小: %s"
+msgid "Size:       %s"
+msgstr ""
 
 #, c-format
 msgid " (%ld block)"
@@ -2998,20 +3084,20 @@ msgid_plural " (%ld blocks)"
 msgstr[0] " (%ld 块)"
 
 #, c-format
-msgid "Owner:     %s/%s"
-msgstr "所有者:   %s/%s"
+msgid "Owner:      %s/%s"
+msgstr ""
 
 #, c-format
-msgid "Links:     %d"
-msgstr "链接:   %d"
+msgid "Links:      %d"
+msgstr ""
 
 #, c-format
-msgid "Mode:      %s (%04o)"
-msgstr "模式:   %s (%04o)"
+msgid "Mode:       %s (%04o)"
+msgstr ""
 
 #, c-format
-msgid "Location:  %Xh:%Xh"
-msgstr "位置:   %Xh:%Xh"
+msgid "Location:   %Xh:%Xh"
+msgstr ""
 
 msgid "&Equal split"
 msgstr "平分(&E)"
@@ -3388,6 +3474,18 @@ msgstr "面板化"
 msgid "Unknown tag on display format:"
 msgstr "显示格式中未知的标记: "
 
+msgid "&Files only"
+msgstr "仅文件(&F)"
+
+msgid "&Case sensitive"
+msgstr "大小写敏感(&C)"
+
+msgid "Select"
+msgstr "选择"
+
+msgid "Unselect"
+msgstr "取消选择"
+
 msgid "Do you really want to execute?"
 msgstr "您真的要执行吗?"
 
@@ -3520,14 +3618,6 @@ msgstr "%%var 宏没有默认值"
 #, c-format
 msgid "The %%var macro has no variable"
 msgstr "%%var 宏没有变量"
-
-#, c-format
-msgid ""
-"Cannot open file%s\n"
-"%s"
-msgstr ""
-"无法打开文件 %s\n"
-"%s"
 
 #, c-format
 msgid "No suitable entries found in %s"
@@ -4006,9 +4096,6 @@ msgstr "sftp: 无法获取当前用户的用户名。"
 msgid "sftp: Invalid host name."
 msgstr "sftp: 无效的主机名。"
 
-msgid "sftp: Invalid port value."
-msgstr "sftp: 无效的端口值。"
-
 #, c-format
 msgid "sftp: %s"
 msgstr "sftp: %s"
@@ -4191,14 +4278,8 @@ msgstr ""
 "Midnight Commander 即将被关闭。\n"
 "要保存修改过的文件吗?"
 
-msgid "Cannot spawn child process"
-msgstr "无法生成子进程"
-
-msgid "Empty output from child filter"
-msgstr "子过滤器输出为空"
-
-msgid "&Line number (decimal)"
-msgstr "行号(10进制&L)"
+msgid "&Line number"
+msgstr ""
 
 msgid "Pe&rcents"
 msgstr "百分比(&R)"
@@ -4244,6 +4325,12 @@ msgstr "ButtonBar|格式化"
 
 #, c-format
 msgid ""
+"Failed to read data from child stdout:\n"
+"%s"
+msgstr ""
+
+#, c-format
+msgid ""
 "Error while closing the file:\n"
 "%s\n"
 "Data may have been written or not"
@@ -4282,9 +4369,6 @@ msgstr ""
 "无法打开“%s”，当前解析模式\n"
 "%s"
 
-msgid "Seeking to search result"
-msgstr "查询搜索结果"
-
 msgid "Search done"
 msgstr "搜索完成"
 
@@ -4293,6 +4377,3 @@ msgstr "从头继续搜索?"
 
 msgid "Cannot fetch a local copy of /ftp://some.host/editme.txt"
 msgstr "无法获取 /ftp://some.host/editme.txt 的本地副本"
-
-#~ msgid "&Select"
-#~ msgstr "选择(&S)"

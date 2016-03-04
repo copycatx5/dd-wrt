@@ -1,7 +1,7 @@
 <?php
 /*
 ** Zabbix
-** Copyright (C) 2001-2013 Zabbix SIA
+** Copyright (C) 2001-2015 Zabbix SIA
 **
 ** This program is free software; you can redistribute it and/or modify
 ** it under the terms of the GNU General Public License as published by
@@ -86,11 +86,11 @@ class CScreenActions extends CScreenBase {
 
 		$sql = 'SELECT a.alertid,a.clock,mt.description,a.sendto,a.subject,a.message,a.status,a.retries,a.error'.
 				' FROM events e,alerts a'.
-					' LEFT JOIN media_type mt ON mt.mediatypeid=a.mediatypeid '.
+					' LEFT JOIN media_type mt ON mt.mediatypeid=a.mediatypeid'.
 				' WHERE e.eventid=a.eventid'.
-					' AND alerttype IN ('.ALERT_TYPE_MESSAGE.')';
+					' AND alerttype='.ALERT_TYPE_MESSAGE.
+					andDbNode('a.alertid');
 
-		// editable + PERMISSION CHECK
 		if (CWebUser::getType() != USER_TYPE_SUPER_ADMIN) {
 			$userid = CWebUser::$data['userid'];
 			$userGroups = getUserGroupsByUserId($userid);
@@ -104,12 +104,11 @@ class CScreenActions extends CScreenBase {
 						' AND f.itemid=i.itemid'.
 						' AND i.hostid=hgg.hostid'.
 					' GROUP BY f.triggerid'.
-					' HAVING MIN(r.permission)>='.PERM_READ_ONLY.
+					' HAVING MIN(r.permission)>'.PERM_DENY.
 					')';
 		}
 
-		$sql .= ' AND '.DBin_node('a.alertid').' '.
-				' ORDER BY '.$sortfield.' '.$sortorder;
+		$sql .= ' ORDER BY '.$sortfield.' '.$sortorder;
 		$alerts = DBfetchArray(DBselect($sql, $this->screenitem['elements']));
 
 		order_result($alerts, $sortfield, $sortorder);
@@ -146,12 +145,12 @@ class CScreenActions extends CScreenBase {
 			}
 
 			$message = array(
-				bold(_('Subject').': '),
+				bold(_('Subject').NAME_DELIMITER),
 				br(),
 				$alert['subject'],
 				br(),
 				br(),
-				bold(_('Message').': '),
+				bold(_('Message').NAME_DELIMITER),
 				br(),
 				$alert['message']
 			);

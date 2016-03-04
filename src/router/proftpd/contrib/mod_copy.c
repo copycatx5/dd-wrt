@@ -2,7 +2,7 @@
  * ProFTPD: mod_copy -- a module supporting copying of files on the server
  *                      without transferring the data to the client and back
  *
- * Copyright (c) 2009-2011 TJ Saunders
+ * Copyright (c) 2009-2015 TJ Saunders
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -25,13 +25,11 @@
  *
  * This is mod_copy, contrib software for proftpd 1.3.x and above.
  * For more information contact TJ Saunders <tj@castaglia.org>.
- *
- * $Id: mod_copy.c,v 1.6 2011/05/26 21:46:13 castaglia Exp $
  */
 
 #include "conf.h"
 
-#define MOD_COPY_VERSION	"mod_copy/0.4"
+#define MOD_COPY_VERSION	"mod_copy/0.5"
 
 /* Make sure the version of proftpd is as necessary. */
 #if PROFTPD_VERSION_NUMBER < 0x0001030401
@@ -39,6 +37,8 @@
 #endif
 
 extern pr_response_t *resp_list, *resp_err_list;
+
+static int copy_engine = TRUE;
 
 static const char *trace_channel = "copy";
 
@@ -111,7 +111,7 @@ static int create_path(pool *p, const char *path) {
     cmd = pr_cmd_alloc(sub_pool, 2, pstrdup(sub_pool, C_MKD),
       pstrdup(sub_pool, curr_path));
     cmd->arg = pstrdup(cmd->pool, curr_path);
-    cmd->class = CL_DIRS|CL_WRITE;
+    cmd->cmd_class = CL_DIRS|CL_WRITE;
 
     pr_response_clear(&resp_list);
     pr_response_clear(&resp_err_list);
@@ -244,7 +244,7 @@ static int copy_dir(pool *p, const char *src_dir, const char *dst_dir) {
         pstrdup(iter_pool, "COPY"), pstrdup(iter_pool, src_path),
         pstrdup(iter_pool, dst_path));
       cmd->arg = pstrcat(iter_pool, "COPY ", src_path, " ", dst_path, NULL);
-      cmd->class = CL_WRITE;
+      cmd->cmd_class = CL_WRITE;
 
       pr_response_clear(&resp_list);
       pr_response_clear(&resp_err_list);
@@ -471,10 +471,37 @@ static int copy_paths(pool *p, const char *from, const char *to) {
   return 0;
 }
 
+/* Configuration handlers
+ */
+
+/* usage: CopyEngine on|off */
+MODRET set_copyengine(cmd_rec *cmd) {
+  int engine = -1;
+  config_rec *c;
+
+  CHECK_ARGS(cmd, 1);
+  CHECK_CONF(cmd, CONF_ROOT|CONF_VIRTUAL|CONF_GLOBAL);
+
+  engine = get_boolean(cmd, 1);
+  if (engine == -1) {
+    CONF_ERROR(cmd, "expected Boolean parameter");
+  }
+
+  c = add_config_param(cmd->argv[0], 1, NULL);
+  c->argv[0] = palloc(c->pool, sizeof(int));
+  *((int *) c->argv[0]) = engine;
+
+  return PR_HANDLED(cmd);
+}
+
 /* Command handlers
  */
 
 MODRET copy_copy(cmd_rec *cmd) {
+  if (copy_engine == FALSE) {
+    return PR_DECLINED(cmd);
+  }
+
   if (cmd->argc < 2) {
     return PR_DECLINED(cmd);
   }
@@ -502,13 +529,17 @@ MODRET copy_copy(cmd_rec *cmd) {
     to = dir_canonical_vpath(cmd->tmp_pool, to);
 
     cmd_name = cmd->argv[0];
-    cmd->argv[0] = "SITE_COPY";
+    pr_cmd_set_name(cmd, "SITE_COPY");
     if (!dir_check(cmd->tmp_pool, cmd, G_WRITE, to, NULL)) {
-      cmd->argv[0] = cmd_name;
-      pr_response_add_err(R_550, "%s: %s", cmd->argv[3], strerror(EPERM));
+      int xerrno = EPERM;
+
+      pr_cmd_set_name(cmd, cmd_name);
+      pr_response_add_err(R_550, "%s: %s", cmd->argv[3], strerror(xerrno));
+
+      errno = xerrno;
       return PR_ERROR(cmd);
     }
-    cmd->argv[0] = cmd_name;
+    pr_cmd_set_name(cmd, cmd_name);
 
     if (copy_paths(cmd->tmp_pool, from, to) < 0) {
       int xerrno = errno;
@@ -535,10 +566,24 @@ MODRET copy_cpfr(cmd_rec *cmd) {
   register unsigned int i;
   int res;
   char *path = "";
+  unsigned char *authenticated = NULL;
+
+  if (copy_engine == FALSE) {
+    return PR_DECLINED(cmd);
+  }
 
   if (cmd->argc < 3 ||
       strncasecmp(cmd->argv[1], "CPFR", 5) != 0) {
     return PR_DECLINED(cmd);
+  }
+
+  authenticated = get_param_ptr(cmd->server->conf, "authenticated", FALSE);
+  if (authenticated == NULL ||
+      *authenticated == FALSE) {
+    pr_response_add_err(R_530, _("Please login with USER and PASS"));
+  
+    errno = EPERM;
+    return PR_ERROR(cmd);
   }
 
   CHECK_CMD_MIN_ARGS(cmd, 3);
@@ -590,10 +635,24 @@ MODRET copy_cpfr(cmd_rec *cmd) {
 MODRET copy_cpto(cmd_rec *cmd) {
   register unsigned int i;
   char *from, *to = "";
+  unsigned char *authenticated = NULL;
+
+  if (copy_engine == FALSE) {
+    return PR_DECLINED(cmd);
+  }
 
   if (cmd->argc < 3 ||
       strncasecmp(cmd->argv[1], "CPTO", 5) != 0) {
     return PR_DECLINED(cmd);
+  }
+
+  authenticated = get_param_ptr(cmd->server->conf, "authenticated", FALSE);
+  if (authenticated == NULL ||
+      *authenticated == FALSE) {
+    pr_response_add_err(R_530, _("Please login with USER and PASS"));
+
+    errno = EPERM;
+    return PR_ERROR(cmd);
   }
 
   CHECK_CMD_MIN_ARGS(cmd, 3);
@@ -628,6 +687,10 @@ MODRET copy_cpto(cmd_rec *cmd) {
 }
 
 MODRET copy_log_site(cmd_rec *cmd) {
+  if (copy_engine == FALSE) {
+    return PR_DECLINED(cmd);
+  }
+
   if (cmd->argc < 3 ||
       strncasecmp(cmd->argv[1], "CPTO", 5) != 0) {
     return PR_DECLINED(cmd);
@@ -639,23 +702,58 @@ MODRET copy_log_site(cmd_rec *cmd) {
   return PR_DECLINED(cmd);
 }
 
+MODRET copy_post_pass(cmd_rec *cmd) {
+  config_rec *c;
+
+  if (copy_engine == FALSE) {
+    return PR_DECLINED(cmd);
+  }
+
+  /* The CopyEngine directive may have been changed for this user by
+   * e.g. mod_ifsession, thus we check again.
+   */
+  c = find_config(main_server->conf, CONF_PARAM, "CopyEngine", FALSE);
+  if (c != NULL) {
+    copy_engine = *((int *) c->argv[0]);
+  }
+
+  return PR_DECLINED(cmd);
+}
+
 /* Initialization functions
  */
 
 static int copy_sess_init(void) {
+  config_rec *c;
+
+  c = find_config(main_server->conf, CONF_PARAM, "CopyEngine", FALSE);
+  if (c != NULL) {
+    copy_engine = *((int *) c->argv[0]);
+  }
+
+  if (copy_engine == FALSE) {
+    return 0;
+  }
+
   /* Advertise support for the SITE command */
   pr_feat_add("SITE COPY");
-
   return 0;
 }
 
 /* Module API tables
  */
 
+static conftable copy_conftab[] = {
+  { "CopyEngine",	set_copyengine,		NULL },
+
+  { NULL }
+};
+
 static cmdtable copy_cmdtab[] = {
   { CMD, 	C_SITE, G_WRITE,	copy_copy,	FALSE,	FALSE, CL_MISC },
   { CMD, 	C_SITE, G_DIRS,		copy_cpfr,	FALSE,	FALSE, CL_MISC },
   { CMD, 	C_SITE, G_WRITE,	copy_cpto,	FALSE,	FALSE, CL_MISC },
+  { POST_CMD,	C_PASS,	G_NONE,		copy_post_pass, FALSE,	FALSE },
   { LOG_CMD, 	C_SITE, G_NONE,		copy_log_site,	FALSE,	FALSE },
   { LOG_CMD_ERR, C_SITE, G_NONE,	copy_log_site,	FALSE,	FALSE },
 
@@ -672,7 +770,7 @@ module copy_module = {
   "copy",
 
   /* Module configuration handler table */
-  NULL,
+  copy_conftab,
 
   /* Module command handler table */
   copy_cmdtab,

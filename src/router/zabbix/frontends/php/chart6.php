@@ -1,7 +1,7 @@
 <?php
 /*
 ** Zabbix
-** Copyright (C) 2001-2013 Zabbix SIA
+** Copyright (C) 2001-2015 Zabbix SIA
 **
 ** This program is free software; you can redistribute it and/or modify
 ** it under the terms of the GNU General Public License as published by
@@ -19,51 +19,48 @@
 **/
 
 
-require_once 'include/config.inc.php';
-require_once 'include/graphs.inc.php';
+require_once dirname(__FILE__).'/include/config.inc.php';
+require_once dirname(__FILE__).'/include/graphs.inc.php';
 
 $page['file'] = 'chart6.php';
 $page['type'] = PAGE_TYPE_IMAGE;
 
-require_once 'include/page_header.php';
+require_once dirname(__FILE__).'/include/page_header.php';
 
 // VAR	TYPE	OPTIONAL	FLAGS	VALIDATION	EXCEPTION
 $fields = array(
 	'graphid' =>		array(T_ZBX_INT, O_MAND, P_SYS,		DB_ID,		null),
-	'screenid' =>		array(T_ZBX_STR, O_OPT, P_SYS,		null,		null),
 	'period' =>			array(T_ZBX_INT, O_OPT, P_NZERO,	BETWEEN(ZBX_MIN_PERIOD, ZBX_MAX_PERIOD), null),
 	'stime' =>			array(T_ZBX_STR, O_OPT, P_SYS,		null,		null),
 	'profileIdx' =>		array(T_ZBX_STR, O_OPT, null,		null,		null),
 	'profileIdx2' =>	array(T_ZBX_STR, O_OPT, null,		null,		null),
 	'updateProfile' =>	array(T_ZBX_STR, O_OPT, null,		null,		null),
 	'border' =>			array(T_ZBX_INT, O_OPT, P_NZERO,	IN('0,1'),	null),
-	'width' =>			array(T_ZBX_INT, O_OPT, P_NZERO,	'{}>0',		null),
+	'width' =>			array(T_ZBX_INT, O_OPT, P_NZERO,	BETWEEN(20, 65535),	null),
 	'height' =>			array(T_ZBX_INT, O_OPT, P_NZERO,	'{}>0',		null),
 	'graph3d' =>		array(T_ZBX_INT, O_OPT, P_NZERO,	IN('0,1'),	null),
 	'legend' =>			array(T_ZBX_INT, O_OPT, P_NZERO,	IN('0,1'),	null)
 );
-check_fields($fields);
+if (!check_fields($fields)) {
+	exit();
+}
 
 /*
  * Permissions
  */
-if (!DBfetch(DBselect('SELECT g.graphid FROM graphs g WHERE g.graphid='.$_REQUEST['graphid']))) {
-	show_error_message(_('No graphs defined.'));
-}
-
-$db_data = API::Graph()->get(array(
+$dbGraph = API::Graph()->get(array(
 	'graphids' => $_REQUEST['graphid'],
 	'selectHosts' => API_OUTPUT_EXTEND,
 	'output' => API_OUTPUT_EXTEND
 ));
-if (empty($db_data)) {
+if (!$dbGraph) {
 	access_deny();
 }
 else {
-	$db_data = reset($db_data);
+	$dbGraph = reset($dbGraph);
 }
 
-$host = reset($db_data['hosts']);
+$host = reset($dbGraph['hosts']);
 
 /*
  * Display
@@ -76,7 +73,7 @@ $timeline = CScreenBase::calculateTime(array(
 	'stime' => get_request('stime')
 ));
 
-$graph = new CPie($db_data['graphtype']);
+$graph = new CPieGraphDraw($dbGraph['graphtype']);
 $graph->setPeriod($timeline['period']);
 $graph->setSTime($timeline['stime']);
 
@@ -86,35 +83,35 @@ if (isset($_REQUEST['border'])) {
 
 $width = get_request('width', 0);
 if ($width <= 0) {
-	$width = $db_data['width'];
+	$width = $dbGraph['width'];
 }
 
 $height = get_request('height', 0);
 if ($height <= 0) {
-	$height = $db_data['height'];
+	$height = $dbGraph['height'];
 }
 
 $graph->setWidth($width);
 $graph->setHeight($height);
-$graph->setHeader($host['host'].': '.$db_data['name']);
+$graph->setHeader($host['name'].NAME_DELIMITER.$dbGraph['name']);
 
-if ($db_data['show_3d']) {
+if ($dbGraph['show_3d']) {
 	$graph->switchPie3D();
 }
-$graph->showLegend($db_data['show_legend']);
+$graph->showLegend($dbGraph['show_legend']);
 
 $result = DBselect(
 	'SELECT gi.*'.
 	' FROM graphs_items gi'.
-	' WHERE gi.graphid='.$db_data['graphid'].
+	' WHERE gi.graphid='.zbx_dbstr($dbGraph['graphid']).
 	' ORDER BY gi.sortorder,gi.itemid DESC'
 );
-while ($db_data = DBfetch($result)) {
+while ($dbGraph = DBfetch($result)) {
 	$graph->addItem(
-		$db_data['itemid'],
-		$db_data['calc_fnc'],
-		$db_data['color'],
-		$db_data['type']
+		$dbGraph['itemid'],
+		$dbGraph['calc_fnc'],
+		$dbGraph['color'],
+		$dbGraph['type']
 	);
 }
 $graph->draw();

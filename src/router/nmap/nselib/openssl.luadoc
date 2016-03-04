@@ -10,7 +10,7 @@
 -- <code>
 -- if not pcall(require, "openssl") then
 --   action = function(host, port)
---     stdnse.print_debug(2, "Skipping \"%s\" because OpenSSL is missing.", id)
+--     stdnse.debug2("Skipping \"%s\" because OpenSSL is missing.", id)
 --   end
 -- end
 -- action = action or function(host, port)
@@ -18,7 +18,7 @@
 -- end
 -- </code>
 -- @author Sven Klemm <sven@c3d2.de>
--- @copyright Same as Nmap--See http://nmap.org/book/man-legal.html
+-- @copyright Same as Nmap--See https://nmap.org/book/man-legal.html
 
 module "openssl"
 
@@ -45,8 +45,27 @@ function bignum_clear_bit(bignum, position)
 --- Gets the state of the bit at <code>position</code> in <code>bignum</code>.
 -- @param bignum bignum to operate on.
 -- @param position Bit position.
--- @return True if the selected bit is set, false otherwise. 
+-- @return True if the selected bit is set, false otherwise.
 function bignum_is_bit_set(bignum, position)
+
+--- Checks whether <code>bignum</code> is probably prime.
+--
+-- Performs Miller-Rabin probablistic primality tests.
+-- @param bignum bignum to check for primality
+-- @param nchecks Number of checks to perform. Default: number of checks dependent on bitsize of bignum, with a false positive rate of at most 2^-80
+-- @return True if the number is probably prime, false if it is composite.
+function bignum_is_prime(bignum, nchecks)
+
+--- Checks whether <code>bignum</code> is a safe prime.
+--
+-- A safe prime is defined as a prime p so that (p-1)/2 is also prime. Using
+-- non-safe primes in discrete logarithm cryptography like Diffie-Hellman can
+-- result in weak, easily broken key exchanges.
+-- @param bignum bignum to check for primality
+-- @param nchecks Number of checks to perform. Default: number of checks dependent on bitsize of bignum, with a false positive rate of at most 2^-80
+-- @return True if the number is a safe prime, false if it is not.
+-- @return True if the number is probably prime, false if it is composite.
+function bignum_is_safe_prime(bignum, nchecks)
 
 --- Converts a binary-encoded string into a bignum.
 -- @param string Binary string.
@@ -85,7 +104,7 @@ function bignum_rand(bits)
 
 --- Returns a pseudorandom bignum.
 -- @param bits Size of the returned bignum in bits.
--- @return Pseudoandom bignum.
+-- @return Pseudorandom bignum.
 function bignum_pseudo_rand(bits)
 
 --- Returns the bignum which is the result of <code>a</code>^<code>p</code> mod
@@ -177,3 +196,12 @@ function supported_digests()
 -- @param data A 7-byte string.
 -- @return An 8-byte string.
 function DES_string_to_key(data)
+
+--- Returns options for RC4.
+-- @return Option string.
+function rc4_options()
+
+--- Function which generates an RC4 cipher function with the given key.
+-- @param key_data The key for the cipher.
+-- @return A function which performs the RC4 stream cipher on an input string and returns the result.
+function rc4(key_data)

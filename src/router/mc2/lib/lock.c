@@ -1,7 +1,7 @@
 /*
    File locking
 
-   Copyright (C) 2003-2014
+   Copyright (C) 2003-2015
    Free Software Foundation, Inc.
 
    Written by:
@@ -151,14 +151,18 @@ lock_extract_info (const char *str)
 
     /* Everything before last '.' is user@host */
     i = 0;
-    for (s = str; s < p && i < BUF_SIZE; s++)
+    for (s = str; i < BUF_SIZE && s < p; s++)
         who[i++] = *s;
+    if (i == BUF_SIZE)
+        i--;
     who[i] = '\0';
 
     /* Treat text between '.' and ':' or '\0' as pid */
     i = 0;
-    for (p = p + 1; (p < str + len) && (*p != ':') && (i < PID_BUF_SIZE); p++)
+    for (p = p + 1; i < PID_BUF_SIZE && p < str + len && *p != ':'; p++)
         pid[i++] = *p;
+    if (i == PID_BUF_SIZE)
+        i--;
     pid[i] = '\0';
 
     lock.pid = (pid_t) atol (pid);
@@ -244,9 +248,9 @@ lock_file (const vfs_path_t * fname_vpath)
                 break;
             case 1:
             case -1:
+            default:           /* Esc Esc */
                 g_free (msg);
                 goto ret;
-                break;          /* FIXME: unneeded? */
             }
             g_free (msg);
         }

@@ -1,7 +1,7 @@
 /*
    Dialog box features module for the Midnight Commander
 
-   Copyright (C) 1994-2014
+   Copyright (C) 1994-2015
    Free Software Foundation, Inc.
 
    This file is part of the Midnight Commander.
@@ -33,7 +33,6 @@
 #include <string.h>
 #include <sys/types.h>
 #include <sys/stat.h>
-#include <fcntl.h>              /* open() */
 
 #include "lib/global.h"
 
@@ -241,6 +240,8 @@ do_select_widget (WDialog * h, GList * w, select_dir_t dir)
             break;
         case SELECT_PREV:
             h->current = dlg_widget_prev (h, h->current);
+            break;
+        default:
             break;
         }
     }

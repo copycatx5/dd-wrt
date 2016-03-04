@@ -44,6 +44,7 @@
 #include "sql.h"
 #include "scanner.h"
 #include "albumart.h"
+#include "containers.h"
 #include "log.h"
 
 #if SCANDIR_CONST
@@ -580,6 +581,25 @@ CreateDatabase(void)
 		if( ret != SQLITE_OK )
 			goto sql_failed;
 	}
+	for( i=0; magic_containers[i].objectid_match; i++ )
+	{
+		struct magic_container_s *magic = &magic_containers[i];
+		if (!magic->name)
+			continue;
+		if( sql_get_int_field(db, "SELECT 1 from OBJECTS where OBJECT_ID = '%s'", magic->objectid_match) == 0 )
+		{
+			char *parent = strdup(magic->objectid_match);
+			if (strrchr(parent, '$'))
+				*strrchr(parent, '$') = '\0';
+			ret = sql_exec(db, "INSERT into OBJECTS (OBJECT_ID, PARENT_ID, DETAIL_ID, CLASS, NAME)"
+			                   " values "
+					   "('%s', '%s', %lld, 'container.storageFolder', '%q')",
+					   magic->objectid_match, parent, GetFolderMetadata(magic->name, NULL, NULL, NULL, 0), magic->name);
+			free(parent);
+			if( ret != SQLITE_OK )
+				goto sql_failed;
+		}
+	}
 	sql_exec(db, "create INDEX IDX_OBJECTS_OBJECT_ID ON OBJECTS(OBJECT_ID);");
 	sql_exec(db, "create INDEX IDX_OBJECTS_PARENT_ID ON OBJECTS(PARENT_ID);");
 	sql_exec(db, "create INDEX IDX_OBJECTS_DETAIL_ID ON OBJECTS(DETAIL_ID);");
@@ -729,11 +749,13 @@ ScanDirectory(const char *dir, const char *parent, media_types dir_types)
 			break;
 		default:
 			n = -1;
+			errno = EINVAL;
 			break;
 	}
 	if( n < 0 )
 	{
-		DPRINTF(E_WARN, L_SCANNER, "Error scanning %s\n", dir);
+		DPRINTF(E_WARN, L_SCANNER, "Error scanning %s [%s]\n",
+			dir, strerror(errno));
 		return;
 	}
 

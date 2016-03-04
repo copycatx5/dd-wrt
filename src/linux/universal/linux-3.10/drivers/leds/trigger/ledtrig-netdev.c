@@ -26,11 +26,6 @@
 #include <linux/timer.h>
 #include <linux/ctype.h>
 #include <linux/leds.h>
-#include <linux/version.h>
-
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,26)
-#include <net/net_namespace.h>
-#endif
 
 #include "../leds.h"
 
@@ -73,7 +68,7 @@
 #define MODE_RX   4
 
 struct led_netdev_data {
-	rwlock_t lock;
+	spinlock_t lock;
 
 	struct timer_list timer;
 	struct notifier_block notifier;
@@ -97,29 +92,23 @@ static void set_baseline_state(struct led_netdev_data *trigger_data)
 
 	if ((trigger_data->mode & (MODE_TX | MODE_RX)) != 0 && trigger_data->link_up)
 		mod_timer(&trigger_data->timer, jiffies + trigger_data->interval);
-	else
-		del_timer(&trigger_data->timer);
 }
 
 static ssize_t led_device_name_show(struct device *dev,
-				    struct device_attribute *attr, char *buf)
+		struct device_attribute *attr, char *buf)
 {
 	struct led_classdev *led_cdev = dev_get_drvdata(dev);
 	struct led_netdev_data *trigger_data = led_cdev->trigger_data;
 
-	read_lock(&trigger_data->lock);
+	spin_lock_bh(&trigger_data->lock);
 	sprintf(buf, "%s\n", trigger_data->device_name);
-	read_unlock(&trigger_data->lock);
+	spin_unlock_bh(&trigger_data->lock);
 
 	return strlen(buf) + 1;
 }
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,21)
-extern struct net init_net;
-#endif
-
 static ssize_t led_device_name_store(struct device *dev,
-				     struct device_attribute *attr, const char *buf, size_t size)
+		struct device_attribute *attr, const char *buf, size_t size)
 {
 	struct led_classdev *led_cdev = dev_get_drvdata(dev);
 	struct led_netdev_data *trigger_data = led_cdev->trigger_data;
@@ -127,37 +116,37 @@ static ssize_t led_device_name_store(struct device *dev,
 	if (size < 0 || size >= IFNAMSIZ)
 		return -EINVAL;
 
-	write_lock(&trigger_data->lock);
+	spin_lock_bh(&trigger_data->lock);
+	del_timer_sync(&trigger_data->timer);
 
 	strcpy(trigger_data->device_name, buf);
 	if (size > 0 && trigger_data->device_name[size-1] == '\n')
 		trigger_data->device_name[size-1] = 0;
+	trigger_data->link_up = 0;
+	trigger_data->last_activity = 0;
 
 	if (trigger_data->device_name[0] != 0) {
 		/* check for existing device to update from */
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,26)
 		trigger_data->net_dev = dev_get_by_name(&init_net, trigger_data->device_name);
-#else
-		trigger_data->net_dev = dev_get_by_name(trigger_data->device_name);
-#endif
 		if (trigger_data->net_dev != NULL)
 			trigger_data->link_up = (dev_get_flags(trigger_data->net_dev) & IFF_LOWER_UP) != 0;
-		set_baseline_state(trigger_data); /* updates LEDs, may start timers */
 	}
 
-	write_unlock(&trigger_data->lock);
+	set_baseline_state(trigger_data);
+	spin_unlock_bh(&trigger_data->lock);
+
 	return size;
 }
 
 static DEVICE_ATTR(device_name, 0644, led_device_name_show, led_device_name_store);
 
 static ssize_t led_mode_show(struct device *dev,
-			     struct device_attribute *attr, char *buf)
+		struct device_attribute *attr, char *buf)
 {
 	struct led_classdev *led_cdev = dev_get_drvdata(dev);
 	struct led_netdev_data *trigger_data = led_cdev->trigger_data;
 
-	read_lock(&trigger_data->lock);
+	spin_lock_bh(&trigger_data->lock);
 
 	if (trigger_data->mode == 0) {
 		strcpy(buf, "none\n");
@@ -171,23 +160,23 @@ static ssize_t led_mode_show(struct device *dev,
 		strcat(buf, "\n");
 	}
 
-	read_unlock(&trigger_data->lock);
+	spin_unlock_bh(&trigger_data->lock);
 
 	return strlen(buf)+1;
 }
 
 static ssize_t led_mode_store(struct device *dev,
-			      struct device_attribute *attr, const char *buf, size_t size)
+		struct device_attribute *attr, const char *buf, size_t size)
 {
 	struct led_classdev *led_cdev = dev_get_drvdata(dev);
 	struct led_netdev_data *trigger_data = led_cdev->trigger_data;
-	char copybuf[32];
+	char copybuf[128];
 	int new_mode = -1;
 	char *p, *token;
 
 	/* take a copy since we don't want to trash the inbound buffer when using strsep */
 	strncpy(copybuf, buf, sizeof(copybuf));
-	copybuf[31] = 0;
+	copybuf[sizeof(copybuf) - 1] = 0;
 	p = copybuf;
 
 	while ((token = strsep(&p, " \t\n")) != NULL) {
@@ -212,10 +201,13 @@ static ssize_t led_mode_store(struct device *dev,
 	if (new_mode == -1)
 		return -EINVAL;
 
-	write_lock(&trigger_data->lock);
+	spin_lock_bh(&trigger_data->lock);
+	del_timer_sync(&trigger_data->timer);
+
 	trigger_data->mode = new_mode;
+
 	set_baseline_state(trigger_data);
-	write_unlock(&trigger_data->lock);
+	spin_unlock_bh(&trigger_data->lock);
 
 	return size;
 }
@@ -223,20 +215,20 @@ static ssize_t led_mode_store(struct device *dev,
 static DEVICE_ATTR(mode, 0644, led_mode_show, led_mode_store);
 
 static ssize_t led_interval_show(struct device *dev,
-				 struct device_attribute *attr, char *buf)
+		struct device_attribute *attr, char *buf)
 {
 	struct led_classdev *led_cdev = dev_get_drvdata(dev);
 	struct led_netdev_data *trigger_data = led_cdev->trigger_data;
 
-	read_lock(&trigger_data->lock);
+	spin_lock_bh(&trigger_data->lock);
 	sprintf(buf, "%u\n", jiffies_to_msecs(trigger_data->interval));
-	read_unlock(&trigger_data->lock);
+	spin_unlock_bh(&trigger_data->lock);
 
 	return strlen(buf) + 1;
 }
 
 static ssize_t led_interval_store(struct device *dev,
-				  struct device_attribute *attr, const char *buf, size_t size)
+		struct device_attribute *attr, const char *buf, size_t size)
 {
 	struct led_classdev *led_cdev = dev_get_drvdata(dev);
 	struct led_netdev_data *trigger_data = led_cdev->trigger_data;
@@ -245,15 +237,19 @@ static ssize_t led_interval_store(struct device *dev,
 	unsigned long value = simple_strtoul(buf, &after, 10);
 	size_t count = after - buf;
 
-	if (*after && isspace(*after))
+	if (isspace(*after))
 		count++;
 
 	/* impose some basic bounds on the timer interval */
 	if (count == size && value >= 5 && value <= 10000) {
-		write_lock(&trigger_data->lock);
+		spin_lock_bh(&trigger_data->lock);
+		del_timer_sync(&trigger_data->timer);
+
 		trigger_data->interval = msecs_to_jiffies(value);
-		set_baseline_state(trigger_data); // resets timer
-		write_unlock(&trigger_data->lock);
+
+		set_baseline_state(trigger_data); /* resets timer */
+		spin_unlock_bh(&trigger_data->lock);
+
 		ret = count;
 	}
 
@@ -269,17 +265,20 @@ static int netdev_trig_notify(struct notifier_block *nb,
 	struct net_device *dev = dv;
 	struct led_netdev_data *trigger_data = container_of(nb, struct led_netdev_data, notifier);
 
-	if (evt != NETDEV_UP && evt != NETDEV_DOWN && evt != NETDEV_CHANGE && evt != NETDEV_REGISTER && evt != NETDEV_UNREGISTER)
+	if (evt != NETDEV_UP && evt != NETDEV_DOWN && evt != NETDEV_CHANGE && evt != NETDEV_REGISTER && evt != NETDEV_UNREGISTER && evt != NETDEV_CHANGENAME)
 		return NOTIFY_DONE;
 
-	write_lock(&trigger_data->lock);
+	spin_lock_bh(&trigger_data->lock);
 
 	if (strcmp(dev->name, trigger_data->device_name))
 		goto done;
 
-	if (evt == NETDEV_REGISTER) {
+	del_timer_sync(&trigger_data->timer);
+
+	if (evt == NETDEV_REGISTER || evt == NETDEV_CHANGENAME) {
 		if (trigger_data->net_dev != NULL)
 			dev_put(trigger_data->net_dev);
+
 		dev_hold(dev);
 		trigger_data->net_dev = dev;
 		trigger_data->link_up = 0;
@@ -298,7 +297,7 @@ static int netdev_trig_notify(struct notifier_block *nb,
 	set_baseline_state(trigger_data);
 
 done:
-	write_unlock(&trigger_data->lock);
+	spin_unlock_bh(&trigger_data->lock);
 	return NOTIFY_DONE;
 }
 
@@ -310,12 +309,10 @@ static void netdev_trig_timer(unsigned long arg)
 	unsigned new_activity;
 	struct rtnl_link_stats64 temp;
 
-	write_lock(&trigger_data->lock);
-
 	if (!trigger_data->link_up || !trigger_data->net_dev || (trigger_data->mode & (MODE_TX | MODE_RX)) == 0) {
 		/* we don't need to do timer work, just reflect link state. */
 		led_set_brightness(trigger_data->led_cdev, ((trigger_data->mode & MODE_LINK) != 0 && trigger_data->link_up) ? LED_FULL : LED_OFF);
-		goto no_restart;
+		return;
 	}
 
 	dev_stats = dev_get_stats(trigger_data->net_dev, &temp);
@@ -347,9 +344,6 @@ static void netdev_trig_timer(unsigned long arg)
 
 	trigger_data->last_activity = new_activity;
 	mod_timer(&trigger_data->timer, jiffies + trigger_data->interval);
-
-no_restart:
-	write_unlock(&trigger_data->lock);
 }
 
 static void netdev_trig_activate(struct led_classdev *led_cdev)
@@ -361,7 +355,7 @@ static void netdev_trig_activate(struct led_classdev *led_cdev)
 	if (!trigger_data)
 		return;
 
-	rwlock_init(&trigger_data->lock);
+	spin_lock_init(&trigger_data->lock);
 
 	trigger_data->notifier.notifier_call = netdev_trig_notify;
 	trigger_data->notifier.priority = 10;
@@ -412,16 +406,15 @@ static void netdev_trig_deactivate(struct led_classdev *led_cdev)
 		device_remove_file(led_cdev->dev, &dev_attr_mode);
 		device_remove_file(led_cdev->dev, &dev_attr_interval);
 
-		write_lock(&trigger_data->lock);
+		spin_lock_bh(&trigger_data->lock);
+		del_timer_sync(&trigger_data->timer);
 
 		if (trigger_data->net_dev) {
 			dev_put(trigger_data->net_dev);
 			trigger_data->net_dev = NULL;
 		}
 
-		write_unlock(&trigger_data->lock);
-
-		del_timer_sync(&trigger_data->timer);
+		spin_unlock_bh(&trigger_data->lock);
 
 		kfree(trigger_data);
 	}

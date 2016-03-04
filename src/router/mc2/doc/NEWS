@@ -1,3 +1,141 @@
+Version 4.8.15
+
+- Core
+  * Minimal version of GLib is 2.26.0
+  * Use the PATH environment variable to search for the executable when opening pipe (#3444)
+  * Support more than 2 (up to 9) columns in file panel in brief mode (#3212)
+  * Clarify file sorting in "Unsorted" mode (#3496)
+  * WGroupbox: respect dialog's colors (#3468)
+  * Highlight find file's result in internal viewer (#3530)
+
+- VFS
+  * s3 extfs vfs: bugfixes and improvements (#3470, #3502)
+
+- Editor
+  * Add hidden option to choose full or base file name in the status line (#3445)
+  * Improvements of syntax highlighting:
+    - Lua (#3471)
+    - PKGBUILD (#3484)
+
+- Misc
+  * Text alignment in Info panel (#3155)
+  * Select of menu file edit: change default button to "User" (#3493)
+  * Recognize .gmo files as well as .mo ones (#3422)
+  * Fix mc.pot comment tripping up Transifex and unportable inplace sed (#3479)
+  * A lot of code clean up (#3420, #3424, #3426, #3427, #3428, #3429, #3430, #3431, #3434, #3435, #3437, #3463, #3464, #3465, #3466, #3467, #3494, #3495, #3539)
+  * Documentation updates:
+    - Spanish man and help: Diff Viewer section and minor fixes (#3477)
+    - VFS garbage collection (#3472)
+
+- Fixes
+  * Various memory leaks (#3438, #3439, #3440, #3457, #3458, #3459, #3460, #3461, #3462, #3475, #3520, #3521, #3522)
+  * Linux kernel-specific segfault on startup (#3441)
+  * Lost of Panelize contents in some cases (#3032, #3489, #3498, #3507)
+  * Wrong highlight of search result in case of "Regular expression" and "Whole words" (#3524)
+  * "Whole words" search works only in Normal mode (#3525)
+  * SFTP VFS: segfault (#3456)
+  * Segfault in "Find file" due to invalid UTF-8 sequences (#3449)
+  * Bash variable 'PROMPT_COMMAND' in  pantheon-terminal (#3534)
+
+Version 4.8.14
+
+- Core
+
+  * Minimal version of GLib is 2.14.0
+  * Add new panel binding "!SelectExt" to select/unselect files with the same extension as the current file (#3228)
+  * Speed up of directory size calculation (#3247)
+  * Support of italic text (#3065)
+
+- Editor
+
+  * New syntax highlighting support:
+    - puppet (#3266)
+
+- Viewer
+
+  * Rewrite mcview's rendering and scrolling (#3250, #3256)
+    - no more partial lines at the top and failure to scroll when Up or Down is pressed;
+    - better handling of CJK characters;
+    - handle combining accents;
+    - improved nroff support;
+    - more conventional scrolling behavior at the end of the file.
+  * Use VIEW_SELECTED_COLOR in plain mode (#3405)
+  * In !QuickView panel, don't pass any chars to command line to avoid unexpected command execution (#3253)
+
+- Misc
+
+  * Code cleanup (#3265, #3262)
+  * Bind poedit to Edit action for .po files (#3287)
+  * Better grammar mcedit user menu (#3246)
+
+- Fixes
+
+  * Fail to build against musl libc (#3267)
+  * Error compiling with glib 2.20.3 (#3333)
+  * Overwrite of the PROMPT_COMMAND bash variable (#2027)
+  * contrib/*.?sh are not recreated after rerun of configure (#3181)
+  * File rename handles zero-length substitutions incorrectly (#2952)
+  * Lose files on "Skip" when "Cannot preallocate space for target file" (#3297)
+  * Info panel can't obtain file system statistics on Solaris (#3277)
+  * "Shell patterns" broken beyond repair (#2309)
+  * File selection by patterns uses bytes instead of unicode characters (#2743)
+  * Copy files dosn't work as expected, when copying to a directory with the special symbol in its name (#3235)
+  * Wrong order of old_colors table items (#3404)
+  * Input line: Alt+Backspace on one-letter word erases too much (#3390)
+  * "Directory scanning" window is too narrow (#3162)
+  * No Help for User Menu (#3409)
+  * mcedit: paste from clipboard does not work (#3339)
+  * mcviewer: hang when viewing broken man page (#2966)
+  * mcview hex: incorrect highlight when search string not found (#3263)
+  * mcview hex edit: UTF-8 chars are not updated (#3259)
+  * mcview hex edit: can't enter certain UTF-8 characters (#3260)
+  * mcview hex edit: CJK overflow (#3261)
+  * mcedit: status line doesn't show full path to file (#3285)
+  * Freeze when copying from one FTP location to another (#358)
+
+
+Version 4.8.13
+
+- Core
+
+  * New engine of user-friendly interruption of long-time operations (#2136)
+
+- Editor
+
+  * Improvements of syntax highlighting:
+    * CMake (#3216)
+    * PHP (#3230)
+  * Translate language names in the spelling assistant dialogue (#3233)
+
+- Viewer
+
+  * Add separate normal(default) colour pair for viewer (#3204)
+  * Dealing with utf-8 man pages in view/open (#1539)
+  * "Goto line" is 1-based now (#3245)
+
+- Misc
+
+  * Code cleanup (#3189, #3223, #3242)
+  * Add new skins: gray-green-purple256 and gray-orange-blue256 (#3190)
+
+- Fixes
+
+  * First Backspace/Delete is ignored after mouse click in an input widget (#3225)
+  * Recursive find file doesn't work on Samba share (#3097)
+  * Recursive find file doesn't work on Windows NFS share (#3202)
+  * Incorrect file counter in move operation (#3196, #3209)
+  * "Directory scanning" window is too narrow (#3162)
+  * Colon is not recognized inside escape seq in prompt (#3241)
+  * Quick view doesn't grab focus on mouse click (#3251)
+  * fish subshell: overridden prompt (#3232, #3237)
+  * mcviewer: broken switch between raw and parse modes (#3219)
+  * mcviewer: incorrect percentage in mcview hex mode (#3258)
+  * RAR VFS incorrectly recognizes UnRAR version (#3240)
+  * viewbold and viewselected are missing from some skins (#3244)
+  * Incorrect enconding name for manual page (#3239)
+  * "User menu -> View manual page" doesn't do coloring (#3243)
+
+
 Version 4.8.12
 
 - Core

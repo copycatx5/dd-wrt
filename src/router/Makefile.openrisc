@@ -140,15 +140,12 @@ all: install_headers build_date clean_target $(obj-y) $(LINUXDIR)/.config kernel
 build_date:
 	echo "#define BUILD_DATE \"$(shell date +%D)\"" > ../../opt/build.h 
 
+include kernel-features.mk
 
 kernel:
 	# Also build kernel
 	cp $(LINUXDIR)/.config_openrisc $(LINUXDIR)/.config
-ifeq ($(CONFIG_EOP_TUNNEL),y)
-	echo CONFIG_NET_ETHERIP=m >> $(LINUXDIR)/.config
-else
-	echo "# CONFIG_NET_ETHERIP is not set" >> $(LINUXDIR)/.config
-endif
+	$(kernelfeatures)
 	$(MAKE) -C $(LINUXDIR) oldconfig ARCH=arm 	
 
 	if ! grep -q "CONFIG_EMBEDDED_RAMDISK=y" $(LINUXDIR)/.config ; then \
@@ -221,7 +218,7 @@ realclean: $(obj-clean)
 	-rm -f $(ARCH)-uclibc/*
 
 	
-clean: rc-clean httpd-clean services-clean shared-clean libutils-clean madwifi-clean madwifi_mimo-clean busybox-clean	pppd-clean
+clean: rc-clean httpd-clean services-clean shared-clean libutils-clean madwifi-clean madwifi_mimo-clean busybox-clean pppd-clean iproute2-clean
 	rm -f .config.old .config.cmd
 	#umount $(TARGETDIR)
 	rm -rf $(INSTALLDIR)
@@ -279,7 +276,7 @@ ifneq ($(CONFIG_NOOPT),y)
 	rm -rf /tmp/$(ARCHITECTURE)/mklibs-out
 	rm -f /tmp/$(ARCHITECTURE)/mklibs-progs
 	-mkdir -p /tmp/$(ARCHITECTURE)/
-	find $(TARGETDIR) -type f -perm +100 -exec \
+	find $(TARGETDIR) -type f -perm /100 -exec \
 		file -r -N -F '' {} + | \
 		awk ' /executable.*dynamically/ { print $$1 }' > /tmp/$(ARCHITECTURE)/mklibs-progs
 
@@ -358,6 +355,7 @@ endif
 	$(LINUXDIR)/scripts/rstrip.sh $(TARGETDIR)
 #	cp lib.$(ARCH)/libgcc_s.so.1 $(TARGETDIR)/lib
 	cd $(TARGETDIR) && $(TOP)/misc/rootprep.sh
+	$(TOP)/../../tools/removewhitespace.sh $(TOP)/../../tools $(TARGETDIR)/etc/config
 
 	mkdir -p $(ARCH)-uclibc/target/boot
 	echo "mem=59M root=/dev/hda" > $(ARCH)-uclibc/target/boot/kparam

@@ -1,7 +1,7 @@
 <?php
 /*
 ** Zabbix
-** Copyright (C) 2001-2013 Zabbix SIA
+** Copyright (C) 2001-2015 Zabbix SIA
 **
 ** This program is free software; you can redistribute it and/or modify
 ** it under the terms of the GNU General Public License as published by
@@ -30,31 +30,27 @@ require_once dirname(__FILE__).'/include/page_header.php';
 // VAR	TYPE	OPTIONAL	FLAGS	VALIDATION	EXCEPTION
 $fields = array(
 	'graphid' =>		array(T_ZBX_INT, O_MAND, P_SYS,		DB_ID,		null),
-	'screenid' =>		array(T_ZBX_STR, O_OPT, P_SYS,		null,		null),
 	'period' =>			array(T_ZBX_INT, O_OPT, P_NZERO,	BETWEEN(ZBX_MIN_PERIOD, ZBX_MAX_PERIOD), null),
 	'stime' =>			array(T_ZBX_STR, O_OPT, P_SYS,		null,		null),
 	'profileIdx' =>		array(T_ZBX_STR, O_OPT, null,		null,		null),
 	'profileIdx2' =>	array(T_ZBX_STR, O_OPT, null,		null,		null),
 	'updateProfile' =>	array(T_ZBX_STR, O_OPT, null,		null,		null),
 	'border' =>			array(T_ZBX_INT, O_OPT, P_NZERO,	IN('0,1'),	null),
-	'width' =>			array(T_ZBX_INT, O_OPT, P_NZERO,	'{}>0',		null),
+	'width' =>			array(T_ZBX_INT, O_OPT, P_NZERO,	BETWEEN(20, 65535),	null),
 	'height' =>			array(T_ZBX_INT, O_OPT, P_NZERO,	'{}>0',		null)
 );
-check_fields($fields);
+if (!check_fields($fields)) {
+	exit();
+}
 
 /*
  * Permissions
  */
-if (!DBfetch(DBselect('SELECT g.graphid FROM graphs g WHERE g.graphid='.$_REQUEST['graphid']))) {
-	show_error_message(_('No graphs defined.'));
-}
-
 $dbGraph = API::Graph()->get(array(
-	'nodeids' => get_current_nodeid(true),
 	'graphids' => $_REQUEST['graphid'],
 	'output' => API_OUTPUT_EXTEND
 ));
-if (empty($dbGraph)) {
+if (!$dbGraph) {
 	access_deny();
 }
 else {
@@ -84,11 +80,11 @@ CProfile::update('web.screens.graphid', $_REQUEST['graphid'], PROFILE_TYPE_ID);
 
 $chartHeader = '';
 if (id2nodeid($dbGraph['graphid']) != get_current_nodeid()) {
-	$chartHeader = get_node_name_by_elid($dbGraph['graphid'], true, ': ');
+	$chartHeader = get_node_name_by_elid($dbGraph['graphid'], true, NAME_DELIMITER);
 }
-$chartHeader .= $host['name'].': '.$dbGraph['name'];
+$chartHeader .= $host['name'].NAME_DELIMITER.$dbGraph['name'];
 
-$graph = new CChart($dbGraph['graphtype']);
+$graph = new CLineGraphDraw($dbGraph['graphtype']);
 $graph->setHeader($chartHeader);
 $graph->setPeriod($timeline['period']);
 $graph->setSTime($timeline['stime']);
@@ -124,8 +120,8 @@ $graph->setRightPercentage($dbGraph['percent_right']);
 $dbGraphItems = DBselect(
 	'SELECT gi.*'.
 	' FROM graphs_items gi'.
-	' WHERE gi.graphid='.$dbGraph['graphid'].
-	' ORDER BY gi.sortorder, gi.itemid DESC'
+	' WHERE gi.graphid='.zbx_dbstr($dbGraph['graphid']).
+	' ORDER BY gi.sortorder,gi.itemid DESC'
 );
 while ($dbGraphItem = DBfetch($dbGraphItems)) {
 	$graph->addItem(
@@ -133,8 +129,7 @@ while ($dbGraphItem = DBfetch($dbGraphItems)) {
 		$dbGraphItem['yaxisside'],
 		$dbGraphItem['calc_fnc'],
 		$dbGraphItem['color'],
-		$dbGraphItem['drawtype'],
-		$dbGraphItem['type']
+		$dbGraphItem['drawtype']
 	);
 }
 

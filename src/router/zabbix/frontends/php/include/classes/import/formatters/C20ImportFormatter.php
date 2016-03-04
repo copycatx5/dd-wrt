@@ -1,7 +1,7 @@
 <?php
 /*
 ** Zabbix
-** Copyright (C) 2001-2013 Zabbix SIA
+** Copyright (C) 2001-2015 Zabbix SIA
 **
 ** This program is free software; you can redistribute it and/or modify
 ** it under the terms of the GNU General Public License as published by
@@ -134,6 +134,11 @@ class C20ImportFormatter extends CImportFormatter {
 			foreach ($this->data['hosts'] as $host) {
 				if (!empty($host['items'])) {
 					foreach ($host['items'] as $item) {
+						// if a host item has the "Not supported" status, convert it to "Active"
+						if ($item['status'] == ITEM_STATUS_NOTSUPPORTED) {
+							$item['status'] = ITEM_STATUS_ACTIVE;
+						}
+
 						$item = $this->formatItem($item);
 						$itemsData[$host['host']][$item['key_']] = $item;
 					}
@@ -161,6 +166,11 @@ class C20ImportFormatter extends CImportFormatter {
 			foreach ($this->data['hosts'] as $host) {
 				if (!empty($host['discovery_rules'])) {
 					foreach ($host['discovery_rules'] as $item) {
+						// if a discovery rule has the "Not supported" status, convert it to "Active"
+						if ($item['status'] == ITEM_STATUS_NOTSUPPORTED) {
+							$item['status'] = ITEM_STATUS_ACTIVE;
+						}
+
 						$item = $this->formatDiscoveryRule($item);
 
 						$discoveryRulesData[$host['host']][$item['key_']] = $item;
@@ -187,11 +197,13 @@ class C20ImportFormatter extends CImportFormatter {
 	public function getGraphs() {
 		$graphsData = array();
 
-		if (!empty($this->data['graphs'])) {
+		if (isset($this->data['graphs']) && $this->data['graphs']) {
 			foreach ($this->data['graphs'] as $graph) {
 				$graph = $this->renameGraphFields($graph);
 
-				$graph['gitems'] = array_values($graph['gitems']);
+				if (isset($graph['gitems']) && $graph['gitems']) {
+					$graph['gitems'] = array_values($graph['gitems']);
+				}
 
 				$graphsData[] = $graph;
 			}
@@ -340,6 +352,17 @@ class C20ImportFormatter extends CImportFormatter {
 		}
 		else {
 			$discoveryRule['graph_prototypes'] = array();
+		}
+
+		if (!empty($discoveryRule['host_prototypes'])) {
+			foreach ($discoveryRule['host_prototypes'] as &$hostPrototype) {
+				CArrayHelper::convertFieldToArray($hostPrototype, 'group_prototypes');
+				CArrayHelper::convertFieldToArray($hostPrototype, 'templates');
+			}
+			unset($hostPrototype);
+		}
+		else {
+			$discoveryRule['host_prototypes'] = array();
 		}
 
 		return $discoveryRule;

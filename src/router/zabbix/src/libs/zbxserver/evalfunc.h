@@ -1,6 +1,6 @@
 /*
 ** Zabbix
-** Copyright (C) 2001-2013 Zabbix SIA
+** Copyright (C) 2001-2015 Zabbix SIA
 **
 ** This program is free software; you can redistribute it and/or modify
 ** it under the terms of the GNU General Public License as published by
@@ -25,8 +25,6 @@
 
 #define ZBX_FLAG_SEC	0
 #define ZBX_FLAG_VALUES	1
-
-extern int     CONFIG_SERVER_STARTUP_TIME;
 
 int	cmp_double(double a, double b);
 

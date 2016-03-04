@@ -1,7 +1,7 @@
 /*
    Virtual File System: GNU Tar file system.
 
-   Copyright (C) 1995-2014
+   Copyright (C) 1995-2015
    Free Software Foundation, Inc.
 
    Written by:
@@ -39,7 +39,6 @@
 #include <sys/types.h>
 #include <errno.h>
 #include <ctype.h>
-#include <fcntl.h>
 
 #ifdef hpux
 /* major() and minor() macros (among other things) defined here for hpux */
@@ -239,7 +238,7 @@ static union record rec_buf;
 static long
 tar_from_oct (int digs, char *where)
 {
-    register long value;
+    long value;
 
     while (isspace ((unsigned char) *where))
     {                           /* Skip spaces */
@@ -320,8 +319,7 @@ tar_open_archive_int (struct vfs_class *me, const vfs_path_t * vpath, struct vfs
         g_free (s);
         if (result == -1)
         {
-            g_free (archive->name);
-            archive->name = NULL;
+            MC_PTR_FREE (archive->name);
             ERRNOR (ENOENT, -1);
         }
     }
@@ -401,6 +399,7 @@ tar_fill_stat (struct vfs_s_super *archive, struct stat *st, union record *heade
     else
         st->st_mode |= S_IFREG;
 
+    st->st_dev = 0;
     st->st_rdev = 0;
     switch (arch->type)
     {
@@ -423,6 +422,8 @@ tar_fill_stat (struct vfs_s_super *archive, struct stat *st, union record *heade
             st->st_rdev =
                 (tar_from_oct (8, header->header.devmajor) << 8) |
                 tar_from_oct (8, header->header.devminor);
+        default:
+            break;
         }
     default:
         st->st_uid = tar_from_oct (8, header->header.uid);
@@ -450,10 +451,10 @@ tar_read_header (struct vfs_class *me, struct vfs_s_super *archive, int tard, si
 {
     tar_super_data_t *arch = (tar_super_data_t *) archive->data;
 
-    register int i;
-    register long sum, signed_sum, recsum;
-    register char *p;
-    register union record *header;
+    int i;
+    long sum, signed_sum, recsum;
+    char *p;
+    union record *header;
     static char *next_long_name = NULL, *next_long_link = NULL;
 
   recurse:
@@ -524,7 +525,7 @@ tar_read_header (struct vfs_class *me, struct vfs_s_super *archive, int tard, si
         else
             len = strlen (header->header.arch_name);
 
-        if (len != 0 && header->header.arch_name[len - 1] == '/')
+        if (len != 0 && IS_PATH_SEP (header->header.arch_name[len - 1]))
             header->header.linkflag = LF_DIR;
     }
 
@@ -584,8 +585,7 @@ tar_read_header (struct vfs_class *me, struct vfs_s_super *archive, int tard, si
             data = tar_get_next_record (archive, tard)->charptr;
             if (data == NULL)
             {
-                g_free (*longp);
-                *longp = NULL;
+                MC_PTR_FREE (*longp);
                 message (D_ERROR, MSG_ERROR, _("Unexpected EOF on archive file"));
                 return STATUS_BADCHECKSUM;
             }
@@ -599,8 +599,7 @@ tar_read_header (struct vfs_class *me, struct vfs_s_super *archive, int tard, si
 
         if (bp - *longp == MC_MAXPATHLEN && bp[-1] != '\0')
         {
-            g_free (*longp);
-            *longp = NULL;
+            MC_PTR_FREE (*longp);
             message (D_ERROR, MSG_ERROR, _("Inconsistent tar archive"));
             return STATUS_BADCHECKSUM;
         }
@@ -620,8 +619,8 @@ tar_read_header (struct vfs_class *me, struct vfs_s_super *archive, int tard, si
         current_link_name =
             (next_long_link ? next_long_link : g_strndup (header->header.arch_linkname, NAMSIZ));
         len = strlen (current_link_name);
-        if (len > 1 && current_link_name[len - 1] == '/')
-            current_link_name[len - 1] = 0;
+        if (len > 1 && IS_PATH_SEP (current_link_name[len - 1]))
+            current_link_name[len - 1] = '\0';
 
         current_file_name = NULL;
         switch (arch->type)
@@ -671,7 +670,7 @@ tar_read_header (struct vfs_class *me, struct vfs_s_super *archive, int tard, si
 
         data_position = current_tar_position;
 
-        p = strrchr (current_file_name, '/');
+        p = strrchr (current_file_name, PATH_SEP);
         if (p == NULL)
         {
             p = current_file_name;
@@ -736,7 +735,9 @@ tar_read_header (struct vfs_class *me, struct vfs_s_super *archive, int tard, si
         {
             while (tar_get_next_record (archive, tard)->ext_hdr.isextended != 0)
                 ;
-            inode->data_offset = current_tar_position;
+
+            if (inode != NULL)
+                inode->data_offset = current_tar_position;
         }
         return STATUS_SUCCESS;
     }
@@ -800,6 +801,9 @@ tar_open_archive (struct vfs_s_super *archive, const vfs_path_t * vpath,
 
             case STATUS_EOF:
                 return 0;
+
+            default:
+                break;
             }
 
             /* Record of zeroes */
@@ -807,6 +811,8 @@ tar_open_archive (struct vfs_s_super *archive, const vfs_path_t * vpath,
             /* FALL THRU */
             /* exit from loop */
         case STATUS_EOF:       /* End of archive */
+            break;
+        default:
             break;
         }
         break;

@@ -23,7 +23,11 @@
  *  51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  */
 
+#if !defined(POLARSSL_CONFIG_FILE)
 #include "polarssl/config.h"
+#else
+#include POLARSSL_CONFIG_FILE
+#endif
 
 #include "polarssl/entropy.h"
 #include "polarssl/ctr_drbg.h"
@@ -61,7 +65,7 @@ int main( int argc, char *argv[] )
     }
 
     entropy_init( &entropy );
-    ret = ctr_drbg_init( &ctr_drbg, entropy_func, &entropy, (unsigned char *) "RANDOM_GEN", 10 );
+    ret = ctr_drbg_init( &ctr_drbg, entropy_func, &entropy, (const unsigned char *) "RANDOM_GEN", 10 );
     if( ret != 0 )
     {
         printf( "failed in ctr_drbg_init: %d\n", ret );
@@ -111,6 +115,8 @@ cleanup:
     printf("\n");
 
     fclose( f );
+    ctr_drbg_free( &ctr_drbg );
+    entropy_free( &entropy );
 
     return( ret );
 }

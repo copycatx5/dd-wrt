@@ -169,12 +169,12 @@ int ej_active_wireless_if(webs_t wp, int argc, char_t ** argv, char *ifname, int
 		if (si->isi_rates && ((si->isi_rates[si->isi_txrate] & IEEE80211_RATE_VAL) != 0)
 		    && ((si->isi_rates[si->isi_rxrate] & IEEE80211_RATE_VAL) != 0)) {
 			websWrite(wp,
-				  "'%s','%s%s','%s','%3dM','%3dM','%d','%d','%d','%d'",
+				  "'%s','%s%s','%s','%3dM','%3dM','N/A','%d','%d','%d','%d'",
 				  mac, type, ifname, UPTIME(si->isi_uptime),
 				  ((si->isi_rates[si->isi_txrate] &
 				    IEEE80211_RATE_VAL) / 2) * turbo, ((si->isi_rates[si->isi_rxrate] & IEEE80211_RATE_VAL) / 2) * turbo, si->isi_noise + si->isi_rssi + bias, si->isi_noise + bias, si->isi_rssi, qual);
 		} else {
-			websWrite(wp, "'%s','%s%s','%s','N/A','N/A','%d','%d','%d','%d'", mac, type, ifname, UPTIME(si->isi_uptime), si->isi_noise + si->isi_rssi + bias, si->isi_noise + bias, si->isi_rssi, qual);
+			websWrite(wp, "'%s','%s%s','%s','N/A','N/A','N/A','%d','%d','%d','%d'", mac, type, ifname, UPTIME(si->isi_uptime), si->isi_noise + si->isi_rssi + bias, si->isi_noise + bias, si->isi_rssi, qual);
 		}
 		bufcount += si->isi_len;
 		cp += si->isi_len;
@@ -193,8 +193,6 @@ extern int ej_active_wireless_if_11n(webs_t wp, int argc, char_t ** argv, char *
 #if defined(HAVE_ATH9K)
 extern int ej_active_wireless_if_ath9k(webs_t wp, int argc, char_t ** argv, char *ifname, int cnt, int turbo, int macmask);
 #endif
-
-extern char *getiflist(void);
 
 void ej_active_wireless(webs_t wp, int argc, char_t ** argv)
 {
@@ -348,37 +346,22 @@ int get_acktiming(char *ifname)
 	return ack;
 }
 
-void ej_show_acktiming(webs_t wp, int argc, char_t ** argv)
-{
-	int ack, distance;
-	websWrite(wp, "<div class=\"setting\">\n");
-	websWrite(wp, "<div class=\"label\">%s</div>\n", live_translate("share.acktiming"));
-
-	char *ifname = nvram_safe_get("wifi_display");
-#ifdef HAVE_ATH9K
-	if (is_ath9k(ifname)) {
-		int coverage = mac80211_get_coverageclass(ifname);
-		ack = coverage * 3;
-		/* See handle_distance() for an explanation where the '450' comes from */
-		distance = coverage * 450;
-	} else {
-#endif
-		ack = get_acktiming(ifname);
-		distance = get_distance(ifname);
-#ifdef HAVE_ATH9K
-	}
-#endif
-
-	websWrite(wp, "<span id=\"wl_ack\">%d&#181;s (%dm)</span> &nbsp;\n", ack, distance);
-	websWrite(wp, "</div>\n");
-}
-
 void ej_update_acktiming(webs_t wp, int argc, char_t ** argv)
 {
-	int ack, distance;
+	unsigned int ack, distance;
 	char *ifname = nvram_safe_get("wifi_display");
+	if (nvram_nmatch("disabled", "%s_net_mode", ifname)) {
+		websWrite(wp, "N/A");
+		return;
+	}
+#ifdef HAVE_ATH10K
+	if (is_ath10k(ifname) && !is_mvebu(ifname)) {
+		ack = get_ath10kack(ifname);
+		distance = get_ath10kdistance(ifname);
+	} else
+#endif
 #ifdef HAVE_ATH9K
-	if (is_ath9k(ifname)) {
+	if (is_ath9k(ifname) || is_mvebu(ifname)) {
 		int coverage = mac80211_get_coverageclass(ifname);
 		ack = coverage * 3;
 		/* See handle_distance() for an explanation where the '450' comes from */
@@ -390,8 +373,21 @@ void ej_update_acktiming(webs_t wp, int argc, char_t ** argv)
 #ifdef HAVE_ATH9K
 	}
 #endif
+	if (ack <= 0 || distance <= 0)
+		websWrite(wp, "N/A");
+	else
+		websWrite(wp, "%d&#181;s (%dm)", ack, distance);
+}
 
-	websWrite(wp, "%d&#181;s (%dm)", ack, distance);
+void ej_show_acktiming(webs_t wp, int argc, char_t ** argv)
+{
+	unsigned int ack, distance;
+	websWrite(wp, "<div class=\"setting\">\n");
+	websWrite(wp, "<div class=\"label\">%s</div>\n", live_translate("share.acktiming"));
+	websWrite(wp, "<span id=\"wl_ack\">\n");
+	ej_update_acktiming(wp, argc, argv);
+	websWrite(wp, "</span> &nbsp;\n", ack, distance);
+	websWrite(wp, "</div>\n");
 }
 
 extern float wifi_getrate(char *ifname);
@@ -443,12 +439,33 @@ void ej_get_currate(webs_t wp, int argc, char_t ** argv)
 
 void ej_get_curchannel(webs_t wp, int argc, char_t ** argv)
 {
-	int channel = wifi_getchannel(nvram_safe_get("wifi_display"));
+	char *prefix = nvram_safe_get("wifi_display");
+	int channel = wifi_getchannel(prefix);
 
 	if (channel > 0 && channel < 1000) {
-		websWrite(wp, "%d (%d MHz)", channel, get_wififreq(nvram_safe_get("wifi_display"), wifi_getfreq(nvram_safe_get("wifi_display"))));
+		struct wifi_interface *interface = wifi_getfreq(prefix);
+		if (!interface) {
+			websWrite(wp, "%s", live_translate("share.unknown"));
+			return;
+		}
+
+		int freq = get_wififreq(prefix, interface->freq);	// translation for special frequency devices
+#ifdef HAVE_ATH9K
+		if (is_ath9k(prefix)) {
+			websWrite(wp, "%d", ieee80211_mhz2ieee(interface->freq));
+			if (interface->center1 != -1 && interface->center1 != interface->freq)
+				websWrite(wp, " + %d", ieee80211_mhz2ieee(interface->center1));
+			if (interface->center2 != -1 && interface->center1 != interface->freq)
+				websWrite(wp, " + %d", ieee80211_mhz2ieee(interface->center2));
+		} else
+#endif
+		{
+			websWrite(wp, "%d", channel);
+		}
+		free(interface);
+		websWrite(wp, " (%d MHz)", freq);
+
 	} else
-		// websWrite (wp, "unknown");
 		websWrite(wp, "%s", live_translate("share.unknown"));
 	return;
 }

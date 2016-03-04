@@ -1,3 +1,10 @@
+local nmap = require "nmap"
+local shortport = require "shortport"
+local string = require "string"
+local table = require "table"
+local bin = require "bin"
+local stdnse = require "stdnse"
+
 description = [[
 Determines whether the server supports obsolete and less secure SSLv2, and discovers which ciphers it
 supports.
@@ -6,225 +13,152 @@ supports.
 ---
 --@output
 -- 443/tcp open   https   syn-ack
--- |  sslv2: server still supports SSLv2
--- |       SSL2_RC4_128_WITH_MD5
--- |       SSL2_DES_192_EDE3_CBC_WITH_MD5
--- |       SSL2_RC2_CBC_128_CBC_WITH_MD5
--- |       SSL2_DES_64_CBC_WITH_MD5
--- |       SSL2_RC4_128_EXPORT40_WITH_MD5
--- |_      SSL2_RC2_CBC_128_CBC_WITH_MD5
+-- | sslv2:
+-- |   SSLv2 supported
+-- |   ciphers:
+-- |     SSL2_DES_192_EDE3_CBC_WITH_MD5
+-- |     SSL2_IDEA_128_CBC_WITH_MD5
+-- |     SSL2_RC2_CBC_128_CBC_WITH_MD5
+-- |     SSL2_RC4_128_WITH_MD5
+-- |     SSL2_DES_64_CBC_WITH_MD5
+-- |     SSL2_RC2_CBC_128_CBC_WITH_MD5
+-- |_    SSL2_RC4_128_EXPORT40_WITH_MD5
+--@xmloutput
+--<elem>SSLv2 supported</elem>
+--<table key="ciphers">
+--  <elem>SSL2_DES_192_EDE3_CBC_WITH_MD5</elem>
+--  <elem>SSL2_IDEA_128_CBC_WITH_MD5</elem>
+--  <elem>SSL2_RC2_CBC_128_CBC_WITH_MD5</elem>
+--  <elem>SSL2_RC4_128_WITH_MD5</elem>
+--  <elem>SSL2_DES_64_CBC_WITH_MD5</elem>
+--  <elem>SSL2_RC2_CBC_128_CBC_WITH_MD5</elem>
+--  <elem>SSL2_RC4_128_EXPORT40_WITH_MD5</elem>
+--</table>
+
 
 author = "Matthew Boyle"
-license = "Same as Nmap--See http://nmap.org/book/man-legal.html"
+license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
 
 categories = {"default", "safe"}
 
-require "shortport"
 
 portrule = shortport.ssl
 
-hex2dec = function(hex)
+local ssl_ciphers = {
+  -- (cut down) table of codes with their corresponding ciphers.
+  -- inspired by Wireshark's 'epan/dissectors/packet-ssl-utils.h'
+  [0x010080] = "SSL2_RC4_128_WITH_MD5",
+  [0x020080] = "SSL2_RC4_128_EXPORT40_WITH_MD5",
+  [0x030080] = "SSL2_RC2_CBC_128_CBC_WITH_MD5",
+  [0x040080] = "SSL2_RC2_CBC_128_CBC_WITH_MD5",
+  [0x050080] = "SSL2_IDEA_128_CBC_WITH_MD5",
+  [0x060040] = "SSL2_DES_64_CBC_WITH_MD5",
+  [0x0700c0] = "SSL2_DES_192_EDE3_CBC_WITH_MD5",
+  [0x080080] = "SSL2_RC4_64_WITH_MD5",
+}
 
-	local byte1, byte2;
+local ciphers = function(cipher_list)
 
-	byte1 = string.byte(hex, 1);
-	byte2 = string.byte(hex, 2);
+  -- returns names of ciphers supported by the server
 
-	if (byte1 == nil or byte2 == nil) then return 0; end;
-	
-	return (byte1 * 256) + byte2;
+  local seen = {}
+  local available_ciphers = {}
 
-end
+  for idx = 1, #cipher_list, 3 do
+    local _, cipher_high, cipher_low = bin.unpack(">CS", cipher_list, idx)
+    local cipher = cipher_high * 0x10000 + cipher_low
+    local cipher_name = ssl_ciphers[cipher] or string.format("0x%06x", cipher)
 
-cyphers = function(cypher_list, len)
+    -- Check for duplicate ciphers
+    if not seen[cipher] then
+      table.insert(available_ciphers, cipher_name)
+      seen[cipher] = true
+    end
+  end
 
--- returns names of cyphers supported by the server
-
-	local cypher;
-	local cypher_name;
-	local byte1, byte2, byte3;
-	local available_cyphers = "";
-	local idx = 0;
-
-	local ssl_cyphers = {
--- (cut down) table of codes with their corresponding cyphers.
--- inspired by Wireshark's 'epan/dissectors/packet-ssl-utils.h'
-		[0x010080] = "SSL2_RC4_128_WITH_MD5",
-		[0x020080] = "SSL2_RC4_128_EXPORT40_WITH_MD5",
-		[0x030080] = "SSL2_RC2_CBC_128_CBC_WITH_MD5",
-		[0x040080] = "SSL2_RC2_CBC_128_CBC_WITH_MD5",
-		[0x050080] = "SSL2_IDEA_128_CBC_WITH_MD5",
-		[0x060040] = "SSL2_DES_64_CBC_WITH_MD5",
-		[0x0700c0] = "SSL2_DES_192_EDE3_CBC_WITH_MD5",
-		[0x080080] = "SSL2_RC4_64_WITH_MD5",
-	};
-
-	if (len == 0) then return "none"; end
--- something's got broken along the way if these aren't equal
-	if (len ~= #cypher_list) then
-		return "";
-	end
-
-	for idx = 1, len, 3 do
-		cypher = string.sub(cypher_list, idx, idx + 2);
-
-		byte1 = string.byte(cypher, 1);
-		byte2 = string.byte(cypher, 2);
-		byte3 = string.byte(cypher, 3);
-
-		cypher = (byte1 * 256 * 256) + (byte2 * 256) + byte3;
-
-		cypher_name = ssl_cyphers[cypher];
-
-		if (cypher_name == nil) then
-			cypher_name = "unknown cypher (" .. byte1 .. "-" .. byte2 .. "-" .. byte3 .. " dec)"
-		end
-
-		-- Check for duplicate cyphers
-		if not available_cyphers:match("\t" .. cypher_name .. "\n") then
-			available_cyphers = available_cyphers .. "\t" .. cypher_name .. "\n";
-		end
-	end
-
-	return available_cyphers
-
-end
-
-give_n_bytes = function(idx, n, str)
-
--- returns the next n bytes of a string
-
-	if (idx + (n - 1) > #str) then
-		return (idx + n), string.rep(string.char(0x00), n);
-	end
-
-	return (idx + n), string.sub(str, idx, (idx + (n - 1)) );
-
+  return available_ciphers
 end
 
 action = function(host, port)
 
-	local socket = nmap.new_socket();
-	local status = true;
-	
-	local tmp;
+  local socket = nmap.new_socket();
 
-	local idx = 3;	-- start reading after the end of the length record
+  -- build client hello packet (contents inspired by
+  -- http://mail.nessus.org/pipermail/plugins-writers/2004-October/msg00041.html )
+  local ssl_v2_hello = "\x80\x31" -- length 49
+  .. "\x01" -- MSG-CLIENT-HELLO
+  .. "\x00\x02" -- version: SSL 2.0
+  .. "\x00\x18" -- cipher spec length (24)
+  .. "\x00\x00" -- session ID length (0)
+  .. "\x00\x10" -- challenge length (16)
+  .. "\x07\x00\xc0" -- SSL2_DES_192_EDE3_CBC_WITH_MD5
+  .. "\x05\x00\x80" -- SSL2_IDEA_128_CBC_WITH_MD5
+  .. "\x03\x00\x80" -- SSL2_RC2_CBC_128_CBC_WITH_MD5
+  .. "\x01\x00\x80" -- SSL2_RC4_128_WITH_MD5
+  .. "\x08\x00\x80" -- SSL2_RC4_64_WITH_MD5
+  .. "\x06\x00\x40" -- SSL2_DES_64_CBC_WITH_MD5
+  .. "\x04\x00\x80" -- SSL2_RC2_CBC_128_CBC_WITH_MD5
+  .. "\x02\x00\x80" -- SSL2_RC4_128_EXPORT40_WITH_MD5
+  .. "\xe4\xbd\x00\x00\xa4\x41\xb6\x74\x71\x2b\x27\x95\x44\xc0\x3d\xc0" -- challenge
 
-	local return_string = "";
-	local available_cyphers = "";
+  socket:connect(host, port);
+  socket:send(ssl_v2_hello);
 
-	local ssl_v2_hello;
-	local server_hello;
+  local status, server_hello = socket:receive_bytes(2);
 
-	local server_hello_len;
-	local message_type;
-	local SID_hit;
-	local certificate_type;
-	local ssl_version;
-	local certificate_len;
-	local cyphers_len;
-	local certificate;
-	local connection_ID_len;
-	local cypher_list;
-	local connection_ID;
+  if (not status) then
+    socket:close();
+    return;
+  end
 
--- build client hello packet (contents inspired by
--- http://mail.nessus.org/pipermail/plugins-writers/2004-October/msg00041.html )
-	local t = {};
-	table.insert(t, string.char(0x80, 0x31));
-	table.insert(t, string.char(0x01));
-	table.insert(t, string.char(0x00, 0x02));
-	table.insert(t, string.char(0x00, 0x18));
-	table.insert(t, string.char(0x00, 0x00));
-	table.insert(t, string.char(0x00, 0x10));
-	table.insert(t, string.char(0x07, 0x00, 0xc0));
-	table.insert(t, string.char(0x05, 0x00, 0x80));
-	table.insert(t, string.char(0x03, 0x00, 0x80));
-	table.insert(t, string.char(0x01, 0x00, 0x80));
-	table.insert(t, string.char(0x08, 0x00, 0x80));
-	table.insert(t, string.char(0x06, 0x00, 0x40));
-	table.insert(t, string.char(0x04, 0x00, 0x80));
-	table.insert(t, string.char(0x02, 0x00, 0x80));
-	table.insert(t, string.char(0xe4, 0xbd, 0x00, 0x00));
-	table.insert(t, string.char(0xa4, 0x41, 0xb6, 0x74));
-	table.insert(t, string.char(0x71, 0x2b, 0x27, 0x95));
-	table.insert(t, string.char(0x44, 0xc0, 0x3d, 0xc0));
-	ssl_v2_hello = table.concat(t, "")
+  local idx, server_hello_len = bin.unpack(">S", server_hello)
+  -- length record doesn't include its own length, and is "broken".
+  server_hello_len = server_hello_len - (128 * 256) + 2;
 
-	socket:connect(host, port, "tcp");
-	socket:send(ssl_v2_hello);
+  -- the hello needs to be at least 13 bytes long to be of any use
+  if (server_hello_len < 13) then
+    socket:close();
+    return;
+  end
+  --try to get entire hello, if we don't already
+  if (#server_hello < server_hello_len) then
+    local status, tmp = socket:receive_bytes(server_hello_len - #server_hello);
 
-	status, server_hello = socket:receive_bytes(2);
+    if (not status) then
+      socket:close();
+      return;
+    end
 
-	if (not status) then
-		socket:close();
-		return;
-	end
+    server_hello = server_hello .. tmp;
+  end;
 
-	server_hello_len = string.sub(server_hello, 1, 2);
-	server_hello_len = hex2dec(server_hello_len);
--- length record doesn't include its own length, and is "broken".
-	server_hello_len = server_hello_len - (128 * 256) + 2;
+  socket:close();
 
--- the hello needs to be at least 13 bytes long to be of any use
-	if (server_hello_len < 13) then
-		socket:close();
-		return;
-	end
---try to get entire hello, if we don't already
-	if (#server_hello < server_hello_len) then
-		status, tmp = socket:receive_bytes(server_hello_len - #server_hello);
+  -- split up server hello into components
+  local idx, message_type, SID_hit, certificate_type, ssl_version, certificate_len, ciphers_len, connection_ID_len = bin.unpack(">CCCSSSS", server_hello, idx)
+  -- some sanity checks:
+  -- is response a server hello?
+  if (message_type ~= 4) then
+    return;
+  end
+  -- is certificate in X.509 format?
+  if (certificate_type ~= 1) then
+    return;
+  end
 
-		if (not status) then
-			socket:close();
-			return;
-		end
+  local idx, certificate = bin.unpack("A" .. certificate_len, server_hello, idx)
+  local idx, cipher_list = bin.unpack("A" .. ciphers_len, server_hello, idx)
+  local idx, connection_ID = bin.unpack("A" .. connection_ID_len, server_hello, idx)
 
-		server_hello = server_hello .. tmp;
-	end;
+  -- get a list of ciphers offered
+  local available_ciphers = ciphers_len > 0 and ciphers(cipher_list) or "none"
 
-	socket:close();
+  -- actually run some tests:
+  local o = stdnse.output_table()
+  if (ssl_version == 2) then
+    table.insert(o, "SSLv2 supported")
+    o["ciphers"] = available_ciphers
+  end
 
--- split up server hello into components
-	idx, message_type = 	give_n_bytes(idx, 1, server_hello);
-	idx, SID_hit = 			give_n_bytes(idx, 1, server_hello);
-	idx, certificate_type = 	give_n_bytes(idx, 1, server_hello);
-	idx, ssl_version = 		give_n_bytes(idx, 2, server_hello);
-	idx, certificate_len = 		give_n_bytes(idx, 2, server_hello);
-		certificate_len = hex2dec(certificate_len);
-	idx, cyphers_len = 		give_n_bytes(idx, 2, server_hello);
-		cyphers_len = hex2dec(cyphers_len);
-	idx, connection_ID_len = 	give_n_bytes(idx, 2, server_hello);
-		connection_ID_len = hex2dec(connection_ID_len);
-	idx, certificate = 		give_n_bytes(idx, certificate_len, server_hello);
-	idx, cypher_list = 		give_n_bytes(idx, cyphers_len, server_hello);
-	idx, connection_ID = 		give_n_bytes(idx, connection_ID_len, server_hello);
-
--- some sanity checks:
--- is response a server hello?
-	if (message_type ~= string.char(0x04)) then
-		return;
-	end
--- is certificate in X.509 format?
-	if (certificate_type ~= string.char(0x01)) then
-		return;
-	end
-
--- get a list of cyphers offered
-	available_cyphers = cyphers(cypher_list, cyphers_len);
-
--- actually run some tests:
-	if (ssl_version == string.char(0x00, 0x02)) then
-		if (available_cyphers == "none") then
-			return_string = "server supports SSLv2 protocol, but no SSLv2 cyphers\n";
-		else
-			return_string = "server still supports SSLv2\n";
-			if (nmap.verbosity() > 1 or nmap.debugging() > 0) then
-				return_string = return_string .. available_cyphers;
-			end
-		end
-	end
-
-	return return_string;
+  return o;
 end

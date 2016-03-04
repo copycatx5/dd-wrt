@@ -2,7 +2,7 @@
   +----------------------------------------------------------------------+
   | PHP Version 5                                                        |
   +----------------------------------------------------------------------+
-  | Copyright (c) 1997-2014 The PHP Group                                |
+  | Copyright (c) 1997-2015 The PHP Group                                |
   +----------------------------------------------------------------------+
   | This source file is subject to version 3.01 of the PHP license,      |
   | that is bundled with this package in the file LICENSE, and is        |
@@ -18,7 +18,7 @@
   +----------------------------------------------------------------------+
 */
 
-/* $Id: a915862ec47f9589309acc4996ca8f6179788746 $ */
+/* $Id: 6b8e23a01a85046737ef7d31346da5164505c179 $ */
 
 #ifdef HAVE_CONFIG_H
 #include "config.h"
@@ -1129,7 +1129,7 @@ static HashTable * sxe_get_prop_hash(zval *object, int is_debug TSRMLS_DC) /* {{
 			node = NULL;
 		} else if (sxe->iter.type != SXE_ITER_CHILD) {
 
-			if ( !node->children || !node->parent || !node->next || node->children->next || node->children->children || node->parent->children == node->parent->last ) {
+			if ( sxe->iter.type == SXE_ITER_NONE || !node->children || !node->parent || node->children->next || node->children->children || node->parent->children == node->parent->last ) {
 				node = node->children;
 			} else {
 				iter_data = sxe->iter.data;
@@ -2658,7 +2658,7 @@ PHP_MINFO_FUNCTION(simplexml)
 {
 	php_info_print_table_start();
 	php_info_print_table_header(2, "Simplexml support", "enabled");
-	php_info_print_table_row(2, "Revision", "$Id: a915862ec47f9589309acc4996ca8f6179788746 $");
+	php_info_print_table_row(2, "Revision", "$Id: 6b8e23a01a85046737ef7d31346da5164505c179 $");
 	php_info_print_table_row(2, "Schema support",
 #ifdef LIBXML_SCHEMAS_ENABLED
 		"enabled");

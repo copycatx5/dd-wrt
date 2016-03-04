@@ -3,20 +3,19 @@
 # This file is distributed under the same license as the PACKAGE package.
 #
 # Translators:
-# mbouzada <mbouzada@gmail.com>, 2013
-# mbouzada <mbouzada@gmail.com>, 2011-2012
-# mbouzada <mbouzada@gmail.com>, 2011
-# mbouzada <mbouzada@gmail.com>, 2012
+# Miguel Anxo Bouzada <mbouzada@gmail.com>, 2013
+# Miguel Anxo Bouzada <mbouzada@gmail.com>, 2011-2012
+# Miguel Anxo Bouzada <mbouzada@gmail.com>, 2011
+# Miguel Anxo Bouzada <mbouzada@gmail.com>, 2012,2014-2015
 # Slava Zanko <slavazanko@gmail.com>, 2011
 msgid ""
 msgstr ""
 "Project-Id-Version: Midnight Commander\n"
 "Report-Msgid-Bugs-To: http://www.midnight-commander.org/\n"
-"POT-Creation-Date: 2014-04-01 14:47+0300\n"
-"PO-Revision-Date: 2014-02-19 09:12+0000\n"
-"Last-Translator: aborodin <aborodin@vmail.ru>\n"
-"Language-Team: Galician (http://www.transifex.com/projects/p/mc/language/"
-"gl/)\n"
+"POT-Creation-Date: 2015-11-06 14:43+0300\n"
+"PO-Revision-Date: 2015-06-04 10:12+0000\n"
+"Last-Translator: Miguel Anxo Bouzada <mbouzada@gmail.com>\n"
+"Language-Team: Galician (http://www.transifex.com/mc/mc/language/gl/)\n"
 "Language: gl\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
@@ -161,7 +160,7 @@ msgstr ""
 "Cargouse o tema predeterminado"
 
 msgid "Escape"
-msgstr ""
+msgstr "Escape"
 
 msgid "Function key 1"
 msgstr "Tecla «F1»"
@@ -227,43 +226,43 @@ msgid "Completion/M-tab"
 msgstr "Completar/M-Tab"
 
 msgid "BackTab/S-tab"
-msgstr ""
+msgstr "Retroceso/S-tab"
 
 msgid "Backspace"
-msgstr ""
+msgstr "Retroceso (<--)"
 
 msgid "Up arrow"
-msgstr ""
+msgstr "Frecha arriba"
 
 msgid "Down arrow"
-msgstr ""
+msgstr "Frecha abaixo"
 
 msgid "Left arrow"
-msgstr ""
+msgstr "Frecha esquerda"
 
 msgid "Right arrow"
-msgstr ""
+msgstr "Frecha dereita"
 
 msgid "Insert"
-msgstr ""
+msgstr "Inserir"
 
 msgid "Delete"
-msgstr ""
+msgstr "Eliminar"
 
 msgid "Home"
-msgstr ""
+msgstr "Inicio"
 
 msgid "End key"
 msgstr "Tecla «Fin»"
 
 msgid "Page Up"
-msgstr ""
+msgstr "Re Páx"
 
 msgid "Page Down"
-msgstr ""
+msgstr "Av Páx"
 
 msgid "/ on keypad"
-msgstr ""
+msgstr "/ no teclado numérico"
 
 msgid "* on keypad"
 msgstr "* no teclado numérico"
@@ -354,6 +353,9 @@ msgstr "Apostrofo"
 
 msgid "Colon"
 msgstr "Dous puntos"
+
+msgid "Semicolon"
+msgstr "Punto e coma"
 
 msgid "Exclamation mark"
 msgstr "Signo de exclamación"
@@ -451,6 +453,31 @@ msgstr ""
 "O tamaño de xanela %dx%d non esta admitido.\n"
 "Verifique o valor da variábel de contorno TERM.\n"
 
+msgid "Cannot create pipe descriptor"
+msgstr "Non foi posíbel crear o descritor da canalización"
+
+msgid "Cannot parse command for pipe"
+msgstr "Non é posíbel analizar a orde para a canalización"
+
+msgid "Cannot create pipe streams"
+msgstr "Non é posíbel crear a canalización de fluxos"
+
+#, c-format
+msgid ""
+"Unexpected error in select() reading data from a child process:\n"
+"%s"
+msgstr ""
+"Produciuse un erro en select() lendo os datos para o proceso fillo:\n"
+"%s"
+
+#, c-format
+msgid ""
+"Unexpected error in waitpid():\n"
+"%s"
+msgstr ""
+"Produciuse un erro non agardado en waitpid():\n"
+"%s"
+
 msgid "Warning"
 msgstr "Atención"
 
@@ -467,8 +494,16 @@ msgstr "Produciuse un erro duplicando antigo erro de canalización"
 msgid "Directory cache expired for %s"
 msgstr "O cache para %s expirou"
 
+#, c-format
+msgid "%s: %s: %s %3d%% %<PRIuMAX> %s"
+msgstr ""
+
 msgid "bytes transferred"
 msgstr "bytes transferidos"
+
+#, c-format
+msgid "%s: %s: %s %<PRIuMAX> %s"
+msgstr ""
 
 msgid "Starting linear transfer..."
 msgstr "Iniciando transferencia en liña..."
@@ -549,6 +584,13 @@ msgstr "Procesos en 2º plano"
 
 msgid "Error"
 msgstr "Erro"
+
+#, c-format
+msgid "%d: %s"
+msgstr "%d: %s"
+
+msgid "&Abort"
+msgstr "&Interromper"
 
 msgid "Displays the current version"
 msgstr "Mostrar a versión actual"
@@ -643,28 +685,31 @@ msgid ""
 "   Editor:       editnormal, editbold, editmarked, editwhitespace,\n"
 "                 editlinestate, editbg, editframe, editframeactive\n"
 "                 editframedrag\n"
-"   Viewer:       viewbold, viewunderline, viewselected\n"
+"   Viewer:       viewnormal,viewbold, viewunderline, viewselected\n"
 "   Help:         helpnormal, helpitalic, helpbold, helplink, helpslink\n"
 msgstr ""
 "--colors CONTEXTO={FRENTE},{FONDO},{ATRIBUTOS}:CONTEXTO2=...\n"
 "\n"
-"{FRENTE}, {FONDO} e {ATRIBUTOS} poden omitirse e utilizarase o el valor "
+"{FRENTE}, {FONDO} e {ATRIBUTOS}poden omitirse, empregarase o valor "
 "predeterminado\n"
 "\n"
 " Contextos:\n"
-"   Global:       errors, disabled, reverse, gauge, header\n"
-"                 input, inputmark, inputunchanged, commandlinemark\n"
-"                 bbarhotkey, bbarbutton, statusbar\n"
+"   Globais:            errors, disabled, reverse, gauge, header\n"
+"                       input, inputmark, inputunchanged, commandlinemark\n"
+"                       bbarhotkey, bbarbutton, statusbar\n"
 "   Visor de ficheiros: normal, selected, marked, markselect\n"
-"   Diálogos:     dnormal, dfocus, dhotnormal, dhotfocus, errdhotnormal,\n"
-"                 errdhotfocus\n"
-"   Menús:        menunormal, menuhot, menusel, menuhotsel, menuinactive\n"
-"   Menús emerxentes: pmenunormal, pmenusel, pmenutitle\n"
-"   Editor:       editnormal, editbold, editmarked, editwhitespace,\n"
-"                 editlinestate, editbg, editframe, editframeactive\n"
-"                 editframedrag\n"
-"   Visor:        viewbold, viewunderline, viewselected\n"
-"   Axuda:        helpnormal, helpitalic, helpbold, helplink, helpslink\n"
+"   Diálogos:           dnormal, dfocus, dhotnormal, dhotfocus, "
+"errdhotnormal,\n"
+"                       errdhotfocus\n"
+"   Menús:              menunormal, menuhot, menusel, menuhotsel, "
+"menuinactive\n"
+"   Menús emerxentes:   pmenunormal, pmenusel, pmenutitle\n"
+"   Editor:             editnormal, editbold, editmarked, editwhitespace,\n"
+"                       editlinestate, editbg, editframe, editframeactive\n"
+"                       editframedrag\n"
+"   Visor:              viewnormal,viewbold, viewunderline, viewselected\n"
+"   Axuda:              helpnormal, helpitalic, helpbold, helplink, "
+"helpslink\n"
 
 #. TRANSLATORS: don't translate color names and attributes
 msgid ""
@@ -677,18 +722,18 @@ msgid ""
 "   color16 to color255, or rgb000 to rgb555 and gray0 to gray23\n"
 "\n"
 "Attributes:\n"
-"   bold, underline, reverse, blink; append more with '+'\n"
+"   bold, italic, underline, reverse, blink; append more with '+'\n"
 msgstr ""
 "Cores estándar:\n"
 "   black, gray, red, brightred, green, brightgreen, brown,\n"
 "   yellow, blue, brightblue, magenta, brightmagenta, cyan,\n"
-"   brightcyan, lightgray and white\n"
+"   brightcyan, lightgray e white\n"
 "\n"
 "Cores estendidas, cando estean dispoñíbeis 256 cores::\n"
-"   color16 a color255, ou rgb000 a rgb555 e gray0 a gray23\n"
+"   color16 to color255, ou rgb000 ata rgb555 e gray0 ata gray23\n"
 "\n"
 "Atributos:\n"
-"   bold, underline, reverse, blink; engadir máis empregando «+»\n"
+"   bold, underline, reverse, blink; engadir máis con «+»\n"
 
 msgid "Color options"
 msgstr "Opcións de cor"
@@ -727,8 +772,14 @@ msgstr "Produciuse un erro ao analizar os argumentos!"
 msgid "No arguments given to the viewer."
 msgstr "Non hai argumentos para o visor."
 
-msgid "Two files are required to evoke the diffviewer."
+msgid "Two files are required to envoke the diffviewer."
 msgstr "Precísanse dous ficheiros para invocar o visor de diferenzas."
+
+msgid "Background protocol error"
+msgstr "Produciuse un erro de protocolo en proceso en 2º plano"
+
+msgid "Reading failed"
+msgstr "Produciuse un fallo na lectura"
 
 msgid "Background process error"
 msgstr "Produciuse un erro nun proceso en 2º plano"
@@ -738,12 +789,6 @@ msgstr "Produciuse un erro descoñecido no proceso fillo"
 
 msgid "Child died unexpectedly"
 msgstr "O proceso fillo rematou inesperadamente"
-
-msgid "Background protocol error"
-msgstr "Produciuse un erro de protocolo en proceso en 2º plano"
-
-msgid "Reading failed"
-msgstr "Produciuse un fallo na lectura"
 
 msgid ""
 "Background process sent us a request for more arguments\n"
@@ -912,8 +957,18 @@ msgid "< Reload Current Syntax >"
 msgstr "< Recargar a sintaxe actual >"
 
 #, c-format
+msgid "Loading: %3d%%"
+msgstr "Cargando: %3d%%"
+
+msgid "Loading..."
+msgstr "Cargando..."
+
+#, c-format
 msgid "Cannot open %s for reading"
 msgstr "Non é posíbel abrir %s para lectura"
+
+msgid "Load file"
+msgstr "Cargar ficheiro"
 
 #, c-format
 msgid "Error reading %s"
@@ -943,6 +998,14 @@ msgstr "Produciuse un erro ao ler da canalización: %s"
 msgid "Cannot open pipe for reading: %s"
 msgstr "Non é posíbel abrir canalización para lectura: %s"
 
+#, c-format
+msgid "Searching %s: %3d%%"
+msgstr "Buscando %s: %3d%%"
+
+#, c-format
+msgid "Searching %s"
+msgstr "Buscando %s"
+
 msgid "File has hard-links. Detach before saving?"
 msgstr "Hai outras ligazóns duras ao ficheiro. Desexa separalas ao gardar?"
 
@@ -961,9 +1024,8 @@ msgstr "Non é posíbel abrir canalización para escritura: %s"
 msgid "Cannot open file for writing: %s"
 msgstr "Non é posíbel abrir o ficheiro para escritura: %s"
 
-#, fuzzy
 msgid "The file you are saving does not end with a newline."
-msgstr "O ficheiro a gardar non remata cun salto de liña"
+msgstr "O ficheiro a gardar non remata nunha liña nova."
 
 msgid "C&ontinue"
 msgstr "c&Ontinuar"
@@ -991,6 +1053,9 @@ msgstr "Gardar como"
 
 msgid "Block is large, you may not be able to undo this action"
 msgstr "O bloque é moi grande, pode que non se poida desfacer esta acción"
+
+msgid "Collect completions"
+msgstr "Recoller os remates"
 
 msgid "&Quick save"
 msgstr "Gardar &Rápido"
@@ -1521,8 +1586,8 @@ msgstr ""
 "Un editor de texto de uso amigábel\n"
 "escrito para o Midnight Commander."
 
-msgid "Copyright (C) 1996-2014 the Free Software Foundation"
-msgstr ""
+msgid "Copyright (C) 1996-2015 the Free Software Foundation"
+msgstr "Copyright (C) 1996-2015 a Free Software Foundation"
 
 msgid "About"
 msgstr "Sobre"
@@ -1550,6 +1615,78 @@ msgstr "ButtonBar|Eliminar"
 
 msgid "ButtonBar|PullDn"
 msgstr "ButtonBar|Baixar"
+
+msgid "Breton"
+msgstr "Bretón"
+
+msgid "Czech"
+msgstr "Checo"
+
+msgid "Welsh"
+msgstr "Galés"
+
+msgid "Danish"
+msgstr "Danés"
+
+msgid "German"
+msgstr "Alemán"
+
+msgid "Greek"
+msgstr "Grego"
+
+msgid "English"
+msgstr "Inglés"
+
+msgid "British English"
+msgstr "Inglés británico"
+
+msgid "Canadian English"
+msgstr "Inglés canadense"
+
+msgid "American English"
+msgstr "Inglés americano"
+
+msgid "Esperanto"
+msgstr "Esperanto"
+
+msgid "Spanish"
+msgstr "Español"
+
+msgid "Faroese"
+msgstr "Faroés"
+
+msgid "French"
+msgstr "Francés"
+
+msgid "Italian"
+msgstr "Italiano"
+
+msgid "Dutch"
+msgstr "Holandés"
+
+msgid "Norwegian"
+msgstr "Noruegués"
+
+msgid "Polish"
+msgstr "Polaco"
+
+msgid "Portuguese"
+msgstr "Portugués"
+
+msgid "Romanian"
+msgstr "Romanés"
+
+msgid "Russian"
+msgstr "Ruso"
+
+msgid "Slovak"
+msgstr "Eslovaco"
+
+msgid "Swedish"
+msgstr "Sueco"
+
+msgid "Ukrainian"
+msgstr "Ucraíno"
 
 msgid "&Add word"
 msgstr "&Engadir palabra"
@@ -1646,6 +1783,12 @@ msgstr ""
 "Non é posíbel cambiar o propietario de «%s»\n"
 "%s"
 
+msgid "< Default >"
+msgstr "< Predeterminado >"
+
+msgid "Skins"
+msgstr "Temas"
+
 msgid "Other 8 bit"
 msgstr "Outro (8 bit)"
 
@@ -1730,17 +1873,11 @@ msgstr "Configuración do &Auto-gardado"
 msgid "Configure options"
 msgstr "Configuración"
 
-msgid "< Default >"
-msgstr ""
-
-msgid "Skins"
-msgstr ""
-
 msgid "Skin:"
-msgstr ""
+msgstr "Tema:"
 
 msgid "Appearance"
-msgstr ""
+msgstr "Aparencia"
 
 msgid "Case &insensitive"
 msgstr "&Non distinguir maiúsculas"
@@ -1822,14 +1959,17 @@ msgstr ""
 msgid "&Full file list"
 msgstr "Lista &Completa"
 
-msgid "&Brief file list"
-msgstr "Lista &Breve"
+msgid "&Brief file list:"
+msgstr "Lista &Breve:"
 
 msgid "&Long file list"
 msgstr "Lista &Longa"
 
 msgid "&User defined:"
 msgstr "Definida polo &Usuario:"
+
+msgid "columns"
+msgstr "columnas"
 
 msgid "User &mini status"
 msgstr "&Mini-estado de usuario"
@@ -2068,15 +2208,6 @@ msgstr "Filtro"
 msgid "Set expression for filtering filenames"
 msgstr "Introduza a expresión para filtrar nomes de ficheiro"
 
-msgid "&Files only"
-msgstr "Só &Ficheiros"
-
-msgid "&Using shell patterns"
-msgstr "&Usando modelos de consola"
-
-msgid "&Case sensitive"
-msgstr "&Distinguir maiúsculas"
-
 #, c-format
 msgid "Link %s to:"
 msgstr "Crear ligazón a %s como:"
@@ -2116,12 +2247,6 @@ msgstr "Crear un novo directorio"
 
 msgid "Enter directory name:"
 msgstr "Introduza nome do directorio:"
-
-msgid "Select"
-msgstr "Seleccionar"
-
-msgid "Unselect"
-msgstr "Desmarcar"
 
 msgid "Extension file edit"
 msgstr "Editar o ficheiro de extensións"
@@ -2208,6 +2333,9 @@ msgstr ""
 "Introduza o dispositivo (sen /dev/) onde quere\n"
 "recuperar ficheiros: (F1 para máis detalles)"
 
+msgid "Directory scanning"
+msgstr "Examinando directorio"
+
 msgid "Setup"
 msgstr "Configuración"
 
@@ -2290,7 +2418,7 @@ msgstr "FileOperation|Eliminar"
 
 #, no-c-format
 msgid "%o %f%n\"%s\"%m"
-msgstr ""
+msgstr "%o %f%n«%s»%m"
 
 #, no-c-format
 msgid "%o %d %f%m"
@@ -2343,9 +2471,6 @@ msgid ""
 msgstr ""
 "Non é posíbel crear a ligazón simbólica «%s»\n"
 "%s"
-
-msgid "&Abort"
-msgstr "&Interromper"
 
 msgid "Ski&p all"
 msgstr "omitir &Todos"
@@ -2630,16 +2755,9 @@ msgstr ""
 "Non é posíbel mover o directorio «%s» a «%s»\n"
 "%s"
 
-msgid "Directory scanning"
-msgstr "Examinando directorio"
-
 #, c-format
-msgid ""
-"%s\n"
-"Directories: %zd, total size: %s"
-msgstr ""
-"%s\n"
-"Directorios: %zd, tamaño total: %s"
+msgid "Directories: %zd, total size: %s"
+msgstr "Directorios: %zd, tamaño total: %s"
 
 msgid "Cannot operate on \"..\"!"
 msgstr "Non é posíbel operar sobre «..»!"
@@ -2746,6 +2864,12 @@ msgstr "Orixe"
 msgid "Target"
 msgstr "Destino"
 
+msgid "Deleting"
+msgstr "Eliminando"
+
+msgid "&Using shell patterns"
+msgstr "&Usando modelos de consola"
+
 msgid "to:"
 msgstr "a:"
 
@@ -2838,10 +2962,6 @@ msgid "Finished (ignored %zd directory)"
 msgid_plural "Finished (ignored %zd directories)"
 msgstr[0] "Rematado (%zd directorio ignorado)"
 msgstr[1] "Rematado (%zd directorios ignorados)"
-
-#, c-format
-msgid "Searching %s"
-msgstr "Buscando %s"
 
 msgid "Searching"
 msgstr "Buscando"
@@ -2965,40 +3085,40 @@ msgid "Free space: %s/%s (%d%%)"
 msgstr "Espazo libre: %s/%s (%d%%)"
 
 #, c-format
-msgid "Type:      %s"
-msgstr "Tipo:      %s"
+msgid "Type:       %s"
+msgstr "Tipo:         %s"
 
 msgid "non-local vfs"
 msgstr "VFS non-local"
 
 #, c-format
-msgid "Device:    %s"
-msgstr "Dispositivo:   %s"
+msgid "Device:     %s"
+msgstr "Dispositivo:  %s"
 
 #, c-format
 msgid "Filesystem: %s"
 msgstr "Sistema de ficheiros: %s"
 
 #, c-format
-msgid "Accessed:  %s"
-msgstr "Accedido:  %s"
+msgid "Accessed:   %s"
+msgstr "Accedido:     %s"
 
 #, c-format
-msgid "Modified:  %s"
-msgstr "Modificado:  %s"
+msgid "Modified:   %s"
+msgstr "Modificado:   %s"
 
 #. TRANSLATORS: Time of last status change as in stat(2) man.
 #, c-format
-msgid "Changed:   %s"
-msgstr "Cambiado:   %s"
+msgid "Changed:    %s"
+msgstr "Cambiado:     %s"
 
 #, c-format
 msgid "Dev. type: major %lu, minor %lu"
 msgstr "Tipo disp.: maior %lu, menor %lu"
 
 #, c-format
-msgid "Size:      %s"
-msgstr "Tamaño:     %s"
+msgid "Size:       %s"
+msgstr "Tamaño:       %s"
 
 #, c-format
 msgid " (%ld block)"
@@ -3007,20 +3127,20 @@ msgstr[0] " (%ld bloque)"
 msgstr[1] " (%ld bloques)"
 
 #, c-format
-msgid "Owner:     %s/%s"
-msgstr "Propietario:      %s/%s"
+msgid "Owner:      %s/%s"
+msgstr "Propietario:  %s/%s"
 
 #, c-format
-msgid "Links:     %d"
-msgstr "Ligazóns: %d"
+msgid "Links:      %d"
+msgstr "Ligazóns:     %d"
 
 #, c-format
-msgid "Mode:      %s (%04o)"
-msgstr "Modo:       %s (%04o)"
+msgid "Mode:       %s (%04o)"
+msgstr "Modo:         %s (%04o)"
 
 #, c-format
-msgid "Location:  %Xh:%Xh"
-msgstr "Ubicación:    %Xh:%Xh"
+msgid "Location:   %Xh:%Xh"
+msgstr "Localización: %Xh:%Xh"
 
 msgid "&Equal split"
 msgstr "si&Metrico"
@@ -3224,7 +3344,7 @@ msgid "C&onfirmation..."
 msgstr "c&Onfirmación..."
 
 msgid "&Appearance..."
-msgstr ""
+msgstr "&Aparencia..."
 
 msgid "&Display bits..."
 msgstr "&Mostrar bits..."
@@ -3400,6 +3520,18 @@ msgstr "Poñer no panel"
 msgid "Unknown tag on display format:"
 msgstr "Etiqueta descoñecida no formato de pantalla:"
 
+msgid "&Files only"
+msgstr "Só &Ficheiros"
+
+msgid "&Case sensitive"
+msgstr "&Distinguir maiúsculas"
+
+msgid "Select"
+msgstr "Seleccionar"
+
+msgid "Unselect"
+msgstr "Desmarcar"
+
 msgid "Do you really want to execute?"
 msgstr "Confirma que quere executalo?"
 
@@ -3532,14 +3664,6 @@ msgstr "A macro %%var non ten valor predeterminado"
 #, c-format
 msgid "The %%var macro has no variable"
 msgstr "A macro %%var non contén variábeis"
-
-#, c-format
-msgid ""
-"Cannot open file%s\n"
-"%s"
-msgstr ""
-"Non é posíbel abrir o ficheiro %s\n"
-"%s"
 
 #, c-format
 msgid "No suitable entries found in %s"
@@ -4020,9 +4144,6 @@ msgstr "sftp: Non é posíbel obter o nome do usuario actual."
 msgid "sftp: Invalid host name."
 msgstr "sftp: nome de máquina incorrecto."
 
-msgid "sftp: Invalid port value."
-msgstr "sftp: porto incorrecto."
-
 #, c-format
 msgid "sftp: %s"
 msgstr "sftp: %s"
@@ -4205,14 +4326,8 @@ msgstr ""
 "Saíndo de Midnight Commander.\n"
 "Gardar o ficheiro modificado?"
 
-msgid "Cannot spawn child process"
-msgstr "Non é posíbel executar o proceso fillo"
-
-msgid "Empty output from child filter"
-msgstr "Saída do filtro baleira"
-
-msgid "&Line number (decimal)"
-msgstr "Número de &Liña (decimal)"
+msgid "&Line number"
+msgstr "Número de &Liña"
 
 msgid "Pe&rcents"
 msgstr "Pe&Rcentiles"
@@ -4258,6 +4373,14 @@ msgstr "ButtonBar|Formato"
 
 #, c-format
 msgid ""
+"Failed to read data from child stdout:\n"
+"%s"
+msgstr ""
+"Produciuse un erro ao ler os datos da saída estándar filla:\n"
+"%s"
+
+#, c-format
+msgid ""
 "Error while closing the file:\n"
 "%s\n"
 "Data may have been written or not"
@@ -4296,9 +4419,6 @@ msgstr ""
 "Non é posíbel abrir «%s» en modo de análise\n"
 "%s"
 
-msgid "Seeking to search result"
-msgstr "Avanzando ao resultado da busca"
-
 msgid "Search done"
 msgstr "Busca rematada"
 
@@ -4307,6 +4427,3 @@ msgstr "Continuar desde o principio?"
 
 msgid "Cannot fetch a local copy of /ftp://some.host/editme.txt"
 msgstr "Non é posíbel obter unha copia local de /ftp://some.host/editme.txt"
-
-#~ msgid "&Select"
-#~ msgstr "&Seleccionar"

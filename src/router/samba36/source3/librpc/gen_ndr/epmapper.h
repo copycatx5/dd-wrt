@@ -217,13 +217,13 @@ struct epm_lhs {
 
 struct epm_floor {
 	struct epm_lhs lhs;/* [subcontext(2)] */
-	union epm_rhs rhs;/* [subcontext(2),switch_is(lhs.protocol)] */
+	union epm_rhs rhs;/* [switch_is(lhs.protocol),subcontext(2)] */
 };
 
 struct epm_tower {
 	uint16_t num_floors;
 	struct epm_floor *floors;
-}/* [gensize,flag(LIBNDR_FLAG_NOALIGN|LIBNDR_FLAG_LITTLE_ENDIAN)] */;
+}/* [flag(LIBNDR_FLAG_NOALIGN|LIBNDR_FLAG_LITTLE_ENDIAN),gensize] */;
 
 struct epm_twr_t {
 	uint32_t tower_length;/* [value(ndr_size_epm_tower(&tower,ndr->flags))] */
@@ -342,7 +342,7 @@ struct epm_Map {
 
 	struct {
 		uint32_t *num_towers;/* [ref] */
-		struct epm_twr_p_t *towers;/* [length_is(*num_towers),size_is(max_towers)] */
+		struct epm_twr_p_t *towers;/* [size_is(max_towers),length_is(*num_towers)] */
 		struct policy_handle *entry_handle;/* [ref] */
 		uint32_t result;
 	} out;

@@ -22,16 +22,16 @@
 -- </code>
 --
 -- @author Henri Doreau
--- @copyright Same as Nmap -- See http://nmap.org/book/man-legal.html
+-- @copyright Same as Nmap -- See https://nmap.org/book/man-legal.html
 --
 -- @args omp2.username The username to use for authentication.
 -- @args omp2.password The password to use for authentication.
 --
 
-module(... or "omp2", package.seeall)
-
-require("stdnse")
-require("nmap")
+local nmap = require "nmap"
+local stdnse = require "stdnse"
+local table = require "table"
+_ENV = stdnse.module("omp2", stdnse.seeall)
 
 local HAVE_SSL = false
 
@@ -39,7 +39,7 @@ if pcall(require,'openssl') then
   HAVE_SSL = true
 end
 
---- A Session class holds connection and interaction with the server 
+--- A Session class holds connection and interaction with the server
 Session = {
 
   --- Creates a new session object
@@ -81,13 +81,13 @@ Session = {
       .. "</credentials></authenticate>")
 
     if not status then
-      stdnse.print_debug("ERROR: %s", err)
+      stdnse.debug1("ERROR: %s", err)
       return false, err
     end
 
     status, xmldata = self.socket:receive()
     if not status then
-      stdnse.print_debug("ERROR: %s", xmldata)
+      stdnse.debug1("ERROR: %s", xmldata)
       return false, xmldata
     end
 
@@ -102,13 +102,13 @@ Session = {
     status, err = self.socket:send("<get_targets/>")
 
     if not status then
-      stdnse.print_debug("ERROR: %s", err)
+      stdnse.debug1("ERROR: %s", err)
       return false, err
     end
 
     status, xmldata = self.socket:receive()
     if not status then
-      stdnse.print_debug("ERROR: %s", xmldata)
+      stdnse.debug1("ERROR: %s", xmldata)
       return false, xmldata
     end
 
@@ -177,3 +177,5 @@ function get_accounts(host)
   return nil
 end
 
+
+return _ENV;

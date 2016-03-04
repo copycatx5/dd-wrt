@@ -62,13 +62,6 @@ extern int br_add_interface(const char *br, const char *dev);
 
 // returns the number of installed atheros devices/cards
 
-static char iflist[1024];
-
-char *getiflist(void)
-{
-	return iflist;
-}
-
 static int need_commit = 0;
 
 void setupSupplicant(char *prefix)
@@ -428,8 +421,15 @@ void configure_wifi_single(int idx)	// madwifi implementation for atheros based
 	char *next;
 
 	startradius[idx] = 0;
-	deconfigure_wifi();
-#if (defined(HAVE_DIR600) || defined(HAVE_AR670W) || defined(HAVE_AR690W) || defined(HAVE_VF803) || defined(HAVE_HAMEA15)) && !defined(HAVE_ALL02310N)
+#ifdef HAVE_DIR810L
+	char mac[32];
+	char mac5[32];
+	strcpy(mac, nvram_default_get("et0macaddr_safe", "00:11:22:33:44:55"));
+	strcpy(mac5, nvram_default_get("et0macaddr_safe", "00:11:22:33:44:55"));
+	MAC_ADD(mac5);
+	MAC_ADD(mac5);
+
+#elif (defined(HAVE_DIR600) || defined(HAVE_AR670W) || defined(HAVE_AR690W) || defined(HAVE_VF803) || defined(HAVE_HAMEA15)) && !defined(HAVE_ALL02310N)
 	char mac[32];
 	strcpy(mac, nvram_default_get("et0macaddr_safe", "00:11:22:33:44:55"));
 	MAC_ADD(mac);
@@ -475,17 +475,21 @@ void configure_wifi_single(int idx)	// madwifi implementation for atheros based
 		eval("ifconfig", "wds18", "down");
 		eval("ifconfig", "wds19", "down");
 		eval("ifconfig", "apcli1", "down");
+		rmmod("MT7610_ap");
 		rmmod("RTPCI_ap");
+		rmmod("rlt_wifi");
 		rmmod("rt2860v2_ap");
 		rmmod("rt2860v2_sta");
 		rmmod("rt3062ap");
 		rmmod("rt2860ap");
 	}
-	if (nvram_nmatch("disabled", "wl%d_net_mode", idx))
-		return;
 	char *cname = "/tmp/RT2860.dat";
 	if (idx == 1)
 		cname = "/tmp/RT2860_pci.dat";
+	if (nvram_nmatch("disabled", "wl%d_net_mode", idx)) {
+		eval("rm", "-f", cname);
+		return;
+	}
 
 	FILE *fp = fopen(cname, "wb");	// config file for driver (don't ask me, its really the worst config thing i have seen)
 
@@ -594,6 +598,9 @@ void configure_wifi_single(int idx)	// madwifi implementation for atheros based
 	}
 /* suggestion by Jimmy */
 //      fprintf( fp, "HtBw=1\n" );
+	char *refif = "ra0";
+	if (idx == 1)
+		refif = "ba0";
 
 	if (nvram_nmatch("bg-mixed", "wl%d_net_mode", idx))
 		fprintf(fp, "WirelessMode=0\n");
@@ -613,8 +620,20 @@ void configure_wifi_single(int idx)	// madwifi implementation for atheros based
 		fprintf(fp, "WirelessMode=11\n");
 	if (nvram_nmatch("na-only", "wl%d_net_mode", idx))
 		fprintf(fp, "WirelessMode=8\n");
-	if (nvram_nmatch("mixed", "wl%d_net_mode", idx))
-		fprintf(fp, "WirelessMode=5\n");
+
+	if (nvram_nmatch("mixed", "wl%d_net_mode", idx)) {
+		if (has_ac(refif))
+			fprintf(fp, "WirelessMode=14\n");
+		else
+			fprintf(fp, "WirelessMode=5\n");
+	}
+	if (nvram_nmatch("ac-only", "wl%d_net_mode", idx)) {
+		fprintf(fp, "WirelessMode=15\n");
+		fprintf(fp, "VHT_DisallowNonVHT=1\n");
+	}
+	if (nvram_nmatch("acn-mixed", "wl%d_net_mode", idx)) {
+		fprintf(fp, "WirelessMode=15\n");
+	}
 
 	char hidestr[64];
 
@@ -665,17 +684,17 @@ void configure_wifi_single(int idx)	// madwifi implementation for atheros based
 		strcat(keyidstr, "1");
 	else
 		strcat(keyidstr, nvram_nget("wl%d_key", idx));
-
+	char tmp[256];
 	if (idx == 0) {
 		if (nvram_nmatch("0", "ra%d_bridged", idx))
 			strcat(eapifname, "ra0");
 		else
-			strcat(eapifname, getBridge("ra0"));
+			strcat(eapifname, getBridge("ra0", tmp));
 	} else {
 		if (nvram_nmatch("0", "ba%d_bridged", idx))
 			strcat(eapifname, "ba0");
 		else
-			strcat(eapifname, getBridge("ba0"));
+			strcat(eapifname, getBridge("ba0", tmp));
 
 	}
 	if (nvram_nmatch("wep", "wl%d_akm", idx)) {
@@ -791,7 +810,7 @@ void configure_wifi_single(int idx)	// madwifi implementation for atheros based
 		if (nvram_nmatch("0", "%s_bridged", getRADev(var)))
 			strcat(eapifname, getRADev(var));
 		else
-			strcat(eapifname, getBridge(getRADev(var)));
+			strcat(eapifname, getBridge(getRADev(var), tmp));
 		strcat(keyidstr, ";");
 		if (nvram_nmatch("", "%s_key", var))
 			strcat(keyidstr, "1");
@@ -934,17 +953,28 @@ void configure_wifi_single(int idx)	// madwifi implementation for atheros based
 //channel width
 	if (nvram_nmatch("20", "wl%d_nbw", idx))
 		fprintf(fp, "HT_BW=0\n");
-	else
+	else if (nvram_nmatch("40", "wl%d_nbw", idx))
 		fprintf(fp, "HT_BW=1\n");
+	else if (nvram_nmatch("80", "wl%d_nbw", idx)) {
+		fprintf(fp, "HT_BW=1\n");
+		fprintf(fp, "VHT_BW=1\n");
+	}
 
 	int channel = atoi(nvram_nget("wl%d_channel", idx));
 
-	if (channel <= 4)
-		fprintf(fp, "HT_EXTCHA=1\n");
-	else if (channel >= 8)
-		fprintf(fp, "HT_EXTCHA=0\n");
-	else
-		fprintf(fp, "HT_EXTCHA=0\n");
+	int ext_chan = 0;
+	if (idx == 0) {
+		if (nvram_match("wl0_nctrlsb", "ll") || nvram_match("wl0_nctrlsb", "lower") || nvram_match("wl0_nctrlsb", "lu"))
+			ext_chan = 1;
+		if (channel <= 4)
+			ext_chan = 1;
+		if (channel >= 10)
+			ext_chan = 0;
+	} else {
+		if (nvram_match("wl1_nctrlsb", "ll") || nvram_match("wl1_nctrlsb", "lower") || nvram_match("wl1_nctrlsb", "lu"))
+			ext_chan = 1;
+	}
+	fprintf(fp, "HT_EXTCHA=%d\n", ext_chan);
 
 	int mcs;
 	if (idx == 0) {
@@ -1036,6 +1066,8 @@ void configure_wifi_single(int idx)	// madwifi implementation for atheros based
 //station
 
 	if (nvram_nmatch("apsta", "wl%d_mode", idx) || nvram_nmatch("apstawet", "wl%d_mode", idx)) {
+		char *essid = nvram_nget("wl%d_ssid", idx);
+		char *key = NULL;
 		fprintf(fp, "ApCliEnable=1\n");
 		fprintf(fp, "ApCliSsid=%s\n", nvram_nget("wl%d_ssid", idx));
 		if (nvram_nmatch("psk", "wl%d_akm", idx)
@@ -1059,11 +1091,13 @@ void configure_wifi_single(int idx)	// madwifi implementation for atheros based
 					fprintf(fp, "ApCliEncrypType=TKIPAES\n");
 				fprintf(fp, "ApCliAuthMode=WPA2PSK\n");
 			}
+			key = nvram_nget("wl%d_wpa_psk", idx);
 			fprintf(fp, "ApCliWPAPSK=%s\n", nvram_nget("wl%d_wpa_psk", idx));
 		}
 		if (nvram_nmatch("disabled", "wl%d_akm", idx)) {
 			fprintf(fp, "ApCliEncrypType=NONE\n");
 			fprintf(fp, "ApCliAuthMode=OPEN\n");
+			key = "";
 		}
 		if (nvram_nmatch("wep", "wl%d_akm", idx)) {
 			fprintf(fp, "ApCliEncrypType=WEP\n");
@@ -1082,7 +1116,13 @@ void configure_wifi_single(int idx)	// madwifi implementation for atheros based
 			fprintf(fp, "ApCliKey2Str=%s\n", nvram_nget("wl%d_key2", idx));
 			fprintf(fp, "ApCliKey3Str=%s\n", nvram_nget("wl%d_key3", idx));
 			fprintf(fp, "ApCliKey4Str=%s\n", nvram_nget("wl%d_key4", idx));
+			int keyidx = atoi(nvram_nget("wl%d_key", idx));
+			key = nvram_nget("wl%d_key%d", idx, keyidx);
 		}
+		if (idx == 0)
+			eval("ap_client", "ra0", "apcli0", essid, key);
+		else
+			eval("ap_client", "ba0", "apcli1", essid, key);
 	} else {
 		fprintf(fp, "ApCliEnable=0\n");
 	}
@@ -1111,10 +1151,15 @@ void configure_wifi_single(int idx)	// madwifi implementation for atheros based
 	fprintf(fp, "HT_BAWinSize=64\n");
 	fprintf(fp, "HT_GI=1\n");
 	fprintf(fp, "HT_STBC=1\n");
+	if (has_ac(refif)) {
+		fprintf(fp, "HT_LDPC=1\n");
+		fprintf(fp, "VHT_STBC=1\n");
+		fprintf(fp, "VHT_LDPC=1\n");
+	}
 	fclose(fp);
 
 	if (isSTA(idx)) {
-#if (defined(HAVE_DIR600) || defined(HAVE_AR670W) || defined(HAVE_AR690W) || defined(HAVE_VF803) || defined(HAVE_HAMEA15)) && !defined(HAVE_ALL02310N)
+#if (defined(HAVE_DIR600) || defined(HAVE_AR670W) || defined(HAVE_AR690W) || defined(HAVE_VF803) || defined(HAVE_DIR810L) || defined(HAVE_HAMEA15)) && !defined(HAVE_ALL02310N)
 		if (nvram_match("mac_clone_enable", "1") && nvram_invmatch("def_whwaddr", "00:00:00:00:00:00") && nvram_invmatch("def_whwaddr", "")) {
 			sysprintf("insmod rt2860v2_sta mac=%s", nvram_safe_get("def_whwaddr"));
 		} else {
@@ -1135,7 +1180,7 @@ void configure_wifi_single(int idx)	// madwifi implementation for atheros based
 		if (nvram_default_match(bridged, "1", "1")) {
 			sysprintf("ifconfig %s 0.0.0.0 up", raif);
 			if (nvram_nmatch("infra", "wl%d_mode", idx)) {
-				br_add_interface(getBridge(raif), raif);
+				br_add_interface(getBridge(raif, tmp), raif);
 			}
 		} else {
 			sysprintf("ifconfig %s mtu %s", raif, getMTU(raif));
@@ -1152,7 +1197,7 @@ void configure_wifi_single(int idx)	// madwifi implementation for atheros based
 		setupSupplicant(dev);
 	} else {
 		if (idx == 0) {
-#if (defined(HAVE_DIR600) || defined(HAVE_AR670W) || defined(HAVE_AR690W) || defined(HAVE_VF803) || defined(HAVE_HAMEA15)) && !defined(HAVE_ALL02310N)
+#if (defined(HAVE_DIR600) || defined(HAVE_AR670W) || defined(HAVE_AR690W) || defined(HAVE_VF803) || defined(HAVE_DIR810L) || defined(HAVE_HAMEA15)) && !defined(HAVE_ALL02310N)
 			if (nvram_match("mac_clone_enable", "1") && nvram_invmatch("def_whwaddr", "00:00:00:00:00:00") && nvram_invmatch("def_whwaddr", "")) {
 				sysprintf("insmod rt2860v2_ap mac=%s", nvram_safe_get("def_whwaddr"));
 				if (nvram_match("rtchip", "3062"))
@@ -1175,13 +1220,32 @@ void configure_wifi_single(int idx)	// madwifi implementation for atheros based
 #endif
 		} else {
 			insmod("RTPCI_ap");
+			insmod("rlt_wifi");
+#ifdef HAVE_DIR810L
+			sysprintf("insmod MT7610_ap mac=%s\n", mac5);
+#else
+			insmod("MT7610_ap");
+#endif
 		}
+	}
 
-		char dev[32];
-		sprintf(dev, "wl%d", idx);
-		char bridged[32];
-		char *raif = get_wl_instance_name(idx);
-		char apcliif[32];
+}
+
+void init_network(int idx)
+{
+	char var[64];
+	char *next;
+	char *vifs;
+	char dev[32];
+	sprintf(dev, "wl%d", idx);
+	char bridged[32];
+	char *raif = get_wl_instance_name(idx);
+	char apcliif[32];
+	int s;
+	char tmp[256];
+
+	if (!isSTA(idx)) {
+
 		sprintf(apcliif, "apcli%d", idx);
 
 		sprintf(bridged, "%s_bridged", getRADev(dev));
@@ -1189,12 +1253,12 @@ void configure_wifi_single(int idx)	// madwifi implementation for atheros based
 			if (getSTA() || getWET()) {
 				sysprintf("ifconfig %s 0.0.0.0 up", raif);
 				sysprintf("ifconfig %s 0.0.0.0 up", apcliif);
-				br_add_interface(getBridge(apcliif), raif);
+				br_add_interface(getBridge(apcliif, tmp), raif);
 				if (getWET())
-					br_add_interface(getBridge(apcliif), apcliif);
+					br_add_interface(getBridge(apcliif, tmp), apcliif);
 			} else {
 				sysprintf("ifconfig %s 0.0.0.0 up", raif);
-				br_add_interface(getBridge(raif), raif);
+				br_add_interface(getBridge(raif, tmp), raif);
 			}
 		} else {
 			if (getSTA() || getWET()) {
@@ -1228,7 +1292,7 @@ void configure_wifi_single(int idx)	// madwifi implementation for atheros based
 
 					sprintf(ra, "ra%d", count + (8 * idx));
 					sysprintf("ifconfig ra%d 0.0.0.0 up", count + (8 * idx));
-					br_add_interface(getBridge(getRADev(var)), ra);
+					br_add_interface(getBridge(getRADev(var), tmp), ra);
 				} else {
 					char ip[32];
 					char mask[32];
@@ -1268,9 +1332,7 @@ void configure_wifi_single(int idx)	// madwifi implementation for atheros based
 				continue;
 			hwaddr = nvram_get(wdsmacname);
 			if (hwaddr != NULL) {
-				char *newdev = getWDSDev(wdsdev);
-
-				sysprintf("ifconfig %s 0.0.0.0 up", newdev);
+				sysprintf("ifconfig %s 0.0.0.0 up", wdsdev);
 			}
 		}
 
@@ -1320,11 +1382,6 @@ void configure_wifi_single(int idx)	// madwifi implementation for atheros based
 		br_del_bridge("br1");
 		br_add_bridge("br1");
 
-		if (nvram_match("lan_stp", "0"))
-			br_set_stp_state("br1", 0);	// eval ("brctl", "stp",
-		// "br1", "off");
-		else
-			br_set_stp_state("br1", 1);	// eval ("brctl", "stp",
 		// "br1", "off");
 		br_set_bridge_forward_delay("br1", 2);
 
@@ -1333,16 +1390,7 @@ void configure_wifi_single(int idx)	// madwifi implementation for atheros based
 		 */
 		if (nvram_invmatch(br1ipaddr, "0.0.0.0")) {
 			ifconfig("br1", IFUP, nvram_safe_get(br1ipaddr), nvram_safe_get(br1netmask));
-
-			if (nvram_match("lan_stp", "0"))
-				br_set_stp_state("br1", 0);	// eval ("brctl",
-			// "stp", "br1",
-			// "off");
-			else
-				br_set_stp_state("br1", 1);	// eval ("brctl",
-			// "stp", "br1",
-			// "off");
-
+			br_set_stp_state("br1", getBridgeSTP("br1"));
 			sleep(2);
 		}
 
@@ -1363,7 +1411,6 @@ void configure_wifi_single(int idx)	// madwifi implementation for atheros based
 		dev = nvram_safe_get(wdsdevname);
 		if (strlen(dev) == 0)
 			continue;
-		dev = getWDSDev(dev);
 		ifconfig(dev, 0, 0, 0);
 
 		// eval ("ifconfig", dev, "down");
@@ -1385,9 +1432,10 @@ void configure_wifi_single(int idx)	// madwifi implementation for atheros based
 		} else if (nvram_match(wdsvarname, "3")) {
 			ifconfig(dev, IFUP, 0, 0);
 			sleep(1);
-			br_add_interface(getBridge(dev), dev);
+			br_add_interface(getBridge(dev, tmp), dev);
 		}
 	}
+
 	reset_hwaddr(nvram_safe_get("lan_ifname"));
 
 }
@@ -1409,9 +1457,13 @@ void start_hostapdwan(void)
 
 void configure_wifi(void)
 {
+	deconfigure_wifi();
 	configure_wifi_single(0);
 	if (get_wl_instances() == 2)
 		configure_wifi_single(1);
+	init_network(0);
+	if (get_wl_instances() == 2)
+		init_network(1);
 }
 
 void start_configurewifi(void)

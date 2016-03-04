@@ -241,6 +241,9 @@ void init_tun_post (struct tuntap *tt,
 		    const struct frame *frame,
 		    const struct tuntap_options *options);
 
+void do_ifconfig_setenv (const struct tuntap *tt,
+		  struct env_set *es);
+
 void do_ifconfig (struct tuntap *tt,
 		  const char *actual,    /* actual device name */
 		  int tun_mtu,
@@ -374,6 +377,19 @@ tuntap_stop (int status)
   return false;
 }
 
+static inline bool
+tuntap_abort(int status)
+{
+  /*
+   * Typically generated when driver is halted.
+   */
+  if (status < 0)
+    {
+      return openvpn_errno() == ERROR_OPERATION_ABORTED;
+    }
+  return false;
+}
+
 static inline int
 tun_write_win32 (struct tuntap *tt, struct buffer *buf)
 {
@@ -411,6 +427,12 @@ write_tun_buffered (struct tuntap *tt, struct buffer *buf)
 
 static inline bool
 tuntap_stop (int status)
+{
+  return false;
+}
+
+static inline bool
+tuntap_abort(int status)
 {
   return false;
 }

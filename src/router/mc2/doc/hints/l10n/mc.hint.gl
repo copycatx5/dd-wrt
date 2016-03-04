@@ -1,11 +1,12 @@
-Consello: C-x t copia os nomes dos ficheiros marcados na liña de ordes.
+Consello: Use C-x t para copiar os nomes dos ficheiros marcados na liña de
+ordes.
 
 Consello: C-x p copia a ruta actual na liña de ordes.
 
 Consello: M-Tab (ou ESC+Tab) completa ordes/nomes  Dúas veces devolve unha
 lista.
 
-Consello: M-p e M-n accede ao historial de ordes.
+Consello: Use M-p e M-n para acceder ao historial de ordes.
 
 Consello: para introducir un carácter especial: Ctrl-q e o carácter.
 
@@ -28,8 +29,7 @@ contido.
 
 Suxestión: temos tamén unha páxina de manual: «man mc»
 
-Consello: quere navegar ao estilo «Lynx» coas frechas? axústeo no cadro de
-diálogo de configuración.
+Hint: Do you want Lynx-style navigation? Set it in the Configuration dialog.
 
 Consello: as macros con % funcionan incluso na liña de ordes.
 

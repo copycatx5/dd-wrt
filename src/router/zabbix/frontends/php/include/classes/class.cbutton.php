@@ -1,7 +1,7 @@
 <?php
 /*
 ** Zabbix
-** Copyright (C) 2001-2013 Zabbix SIA
+** Copyright (C) 2001-2015 Zabbix SIA
 **
 ** This program is free software; you can redistribute it and/or modify
 ** it under the terms of the GNU General Public License as published by
@@ -26,20 +26,11 @@ class CButton extends CInput {
 	 *
 	 * @var int
 	 */
-	protected $valueEncStrategy = self::ENC_NOAMP;
+	protected $attrEncStrategy = self::ENC_NOAMP;
 
 	public function __construct($name = 'button', $caption = '', $action = null, $class = null) {
 		parent::__construct('button', $name, $caption, $class);
 		$this->addAction('onclick', $action);
 		return $this;
-	}
-
-	public function setAccessKey($value = 'B') {
-		if (isset($value)) {
-			if (!isset($this->attributes['title'])) {
-				$this->setTitle($this->attributes['value'].' [Alt+'.$value.']');
-			}
-		}
-		return $this->setAttribute('accessKey', $value);
 	}
 }

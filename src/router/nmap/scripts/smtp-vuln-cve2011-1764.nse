@@ -1,3 +1,10 @@
+local shortport = require "shortport"
+local smtp = require "smtp"
+local stdnse = require "stdnse"
+local string = require "string"
+local table = require "table"
+local vulns = require "vulns"
+
 description = [[
 Checks for a format string vulnerability in the Exim SMTP server
 (version 4.70 through 4.75) with DomainKeys Identified Mail (DKIM) support
@@ -20,7 +27,7 @@ Reference:
 -- @output
 -- PORT   STATE SERVICE
 -- 25/tcp open  smtp
--- | smtp-vuln-cve2011-1764: 
+-- | smtp-vuln-cve2011-1764:
 -- |   VULNERABLE:
 -- |   Exim DKIM format string
 -- |     State: VULNERABLE
@@ -44,13 +51,9 @@ Reference:
 --       to be used.
 
 author = "Djalal Harouni"
-license = "Same as Nmap--See http://nmap.org/book/man-legal.html"
+license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
 categories = {"intrusive", "vuln"}
 
-require "shortport"
-require "smtp"
-require "stdnse"
-require "vulns"
 
 portrule = function (host, port)
   if port.version.product ~= nil and port.version.product ~= "Exim smtpd" then
@@ -77,12 +80,11 @@ local function get_exim_banner(response)
 end
 
 -- Sends the mail with the evil DKIM-Signatures header.
--- Returns true, true if the Exim server is vulnrable
+-- Returns true, true if the Exim server is vulnerable
 local function check_dkim(socket, smtp_opts)
   local killed = false
-  
-  stdnse.print_debug(2, "%s: checking the Exim DKIM Format String",
-        SCRIPT_NAME)
+
+  stdnse.debug2("checking the Exim DKIM Format String")
 
   local status, response = smtp.mail(socket, smtp_opts.mailfrom)
   if not status then
@@ -99,20 +101,19 @@ local function check_dkim(socket, smtp_opts)
     return status, response
   end
 
-  local message = "MIME-Version: 1.0\r\n"
-  message = message..string.format("From: <%s>\r\nTo: <%s>\r\n",
-                                   smtp_opts.mailfrom,
-                                   smtp_opts.mailto)
-  message = message.."Subject: Nmap Exim DKIM Format String check\r\n"
-
-  -- use a fake DKIM-Signature header.
-  message = message.."DKIM-Signature: v=1; a=%s%s%s%s;"
-  message = message.." c=%s%s%s%s; q=dns/txt;\r\n"
-  message = message.." d=%s%s%s%s; s=%s%s%s%s;\r\n"
-  message = message.." h=mime-version:from:to:subject;\r\n"
-  message = message.." bh=MTIzNDU2Nzg5MDEyMzQ1Njc4OTAxMjM0NTY3ODkwMTI=;\r\n"
-  message = message.." b=DyE0uKynaea3Y66zkrnMaBqtYPYVXhazCKGBiZKMNywclgbj0MkREPH3t2EWByev9g="
-  status, response = socket:send(message.."\r\n")
+  local message = (
+    string.format( "MIME-Version: 1.0\r\nFrom: <%s>\r\nTo: <%s>\r\n",
+      smtp_opts.mailfrom, smtp_opts.mailto)
+    .."Subject: Nmap Exim DKIM Format String check\r\n"
+    -- use a fake DKIM-Signature header.
+    .."DKIM-Signature: v=1; a=%s%s%s%s;"
+    .." c=%s%s%s%s; q=dns/txt;\r\n"
+    .." d=%s%s%s%s; s=%s%s%s%s;\r\n"
+    .." h=mime-version:from:to:subject;\r\n"
+    .." bh=MTIzNDU2Nzg5MDEyMzQ1Njc4OTAxMjM0NTY3ODkwMTI=;\r\n"
+    .." b=DyE0uKynaea3Y66zkrnMaBqtYPYVXhazCKGBiZKMNywclgbj0MkREPH3t2EWByev9g=\r\n"
+    )
+  status, response = socket:send(message)
   if not status then
     return status, "failed to send the message."
   end
@@ -120,8 +121,7 @@ local function check_dkim(socket, smtp_opts)
   status, response = smtp.query(socket, ".")
   if not status then
     if string.match(response, "connection closed") then
-      stdnse.print_debug(2,
-          "%s: Exim server is vulnerable to DKIM Format String", SCRIPT_NAME)
+      stdnse.debug2("Exim server is vulnerable to DKIM Format String")
       killed = true
     else
       return status, "failed to terminate the message, seems NOT VULNERABLE"
@@ -169,7 +169,7 @@ local function check_exim(smtp_opts)
       return smtp_finish(socket, true)
     end
   end
-  
+
   local status, response = smtp.ehlo(socket, smtp_opts.domain)
   if not status then
     return smtp_finish(socket, status, response)
@@ -229,7 +229,7 @@ arbitrary code with the privileges of the Exim daemon.]],
   local report = vulns.Report:new(SCRIPT_NAME, host, port)
   local status, err = check_exim(smtp_opts)
   if not status then
-    stdnse.print_debug(1, "%s: %s", SCRIPT_NAME, err)
+    stdnse.debug1("%s", err)
     return nil
   end
   return report:make_output(smtp_opts.vuln)

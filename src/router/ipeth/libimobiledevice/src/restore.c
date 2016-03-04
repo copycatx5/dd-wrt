@@ -27,7 +27,7 @@
 #include "property_list_service.h"
 #include "restore.h"
 #include "idevice.h"
-#include "debug.h"
+#include "common/debug.h"
 
 #define RESULT_SUCCESS 0
 #define RESULT_FAILURE 1
@@ -85,19 +85,11 @@ static void plist_dict_add_label(plist_t plist, const char *label)
 {
 	if (plist && label) {
 		if (plist_get_node_type(plist) == PLIST_DICT)
-			plist_dict_insert_item(plist, "Label", plist_new_string(label));
+			plist_dict_set_item(plist, "Label", plist_new_string(label));
 	}
 }
 
-/**
- * Closes the restored client session if one is running and frees up the
- * restored_client struct.
- *
- * @param client The restore client
- *
- * @return RESTORE_E_SUCCESS on success, NP_E_INVALID_ARG when client is NULL
- */
-restored_error_t restored_client_free(restored_client_t client)
+LIBIMOBILEDEVICE_API restored_error_t restored_client_free(restored_client_t client)
 {
 	if (!client)
 		return RESTORE_E_INVALID_ARG;
@@ -127,14 +119,7 @@ restored_error_t restored_client_free(restored_client_t client)
 	return ret;
 }
 
-/**
- * Sets the label to send for requests to restored.
- *
- * @param client The restore client
- * @param label The label to set or NULL to disable sending a label
- *
- */
-void restored_client_set_label(restored_client_t client, const char *label)
+LIBIMOBILEDEVICE_API void restored_client_set_label(restored_client_t client, const char *label)
 {
 	if (client) {
 		if (client->label)
@@ -144,16 +129,7 @@ void restored_client_set_label(restored_client_t client, const char *label)
 	}
 }
 
-/**
- * Receives a plist from restored.
- *
- * @param client The restored client
- * @param plist The plist to store the received data
- *
- * @return RESTORE_E_SUCCESS on success, NP_E_INVALID_ARG when client or
- *  plist is NULL
- */
-restored_error_t restored_receive(restored_client_t client, plist_t *plist)
+LIBIMOBILEDEVICE_API restored_error_t restored_receive(restored_client_t client, plist_t *plist)
 {
 	if (!client || !plist || (plist && *plist))
 		return RESTORE_E_INVALID_ARG;
@@ -172,25 +148,13 @@ restored_error_t restored_receive(restored_client_t client, plist_t *plist)
 	return ret;
 }
 
-/**
- * Sends a plist to restored.
- *
- * @note This function is low-level and should only be used if you need to send
- *        a new type of message.
- *
- * @param client The restored client
- * @param plist The plist to send
- *
- * @return RESTORE_E_SUCCESS on success, NP_E_INVALID_ARG when client or
- *  plist is NULL
- */
-restored_error_t restored_send(restored_client_t client, plist_t plist)
+LIBIMOBILEDEVICE_API restored_error_t restored_send(restored_client_t client, plist_t plist)
 {
 	if (!client || !plist)
 		return RESTORE_E_INVALID_ARG;
 
 	restored_error_t ret = RESTORE_E_SUCCESS;
-	idevice_error_t err;
+	property_list_service_error_t err;
 
 	err = property_list_service_send_xml_plist(client->parent, plist);
 	if (err != PROPERTY_LIST_SERVICE_E_SUCCESS) {
@@ -199,17 +163,7 @@ restored_error_t restored_send(restored_client_t client, plist_t plist)
 	return ret;
 }
 
-/**
- * Query the type of the service daemon. Depending on whether the device is
- * queried in normal mode or restore mode, different types will be returned.
- *
- * @param client The restored client
- * @param type The type returned by the service daemon. Pass NULL to ignore.
- * @param version The restore protocol version. Pass NULL to ignore.
- *
- * @return RESTORE_E_SUCCESS on success, NP_E_INVALID_ARG when client is NULL
- */
-restored_error_t restored_query_type(restored_client_t client, char **type, uint64_t *version)
+LIBIMOBILEDEVICE_API restored_error_t restored_query_type(restored_client_t client, char **type, uint64_t *version)
 {
 	if (!client)
 		return RESTORE_E_INVALID_ARG;
@@ -218,7 +172,7 @@ restored_error_t restored_query_type(restored_client_t client, char **type, uint
 
 	plist_t dict = plist_new_dict();
 	plist_dict_add_label(dict, client->label);
-	plist_dict_insert_item(dict,"Request", plist_new_string("QueryType"));
+	plist_dict_set_item(dict,"Request", plist_new_string("QueryType"));
 
 	debug_info("called");
 	ret = restored_send(client, dict);
@@ -232,20 +186,20 @@ restored_error_t restored_query_type(restored_client_t client, char **type, uint
 		return ret;
 
 	ret = RESTORE_E_UNKNOWN_ERROR;
-	if (restored_check_result(dict) == RESULT_SUCCESS) {
+	plist_t type_node = plist_dict_get_item(dict, "Type");
+	if (type_node && (plist_get_node_type(type_node) == PLIST_STRING)) {
+		char* typestr = NULL;
+
 		/* save our device information info */
 		client->info = dict;
-		
+
+		plist_get_string_val(type_node, &typestr);
+		debug_info("success with type %s", typestr);
 		/* return the type if requested */
 		if (type) {
-			plist_t type_node = plist_dict_get_item(dict, "Type");
-			if (type_node && PLIST_STRING == plist_get_node_type(type_node)) {
-				plist_get_string_val(type_node, type);
-				debug_info("success with type %s", *type);
-				ret = RESTORE_E_SUCCESS;
-			} else {
-				return RESTORE_E_UNKNOWN_ERROR;
-			}
+			*type = typestr;
+		} else {
+			free(typestr);
 		}
 
 		/* fetch the restore protocol version */
@@ -254,27 +208,21 @@ restored_error_t restored_query_type(restored_client_t client, char **type, uint
 			if (version_node && PLIST_UINT == plist_get_node_type(version_node)) {
 				plist_get_uint_val(version_node, version);
 				debug_info("restored protocol version %llu", *version);
-				ret = RESTORE_E_SUCCESS;
 			} else {
 				return RESTORE_E_UNKNOWN_ERROR;
 			}
 		}
 		ret = RESTORE_E_SUCCESS;
+	} else {
+		debug_info("hmm. QueryType response does not contain a type?!");
+		debug_plist(dict);
+		plist_free(dict);
 	}
 
 	return ret;
 }
 
-/**
- * Queries a value from the device specified by a key.
- *
- * @param client An initialized restored client.
- * @param key The key name to request
- * @param value A plist node representing the result value node
- *
- * @return RESTORE_E_SUCCESS on success, NP_E_INVALID_ARG when client is NULL, RESTORE_E_PLIST_ERROR if value for key can't be found
- */
-restored_error_t restored_query_value(restored_client_t client, const char *key, plist_t *value)
+LIBIMOBILEDEVICE_API restored_error_t restored_query_value(restored_client_t client, const char *key, plist_t *value)
 {
 	if (!client || !key)
 		return RESTORE_E_INVALID_ARG;
@@ -286,9 +234,9 @@ restored_error_t restored_query_value(restored_client_t client, const char *key,
 	dict = plist_new_dict();
 	plist_dict_add_label(dict, client->label);
 	if (key) {
-		plist_dict_insert_item(dict,"QueryKey", plist_new_string(key));
+		plist_dict_set_item(dict,"QueryKey", plist_new_string(key));
 	}
-	plist_dict_insert_item(dict,"Request", plist_new_string("QueryValue"));
+	plist_dict_set_item(dict,"Request", plist_new_string("QueryValue"));
 
 	/* send to device */
 	ret = restored_send(client, dict);
@@ -316,16 +264,7 @@ restored_error_t restored_query_value(restored_client_t client, const char *key,
 	return ret;
 }
 
-/**
- * Retrieves a value from information plist specified by a key.
- *
- * @param client An initialized restored client.
- * @param key The key name to request or NULL to query for all keys
- * @param value A plist node representing the result value node
- *
- * @return RESTORE_E_SUCCESS on success, NP_E_INVALID_ARG when client is NULL, RESTORE_E_PLIST_ERROR if value for key can't be found
- */
-restored_error_t restored_get_value(restored_client_t client, const char *key, plist_t *value) 
+LIBIMOBILEDEVICE_API restored_error_t restored_get_value(restored_client_t client, const char *key, plist_t *value)
 {
 	if (!client || !value || (value && *value))
 		return RESTORE_E_INVALID_ARG;
@@ -352,21 +291,13 @@ restored_error_t restored_get_value(restored_client_t client, const char *key, p
 	return ret;
 }
 
-/**
- * Creates a new restored client for the device.
- *
- * @param device The device to create a restored client for
- * @param client The pointer to the location of the new restored_client
- * @param label The label to use for communication. Usually the program name.
- *
- * @return RESTORE_E_SUCCESS on success, NP_E_INVALID_ARG when client is NULL
- */
-restored_error_t restored_client_new(idevice_t device, restored_client_t *client, const char *label)
+LIBIMOBILEDEVICE_API restored_error_t restored_client_new(idevice_t device, restored_client_t *client, const char *label)
 {
 	if (!client)
 		return RESTORE_E_INVALID_ARG;
 
 	restored_error_t ret = RESTORE_E_SUCCESS;
+	idevice_error_t idev_ret;
 
 	static struct lockdownd_service_descriptor service = {
 		.port = 0xf27e,
@@ -387,9 +318,10 @@ restored_error_t restored_client_new(idevice_t device, restored_client_t *client
 	if (label != NULL)
 		client_loc->label = strdup(label);
 
-	ret = idevice_get_udid(device, &client_loc->udid);
-	if (RESTORE_E_SUCCESS != ret) {
+	idev_ret = idevice_get_udid(device, &client_loc->udid);
+	if (IDEVICE_E_SUCCESS != idev_ret) {
 		debug_info("failed to get device udid.");
+		ret = RESTORE_E_DEVICE_ERROR;
 	}
 	debug_info("device udid: %s", client_loc->udid);
 
@@ -402,15 +334,7 @@ restored_error_t restored_client_new(idevice_t device, restored_client_t *client
 	return ret;
 }
 
-/**
- * Sends the Goodbye request to restored signaling the end of communication.
- *
- * @param client The restore client
- *
- * @return RESTORE_E_SUCCESS on success, NP_E_INVALID_ARG when client is NULL,
- *  RESTORE_E_PLIST_ERROR if the device did not acknowledge the request
- */
-restored_error_t restored_goodbye(restored_client_t client)
+LIBIMOBILEDEVICE_API restored_error_t restored_goodbye(restored_client_t client)
 {
 	if (!client)
 		return RESTORE_E_INVALID_ARG;
@@ -419,7 +343,7 @@ restored_error_t restored_goodbye(restored_client_t client)
 
 	plist_t dict = plist_new_dict();
 	plist_dict_add_label(dict, client->label);
-	plist_dict_insert_item(dict,"Request", plist_new_string("Goodbye"));
+	plist_dict_set_item(dict,"Request", plist_new_string("Goodbye"));
 
 	debug_info("called");
 
@@ -442,17 +366,7 @@ restored_error_t restored_goodbye(restored_client_t client)
 	return ret;
 }
 
-/**
- * Requests to start a restore and retrieve it's port on success.
- *
- * @param client The restored client
- * @param options PLIST_DICT with options for the restore process or NULL
- * @param version the restore protocol version, see restored_query_type()
- *
- * @return RESTORE_E_SUCCESS on success, NP_E_INVALID_ARG if a parameter
- *  is NULL, RESTORE_E_START_RESTORE_FAILED if the request fails
- */
-restored_error_t restored_start_restore(restored_client_t client, plist_t options, uint64_t version)
+LIBIMOBILEDEVICE_API restored_error_t restored_start_restore(restored_client_t client, plist_t options, uint64_t version)
 {
 	if (!client)
 		return RESTORE_E_INVALID_ARG;
@@ -462,11 +376,11 @@ restored_error_t restored_start_restore(restored_client_t client, plist_t option
 
 	dict = plist_new_dict();
 	plist_dict_add_label(dict, client->label);
-	plist_dict_insert_item(dict,"Request", plist_new_string("StartRestore"));
+	plist_dict_set_item(dict,"Request", plist_new_string("StartRestore"));
 	if (options) {
-		plist_dict_insert_item(dict, "RestoreOptions", plist_copy(options));
+		plist_dict_set_item(dict, "RestoreOptions", plist_copy(options));
 	}
-	plist_dict_insert_item(dict,"RestoreProtocolVersion", plist_new_uint(version));
+	plist_dict_set_item(dict,"RestoreProtocolVersion", plist_new_uint(version));
 
 	/* send to device */
 	ret = restored_send(client, dict);
@@ -476,15 +390,7 @@ restored_error_t restored_start_restore(restored_client_t client, plist_t option
 	return ret;
 }
 
-/**
- * Requests device to reboot.
- *
- * @param client The restored client
- *
- * @return RESTORE_E_SUCCESS on success, NP_E_INVALID_ARG if a parameter
- *  is NULL
- */
-restored_error_t restored_reboot(restored_client_t client)
+LIBIMOBILEDEVICE_API restored_error_t restored_reboot(restored_client_t client)
 {
 	if (!client)
 		return RESTORE_E_INVALID_ARG;
@@ -494,7 +400,7 @@ restored_error_t restored_reboot(restored_client_t client)
 
 	dict = plist_new_dict();
 	plist_dict_add_label(dict, client->label);
-	plist_dict_insert_item(dict,"Request", plist_new_string("Reboot"));
+	plist_dict_set_item(dict,"Request", plist_new_string("Reboot"));
 
 	/* send to device */
 	ret = restored_send(client, dict);
@@ -515,4 +421,3 @@ restored_error_t restored_reboot(restored_client_t client)
 	dict = NULL;
 	return ret;
 }
-

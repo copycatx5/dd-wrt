@@ -1,6 +1,6 @@
 /*
 ** Zabbix
-** Copyright (C) 2001-2013 Zabbix SIA
+** Copyright (C) 2001-2015 Zabbix SIA
 **
 ** This program is free software; you can redistribute it and/or modify
 ** it under the terms of the GNU General Public License as published by
@@ -38,13 +38,13 @@
  * Author: Alexei Vladishev                                                   *
  *                                                                            *
  ******************************************************************************/
-static zbx_uint64_t	select_discovered_host(DB_EVENT *event)
+static zbx_uint64_t	select_discovered_host(const DB_EVENT *event)
 {
 	const char	*__function_name = "select_discovered_host";
 	DB_RESULT	result;
 	DB_ROW		row;
 	zbx_uint64_t	hostid = 0;
-	char		sql[512];
+	char		*sql = NULL;
 
 	zabbix_log(LOG_LEVEL_DEBUG, "In %s() eventid:" ZBX_FS_UI64,
 			__function_name, event->eventid);
@@ -52,34 +52,46 @@ static zbx_uint64_t	select_discovered_host(DB_EVENT *event)
 	switch (event->object)
 	{
 		case EVENT_OBJECT_DHOST:
-			zbx_snprintf(sql, sizeof(sql),
-				"select h.hostid"
-				" from hosts h,interface i,dservices ds"
+			sql = zbx_dsprintf(sql,
+				"select h.hostid,h.status"
+				" from hosts h,interface i,dservices ds,dchecks dc,drules dr"
 				" where h.hostid=i.hostid"
-					" and i.useip=1"
 					" and i.ip=ds.ip"
+					" and ds.dcheckid=dc.dcheckid"
+					" and dc.druleid=dr.druleid"
+					" and h.status in (%d,%d)"
+					" and " ZBX_SQL_NULLCMP("dr.proxy_hostid", "h.proxy_hostid")
+					" and i.useip=1"
 					" and ds.dhostid=" ZBX_FS_UI64
-					DB_NODE
+					ZBX_SQL_NODE
 				" order by i.hostid",
-				event->objectid, DBnode_local("i.interfaceid"));
+				HOST_STATUS_MONITORED, HOST_STATUS_NOT_MONITORED,
+				event->objectid, DBand_node_local("i.interfaceid"));
 			break;
 		case EVENT_OBJECT_DSERVICE:
-			zbx_snprintf(sql, sizeof(sql),
-				"select h.hostid"
-				" from hosts h,interface i,dservices ds"
+			sql = zbx_dsprintf(sql,
+				"select h.hostid,h.status"
+				" from hosts h,interface i,dservices ds,dchecks dc,drules dr"
 				" where h.hostid=i.hostid"
-					" and i.useip=1"
 					" and i.ip=ds.ip"
-					" and ds.dserviceid =" ZBX_FS_UI64
-					DB_NODE
+					" and ds.dcheckid=dc.dcheckid"
+					" and dc.druleid=dr.druleid"
+					" and h.status in (%d,%d)"
+					" and " ZBX_SQL_NULLCMP("dr.proxy_hostid", "h.proxy_hostid")
+					" and i.useip=1"
+					" and ds.dserviceid=" ZBX_FS_UI64
+					ZBX_SQL_NODE
 				" order by i.hostid",
-				event->objectid, DBnode_local("i.interfaceid"));
+				HOST_STATUS_MONITORED, HOST_STATUS_NOT_MONITORED,
+				event->objectid, DBand_node_local("i.interfaceid"));
 			break;
 		default:
 			goto exit;
 	}
 
 	result = DBselectN(sql, 1);
+
+	zbx_free(sql);
 
 	if (NULL != (row = DBfetch(result)))
 		ZBX_STR2UINT64(hostid, row[0]);
@@ -124,11 +136,13 @@ static void	add_discovered_host_groups(zbx_uint64_t hostid, zbx_vector_uint64_t 
 
 	result = DBselect("%s", sql);
 
+	zbx_free(sql);
+
 	while (NULL != (row = DBfetch(result)))
 	{
 		ZBX_STR2UINT64(groupid, row[0]);
 
-		if (FAIL == (i = zbx_vector_uint64_bsearch(groupids, groupid, ZBX_DEFAULT_UINT64_COMPARE_FUNC)))
+		if (FAIL == (i = zbx_vector_uint64_search(groupids, groupid, ZBX_DEFAULT_UINT64_COMPARE_FUNC)))
 		{
 			THIS_SHOULD_NEVER_HAPPEN;
 			continue;
@@ -140,36 +154,23 @@ static void	add_discovered_host_groups(zbx_uint64_t hostid, zbx_vector_uint64_t 
 
 	if (0 != groupids->values_num)
 	{
-		const char	*ins_hosts_groups_sql = "insert into hosts_groups (hostgroupid,hostid,groupid) values ";
 		zbx_uint64_t	hostgroupid;
+		zbx_db_insert_t	db_insert;
 
 		hostgroupid = DBget_maxid_num("hosts_groups", groupids->values_num);
 
-		sql_offset = 0;
-		DBbegin_multiple_update(&sql, &sql_alloc, &sql_offset);
-#ifdef HAVE_MULTIROW_INSERT
-		zbx_strcpy_alloc(&sql, &sql_alloc, &sql_offset, ins_hosts_groups_sql);
-#endif
+		zbx_db_insert_prepare(&db_insert, "hosts_groups", "hostgroupid", "hostid", "groupid", NULL);
+
+		zbx_vector_uint64_sort(groupids, ZBX_DEFAULT_UINT64_COMPARE_FUNC);
+
 		for (i = 0; i < groupids->values_num; i++)
 		{
-#ifndef HAVE_MULTIROW_INSERT
-			zbx_strcpy_alloc(&sql, &sql_alloc, &sql_offset, ins_hosts_groups_sql);
-#endif
-			zbx_snprintf_alloc(&sql, &sql_alloc, &sql_offset,
-					"(" ZBX_FS_UI64 "," ZBX_FS_UI64 "," ZBX_FS_UI64 ")" ZBX_ROW_DL,
-					hostgroupid++, hostid, groupids->values[i]);
+			zbx_db_insert_add_values(&db_insert, hostgroupid++, hostid, groupids->values[i]);
 		}
 
-#ifdef HAVE_MULTIROW_INSERT
-		sql_offset--;
-		zbx_strcpy_alloc(&sql, &sql_alloc, &sql_offset, ";\n");
-#endif
-		DBend_multiple_update(&sql, &sql_alloc, &sql_offset);
-
-		DBexecute("%s", sql);
+		zbx_db_insert_execute(&db_insert);
+		zbx_db_insert_clean(&db_insert);
 	}
-
-	zbx_free(sql);
 
 	zabbix_log(LOG_LEVEL_DEBUG, "End of %s()", __function_name);
 }
@@ -187,7 +188,7 @@ static void	add_discovered_host_groups(zbx_uint64_t hostid, zbx_vector_uint64_t 
  * Author: Alexei Vladishev                                                   *
  *                                                                            *
  ******************************************************************************/
-static zbx_uint64_t	add_discovered_host(DB_EVENT *event)
+static zbx_uint64_t	add_discovered_host(const DB_EVENT *event)
 {
 	const char		*__function_name = "add_discovered_host";
 
@@ -195,7 +196,7 @@ static zbx_uint64_t	add_discovered_host(DB_EVENT *event)
 	DB_RESULT		result2;
 	DB_ROW			row;
 	DB_ROW			row2;
-	zbx_uint64_t		dhostid, hostid = 0, proxy_hostid, host_proxy_hostid;
+	zbx_uint64_t		dhostid, hostid = 0, proxy_hostid;
 	char			*host = NULL, *host_esc, *host_unique;
 	unsigned short		port;
 	zbx_uint64_t		groupid;
@@ -266,21 +267,23 @@ static zbx_uint64_t	add_discovered_host(DB_EVENT *event)
 			if (0 == hostid)
 			{
 				result2 = DBselect(
-						"select distinct h.hostid,h.proxy_hostid"
+						"select distinct h.hostid"
 						" from hosts h,interface i,dservices ds"
 						" where h.hostid=i.hostid"
 							" and i.ip=ds.ip"
+							" and h.status in (%d,%d)"
+							" and h.proxy_hostid%s"
 							" and ds.dhostid=" ZBX_FS_UI64
-						       	DB_NODE
+							ZBX_SQL_NODE
 						" order by h.hostid",
+						HOST_STATUS_MONITORED, HOST_STATUS_NOT_MONITORED,
+						DBsql_id_cmp(proxy_hostid),
 						dhostid,
-						DBnode_local("h.hostid"));
+						DBand_node_local("h.hostid"));
 
 				if (NULL != (row2 = DBfetch(result2)))
-				{
 					ZBX_STR2UINT64(hostid, row2[0]);
-					ZBX_DBROW2UINT64(host_proxy_hostid, row2[1]);
-				}
+
 				DBfree_result(result2);
 			}
 
@@ -312,14 +315,6 @@ static zbx_uint64_t	add_discovered_host(DB_EVENT *event)
 			}
 			else
 			{
-				if (host_proxy_hostid != proxy_hostid)
-				{
-					DBexecute("update hosts"
-							" set proxy_hostid=%s"
-							" where hostid=" ZBX_FS_UI64,
-							DBsql_id_ins(proxy_hostid), hostid);
-				}
-
 				DBadd_interface(hostid, interface_type, 1, row[2], row[3], port);
 			}
 		}
@@ -335,7 +330,8 @@ static zbx_uint64_t	add_discovered_host(DB_EVENT *event)
 
 		if (NULL != (row = DBfetch(result)))
 		{
-			char	sql[512];
+			char		*sql = NULL;
+			zbx_uint64_t	host_proxy_hostid;
 
 			ZBX_DBROW2UINT64(proxy_hostid, row[0]);
 			host_esc = DBdyn_escape_string_len(row[1], HOST_HOST_LEN);
@@ -357,18 +353,21 @@ static zbx_uint64_t	add_discovered_host(DB_EVENT *event)
 			}
 			DBfree_result(result2);
 
-			zbx_snprintf(sql, sizeof(sql),
+			sql = zbx_dsprintf(sql,
 					"select hostid,proxy_hostid"
 					" from hosts"
 					" where host='%s'"
+						" and flags<>%d"
 						" and status in (%d,%d)"
-						DB_NODE
+						ZBX_SQL_NODE
 					" order by hostid",
-					host_esc,
+					host_esc, ZBX_FLAG_DISCOVERY_PROTOTYPE,
 					HOST_STATUS_MONITORED, HOST_STATUS_NOT_MONITORED,
-					DBnode_local("hostid"));
+					DBand_node_local("hostid"));
 
 			result2 = DBselectN(sql, 1);
+
+			zbx_free(sql);
 
 			if (NULL == (row2 = DBfetch(result2)))
 			{
@@ -425,7 +424,7 @@ clean:
  * Author: Alexei Vladishev                                                   *
  *                                                                            *
  ******************************************************************************/
-void	op_host_add(DB_EVENT *event)
+void	op_host_add(const DB_EVENT *event)
 {
 	const char	*__function_name = "op_host_add";
 
@@ -451,10 +450,12 @@ void	op_host_add(DB_EVENT *event)
  * Author: Eugene Grigorjev                                                   *
  *                                                                            *
  ******************************************************************************/
-void	op_host_del(DB_EVENT *event)
+void	op_host_del(const DB_EVENT *event)
 {
-	const char	*__function_name = "op_host_del";
-	zbx_uint64_t	hostid;
+	const char		*__function_name = "op_host_del";
+
+	zbx_vector_uint64_t	hostids;
+	zbx_uint64_t		hostid;
 
 	zabbix_log(LOG_LEVEL_DEBUG, "In %s()", __function_name);
 
@@ -467,7 +468,13 @@ void	op_host_del(DB_EVENT *event)
 	if (0 == (hostid = select_discovered_host(event)))
 		return;
 
-	DBdelete_host(hostid);
+	zbx_vector_uint64_create(&hostids);
+
+	zbx_vector_uint64_append(&hostids, hostid);
+
+	DBdelete_hosts(&hostids);
+
+	zbx_vector_uint64_destroy(&hostids);
 
 	zabbix_log(LOG_LEVEL_DEBUG, "End of %s()", __function_name);
 }
@@ -481,7 +488,7 @@ void	op_host_del(DB_EVENT *event)
  * Author: Alexander Vladishev                                                *
  *                                                                            *
  ******************************************************************************/
-void	op_host_enable(DB_EVENT *event)
+void	op_host_enable(const DB_EVENT *event)
 {
 	const char	*__function_name = "op_host_enable";
 	zbx_uint64_t	hostid;
@@ -516,7 +523,7 @@ void	op_host_enable(DB_EVENT *event)
  * Author: Alexander Vladishev                                                *
  *                                                                            *
  ******************************************************************************/
-void	op_host_disable(DB_EVENT *event)
+void	op_host_disable(const DB_EVENT *event)
 {
 	const char	*__function_name = "op_host_disable";
 	zbx_uint64_t	hostid;
@@ -554,7 +561,7 @@ void	op_host_disable(DB_EVENT *event)
  * Author: Alexei Vladishev                                                   *
  *                                                                            *
  ******************************************************************************/
-void	op_groups_add(DB_EVENT *event, zbx_vector_uint64_t *groupids)
+void	op_groups_add(const DB_EVENT *event, zbx_vector_uint64_t *groupids)
 {
 	const char	*__function_name = "op_groups_add";
 	zbx_uint64_t	hostid;
@@ -587,7 +594,7 @@ void	op_groups_add(DB_EVENT *event, zbx_vector_uint64_t *groupids)
  * Author: Alexei Vladishev                                                   *
  *                                                                            *
  ******************************************************************************/
-void	op_groups_del(DB_EVENT *event, zbx_vector_uint64_t *groupids)
+void	op_groups_del(const DB_EVENT *event, zbx_vector_uint64_t *groupids)
 {
 	const char	*__function_name = "op_groups_del";
 
@@ -656,7 +663,7 @@ void	op_groups_del(DB_EVENT *event, zbx_vector_uint64_t *groupids)
  * Author: Eugene Grigorjev                                                   *
  *                                                                            *
  ******************************************************************************/
-void	op_template_add(DB_EVENT *event, zbx_vector_uint64_t *lnk_templateids)
+void	op_template_add(const DB_EVENT *event, zbx_vector_uint64_t *lnk_templateids)
 {
 	const char	*__function_name = "op_template_add";
 	zbx_uint64_t	hostid;
@@ -689,7 +696,7 @@ void	op_template_add(DB_EVENT *event, zbx_vector_uint64_t *lnk_templateids)
  * Author: Eugene Grigorjev                                                   *
  *                                                                            *
  ******************************************************************************/
-void	op_template_del(DB_EVENT *event, zbx_vector_uint64_t *del_templateids)
+void	op_template_del(const DB_EVENT *event, zbx_vector_uint64_t *del_templateids)
 {
 	const char	*__function_name = "op_template_del";
 	zbx_uint64_t	hostid;

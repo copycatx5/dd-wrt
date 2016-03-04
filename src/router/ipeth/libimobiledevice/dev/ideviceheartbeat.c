@@ -21,6 +21,7 @@
 
 #include <stdio.h>
 #include <string.h>
+#include <inttypes.h>
 #include <signal.h>
 #include <stdlib.h>
 
@@ -129,14 +130,14 @@ int main(int argc, char *argv[])
 				plist_get_uint_val(node, &interval);
 			}
 
-			printf("> marco: supports_sleepy_time %d, interval %llu\n", b, interval);
+			printf("> marco: supports_sleepy_time %d, interval %"PRIu64"\n", b, interval);
 
 			plist_free(message);
 			message = NULL;
 
 			/* answer with a "pong" message */
 			message = plist_new_dict();
-			plist_dict_insert_item(message, "Command", plist_new_string("Polo"));
+			plist_dict_set_item(message, "Command", plist_new_string("Polo"));
 			heartbeat_send(heartbeat, message);
 
 			printf("< polo\n");

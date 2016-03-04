@@ -1,4 +1,4 @@
-//////////////////////////////////////////////////////////////////////////////////////////////
+﻿//////////////////////////////////////////////////////////////////////////////////////////////
 //		Traducció catalana del fitxer de referència - DD-WRT V24 SP2       03/NOV/2013		//
 //////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -109,12 +109,12 @@ share.port="Port";
 share.ssid="SSID";
 share.channel="Canal";
 share.frequency="Frequencia";
-share.rssi="Rssi";
+share.rssi="RSSI";
 share.signal="Senyal";
 share.noise="Soroll";
-share.beacon="far";
+share.beacon="Far";
 share.openn="Obrir";
-share.dtim="dtim";
+share.dtim="DTIM";
 share.rates="Ritme";
 share.rate="Ritme";
 share.txrate="Ritme TX";
@@ -1497,7 +1497,7 @@ service.samba3_pass1=" Contrasenya1";
 service.samba3_usr2="Usuari2";
 service.samba3_pass2=" Contrasenya2";
 service.samba3_pubacl="Només lectura";
-service.samba3_advanced="Avançat"
+service.samba3_advanced="Avançat";
 service.samba3_custom="Utilitza Configuració Personal";
 service.samba3_shares="Comparticiones";
 service.samba3_share_path="Ruta";

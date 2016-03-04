@@ -1,7 +1,7 @@
 <?php
 /*
 ** Zabbix
-** Copyright (C) 2001-2013 Zabbix SIA
+** Copyright (C) 2001-2015 Zabbix SIA
 **
 ** This program is free software; you can redistribute it and/or modify
 ** it under the terms of the GNU General Public License as published by
@@ -19,8 +19,6 @@
 **/
 
 
-global $USER_DETAILS;
-
 $discoveryWidget = new CWidget('hat_discovery');
 
 // create header form
@@ -34,8 +32,8 @@ $discoveryRulesComboBox = $this->data['pageFilter']->getDiscoveryCB();
 $discoveryHeaderForm->addItem(array(_('Discovery rule').SPACE, $discoveryRulesComboBox));
 $discoveryWidget->addHeader(_('Discovery rules'), $discoveryHeaderForm);
 
-// craete table
-$discoveryTable = new CTableInfo(_('No discoveries defined.'));
+// create table
+$discoveryTable = new CTableInfo(_('No discovered devices found.'));
 $discoveryTable->makeVerticalRotation();
 
 $header = array(
@@ -117,7 +115,7 @@ foreach ($this->data['drules'] as $drule) {
 				if (isset($this->data['macros'][$key_])) {
 					$key_ = $this->data['macros'][$key_]['value'];
 				}
-				$key_ = ': '.$key_;
+				$key_ = NAME_DELIMITER.$key_;
 			}
 
 			$serviceName = discovery_check_type2str($dservice['type']).discovery_port2str($dservice['type'], $dservice['port']).$key_;
@@ -145,7 +143,7 @@ foreach ($this->data['drules'] as $drule) {
 			new CSpan(empty($h_data['host']) ? '-' : $h_data['host']),
 			new CSpan((($h_data['time'] == 0 || $h_data['type'] === 'slave')
 				? ''
-				: convert_units(time() - $h_data['time'], 'uptime')), $h_data['class'])
+				: convert_units(array('value' => time() - $h_data['time'], 'units' => 'uptime'))), $h_data['class'])
 		);
 
 		foreach ($this->data['services'] as $name => $foo) {

@@ -102,7 +102,7 @@
 #define HAVE_NETPACKET_PACKET_H 1
 
 /* Define if you have the <sys/cdefs.h> header file.  */
-#define HAVE_SYS_CDEFS_H 1
+/* #define HAVE_SYS_CDEFS_H 1 */
 
 /* Define if you have the <sys/dlpi.h> header file.  */
 /* #undef HAVE_SYS_DLPI_H */
@@ -130,6 +130,3 @@
 
 /* Define if you have the N_HDLC line discipline in linux/termios.h */
 #define HAVE_N_HDLC 1
-
-/* Define if bitfields are packed in reverse order */
-#define PACK_BITFIELDS_REVERSED 1

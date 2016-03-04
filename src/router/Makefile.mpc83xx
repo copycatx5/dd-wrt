@@ -155,6 +155,7 @@ all: install_headers build_date clean_target $(obj-y) $(LINUXDIR)/.config kernel
 build_date:
 	echo "#define BUILD_DATE \"$(shell date +%D)\"" > ../../opt/build.h 
 
+include kernel-features.mk
 
 kernel:
         # Also build kernel
@@ -165,11 +166,7 @@ ifeq ($(CONFIG_UNIWIP),y)
 	-cp $(LINUXDIR)/.config_uniwip $(LINUXDIR)/.config
 endif
 
-ifeq ($(CONFIG_EOP_TUNNEL),y)
-	echo CONFIG_NET_ETHERIP=m >> $(LINUXDIR)/.config
-else
-	echo "# CONFIG_NET_ETHERIP is not set" >> $(LINUXDIR)/.config
-endif
+	$(kernelfeatures)
 	$(MAKE) -C $(LINUXDIR) oldconfig	
 	rm -f $(LINUXDIR)/symtab.h
 	touch $(LINUXDIR)/symtab.h
@@ -251,7 +248,7 @@ realclean: $(obj-clean)
 	-rm -f $(ARCH)-uclibc/*
 
 	
-clean: rc-clean httpd-clean services-clean shared-clean libutils-clean nvram-clean madwifi-clean madwifi_mimo-clean busybox-clean pppd-clean	
+clean: rc-clean httpd-clean services-clean shared-clean libutils-clean nvram-clean madwifi-clean madwifi_mimo-clean busybox-clean pppd-clean iproute2-clean
 	rm -f .config.old .config.cmd
 	#umount $(TARGETDIR)
 	rm -rf $(INSTALLDIR)
@@ -318,7 +315,7 @@ ifneq ($(CONFIG_NOOPT),y)
 
 	rm -rf $(ARCH)-uclibc/mklibs-out
 	rm -f $(ARCH)-uclibc/mklibs-progs
-	find $(TARGETDIR) -type f -perm +100 -exec \
+	find $(TARGETDIR) -type f -perm /100 -exec \
 		file -r -N -F '' {} + | \
 		awk ' /executable.*dynamically/ { print $$1 }' > $(ARCH)-uclibc/mklibs-progs
 
@@ -533,7 +530,12 @@ endif
 #	umount $(TARGETDIR)
 #find $(TARGETDIR)/lib/modules -name *.ko -exec mipsel-linux-strip --strip-unneeded --remove-section=.comment {} +		
 	#e2fsck -y -f $(ARCH)-uclibc/root.fs
-#	./busybox/examples/depmod.pl -F $(LINUXDIR)/System.map -b $(ARCH)-uclibc/target/lib/modules
+	-find $(TARGETDIR)/lib/modules/$(KERNELRELEASE)/kernel -name *.ko -exec mv {} $(TARGETDIR)/lib/modules/$(KERNELRELEASE) \;
+	-find $(TARGETDIR)/lib/modules/$(KERNELRELEASE)/net -name *.ko -exec mv {} $(TARGETDIR)/lib/modules/$(KERNELRELEASE) \;
+	rm -rf $(TARGETDIR)/lib/modules/$(KERNELRELEASE)/kernel
+	rm -rf $(TARGETDIR)/lib/modules/$(KERNELRELEASE)/net
+	#e2fsck -y -f $(ARCH)-uclibc/root.fs
+	./busybox/examples/depmod.pl -F $(LINUXDIR)/System.map -b $(ARCH)-uclibc/target/lib/modules
 	
 	export STRIP_KMOD="$(LINUXDIR)/scripts/strip-kmod.sh" && \
 	export STRIP="sstrip" && \
@@ -550,6 +552,7 @@ endif
 	-cp $(LINUXDIR)/arch/powerpc/boot/cuImage.tl-wdr4900-v1 $(ARCH)-uclibc/cuImage.tl-wdr4900-v1
 	-$(LINUXDIR)/scripts/dtc/dtc -I dts -O dtb $(LINUXDIR)/arch/powerpc/boot/dts/tl-wdr4900-v1.dts > $(ARCH)-uclibc/tl-wdr4900-v1.fdt
 
+	$(TOP)/../../tools/removewhitespace.sh $(TOP)/../../tools $(TARGETDIR)/etc/config
 	$(LINUXDIR)/scripts/squashfs/mksquashfs-lzma $(ARCH)-uclibc/target $(ARCH)-uclibc/root.fs -noappend -be
 	-./tools/tplink/mktplinkfw -B TL-WDR4900 -N DD-WRT -V 24 -k $(ARCH)-uclibc/cuImage.tl-wdr4900-v1 -r $(ARCH)-uclibc/root.fs -o powerpc-uclibc/tplink-wdr4900-firmware.bin
 	-./tools/tplink/mktplinkfw -B TL-WDR4900 -N DD-WRT -V 24 -t -k $(ARCH)-uclibc/cuImage.tl-wdr4900-v1 -r $(ARCH)-uclibc/root.fs -o powerpc-uclibc/tplink-wdr4900-firmware-t.bin

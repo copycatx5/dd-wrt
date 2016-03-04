@@ -1,4 +1,4 @@
-//////////////////////////////////////////////////////////////////////////////////////////////
+﻿//////////////////////////////////////////////////////////////////////////////////////////////
 //				Slovenian translation DD-WRT by Eko, last revision: 10.aug.2013, svn 22180	//
 //////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -111,12 +111,12 @@ share.port="Vrata";
 share.ssid="SSID";
 share.channel="Kanal";
 share.frequency="Frekvenca";
-share.rssi="Rssi";
+share.rssi="RSSI";
 share.signal="Signal";
 share.noise="Šum";
-share.beacon="beacon";
+share.beacon="Beacon";
 share.openn="Odprto";
-share.dtim="dtim";
+share.dtim="DTIM";
 share.rates="Hitrost";
 share.rate="Hitrost";
 share.txrate="TX hitrost";
@@ -452,7 +452,7 @@ bmenu.adminBackup="Varnostna kop.";
 
 bmenu.services="Storitve";
 bmenu.servicesServices="Storitve";
-bmenu.servicesRadius="FreeRadius"
+bmenu.servicesRadius="FreeRadius";
 bmenu.servicesPppoesrv="PPPoE strežnik";
 bmenu.servicesPptp="VPN";
 bmenu.servicesUSB="USB";
@@ -1359,7 +1359,7 @@ service.pppoesrv_srvopt="RP-PPPoE strežnik: možnosti";
 service.pppoesrv_compr="Kompresija";
 service.pppoesrv_lcpei="LCP Echo interval";
 service.pppoesrv_lcpef="LCP Echo neuspeh";
-service.pppoesrv_limit="Meja seje po MACu"
+service.pppoesrv_limit="Meja seje po MACu";
 service.pppoesrv_idlet="Nedejavni čas";
 service.pppoesrv_auth="Overjanje";
 service.pppoesrv_radip="Radius strežnikov IP";
@@ -1435,7 +1435,7 @@ service.vpn_route="Usmerjanje po politiki";
 
 hstatus_vpn.right1="Usmerjanje po politiki:<br><i>Dodaj IPje v obliki 0.0.0.0/0 da prisiliš odjemalce k uporabi tunela za privzeti prehod. Ena vrstica za IP. Presmeritveni prehod MORA biti izključen.</i>";
 hstatus_vpn.right2="Dodatne nastavitve:<br><i>Da prisiliš poti odjemalcem dodaj \'push \"route 0.0.0.0\"\', da prisiliš DNS/WINS dodaj \'push \"dhcp-option DNS (ali WINS) 0.0.0.0\"\' k konfiguraciji.</i>";
-status_vpn.right3="Splošno:<br><i>Podprti so 3 auth načini: pkcs12 (+dh na strežniku), static, standard certs</i>. Omogoči MSS samo na eni strani zveze, fragmentiranje na obeh.</i>";";
+status_vpn.right3="Splošno:<br><i>Podprti so 3 auth načini: pkcs12 (+dh na strežniku), static, standard certs</i>. Omogoči MSS samo na eni strani zveze, fragmentiranje na obeh.</i>";
 
 //vnc.repeater
 service.vncrepeater_legend="VNC";
@@ -1550,7 +1550,7 @@ service.samba3_pass1=" Geslo1";
 service.samba3_usr2="Uporabnik2";
 service.samba3_pass2=" Geslo2";
 service.samba3_pubacl="Samo za branje";
-service.samba3_advanced="Napredno"
+service.samba3_advanced="Napredno";
 service.samba3_custom="Uporabi konfiguracijo po meri";
 service.samba3_shares="Souporaba";
 service.samba3_share_path="Pot";

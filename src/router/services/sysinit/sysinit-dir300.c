@@ -210,22 +210,23 @@ void start_sysinit(void)
 			ioctl(s, SIOCGIFHWADDR, &ifr);
 			char macaddr[32];
 
-			strcpy(macaddr, ether_etoa((unsigned char *)ifr.ifr_hwaddr.sa_data, eabuf));
+			strcpy(macaddr, ether_etoa((char *)ifr.ifr_hwaddr.sa_data, eabuf));
 			nvram_set("et0macaddr", macaddr);
 			nvram_set("et0macaddr_safe", macaddr);
 //          MAC_ADD( macaddr );
-			ether_atoe(macaddr, (unsigned char *)ifr.ifr_hwaddr.sa_data);
+			ether_atoe(macaddr, (char *)ifr.ifr_hwaddr.sa_data);
 			strncpy(ifr.ifr_name, "vlan1", IFNAMSIZ);
 			ioctl(s, SIOCSIFHWADDR, &ifr);
 			close(s);
 		}
 	} else {
 #ifdef HAVE_SWCONFIG
-		system("swconfig dev eth0 set reset 1");
-		system("swconfig dev eth0 set enable_vlan 1");
-		system("swconfig dev eth0 vlan 1 set ports \"0 1 2 3 5t\"");
-		system("swconfig dev eth0 vlan 2 set ports \"4 5t\"");
-		system("swconfig dev eth0 set apply");
+
+		eval("swconfig", "dev", "eth0", "set", "reset", "1");
+		eval("swconfig", "dev", "eth0", "set", "enable_vlan", "1");
+		eval("swconfig", "dev", "eth0", "vlan", "1", "set", "ports", "0 1 2 3 5t");
+		eval("swconfig", "dev", "eth0", "vlan", "2", "set", "ports", "4 5t");
+		eval("swconfig", "dev", "eth0", "set", "apply");
 		eval("vconfig", "set_name_type", "VLAN_PLUS_VID_NO_PAD");
 		eval("vconfig", "add", "eth0", "1");
 		eval("vconfig", "add", "eth0", "2");
@@ -243,9 +244,10 @@ void start_sysinit(void)
 			ioctl(s, SIOCGIFHWADDR, &ifr);
 			char macaddr[32];
 
-			strcpy(macaddr, ether_etoa((unsigned char *)ifr.ifr_hwaddr.sa_data, eabuf));
+			strcpy(macaddr, ether_etoa((char *)ifr.ifr_hwaddr.sa_data, eabuf));
 			nvram_set("et0macaddr", macaddr);
 			nvram_set("et0macaddr_safe", macaddr);
+			nvram_set("lan_hwaddr", macaddr);
 			// MAC_ADD (macaddr);
 			ether_atoe(macaddr, (unsigned char *)ifr.ifr_hwaddr.sa_data);
 			strncpy(ifr.ifr_name, "vlan2", IFNAMSIZ);

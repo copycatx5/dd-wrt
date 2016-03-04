@@ -254,8 +254,11 @@ OPTIONAL_LZO_LIBS = @OPTIONAL_LZO_LIBS@
 OPTIONAL_PKCS11_HELPER_CFLAGS = @OPTIONAL_PKCS11_HELPER_CFLAGS@
 OPTIONAL_PKCS11_HELPER_LIBS = @OPTIONAL_PKCS11_HELPER_LIBS@
 OPTIONAL_SELINUX_LIBS = @OPTIONAL_SELINUX_LIBS@
+OPTIONAL_SYSTEMD_LIBS = @OPTIONAL_SYSTEMD_LIBS@
 OTOOL = @OTOOL@
 OTOOL64 = @OTOOL64@
+P11KIT_CFLAGS = @P11KIT_CFLAGS@
+P11KIT_LIBS = @P11KIT_LIBS@
 PACKAGE = @PACKAGE@
 PACKAGE_BUGREPORT = @PACKAGE_BUGREPORT@
 PACKAGE_NAME = @PACKAGE_NAME@
@@ -282,6 +285,7 @@ SET_MAKE = @SET_MAKE@
 SHELL = @SHELL@
 SOCKETS_LIBS = @SOCKETS_LIBS@
 STRIP = @STRIP@
+SYSTEMD_ASK_PASSWORD = @SYSTEMD_ASK_PASSWORD@
 TAP_CFLAGS = @TAP_CFLAGS@
 TAP_WIN_COMPONENT_ID = @TAP_WIN_COMPONENT_ID@
 TAP_WIN_MIN_MAJOR = @TAP_WIN_MIN_MAJOR@
@@ -322,6 +326,8 @@ infodir = @infodir@
 install_sh = @install_sh@
 libdir = @libdir@
 libexecdir = @libexecdir@
+libsystemd_CFLAGS = @libsystemd_CFLAGS@
+libsystemd_LIBS = @libsystemd_LIBS@
 localedir = @localedir@
 localstatedir = @localstatedir@
 mandir = @mandir@
@@ -357,9 +363,9 @@ $(srcdir)/Makefile.in:  $(srcdir)/Makefile.am  $(am__configure_deps)
 	      exit 1;; \
 	  esac; \
 	done; \
-	echo ' cd $(top_srcdir) && $(AUTOMAKE) --gnu src/Makefile'; \
+	echo ' cd $(top_srcdir) && $(AUTOMAKE) --foreign src/Makefile'; \
 	$(am__cd) $(top_srcdir) && \
-	  $(AUTOMAKE) --gnu src/Makefile
+	  $(AUTOMAKE) --foreign src/Makefile
 .PRECIOUS: Makefile
 Makefile: $(srcdir)/Makefile.in $(top_builddir)/config.status
 	@case '$?' in \

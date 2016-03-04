@@ -343,6 +343,7 @@ static void sigchld_handler(int UNUSED(unused)) {
 
 	sa_chld.sa_handler = sigchld_handler;
 	sa_chld.sa_flags = SA_NOCLDSTOP;
+	sigemptyset(&sa_chld.sa_mask);
 	if (sigaction(SIGCHLD, &sa_chld, NULL) < 0) {
 		dropbear_exit("signal() error");
 	}
@@ -409,7 +410,7 @@ static size_t listensockets(int *sock, size_t sockcount, int *maxfd) {
 	size_t sockpos = 0;
 	int nsock;
 
-	TRACE(("listensockets: %d to try\n", svr_opts.portcount))
+	TRACE(("listensockets: %d to try", svr_opts.portcount))
 
 	for (i = 0; i < svr_opts.portcount; i++) {
 

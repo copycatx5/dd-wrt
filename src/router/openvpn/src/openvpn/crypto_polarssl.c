@@ -416,6 +416,19 @@ cipher_kt_mode (const cipher_info_t *cipher_kt)
   return cipher_kt->mode;
 }
 
+bool
+cipher_kt_mode_cbc(const cipher_kt_t *cipher)
+{
+  return cipher && cipher_kt_mode(cipher) == OPENVPN_MODE_CBC;
+}
+
+bool
+cipher_kt_mode_ofb_cfb(const cipher_kt_t *cipher)
+{
+  return cipher && (cipher_kt_mode(cipher) == OPENVPN_MODE_OFB ||
+	  cipher_kt_mode(cipher) == OPENVPN_MODE_CFB);
+}
+
 
 /*
  *
@@ -444,7 +457,7 @@ cipher_ctx_init (cipher_context_t *ctx, uint8_t *key, int key_len,
 
 void cipher_ctx_cleanup (cipher_context_t *ctx)
 {
-  cipher_free_ctx(ctx);
+  cipher_free(ctx);
 }
 
 int cipher_ctx_iv_length (const cipher_context_t *ctx)
@@ -464,9 +477,22 @@ int cipher_ctx_mode (const cipher_context_t *ctx)
   return cipher_kt_mode(ctx->cipher_info);
 }
 
+const cipher_kt_t *
+cipher_ctx_get_cipher_kt (const cipher_ctx_t *ctx)
+{
+  ASSERT(NULL != ctx);
+
+  return ctx->cipher_info;
+}
+
 int cipher_ctx_reset (cipher_context_t *ctx, uint8_t *iv_buf)
 {
-  return 0 == cipher_reset(ctx, iv_buf);
+  int retval = cipher_reset(ctx);
+
+  if (0 == retval)
+    retval = cipher_set_iv(ctx, iv_buf, ctx->cipher_info->iv_size);
+
+  return 0 == retval;
 }
 
 int cipher_ctx_update (cipher_context_t *ctx, uint8_t *dst, int *dst_len,
@@ -593,7 +619,7 @@ void
 md_ctx_final (md_context_t *ctx, uint8_t *dst)
 {
   ASSERT(0 == md_finish(ctx, dst));
-  ASSERT(0 == md_free_ctx(ctx));
+  md_free(ctx);
 }
 
 
@@ -624,7 +650,7 @@ hmac_ctx_init (md_context_t *ctx, const uint8_t *key, int key_len, const md_info
 void
 hmac_ctx_cleanup(md_context_t *ctx)
 {
-  ASSERT(0 == md_free_ctx(ctx));
+  md_free(ctx);
 }
 
 int

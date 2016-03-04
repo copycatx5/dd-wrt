@@ -124,7 +124,7 @@ struct frstrans_EpoqueVector {
 struct frstrans_AsyncVersionVectorResponse {
 	uint64_t vv_generation;
 	uint32_t version_vector_count;
-	struct frstrans_VersionVector *version_vector;/* [unique,size_is(version_vector_count)] */
+	struct frstrans_VersionVector *version_vector;/* [size_is(version_vector_count),unique] */
 	uint32_t epoque_vector_count;
 	struct frstrans_EpoqueVector *epoque_vector;/* [unique,size_is(epoque_vector_count)] */
 };
@@ -300,7 +300,7 @@ struct frstrans_RequestUpdates {
 	} in;
 
 	struct {
-		struct frstrans_Update *frs_update;/* [ref,length_is(*update_count),size_is(credits_available)] */
+		struct frstrans_Update *frs_update;/* [size_is(credits_available),length_is(*update_count),ref] */
 		uint32_t *update_count;/* [ref] */
 		enum frstrans_UpdateStatus *update_status;/* [ref] */
 		struct GUID *gvsn_db_guid;/* [ref] */

@@ -1,9 +1,17 @@
+local dns = require "dns"
+local ipOps = require "ipOps"
+local nmap = require "nmap"
+local stdnse = require "stdnse"
+local string = require "string"
+local table = require "table"
+
 description = [[
 Maps IP addresses to autonomous system (AS) numbers.
 
 The script works by sending DNS TXT queries to a DNS server which in
 turn queries a third-party service provided by Team Cymru
-(team-cymru.org) using an in-addr.arpa style zone set up especially for
+(https://www.team-cymru.org/Services/ip-to-asn.html) using an in-addr.arpa
+style zone set up especially for
 use by Nmap. The responses to these queries contain both Origin and Peer
 ASNs and their descriptions, displayed along with the BGP Prefix and
 Country Code. The script caches results to reduce the number of queries
@@ -32,14 +40,10 @@ server (your default DNS server, or whichever one you specified with the
 -- |_     Peer AS: 174 2914 6461
 
 author = "jah, Michael Pattrick"
-license = "Same as Nmap--See http://nmap.org/book/man-legal.html"
+license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
 categories = {"discovery", "external", "safe"}
 
 
-local dns    = require "dns"
-local comm   = require "comm"
-local ipOps  = require "ipOps"
-local stdnse = require "stdnse"
 
 
 local mutex = nmap.mutex( "ASN" )
@@ -62,7 +66,7 @@ end
 
 ---
 -- Cached results are checked before sending a query for the target and extracting the
--- relevent information from the response.  Mutual exclusion is used so that results can be
+-- relevant information from the response.  Mutual exclusion is used so that results can be
 -- cached and so a single thread will be active at any time.
 -- @param host  Host table.
 -- @return      Formatted answers or <code>nil</code> on errors.
@@ -209,7 +213,7 @@ function ip_to_asn( query )
   local status, decoded_response = dns.query( query, options)
 
   if not status then
-    stdnse.print_debug( "%s Error from dns.query(): %s", SCRIPT_NAME, decoded_response )
+    stdnse.debug1("Error from dns.query(): %s", decoded_response )
   end
 
   return status, decoded_response
@@ -333,9 +337,9 @@ function process_answers( records, output, ip )
     elseif combined_records[record.cache_bgp].asn_type ~= record.asn_type then
       -- origin before peer.
       if record.asn_type == "Origin" then
-        combined_records[record.cache_bgp].asn = { unpack( record.asn ), unpack( combined_records[record.cache_bgp].asn ) }
+        combined_records[record.cache_bgp].asn = { table.unpack( record.asn ), table.unpack( combined_records[record.cache_bgp].asn ) }
       else
-        combined_records[record.cache_bgp].asn = { unpack( combined_records[record.cache_bgp].asn ), unpack( record.asn ) }
+        combined_records[record.cache_bgp].asn = { table.unpack( combined_records[record.cache_bgp].asn ), table.unpack( record.asn ) }
       end
     end
   end
@@ -381,8 +385,12 @@ function get_prefix_length( range )
 end
 
 ---
--- Given an IP address and a prefix length, returns a string representing a valid IP address assignment (size is not checked) which contains
--- the supplied IP address.  For example, with <code>ip</code> = <code>"192.168.1.187"</code> and <code>prefix</code> = <code>24</code> the return value will be <code>"192.168.1.1-192.168.1.255"</code>
+-- Given an IP address and a prefix length, returns a string representing a
+-- valid IP address assignment (size is not checked) which contains the
+-- supplied IP address.  For example, with
+-- <code>ip</code> = <code>"192.168.1.187"</code> and
+-- <code>prefix</code> = <code>24</code> the return value will be
+-- <code>"192.168.1.1-192.168.1.255"</code>
 -- @param ip      String representing an IP address.
 -- @param prefix  String or number representing a prefix length.  Should be of the same address family as <code>ip</code>.
 -- @return        String representing a range of addresses from the first to the last hosts (or <code>nil</code> in case of an error).
@@ -401,6 +409,7 @@ function get_assignment( ip, prefix )
   local hostbits = string.sub( some_ip, prefix + 1 )
   hostbits = string.gsub( hostbits, "1", "0" )
   local first = string.sub( some_ip, 1, prefix ) .. hostbits
+  local last
   err = {}
   first, err[#err+1] = ipOps.bin_to_ip( first )
   last, err[#err+1] = ipOps.get_last_ip( ip, prefix )

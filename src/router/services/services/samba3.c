@@ -45,20 +45,14 @@ void start_samba3(void)
 	struct samba3_share *samba3shares;
 	int uniqueuserid = 1000;
 	FILE *fp;
-	int fd;
 
-#ifdef HAVE_NORTHSTAR
-	if ((fd = open("/proc/irq/163/smp_affinity", O_RDWR)) >= 0) {
-		close(fd);
-		if (!nvram_match("samba3_enable", "1")) {	// not set txworkq 
-			writeproc("/proc/irq/163/smp_affinity", "2");
-			writeproc("/proc/irq/169/smp_affinity", "2");
-		} else {
-			writeproc("/proc/irq/163/smp_affinity", "3");
-			writeproc("/proc/irq/169/smp_affinity", "3");
-		}
+	if (!nvram_match("samba3_enable", "1")) {	// not set txworkq 
+		set_smp_affinity(163, 2);
+		set_smp_affinity(169, 2);
+	} else {
+		set_smp_affinity(163, 1);
+		set_smp_affinity(169, 2);
 	}
-#endif
 
 	if (!nvram_match("samba3_enable", "1")) {
 		if (nvram_match("txworkq", "1")) {
@@ -68,6 +62,8 @@ void start_samba3(void)
 		return;
 
 	}
+
+	update_timezone();
 
 	if (!nvram_match("txworkq", "1")) {
 		nvram_set("txworkq", "1");
@@ -85,7 +81,7 @@ void start_samba3(void)
 			if (strlen(cu->username)
 			    && cu->sharetype & SHARETYPE_SAMBA) {
 				sysprintf("echo \"%s\"\":*:%d:1000:\"%s\":/var:/bin/false\" >> /etc/passwd", cu->username, uniqueuserid++, cu->username);
-				sysprintf("smbpasswd \"%s\" \"%s\"", cu->username, cu->password);
+				eval("smbpasswd", cu->username, cu->password);
 			}
 			cunext = cu->next;
 			free(cu);
@@ -98,9 +94,7 @@ void start_samba3(void)
 			"server string = %s\n"
 			"syslog = 10\n"
 			"encrypt passwords = true\n"
-			"obey pam restrictions = yes\n"
 			"preferred master = yes\n"
-			"os level = 20\n"
 			"security = user\n"
 			"mangled names = no\n"
 			"max stat cache size = 64\n"
@@ -149,8 +143,8 @@ void start_samba3(void)
 			}
 			if (strlen(cs->label)) {
 				fprintf(fp, "[%s]\n", cs->label);
-				fprintf(fp, "comment = %s\n", cs->label);
-				fprintf(fp, "path = %s/%s\n", cs->mp, cs->sd);
+				fprintf(fp, "comment = \"%s\"\n", cs->label);
+				fprintf(fp, "path = \"%s/%s\"\n", cs->mp, cs->sd);
 				fprintf(fp, "read only = %s\n", !strcmp(cs->access_perms, "ro") ? "Yes" : "No");
 				fprintf(fp, "guest ok = %s\n", cs->public == 1 ? "Yes" : "No");
 				if (!cs->public) {
@@ -200,14 +194,19 @@ void start_samba3(void)
 	chmod("/jffs", 0777);
 
 #ifdef HAVE_SMP
-	eval("/usr/bin/taskset", "0x2", "/usr/sbin/smbd", "-D", "--configfile=/tmp/smb.conf");
-#else
-	eval("/usr/sbin/smbd", "-D", "--configfile=/tmp/smb.conf");
+	if (eval("/usr/bin/taskset", "0x2", "/usr/sbin/smbd", "-D", "--configfile=/tmp/smb.conf"))
 #endif
+		eval("/usr/sbin/smbd", "-D", "--configfile=/tmp/smb.conf");
+
 	eval("/usr/sbin/nmbd", "-D", "--configfile=/tmp/smb.conf");
-	if (pidof("nmbd") > 0) {
-	} else {
+	if (pidof("nmbd") <= 0) {
 		eval("/usr/sbin/nmbd", "-D", "--configfile=/tmp/smb.conf");
+	}
+	if (pidof("smbd") <= 0) {
+#ifdef HAVE_SMP
+		if (eval("/usr/bin/taskset", "0x2", "/usr/sbin/smbd", "-D", "--configfile=/tmp/smb.conf"))
+#endif
+			eval("/usr/sbin/smbd", "-D", "--configfile=/tmp/smb.conf");
 	}
 	syslog(LOG_INFO, "Samba3 : samba started\n");
 
@@ -219,7 +218,7 @@ void stop_samba3(void)
 	stop_process("smbd", "samba");
 	stop_process("nmbd", "nmbd");
 	//samba has changed the way pidfiles are named, thus stop process will not kill smbd and nmbd pidfiles, see pidfile.c in samba 
-	sysprintf("rm -rf %s", "/var/run/*smb.conf.pid");
+	sysprintf("rm -rf /var/run/*smb.conf.pid");
 
 }
 #endif

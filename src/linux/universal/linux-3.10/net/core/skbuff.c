@@ -75,12 +75,7 @@
 #include <linux/highmem.h>
 
 
-#ifdef CONFIG_BCM47XX
-#include <typedefs.h>
-#include <bcmdefs.h>
-#else
 #define BCMFASTPATH_HOST
-#endif
 
 struct kmem_cache *skbuff_head_cache __read_mostly;
 static struct kmem_cache *skbuff_fclone_cache __read_mostly;
@@ -299,15 +294,16 @@ struct sk_buff *__alloc_skb(unsigned int size, gfp_t gfp_mask,
 	if (sk_memalloc_socks() && (flags & SKB_ALLOC_RX))
 		gfp_mask |= __GFP_MEMALLOC;
 
+#ifdef CONFIG_ARCH_IXP4XX 
+	gfp_mask |= GFP_DMA;
+#endif
+
 	/* Get the HEAD */
 	skb = kmem_cache_alloc_node(cache, gfp_mask & ~__GFP_DMA, node);
 	if (!skb)
 		goto out;
 	prefetchw(skb);
 
-#ifdef CONFIG_ARCH_IXP4XX 
-	gfp_mask |= GFP_DMA;
-#endif
 
 	/* We do our best to align skb_shared_info on a separate cache
 	 * line. It usually works because kmalloc(X > SMP_CACHE_BYTES) gives
@@ -656,7 +652,7 @@ static void kfree_skbmem(struct sk_buff *skb)
 	}
 }
 
-static void skb_release_head_state(struct sk_buff *skb)
+void skb_release_head_state(struct sk_buff *skb)
 {
 	skb_dst_drop(skb);
 #ifdef CONFIG_XFRM
@@ -699,6 +695,8 @@ static void skb_release_head_state(struct sk_buff *skb)
 #endif
 #endif
 }
+
+EXPORT_SYMBOL(skb_release_head_state);
 
 /* Free everything but the sk_buff shell. */
 static void skb_release_all(struct sk_buff *skb)
@@ -2850,11 +2848,12 @@ EXPORT_SYMBOL(skb_append_datato_frags);
  */
 unsigned char *skb_pull_rcsum(struct sk_buff *skb, unsigned int len)
 {
+	unsigned char *data = skb->data;
+
 	BUG_ON(len > skb->len);
-	skb->len -= len;
-	BUG_ON(skb->len < skb->data_len);
-	skb_postpull_rcsum(skb, skb->data, len);
-	return skb->data += len;
+	__skb_pull(skb, len);
+	skb_postpull_rcsum(skb, data, len);
+	return skb->data;
 }
 EXPORT_SYMBOL_GPL(skb_pull_rcsum);
 
@@ -2949,7 +2948,6 @@ struct sk_buff *skb_segment(struct sk_buff *skb, netdev_features_t features)
 		tail = nskb;
 
 		__copy_skb_header(nskb, skb);
-		nskb->mac_len = skb->mac_len;
 
 		/* nskb and skb might have different headroom */
 		if (nskb->ip_summed == CHECKSUM_PARTIAL)
@@ -2959,6 +2957,7 @@ struct sk_buff *skb_segment(struct sk_buff *skb, netdev_features_t features)
 		skb_set_network_header(nskb, skb->mac_len);
 		nskb->transport_header = (nskb->network_header +
 					  skb_network_header_len(skb));
+		skb_reset_mac_len(nskb);
 
 		skb_copy_from_linear_data_offset(skb, -tnl_hlen,
 						 nskb->data - tnl_hlen,

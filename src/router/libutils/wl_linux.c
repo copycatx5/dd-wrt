@@ -81,6 +81,12 @@ int wl_ioctl(char *name, int cmd, void *buf, int len)
 	ioc.cmd = cmd;
 	ioc.buf = buf;
 	ioc.len = len;
+
+	/* initializing the remaining fields */
+	ioc.set = FALSE;
+	ioc.used = 0;
+	ioc.needed = 0;
+
 	strncpy(ifr.ifr_name, name, IFNAMSIZ);
 	ifr.ifr_data = (caddr_t) & ioc;
 	if ((ret = ioctl(s, SIOCDEVPRIVATE, &ifr)) < 0)
@@ -99,7 +105,10 @@ int wl_hwaddr(char *name, unsigned char *hwaddr)
 	struct ifreq ifr;
 	int ret = 0;
 	int s;
-
+#ifdef HAVE_DIR862
+	if (!strcmp(name, "ath1"))
+		name = "ath0";
+#endif
 	/*
 	 * open socket to kernel 
 	 */

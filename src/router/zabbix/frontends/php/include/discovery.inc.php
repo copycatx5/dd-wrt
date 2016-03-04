@@ -1,7 +1,7 @@
 <?php
 /*
 ** Zabbix
-** Copyright (C) 2001-2013 Zabbix SIA
+** Copyright (C) 2001-2015 Zabbix SIA
 **
 ** This program is free software; you can redistribute it and/or modify
 ** it under the terms of the GNU General Public License as published by
@@ -17,19 +17,17 @@
 ** along with this program; if not, write to the Free Software
 ** Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 **/
-?>
-<?php
+
+
 require_once dirname(__FILE__).'/perm.inc.php';
 
-function check_right_on_discovery($permission) {
-	global $USER_DETAILS;
-
-	if ($USER_DETAILS['type'] >= USER_TYPE_ZABBIX_ADMIN) {
-		if (count(get_accessible_nodes_by_user($USER_DETAILS, $permission, PERM_RES_IDS_ARRAY))) {
-			return true;
-		}
-	}
-	return false;
+/**
+ * Returns true if the user has the permissions to network discovery.
+ *
+ * @return bool
+ */
+function check_right_on_discovery() {
+	return (CWebUser::getType() >= USER_TYPE_ZABBIX_ADMIN);
 }
 
 function svc_default_port($type_int) {
@@ -49,6 +47,7 @@ function svc_default_port($type_int) {
 		SVC_HTTPS =>	'443',
 		SVC_TELNET =>	'23'
 	);
+
 	return isset($typePort[$type_int]) ? $typePort[$type_int] : 0;
 }
 
@@ -85,31 +84,35 @@ function discovery_check_type2str($type = null) {
 }
 
 function discovery_check2str($type, $key, $port) {
-	$external_param = '';
+	$externalParam = '';
 
-	if (!empty($key)) {
+	if ($key !== '') {
 		switch ($type) {
 			case SVC_SNMPv1:
 			case SVC_SNMPv2c:
 			case SVC_SNMPv3:
 			case SVC_AGENT:
-				$external_param = ' "'.$key.'"';
+				$externalParam = ' "'.$key.'"';
 				break;
 		}
 	}
+
 	$result = discovery_check_type2str($type);
-	if (svc_default_port($type) != $port || $type == SVC_TCP) {
+
+	if ($port && (svc_default_port($type) !== $port || $type === SVC_TCP)) {
 		$result .= ' ('.$port.')';
 	}
-	$result .= $external_param;
-	return $result;
+
+	return $result.$externalParam;
 }
 
 function discovery_port2str($type_int, $port) {
 	$port_def = svc_default_port($type_int);
+
 	if ($port != $port_def) {
 		return ' ('.$port.')';
 	}
+
 	return '';
 }
 
@@ -118,6 +121,7 @@ function discovery_status2str($status = null) {
 		DRULE_STATUS_ACTIVE => _('Enabled'),
 		DRULE_STATUS_DISABLED => _('Disabled')
 	);
+
 	if (is_null($status)) {
 		return $discoveryStatus;
 	}
@@ -141,6 +145,7 @@ function discovery_status2style($status) {
 			$status = 'unknown';
 			break;
 	}
+
 	return $status;
 }
 
@@ -151,8 +156,10 @@ function discovery_object_status2str($status = null) {
 		DOBJECT_STATUS_DISCOVER => _('Discovered'),
 		DOBJECT_STATUS_LOST => _('Lost')
 	);
+
 	if (is_null($status)) {
 		order_result($discoveryStatus);
+
 		return $discoveryStatus;
 	}
 	elseif (isset($discoveryStatus[$status])) {
@@ -166,25 +173,3 @@ function discovery_object_status2str($status = null) {
 function get_discovery_rule_by_druleid($druleid) {
 	return DBfetch(DBselect('SELECT d.* FROM drules d WHERE d.druleid='.zbx_dbstr($druleid)));
 }
-
-function delete_discovery_rule($druleid) {
-	$actionids = array();
-
-	$dbActions = DBselect(
-		'SELECT DISTINCT c.actionid'.
-		' FROM conditions c'.
-		' WHERE c.conditiontype='.CONDITION_TYPE_DRULE.
-			' AND c.value='.zbx_dbstr($druleid)
-	);
-	while ($action = DBfetch($dbActions)) {
-		$actionids[] = $action['actionid'];
-	}
-
-	// disabling actions with deleted conditions
-	if (!empty($actionids)) {
-		DBexecute('UPDATE actions SET status='.ACTION_STATUS_DISABLED.' WHERE '.dbConditionInt('actionid', $actionids));
-		DBexecute('DELETE FROM conditions WHERE conditiontype='.CONDITION_TYPE_DRULE.' AND value='.zbx_dbstr($druleid));
-	}
-	return DBexecute('DELETE FROM drules WHERE druleid='.zbx_dbstr($druleid));
-}
-?>

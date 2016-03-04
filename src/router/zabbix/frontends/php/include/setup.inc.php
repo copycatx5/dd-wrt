@@ -1,7 +1,7 @@
 <?php
 /*
 ** Zabbix
-** Copyright (C) 2001-2013 Zabbix SIA
+** Copyright (C) 2001-2015 Zabbix SIA
 **
 ** This program is free software; you can redistribute it and/or modify
 ** it under the terms of the GNU General Public License as published by
@@ -19,17 +19,7 @@
 **/
 
 
-function zbx_is_callable($var) {
-	foreach ($var as $e) {
-		if (!is_callable($e)) {
-			return false;
-		}
-	}
-
-	return true;
-}
-
-class CsetupWizard extends CForm {
+class CSetupWizard extends CForm {
 
 	function __construct(&$ZBX_CONFIG) {
 		$this->DISABLE_NEXT_BUTTON = false;
@@ -62,7 +52,7 @@ class CsetupWizard extends CForm {
 			)
 		);
 
-		$this->EventHandler();
+		$this->eventHandler();
 
 		parent::__construct('post');
 	}
@@ -79,27 +69,28 @@ class CsetupWizard extends CForm {
 		return $this->getConfig('step', 0);
 	}
 
-	function DoNext() {
+	function doNext() {
 		if (isset($this->stage[$this->getStep() + 1])) {
 			$this->ZBX_CONFIG['step']++;
+
 			return true;
 		}
+
 		return false;
 	}
 
-	function DoBack() {
+	function doBack() {
 		if (isset($this->stage[$this->getStep() - 1])) {
 			$this->ZBX_CONFIG['step']--;
+
 			return true;
 		}
+
 		return false;
 	}
 
 	function bodyToString($destroy = true) {
-
 		$left = new CDiv(null, 'left');
-		$left->addItem(new CDiv(null, 'setup_logo'));
-		$left->addItem(new CDiv(ZABBIX_VERSION, 'setup_version'));
 		$left->addItem(new CDiv($this->getList(), 'left_menu'));
 
 		$link1 = new CLink('www.zabbix.com', 'http://www.zabbix.com/', null, null, true);
@@ -112,7 +103,7 @@ class CsetupWizard extends CForm {
 		$left->addItem($licence);
 
 		$right = new CDiv(null, 'right');
-		if ($this->getStep() ==0 ) {
+		if ($this->getStep() == 0) {
 			$right->addItem(new CDiv(null, 'blank_title'));
 			$right->addItem(new CDiv($this->getState(), 'blank_under_title'));
 			$container = new CDiv(array($left, $right), 'setup_wizard setup_wizard_welcome');
@@ -124,7 +115,7 @@ class CsetupWizard extends CForm {
 		}
 
 		if (isset($this->stage[$this->getStep() + 1])) {
-			$next = new CSubmit('next['.$this->getStep().']', _('Next').' >>');
+			$next = new CSubmit('next['.$this->getStep().']', _('Next').SPACE.'&raquo;');
 		}
 		else {
 			$next = new CSubmit('finish', _('Finish'));
@@ -141,15 +132,18 @@ class CsetupWizard extends CForm {
 			$next->setEnabled(false);
 		}
 
-		$footer = new CDiv(array(
-			$cancel,
-			new CDiv(array(
-				$this->getStep() != 0 ? new CSubmit('back['.$this->getStep().']', '<< '._('Previous')) : null,
-				$next), 'footer_right')
-			), 'footer');
+		// if the user is not logged in (first setup run) hide the "previous" button on the final step
+		if ($this->getStep()
+				&& ((CWebUser::$data && CWebUser::getType() == USER_TYPE_SUPER_ADMIN) || $this->getStep() < 5)) {
+			$back = new CSubmit('back['.$this->getStep().']', '&laquo;'.SPACE._('Previous'));
+		}
+		else {
+			$back = null;
+		}
+
+		$footer = new CDiv(array($cancel, new CDiv(array($back, $next), 'footer_right')), 'footer');
 
 		$container->addItem($footer);
-
 
 		return parent::bodyToString($destroy).$container->ToString();
 	}
@@ -174,7 +168,7 @@ class CsetupWizard extends CForm {
 
 	function getState() {
 		$fnc = $this->stage[$this->getStep()]['fnc'];
-		return  $this->$fnc();
+		return $this->$fnc();
 	}
 
 	function stage1() {
@@ -185,7 +179,7 @@ class CsetupWizard extends CForm {
 		$table = new CTable(null, 'requirements');
 		$table->setAlign('center');
 
-		$final_result = true;
+		$finalResult = FrontendSetup::CHECK_OK;
 
 		$table->addRow(array(
 			SPACE,
@@ -193,13 +187,25 @@ class CsetupWizard extends CForm {
 			new CCol(_('Required'), 'header')
 		));
 
-		$reqs = FrontendSetup::i()->checkRequirements();
+		$frontendSetup = new FrontendSetup();
+		$reqs = $frontendSetup->checkRequirements();
 		foreach ($reqs as $req) {
 			$result = null;
-			if ($req['result']) {
-				$result = new CSpan(_('OK'), 'green');
+
+			// OK
+			if ($req['result'] == FrontendSetup::CHECK_OK) {
+				$rowClass = '';
+				$result = new CSpan(_('OK'), 'ok');
 			}
+			// warning
+			elseif ($req['result'] == FrontendSetup::CHECK_WARNING) {
+				$rowClass = 'notice';
+				$result = new CSpan(_x('Warning', 'setup'), 'link_menu notice');
+				$result->setHint($req['error']);
+			}
+			// fatal error
 			else {
+				$rowClass = 'fail';
 				$result = new CSpan(_('Fail'), 'link_menu fail');
 				$result->setHint($req['error']);
 			}
@@ -211,88 +217,137 @@ class CsetupWizard extends CForm {
 					$req['required'] ? $req['required'] : SPACE,
 					$result
 				),
-				$req['result'] ? SPACE : 'fail');
+				$rowClass
+			);
 
-			$final_result &= (bool) $req['result'];
+			$finalResult = max($finalResult, $req['result']);
 		}
 
-		if (!$final_result) {
+		// fatal error
+		if ($finalResult == FrontendSetup::CHECK_FATAL) {
 			$this->DISABLE_NEXT_BUTTON = true;
 
-			$this->addVar('trouble', true);
-
-			$final_result = array(
+			$message = array(
 				_('Please correct all issues and press "Retry" button'),
 				BR(),
-				new CSubmit('retry', _('Retry')));
+				new CSubmit('retry', _('Retry'))
+			);
 		}
+		// OK or warning
 		else {
 			$this->DISABLE_NEXT_BUTTON = false;
-			$final_result = array(new CSpan(_('OK'), 'ok'));
+			$message = array(new CSpan(_('OK'), 'ok'));
+
+			// add a warning message
+			if ($finalResult == FrontendSetup::CHECK_WARNING) {
+				$message[] = BR();
+				$message[] = _('(with warnings)');
+			}
 		}
 
-		return array(new CDiv(array(BR(), $table, BR()), 'table_wraper'), new CDiv($final_result, 'info_bar'));
+		return array(
+			new CDiv(array(BR(), $table, BR()), 'table_wraper'),
+			new CDiv($message, 'info_bar')
+		);
 	}
 
 	function stage3() {
-		global $ZBX_CONFIG;
-
 		$table = new CTable(null, 'requirements');
 		$table->setAlign('center');
 
 		$DB['TYPE'] = $this->getConfig('DB_TYPE');
 
 		$cmbType = new CComboBox('type', $DB['TYPE'], 'this.form.submit();');
-		foreach ($ZBX_CONFIG['allowed_db'] as $id => $name) {
+
+		$frontendSetup = new FrontendSetup();
+		$databases = $frontendSetup->getSupportedDatabases();
+
+		foreach ($databases as $id => $name) {
 			$cmbType->addItem($id, $name);
 		}
 		$table->addRow(array(new CCol(_('Database type'), 'header'), $cmbType));
+
 		switch ($DB['TYPE']) {
 			case ZBX_DB_SQLITE3:
-				$table->addRow(array(new CCol(_('Database file'), 'header'), new CTextBox('database', $this->getConfig('DB_DATABASE', 'zabbix'))));
+				$database = new CTextBox('database', $this->getConfig('DB_DATABASE', 'zabbix'));
+				$database->attr('onchange', "disableSetupStepButton('#next_2')");
+				$table->addRow(array(
+					new CCol(_('Database file'), 'header'),
+					$database
+				));
 			break;
 			default:
+				$server = new CTextBox('server', $this->getConfig('DB_SERVER', 'localhost'));
+				$server->attr('onchange', "disableSetupStepButton('#next_2')");
 				$table->addRow(array(
 					new CCol(_('Database host'), 'header'),
-					new CTextBox('server', $this->getConfig('DB_SERVER', 'localhost'))
+					$server
 				));
+
+				$port = new CNumericBox('port', $this->getConfig('DB_PORT', '0'), 5, 'no', false, false);
+				$port->attr('style', '');
+				$port->attr(
+					'onchange',
+					"disableSetupStepButton('#next_2'); validateNumericBox(this, 'false', 'false');"
+				);
+
 				$table->addRow(array(
 					new CCol(_('Database port'), 'header'),
-					array(
-						new CNumericBox('port', $this->getConfig('DB_PORT', '0'), 5),
-						' 0 - use default port'
-					)
+					array($port, ' 0 - use default port')
 				));
+
+				$database = new CTextBox('database', $this->getConfig('DB_DATABASE', 'zabbix'));
+				$database->attr('onchange', "disableSetupStepButton('#next_2')");
+
 				$table->addRow(array(
 					new CCol(_('Database name'), 'header'),
-					new CTextBox('database', $this->getConfig('DB_DATABASE', 'zabbix'))
+					$database
 				));
+
 				if ($DB['TYPE'] == ZBX_DB_DB2) {
+					$schema = new CTextBox('schema', $this->getConfig('DB_SCHEMA', ''));
+					$schema->attr('onchange', "disableSetupStepButton('#next_2')");
 					$table->addRow(array(
 						new CCol(_('Database schema'), 'header'),
-						new CTextBox('schema', $this->getConfig('DB_SCHEMA', ''))
+						$schema
 					));
 				}
+
+				$user = new CTextBox('user', $this->getConfig('DB_USER', 'root'));
+				$user->attr('onchange', "disableSetupStepButton('#next_2')");
 				$table->addRow(array(
 					new CCol(_('User'), 'header'),
-					new CTextBox('user', $this->getConfig('DB_USER', 'root'))
+					$user
 				));
+
+				$password = new CPassBox('password', $this->getConfig('DB_PASSWORD', ''));
+				$password->attr('onchange', "disableSetupStepButton('#next_2')");
 				$table->addRow(array(
 					new CCol(_('Password'), 'header'),
-					new CPassBox('password', $this->getConfig('DB_PASSWORD', ''))
+					$password
 				));
 			break;
 		}
 
+		global $ZBX_MESSAGES;
+		if (!empty($ZBX_MESSAGES)) {
+			$lst_error = new CList(null, 'messages');
+			foreach ($ZBX_MESSAGES as $msg) {
+				$lst_error->addItem($msg['message'], $msg['type']);
+			}
+
+			$table = array($table, $lst_error);
+		}
+
 		return array(
-			new CDiv(new CDiv(array('Please create database manually,', BR(),
-			'and set the configuration parameters for connection to this database.',
-			BR(), BR(),
-			'Press "Test connection" button when done.',
-			BR(), BR(),
-			$table), 'vertical_center'), 'table_wraper'),
+			new CDiv(new CDiv(array(
+				'Please create database manually, and set the configuration parameters for connection to this database.', BR(), BR(),
+				'Press "Test connection" button when done.', BR(),
+				$table
+			), 'vertical_center'), 'table_wraper'),
+
 			new CDiv(array(
-				isset($_REQUEST['type']) ? !$this->DISABLE_NEXT_BUTTON ?
+				isset($_REQUEST['retry']) ? !$this->DISABLE_NEXT_BUTTON ?
 					new CSpan(array(_('OK'), BR()), 'ok')
 					: new CSpan(array(_('Fail'), BR()), 'fail')
 					: null,
@@ -310,10 +365,21 @@ class CsetupWizard extends CForm {
 			new CCol(_('Host'), 'header'),
 			new CTextBox('zbx_server', $this->getConfig('ZBX_SERVER', 'localhost'))
 		));
+
+		$port = new CNumericBox(
+			'zbx_server_port',
+			$this->getConfig('ZBX_SERVER_PORT', '10051'),
+			20,
+			'no',
+			false,
+			false
+		);
+		$port->attr('style', '');
 		$table->addRow(array(
 			new CCol(_('Port'), 'header'),
-			new CNumericBox('zbx_server_port', $this->getConfig('ZBX_SERVER_PORT', '10051'), 5)
+			$port
 		));
+
 		$table->addRow(array(
 			new CCol(_('Name'), 'header'),
 			new CTextBox('zbx_server_name', $this->getConfig('ZBX_SERVER_NAME', ''))
@@ -328,18 +394,18 @@ class CsetupWizard extends CForm {
 	}
 
 	function stage5() {
-		$allowed_db = $this->getConfig('allowed_db', array());
-
-		$DB['TYPE'] = $this->getConfig('DB_TYPE');
+		$dbType = $this->getConfig('DB_TYPE');
+		$frontendSetup = new FrontendSetup();
+		$databases = $frontendSetup->getSupportedDatabases();
 
 		$table = new CTable(null, 'requirements');
 		$table->setAlign('center');
 		$table->addRow(array(
 			new CCol(_('Database type'), 'header'),
-			$allowed_db[$this->getConfig('DB_TYPE')]
+			$databases[$dbType]
 		));
 
-		switch ($DB['TYPE']) {
+		switch ($dbType) {
 			case ZBX_DB_SQLITE3:
 				$table->addRow(array(
 					new CCol(_('Database file'), 'header'),
@@ -348,16 +414,15 @@ class CsetupWizard extends CForm {
 				break;
 			default:
 				$table->addRow(array(new CCol(_('Database server'), 'header'), $this->getConfig('DB_SERVER')));
-				if ($this->getConfig('DB_PORT') == 0) {
-					$table->addRow(array(new CCol(_('Database port'), 'header'), _('default')));
-				}
-				else {
-					$table->addRow(array(new CCol(_('Database port'), 'header'), $this->getConfig('DB_PORT')));
-				}
+				$dbPort = $this->getConfig('DB_PORT');
+				$table->addRow(array(
+					new CCol(_('Database port'), 'header'),
+					($dbPort == 0) ? _('default') : $dbPort
+				));
 				$table->addRow(array(new CCol(_('Database name'), 'header'), $this->getConfig('DB_DATABASE')));
 				$table->addRow(array(new CCol(_('Database user'), 'header'), $this->getConfig('DB_USER')));
 				$table->addRow(array(new CCol(_('Database password'), 'header'), preg_replace('/./', '*', $this->getConfig('DB_PASSWORD'))));
-				if ($this->getConfig('DB_TYPE', '') == ZBX_DB_DB2) {
+				if ($dbType == ZBX_DB_DB2) {
 					$table->addRow(array(new CCol(_('Database schema'), 'header'), $this->getConfig('DB_SCHEMA')));
 				}
 				break;
@@ -376,11 +441,9 @@ class CsetupWizard extends CForm {
 	}
 
 	function stage6() {
-		global $ZBX_CONFIGURATION_FILE;
-
 		$this->setConfig('ZBX_CONFIG_FILE_CORRECT', true);
 
-		$config = new CConfigFile($ZBX_CONFIGURATION_FILE);
+		$config = new CConfigFile(Z::getInstance()->getRootDir().CConfigFile::CONFIG_FILE_PATH);
 		$config->config = array(
 			'DB' => array(
 				'TYPE' => $this->getConfig('DB_TYPE'),
@@ -397,8 +460,9 @@ class CsetupWizard extends CForm {
 		);
 		$config->save();
 
-		if ($config->load()) {
+		try {
 			$error = false;
+			$config->load();
 
 			if ($config->config['DB']['TYPE'] != $this->getConfig('DB_TYPE')) {
 				$error = true;
@@ -432,10 +496,11 @@ class CsetupWizard extends CForm {
 			}
 			$error_text = 'Unable to overwrite the existing configuration file. ';
 		}
-		else {
+		catch (ConfigFileException $e) {
 			$error = true;
 			$error_text = 'Unable to create the configuration file. ';
 		}
+
 		clear_messages();
 		if ($error) {
 			$this->setConfig('ZBX_CONFIG_FILE_CORRECT', false);
@@ -445,7 +510,8 @@ class CsetupWizard extends CForm {
 		$this->HIDE_CANCEL_BUTTON = !$this->DISABLE_NEXT_BUTTON;
 
 
-		$table = array('Configuration file', BR(), '"'.$ZBX_CONFIGURATION_FILE.'"', BR(), 'created: ', $this->getConfig('ZBX_CONFIG_FILE_CORRECT', false)
+		$table = array('Configuration file', BR(), '"'.Z::getInstance()->getRootDir().CConfigFile::CONFIG_FILE_PATH.'"',
+			BR(), 'created: ', $this->getConfig('ZBX_CONFIG_FILE_CORRECT', false)
 			? new CSpan(_('OK'), 'ok')
 			: new CSpan(_('Fail'), 'fail')
 		);
@@ -457,7 +523,7 @@ class CsetupWizard extends CForm {
 				? array($error_text, BR(), 'Please install it manually, or fix permissions on the conf directory.', BR(), BR(),
 					'Press the "Download configuration file" button, download the configuration file ',
 					'and save it as ', BR(),
-					'"'.$ZBX_CONFIGURATION_FILE.'"', BR(), BR(),
+					'"'.Z::getInstance()->getRootDir().CConfigFile::CONFIG_FILE_PATH.'"', BR(), BR(),
 					new CSubmit('save_config', 'Download configuration file'),
 					BR(), BR()
 				)
@@ -468,8 +534,12 @@ class CsetupWizard extends CForm {
 		);
 	}
 
-	function CheckConnection() {
+	function checkConnection() {
 		global $DB;
+
+		if (!$this->getConfig('check_fields_result')) {
+			return false;
+		}
 
 		$DB['TYPE'] = $this->getConfig('DB_TYPE');
 		if (is_null($DB['TYPE'])) {
@@ -484,6 +554,8 @@ class CsetupWizard extends CForm {
 		$DB['SCHEMA'] = $this->getConfig('DB_SCHEMA', '');
 
 		$error = '';
+
+		// during setup set debug to false to avoid displaying unwanted PHP errors in messages
 		if (!$result = DBconnect($error)) {
 			error($error);
 		}
@@ -502,23 +574,18 @@ class CsetupWizard extends CForm {
 
 		DBclose();
 
-		if ($DB['TYPE'] == ZBX_DB_SQLITE3 && !zbx_is_callable(array('ftok', 'sem_get', 'sem_acquire', 'sem_release', 'sem_remove'))) {
-			error('Support of SQLite3 requires PHP IPC functions');
-			$result = false;
-		}
-
 		$DB = null;
 		return $result;
 	}
 
-	function EventHandler() {
+	function eventHandler() {
 		if (isset($_REQUEST['back'][$this->getStep()])) {
-			$this->DoBack();
+			$this->doBack();
 		}
 
 		if ($this->getStep() == 1) {
 			if (isset($_REQUEST['next'][$this->getStep()])) {
-				$this->DoNext();
+				$this->doNext();
 			}
 			$this->DISABLE_NEXT_BUTTON = true;
 		}
@@ -532,7 +599,7 @@ class CsetupWizard extends CForm {
 			$this->setConfig('DB_SCHEMA', get_request('schema', $this->getConfig('DB_SCHEMA', '')));
 
 			if (isset($_REQUEST['retry'])) {
-				if (!$this->CheckConnection()) {
+				if (!$this->checkConnection()) {
 					$this->DISABLE_NEXT_BUTTON = true;
 					unset($_REQUEST['next']);
 				}
@@ -543,7 +610,7 @@ class CsetupWizard extends CForm {
 			}
 
 			if (isset($_REQUEST['next'][$this->getStep()])) {
-				$this->DoNext();
+				$this->doNext();
 			}
 		}
 		elseif ($this->getStep() == 3) {
@@ -551,20 +618,18 @@ class CsetupWizard extends CForm {
 			$this->setConfig('ZBX_SERVER_PORT', get_request('zbx_server_port', $this->getConfig('ZBX_SERVER_PORT', '10051')));
 			$this->setConfig('ZBX_SERVER_NAME', get_request('zbx_server_name', $this->getConfig('ZBX_SERVER_NAME', '')));
 			if (isset($_REQUEST['next'][$this->getStep()])) {
-				$this->DoNext();
+				$this->doNext();
 			}
 		}
 		elseif ($this->getStep() == 4 && isset($_REQUEST['next'][$this->getStep()])) {
-			$this->DoNext();
+			$this->doNext();
 		}
 		elseif ($this->getStep() == 5) {
 			if (isset($_REQUEST['save_config'])) {
-				global $ZBX_CONFIGURATION_FILE;
-
 				// make zabbix.conf.php downloadable
 				header('Content-Type: application/x-httpd-php');
-				header('Content-Disposition: attachment; filename="'.basename($ZBX_CONFIGURATION_FILE).'"');
-				$config = new CConfigFile($ZBX_CONFIGURATION_FILE);
+				header('Content-Disposition: attachment; filename="'.basename(CConfigFile::CONFIG_FILE_PATH).'"');
+				$config = new CConfigFile(Z::getInstance()->getRootDir().CConfigFile::CONFIG_FILE_PATH);
 				$config->config = array(
 					'DB' => array(
 						'TYPE' => $this->getConfig('DB_TYPE'),
@@ -584,7 +649,7 @@ class CsetupWizard extends CForm {
 		}
 
 		if (isset($_REQUEST['next'][$this->getStep()])) {
-			$this->DoNext();
+			$this->doNext();
 		}
 	}
 }

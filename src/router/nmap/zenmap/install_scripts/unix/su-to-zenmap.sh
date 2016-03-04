@@ -1,11 +1,17 @@
-#!/bin/bash
+#!/bin/sh
 #this code is bassed off of the debian su-to-root command
 #Joost Witteveen <joostje@debian.org>
 #Morten Brix Pedersen
 #Bill Allombert <ballombe@debian.org>
 
 PRIV=root
-COMMAND="zenmap $@"
+COMMAND="zenmap"
+
+quote () { printf %s\\n "$1" | sed "s/'/'\\\\''/g;1s/^/'/;\$s/\$/'/" ; }
+
+for i in "$@"; do
+  COMMAND="$COMMAND $(quote "$i")"
+done
 
 euid=$(id -u)
 privid=$(id -u $PRIV)
@@ -40,8 +46,8 @@ else
     fi
     case $SU_TO_ROOT_X in
       gksu) gksu -u "$PRIV" "$COMMAND";;
-      kdesu) kdesu -u "$PRIV" "$COMMAND";;
-      kde4su) /usr/lib/kde4/libexec/kdesu -u "$PRIV" "$COMMAND";;
+      kdesu) kdesu -u "$PRIV" -c "$COMMAND";;
+      kde4su) /usr/lib/kde4/libexec/kdesu -u "$PRIV" -c "$COMMAND";;
       ktsuss) ktsuss -u "$PRIV" "$COMMAND";;
   # As a last resort, open a new xterm use sudo/su
       sdterm) xterm -e "sudo -u $PRIV $COMMAND";;

@@ -2,8 +2,9 @@
  * idevice.c
  * Device discovery and communication interface.
  *
+ * Copyright (c) 2014 Martin Szulecki All Rights Reserved.
+ * Copyright (c) 2009-2014 Nikias Bassen. All Rights Reserved.
  * Copyright (c) 2008 Zach C. All Rights Reserved.
- * Copyright (c) 2009 Nikias Bassen. All Rights Reserved.
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
@@ -28,18 +29,116 @@
 #include <string.h>
 #include <errno.h>
 
+#ifdef WIN32
+#include <windows.h>
+#endif
+
 #include <usbmuxd.h>
 #ifdef HAVE_OPENSSL
+#include <openssl/err.h>
 #include <openssl/ssl.h>
+#if OPENSSL_VERSION_NUMBER >= 0x10000001L
+/* since OpenSSL 1.0.0-beta1 */
+#define HAVE_ERR_REMOVE_THREAD_STATE 1
+#endif
 #else
 #include <gnutls/gnutls.h>
 #endif
+
 #include "idevice.h"
-#include "userpref.h"
-#include "debug.h"
+#include "common/userpref.h"
+#include "common/thread.h"
+#include "common/debug.h"
 
 #ifdef HAVE_OPENSSL
-static int openssl_init_done = 0;
+static mutex_t *mutex_buf = NULL;
+static void locking_function(int mode, int n, const char* file, int line)
+{
+	if (mode & CRYPTO_LOCK)
+		mutex_lock(&mutex_buf[n]);
+	else
+		mutex_unlock(&mutex_buf[n]);
+}
+
+static unsigned long id_function(void)
+{
+	return ((unsigned long)THREAD_ID);
+}
+#endif
+
+static void internal_idevice_init(void)
+{
+#ifdef HAVE_OPENSSL
+	int i;
+	SSL_library_init();
+
+	mutex_buf = malloc(CRYPTO_num_locks() * sizeof(mutex_t));
+	if (!mutex_buf)
+		return;
+	for (i = 0; i < CRYPTO_num_locks(); i++)
+		mutex_init(&mutex_buf[i]);
+
+	CRYPTO_set_id_callback(id_function);
+	CRYPTO_set_locking_callback(locking_function);
+#else
+	gnutls_global_init();
+#endif
+}
+
+static void internal_idevice_deinit(void)
+{
+#ifdef HAVE_OPENSSL
+	int i;
+	if (mutex_buf) {
+		CRYPTO_set_id_callback(NULL);
+		CRYPTO_set_locking_callback(NULL);
+		for (i = 0; i < CRYPTO_num_locks(); i++)
+			mutex_destroy(&mutex_buf[i]);
+		free(mutex_buf);
+		mutex_buf = NULL;
+	}
+
+	EVP_cleanup();
+	CRYPTO_cleanup_all_ex_data();
+	sk_SSL_COMP_free(SSL_COMP_get_compression_methods());
+#ifdef HAVE_ERR_REMOVE_THREAD_STATE
+	ERR_remove_thread_state(NULL);
+#else
+	ERR_remove_state(0);
+#endif
+#else
+	gnutls_global_deinit();
+#endif
+}
+
+static thread_once_t init_once = THREAD_ONCE_INIT;
+static thread_once_t deinit_once = THREAD_ONCE_INIT;
+
+#ifdef WIN32
+BOOL WINAPI DllMain(HINSTANCE hModule, DWORD dwReason, LPVOID lpReserved)
+{
+	switch (dwReason) {
+	case DLL_PROCESS_ATTACH:
+		thread_once(&init_once,	internal_idevice_init);
+		break;
+	case DLL_PROCESS_DETACH:
+		thread_once(&deinit_once, internal_idevice_deinit);
+		break;
+	default:
+		break;
+	}
+	return 1;
+}
+#else
+static void __attribute__((constructor)) libimobiledevice_initialize(void)
+{
+	thread_once(&init_once, internal_idevice_init);
+}
+
+static void __attribute__((destructor)) libimobiledevice_deinitialize(void)
+{
+	thread_once(&deinit_once, internal_idevice_deinit);
+}
 #endif
 
 static idevice_event_cb_t event_cb = NULL;
@@ -57,55 +156,30 @@ static void usbmux_event_cb(const usbmuxd_event_t *event, void *user_data)
 	}
 }
 
-/**
- * Register a callback function that will be called when device add/remove
- * events occur.
- *
- * @param callback Callback function to call.
- * @param user_data Application-specific data passed as parameter
- *   to the registered callback function.
- *
- * @return IDEVICE_E_SUCCESS on success or an error value when an error occured.
- */
-idevice_error_t idevice_event_subscribe(idevice_event_cb_t callback, void *user_data)
+LIBIMOBILEDEVICE_API idevice_error_t idevice_event_subscribe(idevice_event_cb_t callback, void *user_data)
 {
 	event_cb = callback;
 	int res = usbmuxd_subscribe(usbmux_event_cb, user_data);
-        if (res != 0) {
+	if (res != 0) {
 		event_cb = NULL;
-		debug_info("Error %d when subscribing usbmux event callback!", res);
+		debug_info("ERROR: usbmuxd_subscribe() returned %d!", res);
 		return IDEVICE_E_UNKNOWN_ERROR;
 	}
 	return IDEVICE_E_SUCCESS;
 }
 
-/**
- * Release the event callback function that has been registered with
- *  idevice_event_subscribe().
- *
- * @return IDEVICE_E_SUCCESS on success or an error value when an error occured.
- */
-idevice_error_t idevice_event_unsubscribe()
+LIBIMOBILEDEVICE_API idevice_error_t idevice_event_unsubscribe()
 {
 	event_cb = NULL;
 	int res = usbmuxd_unsubscribe();
 	if (res != 0) {
-		debug_info("Error %d when unsubscribing usbmux event callback!", res);
+		debug_info("ERROR: usbmuxd_unsubscribe() returned %d!", res);
 		return IDEVICE_E_UNKNOWN_ERROR;
 	}
 	return IDEVICE_E_SUCCESS;
 }
 
-/**
- * Get a list of currently available devices.
- *
- * @param devices List of udids of devices that are currently available.
- *   This list is terminated by a NULL pointer.
- * @param count Number of devices found.
- *
- * @return IDEVICE_E_SUCCESS on success or an error value when an error occured.
- */
-idevice_error_t idevice_get_device_list(char ***devices, int *count)
+LIBIMOBILEDEVICE_API idevice_error_t idevice_get_device_list(char ***devices, int *count)
 {
 	usbmuxd_device_info_t *dev_list;
 
@@ -113,7 +187,7 @@ idevice_error_t idevice_get_device_list(char ***devices, int *count)
 	*count = 0;
 
 	if (usbmuxd_get_device_list(&dev_list) < 0) {
-		debug_info("ERROR: usbmuxd is not running!\n", __func__);
+		debug_info("ERROR: usbmuxd is not running!", __func__);
 		return IDEVICE_E_NO_DEVICE;
 	}
 
@@ -135,14 +209,7 @@ idevice_error_t idevice_get_device_list(char ***devices, int *count)
 	return IDEVICE_E_SUCCESS;
 }
 
-/**
- * Free a list of device udids.
- *
- * @param devices List of udids to free.
- *
- * @return Always returnes IDEVICE_E_SUCCESS.
- */
-idevice_error_t idevice_device_list_free(char **devices)
+LIBIMOBILEDEVICE_API idevice_error_t idevice_device_list_free(char **devices)
 {
 	if (devices) {
 		int i = 0;
@@ -155,20 +222,12 @@ idevice_error_t idevice_device_list_free(char **devices)
 	return IDEVICE_E_SUCCESS;
 }
 
-/**
- * Creates an idevice_t structure for the device specified by udid,
- *  if the device is available.
- *
- * @note The resulting idevice_t structure has to be freed with
- * idevice_free() if it is no longer used.
- *
- * @param device Upon calling this function, a pointer to a location of type
- *  idevice_t. On successful return, this location will be populated.
- * @param udid The UDID to match.
- *
- * @return IDEVICE_E_SUCCESS if ok, otherwise an error code.
- */
-idevice_error_t idevice_new(idevice_t * device, const char *udid)
+LIBIMOBILEDEVICE_API void idevice_set_debug_level(int level)
+{
+	internal_set_debug_level(level);
+}
+
+LIBIMOBILEDEVICE_API idevice_error_t idevice_new(idevice_t * device, const char *udid)
 {
 	usbmuxd_device_info_t muxdev;
 	int res = usbmuxd_get_device_by_udid(udid, &muxdev);
@@ -185,14 +244,7 @@ idevice_error_t idevice_new(idevice_t * device, const char *udid)
 	return IDEVICE_E_NO_DEVICE;
 }
 
-/**
- * Cleans up an idevice structure, then frees the structure itself.
- * This is a library-level function; deals directly with the device to tear
- *  down relations, but otherwise is mostly internal.
- * 
- * @param device idevice_t to free.
- */
-idevice_error_t idevice_free(idevice_t device)
+LIBIMOBILEDEVICE_API idevice_error_t idevice_free(idevice_t device)
 {
 	if (!device)
 		return IDEVICE_E_INVALID_ARG;
@@ -212,17 +264,7 @@ idevice_error_t idevice_free(idevice_t device)
 	return ret;
 }
 
-/**
- * Set up a connection to the given device.
- *
- * @param device The device to connect to.
- * @param port The destination port to connect to.
- * @param connection Pointer to an idevice_connection_t that will be filled
- *   with the necessary data of the connection.
- *
- * @return IDEVICE_E_SUCCESS if ok, otherwise an error code.
- */
-idevice_error_t idevice_connect(idevice_t device, uint16_t port, idevice_connection_t *connection)
+LIBIMOBILEDEVICE_API idevice_error_t idevice_connect(idevice_t device, uint16_t port, idevice_connection_t *connection)
 {
 	if (!device) {
 		return IDEVICE_E_INVALID_ARG;
@@ -238,6 +280,7 @@ idevice_error_t idevice_connect(idevice_t device, uint16_t port, idevice_connect
 		new_connection->type = CONNECTION_USBMUXD;
 		new_connection->data = (void*)(long)sfd;
 		new_connection->ssl_data = NULL;
+		idevice_get_udid(device, &new_connection->udid);
 		*connection = new_connection;
 		return IDEVICE_E_SUCCESS;
 	} else {
@@ -247,14 +290,7 @@ idevice_error_t idevice_connect(idevice_t device, uint16_t port, idevice_connect
 	return IDEVICE_E_UNKNOWN_ERROR;
 }
 
-/**
- * Disconnect from the device and clean up the connection structure.
- *
- * @param connection The connection to close.
- *
- * @return IDEVICE_E_SUCCESS if ok, otherwise an error code.
- */
-idevice_error_t idevice_disconnect(idevice_connection_t connection)
+LIBIMOBILEDEVICE_API idevice_error_t idevice_disconnect(idevice_connection_t connection)
 {
 	if (!connection) {
 		return IDEVICE_E_INVALID_ARG;
@@ -266,11 +302,18 @@ idevice_error_t idevice_disconnect(idevice_connection_t connection)
 	idevice_error_t result = IDEVICE_E_UNKNOWN_ERROR;
 	if (connection->type == CONNECTION_USBMUXD) {
 		usbmuxd_disconnect((int)(long)connection->data);
+		connection->data = NULL;
 		result = IDEVICE_E_SUCCESS;
 	} else {
 		debug_info("Unknown connection type %d", connection->type);
 	}
+
+	if (connection->udid)
+		free(connection->udid);
+
 	free(connection);
+	connection = NULL;
+
 	return result;
 }
 
@@ -297,18 +340,7 @@ static idevice_error_t internal_connection_send(idevice_connection_t connection,
 
 }
 
-/**
- * Send data to a device via the given connection.
- *
- * @param connection The connection to send data over.
- * @param data Buffer with data to send.
- * @param len Size of the buffer to send.
- * @param sent_bytes Pointer to an uint32_t that will be filled
- *   with the number of bytes actually sent.
- *
- * @return IDEVICE_E_SUCCESS if ok, otherwise an error code.
- */
-idevice_error_t idevice_connection_send(idevice_connection_t connection, const char *data, uint32_t len, uint32_t *sent_bytes)
+LIBIMOBILEDEVICE_API idevice_error_t idevice_connection_send(idevice_connection_t connection, const char *data, uint32_t len, uint32_t *sent_bytes)
 {
 	if (!connection || !data || (connection->ssl_data && !connection->ssl_data->session)) {
 		return IDEVICE_E_INVALID_ARG;
@@ -354,22 +386,7 @@ static idevice_error_t internal_connection_receive_timeout(idevice_connection_t 
 	return IDEVICE_E_UNKNOWN_ERROR;
 }
 
-/**
- * Receive data from a device via the given connection.
- * This function will return after the given timeout even if no data has been
- * received.
- *
- * @param connection The connection to receive data from.
- * @param data Buffer that will be filled with the received data.
- *   This buffer has to be large enough to hold len bytes.
- * @param len Buffer size or number of bytes to receive.
- * @param recv_bytes Number of bytes actually received.
- * @param timeout Timeout in milliseconds after which this function should
- *   return even if no data has been received.
- *
- * @return IDEVICE_E_SUCCESS if ok, otherwise an error code.
- */
-idevice_error_t idevice_connection_receive_timeout(idevice_connection_t connection, char *data, uint32_t len, uint32_t *recv_bytes, unsigned int timeout)
+LIBIMOBILEDEVICE_API idevice_error_t idevice_connection_receive_timeout(idevice_connection_t connection, char *data, uint32_t len, uint32_t *recv_bytes, unsigned int timeout)
 {
 	if (!connection || (connection->ssl_data && !connection->ssl_data->session)) {
 		return IDEVICE_E_INVALID_ARG;
@@ -377,7 +394,15 @@ idevice_error_t idevice_connection_receive_timeout(idevice_connection_t connecti
 
 	if (connection->ssl_data) {
 #ifdef HAVE_OPENSSL
-		int received = SSL_read(connection->ssl_data->session, (void*)data, (int)len);
+		uint32_t received = 0;
+		while (received < len) {
+			int r = SSL_read(connection->ssl_data->session, (void*)((char*)(data+received)), (int)len-received);
+			if (r > 0) {
+				received += r;
+			} else {
+				break;
+			}
+		}
 		debug_info("SSL_read %d, received %d", len, received);
 #else
 		ssize_t received = gnutls_record_recv(connection->ssl_data->session, (void*)data, (size_t)len);
@@ -415,20 +440,7 @@ static idevice_error_t internal_connection_receive(idevice_connection_t connecti
 	return IDEVICE_E_UNKNOWN_ERROR;
 }
 
-/**
- * Receive data from a device via the given connection.
- * This function is like idevice_connection_receive_timeout, but with a
- * predefined reasonable timeout.
- *
- * @param connection The connection to receive data from.
- * @param data Buffer that will be filled with the received data.
- *   This buffer has to be large enough to hold len bytes.
- * @param len Buffer size or number of bytes to receive.
- * @param recv_bytes Number of bytes actually received.
- *
- * @return IDEVICE_E_SUCCESS if ok, otherwise an error code.
- */
-idevice_error_t idevice_connection_receive(idevice_connection_t connection, char *data, uint32_t len, uint32_t *recv_bytes)
+LIBIMOBILEDEVICE_API idevice_error_t idevice_connection_receive(idevice_connection_t connection, char *data, uint32_t len, uint32_t *recv_bytes)
 {
 	if (!connection || (connection->ssl_data && !connection->ssl_data->session)) {
 		return IDEVICE_E_INVALID_ARG;
@@ -451,10 +463,7 @@ idevice_error_t idevice_connection_receive(idevice_connection_t connection, char
 	return internal_connection_receive(connection, data, len, recv_bytes);
 }
 
-/**
- * Gets the handle of the device. Depends on the connection type.
- */
-idevice_error_t idevice_get_handle(idevice_t device, uint32_t *handle)
+LIBIMOBILEDEVICE_API idevice_error_t idevice_get_handle(idevice_t device, uint32_t *handle)
 {
 	if (!device)
 		return IDEVICE_E_INVALID_ARG;
@@ -468,10 +477,7 @@ idevice_error_t idevice_get_handle(idevice_t device, uint32_t *handle)
 	return IDEVICE_E_UNKNOWN_ERROR;
 }
 
-/**
- * Gets the unique id for the device.
- */
-idevice_error_t idevice_get_udid(idevice_t device, char **udid)
+LIBIMOBILEDEVICE_API idevice_error_t idevice_get_udid(idevice_t device, char **udid)
 {
 	if (!device || !udid)
 		return IDEVICE_E_INVALID_ARG;
@@ -495,7 +501,7 @@ static ssize_t internal_ssl_read(gnutls_transport_ptr_t transport, char *buffer,
 
 	debug_info("pre-read client wants %zi bytes", length);
 
-	recv_buffer = (char *) malloc(sizeof(char) * this_len);
+	recv_buffer = (char *)malloc(sizeof(char) * this_len);
 
 	/* repeat until we have the full data or an error occurs */
 	do {
@@ -559,7 +565,6 @@ static void internal_ssl_cleanup(ssl_data_t ssl_data)
 	if (ssl_data->ctx) {
 		SSL_CTX_free(ssl_data->ctx);
 	}
-	openssl_init_done = 0;
 #else
 	if (ssl_data->session) {
 		gnutls_deinit(ssl_data->session);
@@ -591,28 +596,28 @@ static int ssl_verify_callback(int ok, X509_STORE_CTX *ctx)
 #ifndef STRIP_DEBUG_CODE
 static const char *errorstring(int e)
 {
-    switch(e) {
-	case SSL_ERROR_NONE:
-	    return "SSL_ERROR_NONE";
-	case SSL_ERROR_SSL:
-	    return "SSL_ERROR_SSL";
-	case SSL_ERROR_WANT_READ:
-	    return "SSL_ERROR_WANT_READ";
-	case SSL_ERROR_WANT_WRITE:
-	    return "SSL_ERROR_WANT_WRITE";
-	case SSL_ERROR_WANT_X509_LOOKUP:
-	    return "SSL_ERROR_WANT_X509_LOOKUP";
-	case SSL_ERROR_SYSCALL:
-	    return "SSL_ERROR_SYSCALL";
-	case SSL_ERROR_ZERO_RETURN:
-	    return "SSL_ERROR_ZERO_RETURN";
-        case SSL_ERROR_WANT_CONNECT:
-	    return "SSL_ERROR_WANT_CONNECT";
-	case SSL_ERROR_WANT_ACCEPT:
-	    return "SSL_ERROR_WANT_ACCEPT";
-	default:
-	    return "UNKOWN_ERROR_VALUE";
-    }
+	switch(e) {
+		case SSL_ERROR_NONE:
+			return "SSL_ERROR_NONE";
+		case SSL_ERROR_SSL:
+			return "SSL_ERROR_SSL";
+		case SSL_ERROR_WANT_READ:
+			return "SSL_ERROR_WANT_READ";
+		case SSL_ERROR_WANT_WRITE:
+			return "SSL_ERROR_WANT_WRITE";
+		case SSL_ERROR_WANT_X509_LOOKUP:
+			return "SSL_ERROR_WANT_X509_LOOKUP";
+		case SSL_ERROR_SYSCALL:
+			return "SSL_ERROR_SYSCALL";
+		case SSL_ERROR_ZERO_RETURN:
+			return "SSL_ERROR_ZERO_RETURN";
+		case SSL_ERROR_WANT_CONNECT:
+			return "SSL_ERROR_WANT_CONNECT";
+		case SSL_ERROR_WANT_ACCEPT:
+			return "SSL_ERROR_WANT_ACCEPT";
+		default:
+			return "UNKOWN_ERROR_VALUE";
+	}
 }
 #endif
 #endif
@@ -621,12 +626,12 @@ static const char *errorstring(int e)
 /**
  * Internally used gnutls callback function that gets called during handshake.
  */
-static int internal_cert_callback (gnutls_session_t session, const gnutls_datum_t * req_ca_rdn, int nreqs, const gnutls_pk_algorithm_t * sign_algos, int sign_algos_length, gnutls_retr_st * st)
+static int internal_cert_callback(gnutls_session_t session, const gnutls_datum_t * req_ca_rdn, int nreqs, const gnutls_pk_algorithm_t * sign_algos, int sign_algos_length, gnutls_retr_st * st)
 {
 	int res = -1;
-	gnutls_certificate_type_t type = gnutls_certificate_type_get (session);
+	gnutls_certificate_type_t type = gnutls_certificate_type_get(session);
 	if (type == GNUTLS_CRT_X509) {
-		ssl_data_t ssl_data = (ssl_data_t)gnutls_session_get_ptr (session);
+		ssl_data_t ssl_data = (ssl_data_t)gnutls_session_get_ptr(session);
 		if (ssl_data && ssl_data->host_privkey && ssl_data->host_cert) {
 			debug_info("Passing certificate");
 			st->type = type;
@@ -641,37 +646,30 @@ static int internal_cert_callback (gnutls_session_t session, const gnutls_datum_
 }
 #endif
 
-/**
- * Enables SSL for the given connection.
- *
- * @param connection The connection to enable SSL for.
- *
- * @return IDEVICE_E_SUCCESS on success, IDEVICE_E_INVALID_ARG when connection
- *     is NULL or connection->ssl_data is non-NULL, or IDEVICE_E_SSL_ERROR when
- *     SSL initialization, setup, or handshake fails.
- */
-idevice_error_t idevice_connection_enable_ssl(idevice_connection_t connection)
+LIBIMOBILEDEVICE_API idevice_error_t idevice_connection_enable_ssl(idevice_connection_t connection)
 {
 	if (!connection || connection->ssl_data)
 		return IDEVICE_E_INVALID_ARG;
 
 	idevice_error_t ret = IDEVICE_E_SSL_ERROR;
 	uint32_t return_me = 0;
+	plist_t pair_record = NULL;
+
+	userpref_read_pair_record(connection->udid, &pair_record);
+	if (!pair_record) {
+		debug_info("ERROR: Failed enabling SSL. Unable to read pair record for udid %s.", connection->udid);
+		return ret;
+	}
 
 #ifdef HAVE_OPENSSL
 	key_data_t root_cert = { NULL, 0 };
 	key_data_t root_privkey = { NULL, 0 };
 
-	userpref_error_t uerr = userpref_get_keys_and_certs(&root_privkey, &root_cert, NULL, NULL);
-	if (uerr != USERPREF_E_SUCCESS) {
-		debug_info("Error %d when loading keys and certificates! %d", uerr);
-	}
+	pair_record_import_crt_with_name(pair_record, USERPREF_ROOT_CERTIFICATE_KEY, &root_cert);
+	pair_record_import_key_with_name(pair_record, USERPREF_ROOT_PRIVATE_KEY_KEY, &root_privkey);
 
-	/* Set up OpenSSL */
-	if (openssl_init_done == 0) {
-		SSL_library_init();
-		openssl_init_done = 1;
-	}
+	if (pair_record)
+		plist_free(pair_record);
 
 	BIO *ssl_bio = BIO_new(BIO_s_socket());
 	if (!ssl_bio) {
@@ -720,29 +718,32 @@ idevice_error_t idevice_connection_enable_ssl(idevice_connection_t connection)
 	SSL_set_bio(ssl, ssl_bio, ssl_bio);
 
 	return_me = SSL_do_handshake(ssl);
-        if (return_me != 1) {
+	if (return_me != 1) {
 		debug_info("ERROR in SSL_do_handshake: %s", errorstring(SSL_get_error(ssl, return_me)));
-		BIO_free(ssl_bio);
+		SSL_free(ssl);
 		SSL_CTX_free(ssl_ctx);
 	} else {
 		ssl_data_t ssl_data_loc = (ssl_data_t)malloc(sizeof(struct ssl_data_private));
 		ssl_data_loc->session = ssl;
 		ssl_data_loc->ctx = ssl_ctx;
-		ssl_data_loc->bio = ssl_bio;
 		connection->ssl_data = ssl_data_loc;
 		ret = IDEVICE_E_SUCCESS;
 		debug_info("SSL mode enabled, cipher: %s", SSL_get_cipher(ssl));
 	}
-	openssl_init_done = 0;
+	/* required for proper multi-thread clean up to prevent leaks */
+#ifdef HAVE_ERR_REMOVE_THREAD_STATE
+	ERR_remove_thread_state(NULL);
+#else
+	ERR_remove_state(0);
+#endif
 #else
 	ssl_data_t ssl_data_loc = (ssl_data_t)malloc(sizeof(struct ssl_data_private));
 
 	/* Set up GnuTLS... */
 	debug_info("enabling SSL mode");
 	errno = 0;
-	gnutls_global_init();
 	gnutls_certificate_allocate_credentials(&ssl_data_loc->certificate);
-	gnutls_certificate_client_set_retrieve_function (ssl_data_loc->certificate, internal_cert_callback);
+	gnutls_certificate_client_set_retrieve_function(ssl_data_loc->certificate, internal_cert_callback);
 	gnutls_init(&ssl_data_loc->session, GNUTLS_CLIENT);
 	gnutls_priority_set_direct(ssl_data_loc->session, "NONE:+VERS-SSL3.0:+ANON-DH:+RSA:+AES-128-CBC:+AES-256-CBC:+SHA1:+MD5:+COMP-NULL", NULL);
 	gnutls_credentials_set(ssl_data_loc->session, GNUTLS_CRD_CERTIFICATE, ssl_data_loc->certificate);
@@ -753,10 +754,13 @@ idevice_error_t idevice_connection_enable_ssl(idevice_connection_t connection)
 	gnutls_x509_privkey_init(&ssl_data_loc->root_privkey);
 	gnutls_x509_privkey_init(&ssl_data_loc->host_privkey);
 
-	userpref_error_t uerr = userpref_get_keys_and_certs(ssl_data_loc->root_privkey, ssl_data_loc->root_cert, ssl_data_loc->host_privkey, ssl_data_loc->host_cert);
-	if (uerr != USERPREF_E_SUCCESS) {
-		debug_info("Error %d when loading keys and certificates! %d", uerr);
-	}
+	pair_record_import_crt_with_name(pair_record, USERPREF_ROOT_CERTIFICATE_KEY, ssl_data_loc->root_cert);
+	pair_record_import_crt_with_name(pair_record, USERPREF_HOST_CERTIFICATE_KEY, ssl_data_loc->host_cert);
+	pair_record_import_key_with_name(pair_record, USERPREF_ROOT_PRIVATE_KEY_KEY, ssl_data_loc->root_privkey);
+	pair_record_import_key_with_name(pair_record, USERPREF_HOST_PRIVATE_KEY_KEY, ssl_data_loc->host_privkey);
+
+	if (pair_record)
+		plist_free(pair_record);
 
 	debug_info("GnuTLS step 1...");
 	gnutls_transport_set_ptr(ssl_data_loc->session, (gnutls_transport_ptr_t)connection);
@@ -766,7 +770,7 @@ idevice_error_t idevice_connection_enable_ssl(idevice_connection_t connection)
 	gnutls_transport_set_pull_function(ssl_data_loc->session, (gnutls_pull_func) & internal_ssl_read);
 	debug_info("GnuTLS step 4 -- now handshaking...");
 	if (errno) {
-		debug_info("WARN: errno says %s before handshake!", strerror(errno));
+		debug_info("WARNING: errno says %s before handshake!", strerror(errno));
 	}
 	return_me = gnutls_handshake(ssl_data_loc->session);
 	debug_info("GnuTLS handshake done...");
@@ -786,16 +790,7 @@ idevice_error_t idevice_connection_enable_ssl(idevice_connection_t connection)
 	return ret;
 }
 
-/**
- * Disable SSL for the given connection.
- *
- * @param connection The connection to disable SSL for.
- *
- * @return IDEVICE_E_SUCCESS on success, IDEVICE_E_INVALID_ARG when connection
- *     is NULL. This function also returns IDEVICE_E_SUCCESS when SSL is not
- *     enabled and does no further error checking on cleanup.
- */
-idevice_error_t idevice_connection_disable_ssl(idevice_connection_t connection)
+LIBIMOBILEDEVICE_API idevice_error_t idevice_connection_disable_ssl(idevice_connection_t connection)
 {
 	if (!connection)
 		return IDEVICE_E_INVALID_ARG;
@@ -806,7 +801,10 @@ idevice_error_t idevice_connection_disable_ssl(idevice_connection_t connection)
 
 #ifdef HAVE_OPENSSL
 	if (connection->ssl_data->session) {
-		SSL_shutdown(connection->ssl_data->session);
+		/* see: https://www.openssl.org/docs/ssl/SSL_shutdown.html#RETURN_VALUES */
+		if (SSL_shutdown(connection->ssl_data->session) == 0) {
+			SSL_shutdown(connection->ssl_data->session);
+		}
 	}
 #else
 	if (connection->ssl_data->session) {
@@ -821,4 +819,3 @@ idevice_error_t idevice_connection_disable_ssl(idevice_connection_t connection)
 
 	return IDEVICE_E_SUCCESS;
 }
-

@@ -152,6 +152,10 @@ typedef struct pw_auth_hdr
 #define PW_MS_CHAP_MPPE_KEYS		12	/* string */
 #define PW_MS_MPPE_SEND_KEY		16	/* string */
 #define PW_MS_MPPE_RECV_KEY		17	/* string */
+#define PW_MS_PRIMARY_DNS_SERVER	28	/* ipaddr */
+#define PW_MS_SECONDARY_DNS_SERVER	29	/* ipaddr */
+#define PW_MS_PRIMARY_NBNS_SERVER	30	/* ipaddr */
+#define PW_MS_SECONDARY_NBNS_SERVER	31	/* ipaddr */
 
 /*	Accounting */
 
@@ -288,10 +292,15 @@ typedef struct pw_auth_hdr
 #define PW_OCTETS_DIRECTION_OUT	2
 #define PW_OCTETS_DIRECTION_MAX	3
 
+#define PW_WISPR_BANDWIDTH_MIN_UP 5     
+#define PW_WISPR_BANDWIDTH_MIN_DOWN 6     
+#define PW_WISPR_BANDWIDTH_MAX_UP 7     
+#define PW_WISPR_BANDWIDTH_MAX_DOWN 8     
 
 /* Vendor codes */
 #define VENDOR_NONE     (-1)
 #define VENDOR_MICROSOFT	311
+#define VENDOR_WISPR 		14122
 
 /* Server data structures */
 

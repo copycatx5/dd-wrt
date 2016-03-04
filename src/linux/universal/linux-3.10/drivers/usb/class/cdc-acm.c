@@ -115,6 +115,29 @@ static void acm_release_minor(struct acm *acm)
 	mutex_unlock(&acm_table_lock);
 }
 
+static int interay_serial_ctrl_msg(struct acm *acm, int request, int value,	void *buf, int len)
+{
+	int retval;
+
+	retval = usb_autopm_get_interface(acm->control);
+	if (retval)
+		return retval;
+
+	retval = usb_control_msg(acm->dev, usb_sndctrlpipe(acm->dev, 0),
+		request, USB_TYPE_VENDOR | USB_RECIP_INTERFACE,
+		value,
+		acm->control->altsetting[0].desc.bInterfaceNumber,
+		buf, len, 5000);
+
+	dev_dbg(&acm->control->dev,
+			"%s - rq 0x%02x, val %#x, len %#x, result %d\n",
+			__func__, request, value, len, retval);
+
+	usb_autopm_put_interface(acm->control);
+
+	return retval < 0 ? retval : 0;
+}
+
 /*
  * Functions for ACM control messages.
  */
@@ -840,12 +863,23 @@ static int acm_tty_ioctl(struct tty_struct *tty,
 	struct acm *acm = tty->driver_data;
 	int rv = -ENOIOCTLCMD;
 
+	#define SET_MODE_RS232 0x54ED
+	#define SET_MODE_RS485 0x54EE
+	#define SET_MODE_RS422 0x54EF
+
+	#define SET_ACTIVE_PROTOCOL_CMD 0
+
 	switch (cmd) {
 	case TIOCGSERIAL: /* gets serial port data */
 		rv = get_serial_info(acm, (struct serial_struct __user *) arg);
 		break;
 	case TIOCSSERIAL:
 		rv = set_serial_info(acm, (struct serial_struct __user *) arg);
+		break;
+	case SET_MODE_RS232:
+	case SET_MODE_RS485:
+	case SET_MODE_RS422:
+		return interay_serial_ctrl_msg(acm, SET_ACTIVE_PROTOCOL_CMD, cmd - SET_MODE_RS232, NULL, 0);
 		break;
 	}
 
@@ -883,11 +917,12 @@ static void acm_tty_set_termios(struct tty_struct *tty,
 	/* FIXME: Needs to clear unsupported bits in the termios */
 	acm->clocal = ((termios->c_cflag & CLOCAL) != 0);
 
-	if (!newline.dwDTERate) {
+	if (C_BAUD(tty) == B0) {
 		newline.dwDTERate = acm->line.dwDTERate;
 		newctrl &= ~ACM_CTRL_DTR;
-	} else
+	} else if (termios_old && (termios_old->c_cflag & CBAUD) == B0) {
 		newctrl |=  ACM_CTRL_DTR;
+	}
 
 	if (newctrl != acm->ctrlout)
 		acm_set_control(acm, acm->ctrlout = newctrl);
@@ -1086,10 +1121,11 @@ next_desc:
 	} else {
 		control_interface = usb_ifnum_to_if(usb_dev, union_header->bMasterInterface0);
 		data_interface = usb_ifnum_to_if(usb_dev, (data_interface_num = union_header->bSlaveInterface0));
-		if (!control_interface || !data_interface) {
-			dev_dbg(&intf->dev, "no interfaces\n");
-			return -ENODEV;
-		}
+	}
+
+	if (!control_interface || !data_interface) {
+		dev_dbg(&intf->dev, "no interfaces\n");
+		return -ENODEV;
 	}
 
 	if (data_interface_num != call_interface_num)
@@ -1364,6 +1400,7 @@ alloc_fail8:
 				&dev_attr_wCountryCodes);
 		device_remove_file(&acm->control->dev,
 				&dev_attr_iCountryCodeRelDate);
+		kfree(acm->country_codes);
 	}
 	device_remove_file(&acm->control->dev, &dev_attr_bmCapabilities);
 alloc_fail7:
@@ -1588,6 +1625,7 @@ static const struct usb_device_id acm_ids[] = {
 	{ USB_DEVICE(0x0572, 0x1328), /* Shiro / Aztech USB MODEM UM-3100 */
 	.driver_info = NO_UNION_NORMAL, /* has no union descriptor */
 	},
+	{ USB_DEVICE(0x2184, 0x001c) },	/* GW Instek AFG-2225 */
 	{ USB_DEVICE(0x22b8, 0x6425), /* Motorola MOTOMAGX phones */
 	},
 	/* Motorola H24 HSPA module: */
@@ -1721,6 +1759,16 @@ static const struct usb_device_id acm_ids[] = {
 	.driver_info = IGNORE_DEVICE,
 	},
 #endif
+
+	/*Samsung phone in firmware update mode */
+	{ USB_DEVICE(0x04e8, 0x685d),
+	.driver_info = IGNORE_DEVICE,
+	},
+
+	/* Exclude Infineon Flash Loader utility */
+	{ USB_DEVICE(0x058b, 0x0041),
+	.driver_info = IGNORE_DEVICE,
+	},
 
 	/* control interfaces without any protocol set */
 	{ USB_INTERFACE_INFO(USB_CLASS_COMM, USB_CDC_SUBCLASS_ACM,

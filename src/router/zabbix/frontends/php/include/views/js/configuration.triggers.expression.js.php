@@ -9,22 +9,9 @@
 
 	function insertText(obj, value) {
 		<?php if ($this->data['dstfld1'] == 'expression') { ?>
-		if (IE) {
-			obj.focus();
-			var s = window.opener.document.selection.createRange();
-			s.text = value;
-		}
-		else if (obj.selectionStart || obj.selectionStart == '0') {
-			var s = obj.selectionStart;
-			var e = obj.selectionEnd;
-			var objValue = jQuery(obj).val();
-			jQuery(obj).val(objValue.substring(0, s) + value + objValue.substring(e, objValue.length));
-		}
-		else {
 			jQuery(obj).val(jQuery(obj).val() + value);
-		}
 		<?php } else { ?>
-		jQuery(obj).val(value);
+			jQuery(obj).val(value);
 		<?php } ?>
 	}
 
@@ -32,7 +19,9 @@
 		'use strict';
 
 		jQuery('#paramtype').change(function() {
-			if (jQuery('#expr_type option:selected').val().substr(0, 4) == 'last' || jQuery('#expr_type option:selected').val().substr(0, 6) == 'strlen') {
+			if (jQuery('#expr_type option:selected').val().substr(0, 4) == 'last'
+					|| jQuery('#expr_type option:selected').val().substr(0, 6) == 'strlen'
+					|| jQuery('#expr_type option:selected').val().substr(0, 4) == 'band') {
 				if (jQuery('#paramtype option:selected').val() == <?php echo PARAM_TYPE_COUNTS; ?>) {
 					jQuery('#param_0').removeAttr('readonly');
 				}
@@ -41,8 +30,11 @@
 				}
 			}
 		});
+
 		jQuery(document).ready(function() {
-			if (jQuery('#expr_type option:selected').val().substr(0, 4) == 'last' || jQuery('#expr_type option:selected').val().substr(0, 6) == 'strlen') {
+			if (jQuery('#expr_type option:selected').val().substr(0, 4) == 'last'
+					|| jQuery('#expr_type option:selected').val().substr(0, 6) == 'strlen'
+					|| jQuery('#expr_type option:selected').val().substr(0, 4) == 'band') {
 				if (jQuery('#paramtype option:selected').val() == <?php echo PARAM_TYPE_COUNTS; ?>) {
 					jQuery('#param_0').removeAttr('readonly');
 				}
@@ -53,35 +45,17 @@
 		});
 	});
 </script>
+
 <?php
-if (!empty($this->data['insert'])) {
-	if ($this->data['paramtype'] == PARAM_TYPE_COUNTS) {
-		$param_no = in_array($this->data['function'], array('regexp', 'iregexp', 'str')) ? 1 : 0;
-		$this->data['param'][$param_no] = '#'.$this->data['param'][$param_no];
-	}
-
-	foreach ($this->data['param'] as &$param) {
-		$param = quoteFunctionParam($param);
-	}
-	unset($param);
-
-	$expression = sprintf('{%s:%s.%s(%s)}%s%s',
-		$this->data['item_host'],
-		$this->data['item_key'],
-		$this->data['function'],
-		rtrim(implode(',', $this->data['param']), ','),
-		$this->data['operator'],
-		$this->data['value']
-	);
-	?>
-	<script language="JavaScript" type="text/javascript">
-		insertText(jQuery('#<?php echo $this->data['dstfld1']; ?>', window.opener.document), <?php echo zbx_jsvalue($expression); ?>);
+if (!empty($this->data['insert'])) { ?>
+	<script type="text/javascript">
+		insertText(jQuery('#<?php echo $this->data['dstfld1']; ?>', window.opener.document), <?php echo zbx_jsvalue($this->data['expression']); ?>);
 		close_window();
 	</script>
 <?php
 }
 if (!empty($this->data['cancel'])) {?>
-	<script language="JavaScript" type="text/javascript">
+	<script type="text/javascript">
 		close_window();
 	</script>
 <?php

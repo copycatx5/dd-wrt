@@ -1,7 +1,7 @@
 /*
  * rlm_linelog.c
  *
- * Version:	$Id: 2c322c1dbca57213d35efa18e11e35e060a947c2 $
+ * Version:	$Id: 24675df21f95b41fcc70a97873970dda77f6dbbd $
  *
  *   This program is free software; you can redistribute it and/or modify
  *   it under the terms of the GNU General Public License as published by
@@ -22,7 +22,7 @@
  */
 
 #include <freeradius-devel/ident.h>
-RCSID("$Id: 2c322c1dbca57213d35efa18e11e35e060a947c2 $")
+RCSID("$Id: 24675df21f95b41fcc70a97873970dda77f6dbbd $")
 
 #include <freeradius-devel/radiusd.h>
 #include <freeradius-devel/modules.h>
@@ -210,7 +210,7 @@ static size_t linelog_escape_func(char *out, size_t outlen, const char *in)
 
 		default:
 			if (outlen <= 4) break;
-			snprintf(out, outlen,  "\\%03o", *in);
+			snprintf(out, outlen,  "\\%03o", (uint8_t) *in);
 			in++;
 			out += 4;
 			outlen -= 4;
@@ -280,9 +280,8 @@ static int do_linelog(void *instance, REQUEST *request)
 	 *	FIXME: Check length.
 	 */
 	if (strcmp(inst->filename, "syslog") != 0) {
-		radius_xlat(buffer, sizeof(buffer), inst->filename, request,
-			    NULL);
-		
+		radius_xlat(buffer, sizeof(buffer), inst->filename, request, rad_filename_escape);
+
 		/* check path and eventually create subdirs */
 		p = strrchr(buffer,'/');
 		if (p) {
@@ -305,7 +304,7 @@ static int do_linelog(void *instance, REQUEST *request)
 		if (inst->group != NULL) {
 			gid = strtol(inst->group, &endptr, 10);
 			if (*endptr != '\0') {
-				grp = getgrnam(inst->group);
+				grp = rad_getgrnam(inst->group);
 				if (grp == NULL) {
 					RDEBUG2("Unable to find system group \"%s\"", inst->group);
 					goto skip_group;
@@ -330,7 +329,7 @@ static int do_linelog(void *instance, REQUEST *request)
 
 	if (fd >= 0) {
 		strcat(line, "\n");
-		
+
 		write(fd, line, strlen(line));
 		close(fd);
 

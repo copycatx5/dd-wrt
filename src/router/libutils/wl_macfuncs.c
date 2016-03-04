@@ -22,6 +22,7 @@
 
 #include <string.h>
 #include <memory.h>
+#include <shutils.h>
 
 #ifdef HAVE_MADWIFI
 #include <sys/types.h>
@@ -143,8 +144,8 @@ struct maclist {
 
 void security_disable(char *iface)
 {
-	sysprintf("iwpriv %s set ACLClearAll=1", iface);
-	sysprintf("iwpriv %s set AccessPolicy=0", iface);
+	eval("iwpriv", iface, "set", "ACLClearAll=1");
+	eval("iwpriv", iface, "set", "AccessPolicy=0");
 
 }
 
@@ -166,25 +167,28 @@ void set_maclist(char *iface, char *buf)
 	uint i;
 
 	for (i = 0; i < maclist->count; i++) {
-		sysprintf("iwpriv %s set ACLAddEntry=%s", iface, ieee80211_ntoa((unsigned char *)&maclist->ea[i]));
+		char acl[32];
+		sprintf(acl, "ACLAddEntry=%s", ieee80211_ntoa((unsigned char *)&maclist->ea[i]));
+		eval("iwpriv", iface, "set", acl);
 	}
 }
 
 void security_deny(char *iface)
 {
 
-	sysprintf("iwpriv %s set AccessPolicy=2", iface);
+	eval("iwpriv", iface, "set", "AccessPolicy=2");
 }
 
 void security_allow(char *iface)
 {
-	sysprintf("iwpriv %s set AccessPolicy=1", iface);
+	eval("iwpriv", iface, "set", "AccessPolicy=1");
 }
 
 void kick_mac(char *iface, char *mac)
 {
-
-	sysprintf("iwpriv %s set DisConnectSta=%s", iface, ieee80211_ntoa(mac));
+	char kick[32];
+	sprintf(kick, "DisConnectSta=%s", ieee80211_ntoa(mac));
+	eval("iwpriv", iface, "set", kick);
 }
 
 #else

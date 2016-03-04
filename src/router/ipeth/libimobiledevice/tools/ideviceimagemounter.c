@@ -29,6 +29,7 @@
 #include <libgen.h>
 #include <time.h>
 #include <sys/time.h>
+#include <inttypes.h>
 
 #include <libimobiledevice/libimobiledevice.h>
 #include <libimobiledevice/lockdown.h>
@@ -36,8 +37,7 @@
 #include <libimobiledevice/notification_proxy.h>
 #include <libimobiledevice/mobile_image_mounter.h>
 #include <asprintf.h>
-
-static int indent_level = 0;
+#include "common/utils.h"
 
 static int list_mode = 0;
 static int xml_mode = 0;
@@ -46,6 +46,11 @@ static char *imagetype = NULL;
 
 static const char PKG_PATH[] = "PublicStaging";
 static const char PATH_PREFIX[] = "/private/var/mobile/Media";
+
+typedef enum {
+	DISK_IMAGE_UPLOAD_TYPE_AFC,
+	DISK_IMAGE_UPLOAD_TYPE_UPLOAD_IMAGE
+} disk_image_upload_type_t;
 
 static void print_usage(int argc, char **argv)
 {
@@ -115,143 +120,6 @@ static void parse_opts(int argc, char **argv)
 	}
 }
 
-static void plist_node_to_string(plist_t node);
-
-static void plist_array_to_string(plist_t node)
-{
-	/* iterate over items */
-	int i, count;
-	plist_t subnode = NULL;
-
-	count = plist_array_get_size(node);
-
-	for (i = 0; i < count; i++) {
-		subnode = plist_array_get_item(node, i);
-		printf("%*s", indent_level, "");
-		printf("%d: ", i);
-		plist_node_to_string(subnode);
-	}
-}
-
-static void plist_dict_to_string(plist_t node)
-{
-	/* iterate over key/value pairs */
-	plist_dict_iter it = NULL;
-
-	char* key = NULL;
-	plist_t subnode = NULL;
-	plist_dict_new_iter(node, &it);
-	plist_dict_next_item(node, it, &key, &subnode);
-	while (subnode)
-	{
-		printf("%*s", indent_level, "");
-		printf("%s", key);
-		if (plist_get_node_type(subnode) == PLIST_ARRAY)
-			printf("[%d]: ", plist_array_get_size(subnode));
-		else
-			printf(": ");
-		free(key);
-		key = NULL;
-		plist_node_to_string(subnode);
-		plist_dict_next_item(node, it, &key, &subnode);
-	}
-	free(it);
-}
-
-static void plist_node_to_string(plist_t node)
-{
-	char *s = NULL;
-	char *data = NULL;
-	double d;
-	uint8_t b;
-	uint64_t u = 0;
-	struct timeval tv = { 0, 0 };
-
-	plist_type t;
-
-	if (!node)
-		return;
-
-	t = plist_get_node_type(node);
-
-	switch (t) {
-	case PLIST_BOOLEAN:
-		plist_get_bool_val(node, &b);
-		printf("%s\n", (b ? "true" : "false"));
-		break;
-
-	case PLIST_UINT:
-		plist_get_uint_val(node, &u);
-		printf("%llu\n", (long long)u);
-		break;
-
-	case PLIST_REAL:
-		plist_get_real_val(node, &d);
-		printf("%f\n", d);
-		break;
-
-	case PLIST_STRING:
-		plist_get_string_val(node, &s);
-		printf("%s\n", s);
-		free(s);
-		break;
-
-	case PLIST_KEY:
-		plist_get_key_val(node, &s);
-		printf("%s: ", s);
-		free(s);
-		break;
-
-	case PLIST_DATA:
-		plist_get_data_val(node, &data, &u);
-		uint64_t i;
-		for (i = 0; i < u; i++) {
-			printf("%02x", (unsigned char)data[i]);
-		}
-		free(data);
-		printf("\n");
-		break;
-
-	case PLIST_DATE:
-		plist_get_date_val(node, (int32_t*)&tv.tv_sec, (int32_t*)&tv.tv_usec);
-		{
-			time_t ti = (time_t)tv.tv_sec;
-			struct tm *btime = localtime(&ti);
-			if (btime) {
-				s = (char*)malloc(24);
- 				memset(s, 0, 24);
-				if (strftime(s, 24, "%Y-%m-%dT%H:%M:%SZ", btime) <= 0) {
-					free (s);
-					s = NULL;
-				}
-			}
-		}
-		if (s) {
-			puts(s);
-			free(s);
-		}
-		puts("\n");
-		break;
-
-	case PLIST_ARRAY:
-		printf("\n");
-		indent_level++;
-		plist_array_to_string(node);
-		indent_level--;
-		break;
-
-	case PLIST_DICT:
-		printf("\n");
-		indent_level++;
-		plist_dict_to_string(node);
-		indent_level--;
-		break;
-
-	default:
-		break;
-	}
-}
-
 static void print_xml(plist_t node)
 {
 	char *xml = NULL;
@@ -261,15 +129,22 @@ static void print_xml(plist_t node)
 		puts(xml);
 }
 
+static ssize_t mim_upload_cb(void* buf, size_t size, void* userdata)
+{
+	return fread(buf, 1, size, (FILE*)userdata);
+}
+
 int main(int argc, char **argv)
 {
 	idevice_t device = NULL;
 	lockdownd_client_t lckd = NULL;
+	lockdownd_error_t ldret = LOCKDOWN_E_UNKNOWN_ERROR;
 	mobile_image_mounter_client_t mim = NULL;
 	afc_client_t afc = NULL;
 	lockdownd_service_descriptor_t service = NULL;
 	int res = -1;
 	char *image_path = NULL;
+	size_t image_size = 0;
 	char *image_sig_path = NULL;
 
 	parse_opts(argc, argv);
@@ -298,9 +173,25 @@ int main(int argc, char **argv)
 		return -1;
 	}
 
-	if (LOCKDOWN_E_SUCCESS != lockdownd_client_new_with_handshake(device, &lckd, "ideviceimagemounter")) {
-		printf("ERROR: could not connect to lockdown. Exiting.\n");
+	if (LOCKDOWN_E_SUCCESS != (ldret = lockdownd_client_new_with_handshake(device, &lckd, "ideviceimagemounter"))) {
+		printf("ERROR: Could not connect to lockdown, error code %d.\n", ldret);
 		goto leave;
+	}
+
+	plist_t pver = NULL;
+	char *product_version = NULL;
+	lockdownd_get_value(lckd, NULL, "ProductVersion", &pver);
+	if (pver && plist_get_node_type(pver) == PLIST_STRING) {
+		plist_get_string_val(pver, &product_version);
+	}
+	disk_image_upload_type_t disk_image_upload_type = DISK_IMAGE_UPLOAD_TYPE_AFC;
+	int product_version_major = 0;
+	int product_version_minor = 0;
+	if (product_version) {
+		if (sscanf(product_version, "%d.%d.%*d", &product_version_major, &product_version_minor) == 2) {
+			if (product_version_major >= 7)
+				disk_image_upload_type = DISK_IMAGE_UPLOAD_TYPE_UPLOAD_IMAGE;
+		}
 	}
 
 	lockdownd_start_service(lckd, "com.apple.mobile.mobile_image_mounter", &service);
@@ -322,23 +213,26 @@ int main(int argc, char **argv)
 
 	if (!list_mode) {
 		struct stat fst;
-		if ((lockdownd_start_service(lckd, "com.apple.afc", &service) !=
-			 LOCKDOWN_E_SUCCESS) || !service || !service->port) {
-			fprintf(stderr, "Could not start com.apple.afc!\n");
-			goto leave;
-		}
-		if (afc_client_new(device, service, &afc) != AFC_E_SUCCESS) {
-			fprintf(stderr, "Could not connect to AFC!\n");
-			goto leave;
-		}
-		if (service) {
-			lockdownd_service_descriptor_free(service);
-			service = NULL;
+		if (disk_image_upload_type == DISK_IMAGE_UPLOAD_TYPE_AFC) {
+			if ((lockdownd_start_service(lckd, "com.apple.afc", &service) !=
+				 LOCKDOWN_E_SUCCESS) || !service || !service->port) {
+				fprintf(stderr, "Could not start com.apple.afc!\n");
+				goto leave;
+			}
+			if (afc_client_new(device, service, &afc) != AFC_E_SUCCESS) {
+				fprintf(stderr, "Could not connect to AFC!\n");
+				goto leave;
+			}
+			if (service) {
+				lockdownd_service_descriptor_free(service);
+				service = NULL;
+			}
 		}
 		if (stat(image_path, &fst) != 0) {
 			fprintf(stderr, "ERROR: stat: %s: %s\n", image_path, strerror(errno));
 			goto leave;
 		}
+		image_size = fst.st_size;
 		if (stat(image_sig_path, &fst) != 0) {
 			fprintf(stderr, "ERROR: stat: %s: %s\n", image_sig_path, strerror(errno));
 			goto leave;
@@ -363,7 +257,7 @@ int main(int argc, char **argv)
 			if (xml_mode) {
 				print_xml(result);
 			} else {
-				plist_dict_to_string(result);
+				plist_print_to_stream(result, stdout);
 			}
 		} else {
 			printf("Error: lookup_image returned %d\n", err);
@@ -400,66 +294,77 @@ int main(int argc, char **argv)
 			goto leave;
 		}
 
-		printf("Copying '%s' --> '%s'\n", image_path, targetname);
 
-		char **strs = NULL;
-		if (afc_get_file_info(afc, PKG_PATH, &strs) != AFC_E_SUCCESS) {
-			if (afc_make_directory(afc, PKG_PATH) != AFC_E_SUCCESS) {
-				fprintf(stderr, "WARNING: Could not create directory '%s' on device!\n", PKG_PATH);
-			}
-		}
-		if (strs) {
-			int i = 0;
-			while (strs[i]) {
-				free(strs[i]);
-				i++;
-			}
-			free(strs);
+		if (!imagetype) {
+			imagetype = strdup("Developer");
 		}
 
-		uint64_t af = 0;
-		if ((afc_file_open(afc, targetname, AFC_FOPEN_WRONLY, &af) !=
-			 AFC_E_SUCCESS) || !af) {
-			fclose(f);
-			fprintf(stderr, "afc_file_open on '%s' failed!\n", targetname);
-			goto leave;
-		}
-
-		char buf[8192];
-		size_t amount = 0;
-		do {
-			amount = fread(buf, 1, sizeof(buf), f);
-			if (amount > 0) {
-				uint32_t written, total = 0;
-				while (total < amount) {
-					written = 0;
-					if (afc_file_write(afc, af, buf, amount, &written) !=
-						AFC_E_SUCCESS) {
-						fprintf(stderr, "AFC Write error!\n");
-						break;
+		switch(disk_image_upload_type) {
+			case DISK_IMAGE_UPLOAD_TYPE_UPLOAD_IMAGE:
+				printf("Uploading %s\n", image_path);
+				err = mobile_image_mounter_upload_image(mim, imagetype, image_size, sig, sig_length, mim_upload_cb, f);
+				break;
+			case DISK_IMAGE_UPLOAD_TYPE_AFC:
+			default:
+				printf("Uploading %s --> afc:///%s\n", image_path, targetname);
+				char **strs = NULL;
+				if (afc_get_file_info(afc, PKG_PATH, &strs) != AFC_E_SUCCESS) {
+					if (afc_make_directory(afc, PKG_PATH) != AFC_E_SUCCESS) {
+						fprintf(stderr, "WARNING: Could not create directory '%s' on device!\n", PKG_PATH);
 					}
-					total += written;
 				}
-				if (total != amount) {
-					fprintf(stderr, "Error: wrote only %d of %d\n", total,
-							(unsigned int)amount);
-					afc_file_close(afc, af);
+				if (strs) {
+					int i = 0;
+					while (strs[i]) {
+						free(strs[i]);
+						i++;
+					}
+					free(strs);
+				}
+
+				uint64_t af = 0;
+				if ((afc_file_open(afc, targetname, AFC_FOPEN_WRONLY, &af) !=
+					 AFC_E_SUCCESS) || !af) {
 					fclose(f);
+					fprintf(stderr, "afc_file_open on '%s' failed!\n", targetname);
 					goto leave;
 				}
-			}
-		}
-		while (amount > 0);
 
-		afc_file_close(afc, af);
+				char buf[8192];
+				size_t amount = 0;
+				do {
+					amount = fread(buf, 1, sizeof(buf), f);
+					if (amount > 0) {
+						uint32_t written, total = 0;
+						while (total < amount) {
+							written = 0;
+							if (afc_file_write(afc, af, buf, amount, &written) !=
+								AFC_E_SUCCESS) {
+								fprintf(stderr, "AFC Write error!\n");
+								break;
+							}
+							total += written;
+						}
+						if (total != amount) {
+							fprintf(stderr, "Error: wrote only %d of %d\n", total,
+									(unsigned int)amount);
+							afc_file_close(afc, af);
+							fclose(f);
+							goto leave;
+						}
+					}
+				}
+				while (amount > 0);
+
+				afc_file_close(afc, af);
+				break;
+		}
+
 		fclose(f);
 
 		printf("done.\n");
 
 		printf("Mounting...\n");
-		if (!imagetype) {
-			imagetype = strdup("Developer");
-		}
 		err = mobile_image_mounter_mount_image(mim, mountname, sig, sig_length, imagetype, &result);
 		free(imagetype);
 		if (err == MOBILE_IMAGE_MOUNTER_E_SUCCESS) {
@@ -477,7 +382,7 @@ int main(int argc, char **argv)
 							if (xml_mode) {
 								print_xml(result);
 							} else {
-								plist_dict_to_string(result);
+								plist_print_to_stream(result, stdout);
 							}
 						}
 						free(status);
@@ -486,7 +391,7 @@ int main(int argc, char **argv)
 						if (xml_mode) {
 							print_xml(result);
 						} else {
-							plist_dict_to_string(result);
+							plist_print_to_stream(result, stdout);
 						}
 					}
 				}
@@ -502,7 +407,7 @@ int main(int argc, char **argv)
 						if (xml_mode) {
 							print_xml(result);
 						} else {
-							plist_dict_to_string(result);
+							plist_print_to_stream(result, stdout);
 						}
 					}
 
@@ -510,7 +415,7 @@ int main(int argc, char **argv)
 					if (xml_mode) {
 						print_xml(result);
 					} else {
-						plist_dict_to_string(result);
+						plist_print_to_stream(result, stdout);
 					}
 				}
 			}

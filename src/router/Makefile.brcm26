@@ -120,6 +120,7 @@ strip-flags	= $(addprefix --remove-section=,$(drop-sections))
 
 all: build_date clean_target $(obj-y) $(LINUXDIR)/.config kernel
 
+include kernel-features.mk
 
 kernel:
 	# Also build kernel
@@ -140,11 +141,7 @@ else
 endif
 endif
 endif
-ifeq ($(CONFIG_EOP_TUNNEL),y)
-	echo CONFIG_NET_ETHERIP=m >> $(LINUXDIR)/.config
-else
-	echo "# CONFIG_NET_ETHERIP" is not set >> $(LINUXDIR)/.config
-endif
+	$(kernelfeatures)
 ifeq ($(CONFIG_V25),y)
 	echo CONFIG_V25=y >> $(LINUXDIR)/.config
 else
@@ -161,9 +158,6 @@ else
 	echo "# CONFIG_NVRAM_60K" is not set >> $(LINUXDIR)/.config
 	echo "# CONFIG_NVRAM_64K" is not set >> $(LINUXDIR)/.config
 endif
-endif
-ifeq ($(CONFIG_IPETH),y)
-	sed -i 's/\# CONFIG_USB_IPHETH is not set/CONFIG_USB_IPHETH=m/g' $(LINUXDIR)/.config
 endif
 #ifeq ($(CONFIG_REGISTER),y)
 #	cp $(LINUXDIR)/.config_register $(LINUXDIR)/.config
@@ -203,7 +197,7 @@ realclean: $(obj-clean)
 	-rm -f $(ARCH)-uclibc/*
 
 	
-clean: rc-clean httpd-clean services-clean shared-clean libutils-clean nvram-clean madwifi-clean madwifi_mimo-clean busybox-clean dnsmasq-clean iptables-clean pppd-clean
+clean: rc-clean httpd-clean services-clean shared-clean libutils-clean nvram-clean madwifi-clean madwifi_mimo-clean busybox-clean dnsmasq-clean iptables-clean pppd-clean iproute2-clean
 	rm -f .config.old .config.cmd
 	#umount $(TARGETDIR)
 	rm -rf $(INSTALLDIR)
@@ -266,7 +260,7 @@ ifneq ($(CONFIG_NOOPT),y)
 	rm -rf $(ARCH)-uclibc/tmp/mklibs-out
 	rm -f $(ARCH)-uclibc/tmp/mklibs-progs
 	mkdir -p $(ARCH)-uclibc/tmp/mklibs-out
-	find $(TARGETDIR) -type f -perm +100 -exec \
+	find $(TARGETDIR) -type f -perm /100 -exec \
 		file -r -N -F '' {} + | \
 		awk ' /executable.*dynamically/ { print $$1 }' > $(ARCH)-uclibc/tmp/mklibs-progs
 
@@ -437,11 +431,15 @@ ifneq ($(CONFIG_USB),y)
 	rm -rf $(TARGETDIR)/lib/modules/$(LINUXVER)/kernel/fs/vfat
 #	rm -f $(TARGETDIR)/lib/modules/$(LINUXVER)/kernel/fs/mbcache.ko
 endif
-ifneq ($(CONFIG_USB_ADVANCED),y)
+ifneq ($(CONFIG_USB_ADVANCED),y) 
 	rm -rf $(TARGETDIR)/lib/modules/$(LINUXVER)/kernel/fs/ext3
 	rm -rf $(TARGETDIR)/lib/modules/$(LINUXVER)/kernel/fs/xfs
 	rm -rf $(TARGETDIR)/lib/modules/$(LINUXVER)/kernel/fs/jbd
 endif
+ifneq ($(CONFIG_DIST),"giga")
+	rm -rf $(TARGETDIR)/lib/modules/$(LINUXVER)/kernel/fs/xfs
+endif
+
 ifneq ($(CONFIG_NTFS3G),y)
 	rm -rf $(TARGETDIR)/lib/modules/$(LINUXVER)/kernel/fs/fuse
 endif
@@ -515,6 +513,13 @@ endif
 #	tar -cvf $(TARGETDIR)/lib/modules/modules.tar $(TARGETDIR)/lib/modules/$(LINUXVER)/* 
 #	rm -rf $(TARGETDIR)/lib/modules/$(LINUXVER)
 
+	-find $(TARGETDIR)/lib/modules/$(KERNELRELEASE)/kernel -name *.ko -exec mv {} $(TARGETDIR)/lib/modules/$(KERNELRELEASE) \;
+	-find $(TARGETDIR)/lib/modules/$(KERNELRELEASE)/net -name *.ko -exec mv {} $(TARGETDIR)/lib/modules/$(KERNELRELEASE) \;
+	rm -rf $(TARGETDIR)/lib/modules/$(KERNELRELEASE)/kernel
+	rm -rf $(TARGETDIR)/lib/modules/$(KERNELRELEASE)/net
+	#e2fsck -y -f $(ARCH)-uclibc/root.fs
+	./busybox/examples/depmod.pl -F $(LINUXDIR)/System.map -b $(ARCH)-uclibc/target/lib/modules
+
         # Prepare filesystem
 ifeq ($(CONFIG_DIST),"micro")
 	cd $(TARGETDIR) && $(TOP)/misc/rootprep_micro.sh
@@ -552,6 +557,7 @@ endif
 	cp ../../opt/etc/config/* mipsel-uclibc/target/etc/config
 	../../tools/process_nvramconfigfile mipsel-uclibc/target/etc/config/*.nvramconfig
 	-./strip_libs.sh $(ARCH)
+	$(TOP)/../../tools/removewhitespace.sh $(TOP)/../../tools $(TARGETDIR)/etc/config
 	$(LINUXDIR)/scripts/squashfs/mksquashfs-lzma $(ARCH)-uclibc/target $(ARCH)-uclibc/rootfs.squashfs -noappend -root-owned -le
 	../../opt/tools/trx -m 16000000 -o $(ARCH)-uclibc/dd-wrt.v24-K26.trx ../../opt/loader-0.02/loader.gz $(ARCH)-uclibc/vmlinuz  -a 1024 $(ARCH)-uclibc/rootfs.squashfs
 

@@ -1,6 +1,6 @@
 /*
 ** Zabbix
-** Copyright (C) 2001-2013 Zabbix SIA
+** Copyright (C) 2001-2015 Zabbix SIA
 **
 ** This program is free software; you can redistribute it and/or modify
 ** it under the terms of the GNU General Public License as published by
@@ -71,14 +71,14 @@ var CViewSwitcher = Class.create({
 		// enable previously disabled dropdown items
 		if (this.disableDDItems && this.disableDDItems[this.lastValue]) {
 			for (var DDi in this.disableDDItems[this.lastValue]) {
-				jQuery('#'+DDi).find('option').attr('disabled', false);
+				jQuery('#' + DDi).find('option').attr('disabled', false);
 			}
 		}
 
 		// disable dropdown items
 		if (this.disableDDItems && this.disableDDItems[myValue]) {
 			for (var DDi in this.disableDDItems[myValue]) {
-				var DD = jQuery('#'+DDi);
+				var DD = jQuery('#' + DDi);
 				for (var Oi in this.disableDDItems[myValue][DDi]) {
 					DD.find('[value='+this.disableDDItems[myValue][DDi][Oi]+']').attr('disabled', true);
 				}
@@ -126,23 +126,21 @@ var CViewSwitcher = Class.create({
 		if (is_null(obj)) {
 			return null;
 		}
-		var aValue = null;
 
-		switch (obj.tagName.toLowerCase()) {
-			case 'select':
-				aValue = obj.options[obj.selectedIndex].value;
-				break;
-			case 'input':
-				var inpType = obj.getAttribute('type');
-				if (!is_null(inpType) && inpType.toLowerCase() == 'checkbox') {
-					aValue = obj.checked ? obj.value : null;
-					break;
+		switch (obj.tagName) {
+			case 'SELECT':
+				return (obj.selectedIndex > -1) ? obj.options[obj.selectedIndex].value : null;
+
+			case 'INPUT':
+				if (obj.getAttribute('type') === 'CHECKBOX') {
+					return obj.checked ? obj.value : null;
 				}
-			case 'textarea':
+
 			default:
-				aValue = obj.value;
+				return obj.value;
 		}
-		return aValue;
+
+		return null;
 	},
 
 	setObjValue : function (obj, value) {
@@ -179,15 +177,15 @@ var CViewSwitcher = Class.create({
 		switch (obj.tagName.toLowerCase()) {
 			case 'th':
 			case 'td':
-				obj.style.display = IE ? 'block' : 'table-cell';
+				obj.style.display = IE ? '' : 'table-cell';
 				break;
 			case 'tr':
-				obj.style.display = IE ? 'block' : 'table-row';
+				obj.style.display = IE ? '' : 'table-row';
 				break;
 			case 'img':
 			case 'div':
 			case 'li':
-				obj.style.display = 'block';
+				obj.style.display = '';
 				break;
 			default:
 				obj.style.display = 'inline';
@@ -383,14 +381,14 @@ ActionProcessor.prototype = {
 
 	actionShow: function(value) {
 		jQuery(value)
-			.toggle(true)
+			.css('display', '')
 			.find(':input')
 			.prop('disabled', false);
 	},
 
 	actionHide: function(value) {
 		jQuery(value)
-			.toggle(false)
+			.css('display', 'none')
 			.find(':input')
 			.prop('disabled', true);
 	},

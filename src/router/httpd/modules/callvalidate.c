@@ -71,6 +71,8 @@
 
 #define SERVICEALT_MODULE "/jffs/usr/lib/validate.so"
 #define VISSERVICEALT_MODULE "/jffs/usr/lib/visuals.so"
+//#define SERVICEALT_MODULE "/tmp/validate.so"
+//#define VISSERVICEALT_MODULE "/tmp/visuals.so"
 
 #define cprintf(fmt, args...)
 
@@ -84,7 +86,7 @@
 	} \
 } while (0)
 #endif
-
+extern char *request_url;
 int websWrite(webs_t wp, char *fmt, ...);
 char *websGetVar(webs_t wp, char *var, char *d)
 {
@@ -126,8 +128,6 @@ static void *load_service(char *name)
 	void *handle = dlopen(SERVICEALT_MODULE, RTLD_LAZY | RTLD_GLOBAL);
 	if (!handle)
 		handle = dlopen(SERVICE_MODULE, RTLD_LAZY | RTLD_GLOBAL);
-//      if (!handle)
-//          fprintf(stderr,"%s\n",dlerror());
 	cprintf("done()\n");
 	if (handle == NULL && name != NULL) {
 		cprintf("not found, try to load alternate\n");
@@ -150,7 +150,7 @@ struct wl_client_mac wl_client_macs[MAX_LEASES];
 
 // extern struct wl_client_mac *wl_client_macs;
 
-extern char *live_translate(char *tran);
+extern char *live_translate(const char *tran);
 extern void validate_cgi(webs_t wp);
 
 static int initWeb(void *handle)
@@ -174,13 +174,12 @@ static int initWeb(void *handle)
 #endif
 	env.PejArgs = ejArgs;
 	env.PgetWebsFile = getWebsFile;
-	env.Pwfputc = wfputc;
 	env.Pwfputs = wfputs;
-	env.Pwfflush = wfflush;
 	env.PwebsRomPageIndex = websRomPageIndex;
 	env.Plive_translate = live_translate;
 	env.PGOZILA_GET = GOZILA_GET;
 	env.Pvalidate_cgi = validate_cgi;
+	env.Prequest_url = request_url;
 	init(&env);
 	return 0;
 }

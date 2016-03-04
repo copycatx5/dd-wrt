@@ -1,7 +1,13 @@
+local brute = require "brute"
+local creds = require "creds"
+local http = require "http"
+local shortport = require "shortport"
+local stdnse = require "stdnse"
+
 description = [[
 performs brute force password auditing against Wordpress CMS/blog installations.
 
-This script uses the unpwdb and brute libraries to perform password guessing. Any successful guesses are 
+This script uses the unpwdb and brute libraries to perform password guessing. Any successful guesses are
 stored using the credentials library.
 
 Wordpress default uri and form names:
@@ -30,9 +36,9 @@ Wordpress default uri and form names:
 -- @args http-wordpress-brute.hostname sets the host header in case of virtual
 --       hosting
 -- @args http-wordpress-brute.uservar sets the http-variable name that holds the
---		 username used to authenticate. Default: log
+--                                    username used to authenticate. Default: log
 -- @args http-wordpress-brute.passvar sets the http-variable name that holds the
---		 password used to authenticate. Default: pwd
+--                                    password used to authenticate. Default: pwd
 -- @args http-wordpress-brute.threads sets the number of threads. Default: 3
 --
 -- Other useful arguments when using this script are:
@@ -45,14 +51,10 @@ Wordpress default uri and form names:
 -- Based on Patrik Karlsson's http-form-brute
 --
 
-author = "Paulino Calderon"
-license = "Same as Nmap--See http://nmap.org/book/man-legal.html"
+author = "Paulino Calderon <calderon@websec.mx>"
+license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
 categories = {"intrusive", "brute"}
 
-require 'shortport'
-require 'http'
-require 'brute'
-require 'creds'
 
 portrule = shortport.http
 
@@ -77,7 +79,7 @@ Driver = {
   end,
 
   connect = function( self )
-    -- This will cause problems, as ther is no way for us to "reserve"
+    -- This will cause problems, as there is no way for us to "reserve"
     -- a socket. We may end up here early with a set of credentials
     -- which won't be guessed until the end, due to socket exhaustion.
     return true
@@ -85,13 +87,13 @@ Driver = {
 
   login = function( self, username, password )
     -- Note the no_cache directive
-    stdnse.print_debug(2, "HTTP POST %s%s\n", self.host, self.uri)
+    stdnse.debug2("HTTP POST %s%s\n", self.host, self.uri)
     local response = http.post( self.host, self.port, self.uri, { no_cache = true }, nil, { [self.options.uservar] = username, [self.options.passvar] = password } )
                 -- This redirect is taking us to /wp-admin
     if response.status == 302 then
       local c = creds.Credentials:new( SCRIPT_NAME, self.host, self.port )
-      c:add(username, password, creds.State.VALID ) 
-      return true, brute.Account:new( username, password, "OPEN")
+      c:add(username, password, creds.State.VALID )
+      return true, creds.Account:new( username, password, creds.State.VALID)
     end
 
     return false, brute.Error:new( "Incorrect password" )
@@ -103,13 +105,13 @@ Driver = {
 
   check = function( self )
     local response = http.get( self.host, self.port, self.uri )
-    stdnse.print_debug(1, "HTTP GET %s%s", stdnse.get_hostname(self.host),self.uri)
+    stdnse.debug1("HTTP GET %s%s", stdnse.get_hostname(self.host),self.uri)
     -- Check if password field is there
     if ( response.status == 200 and response.body:match('type=[\'"]password[\'"]')) then
-      stdnse.print_debug(1, "Initial check passed. Launching brute force attack")
+      stdnse.debug1("Initial check passed. Launching brute force attack")
       return true
     else
-      stdnse.print_debug(1, "Initial check failed. Password field wasn't found")
+      stdnse.debug1("Initial check failed. Password field wasn't found")
     end
 
     return false

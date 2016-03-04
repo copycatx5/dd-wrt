@@ -27,7 +27,7 @@
     </ProjectReference>
   </ItemGroup>
   <PropertyGroup Label="Globals">
-    <ProjectGuid>{CFA36CC7-515C-4E18-8F8F-5B56AB903352}</ProjectGuid>
+    <ProjectGuid>{D93D1FF0-5E83-2247-31A0-017D20F8011F}</ProjectGuid>
     <Keyword>Win32Proj</Keyword>
     <RootNamespace>gen_random_havege</RootNamespace>
   </PropertyGroup>

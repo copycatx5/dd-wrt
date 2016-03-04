@@ -1,6 +1,6 @@
 /*
 ** Zabbix
-** Copyright (C) 2001-2013 Zabbix SIA
+** Copyright (C) 2001-2015 Zabbix SIA
 **
 ** This program is free software; you can redistribute it and/or modify
 ** it under the terms of the GNU General Public License as published by
@@ -166,19 +166,13 @@ function cancelEvent(e) {
 		e = window.event;
 	}
 
-	if (!empty(e)) {
-		if (IE) {
-			e.cancelBubble = true;
-			e.returnValue = false;
-
-			if (IE9 && e.preventDefault) {
-				e.preventDefault();
-			}
-		}
-		else {
-			e.stopPropagation();
-			e.preventDefault();
-		}
+	if (!IE8) {
+		e.stopPropagation();
+		e.preventDefault();
+	}
+	if (IE) {
+		e.cancelBubble = true;
+		e.returnValue = false;
 	}
 
 	return false;
@@ -254,24 +248,28 @@ function clearAllForm(form) {
 			case 'submit':
 				break;
 			case 'checkbox':
-				inputs[i].checked = false;
+				jQuery(inputs[i]).prop('checked', false).trigger('change');
 				break;
 			case 'text':
 			case 'password':
 			default:
-				inputs[i].value = '';
+				jQuery(inputs[i]).val('').trigger('change');
 		}
 	}
 
 	var selects = form.getElementsByTagName('select');
 	for (var i = 0; i < selects.length; i++) {
-		selects[i].selectedIndex = 0;
+		jQuery(selects[i]).val(null).trigger('change');
 	}
 
 	var areas = form.getElementsByTagName('textarea');
 	for (var i = 0; i < areas.length; i++) {
-		areas[i].innerHTML = '';
+		jQuery(areas[i]).val('').trigger('change');
 	}
+
+	jQuery('.multiselect').each(function() {
+		jQuery(this).multiSelect.clean(jQuery(this).attr('id'));
+	});
 
 	return true;
 }
@@ -315,16 +313,6 @@ function create_var(form_name, var_name, var_value, doSubmit) {
 	}
 
 	return false;
-}
-
-function deselectAll() {
-	if (IE) {
-		document.selection.empty();
-	}
-	else {
-		var sel = window.getSelection();
-		sel.removeAllRanges();
-	}
 }
 
 function getDimensions(obj, trueSide) {
@@ -412,20 +400,6 @@ function getPosition(obj) {
 	return pos;
 }
 
-function getSelectedText(obj) {
-	if (IE) {
-		obj.focus();
-		return document.selection.createRange().text;
-	}
-	else if (obj.selectionStart) {
-		if (obj.selectionStart != obj.selectionEnd) {
-			return obj.value.substring(obj.selectionStart, obj.selectionEnd);
-		}
-	}
-
-	return obj.value;
-}
-
 function get_bodywidth() {
 	var w = parseInt(document.body.scrollWidth);
 	var w2 = parseInt(document.body.offsetWidth);
@@ -485,18 +459,18 @@ function insertInElement(element_name, text, tagName) {
 	}
 }
 
-function openWinCentered(loc, winname, iwidth, iheight, params) {
-	var tp = Math.ceil((screen.height - iheight) / 2);
-	var lf = Math.ceil((screen.width - iwidth) / 2);
+function openWinCentered(url, name, width, height, params) {
+	var top = Math.ceil((screen.height - height) / 2),
+		left = Math.ceil((screen.width - width) / 2);
 
 	if (params.length > 0) {
 		params = ', ' + params;
 	}
 
-	loc = new Curl(loc).getUrl();
-
-	var WinObjReferer = window.open(loc, winname, 'width=' + iwidth + ', height=' + iheight + ', top=' + tp + ', left=' + lf + params);
-	WinObjReferer.focus();
+	var windowObj = window.open(new Curl(url).getUrl(), name,
+		'width=' + width + ', height=' + height + ', top=' + top + ', left=' + left + params
+	);
+	windowObj.focus();
 }
 
 function PopUp(url, width, height, form_name) {
@@ -640,4 +614,22 @@ function switchElementsClass(obj, class1, class2) {
 
 function zbx_throw(msg) {
 	throw(msg);
+}
+
+/**
+ * Returns the file name of the given path
+ *
+ * @param string path
+ * @param string suffix
+ *
+ * @return string
+ */
+function basename(path, suffix) {
+	var name = path.replace(/^.*[\/\\]/g, '');
+
+	if (typeof(suffix) == 'string' && name.substr(name.length - suffix.length) == suffix) {
+		name = name.substr(0, name.length - suffix.length);
+	}
+
+	return name;
 }

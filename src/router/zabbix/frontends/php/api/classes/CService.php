@@ -1,7 +1,7 @@
 <?php
 /*
 ** Zabbix
-** Copyright (C) 2001-2013 Zabbix SIA
+** Copyright (C) 2001-2015 Zabbix SIA
 **
 ** This program is free software; you can redistribute it and/or modify
 ** it under the terms of the GNU General Public License as published by
@@ -20,7 +20,8 @@
 
 
 /**
- * Class containing methods for operations with IT Services
+ * Class containing methods for operations with IT services.
+ *
  * @package API
  */
 class CService extends CZBXAPI {
@@ -70,11 +71,6 @@ class CService extends CZBXAPI {
 	public function get(array $options) {
 		$options = zbx_array_merge($this->getOptions, $options);
 
-		// if the selectTrigger option is used, make sure we select the triggerid to be able to fetch the related triggers
-		if ($options['selectTrigger'] !== null) {
-			$options['output'] = $this->extendOutputOption($this->tableName(), 'triggerid', $options['output']);
-		}
-
 		// build and execute query
 		$sql = $this->createSelectQuery($this->tableName(), $options);
 		$res = DBselect($sql, $options['limit']);
@@ -88,7 +84,7 @@ class CService extends CZBXAPI {
 			}
 			// a normal select query
 			else {
-				$result[$row[$this->pk()]] = $this->unsetExtraFields($this->tableName(), $row, $options['output']);
+				$result[$row[$this->pk()]] = $row;
 			}
 		}
 
@@ -98,6 +94,7 @@ class CService extends CZBXAPI {
 
 		if ($result) {
 			$result = $this->addRelatedObjects($options, $result);
+			$result = $this->unsetExtraFields($result, array('triggerid'), $options['output']);
 		}
 
 		if ($options['preservekeys'] === null) {
@@ -189,7 +186,7 @@ class CService extends CZBXAPI {
 			$this->addTimes($serviceTimes);
 		}
 
-		update_services_status_all();
+		updateItServices();
 
 		return array('serviceids' => $serviceIds);
 	}
@@ -325,7 +322,7 @@ class CService extends CZBXAPI {
 			$this->addTimes($serviceTimes);
 		}
 
-		update_services_status_all();
+		updateItServices();
 
 		return array('serviceids' => zbx_objectValues($services, 'serviceid'));
 	}
@@ -361,7 +358,7 @@ class CService extends CZBXAPI {
 
 		DB::delete($this->tableName(), array('serviceid' => $serviceIds));
 
-		update_services_status_all();
+		updateItServices();
 
 		return array('serviceids' => $serviceIds);
 	}
@@ -549,9 +546,10 @@ class CService extends CZBXAPI {
 	 * @return array    as array(serviceId2 => data1, serviceId2 => data2, ...)
 	 */
 	public function getSla(array $options) {
-		$intervals = (isset($options['intervals'])) ? zbx_toArray($options['intervals']) : array();
 		$serviceIds = (isset($options['serviceids'])) ? zbx_toArray($options['serviceids']) : null;
+		$intervals = (isset($options['intervals'])) ? zbx_toArray($options['intervals']) : array();
 
+		// fetch services
 		$services = $this->get(array(
 			'output' => array('serviceid', 'name', 'status', 'algorithm'),
 			'selectTimes' => API_OUTPUT_EXTEND,
@@ -681,7 +679,6 @@ class CService extends CZBXAPI {
 
 		$count = $this->get(array(
 			'serviceids' => $ids,
-			'output' => API_OUTPUT_SHORTEN,
 			'countOutput' => true
 		));
 		return count($ids) == $count;
@@ -699,7 +696,7 @@ class CService extends CZBXAPI {
 	}
 
 	/**
-	 * Deletes the the dependencies of the parent services on the given services.
+	 * Deletes the dependencies of the parent services on the given services.
 	 *
 	 * @param $serviceIds
 	 *
@@ -753,13 +750,13 @@ class CService extends CZBXAPI {
 			if ($time['type'] == SERVICE_TIME_TYPE_UPTIME) {
 				$this->expandPeriodicalTimes($data, $periodStart, $periodEnd, $time['ts_from'], $time['ts_to'], 'ut');
 
-				// if exist any uptime - unmarked time is downtime
+				// if an uptime period exists - unmarked time is downtime
 				$unmarkedPeriodType = 'dt';
 			}
 			elseif ($time['type'] == SERVICE_TIME_TYPE_DOWNTIME) {
 				$this->expandPeriodicalTimes($data, $periodStart, $periodEnd, $time['ts_from'], $time['ts_to'], 'dt');
 			}
-			elseif ($time['type'] == SERVICE_TIME_TYPE_ONETIME_DOWNTIME && $time['ts_to'] >= $periodStart && $time['ts_from'] <= $periodEnd) {
+			elseif($time['type'] == SERVICE_TIME_TYPE_ONETIME_DOWNTIME && $time['ts_to'] >= $periodStart && $time['ts_from'] <= $periodEnd) {
 				if ($time['ts_from'] < $periodStart) {
 					$time['ts_from'] = $periodStart;
 				}
@@ -930,7 +927,8 @@ class CService extends CZBXAPI {
 				' FROM services s,triggers t'.
 				' WHERE s.status>0'.
 					' AND t.triggerid=s.triggerid'.
-					' AND '.dbConditionInt('s.serviceid', $serviceIds);
+					' AND '.dbConditionInt('s.serviceid', $serviceIds).
+				' ORDER BY s.status DESC,t.description';
 
 		// get service reason
 		$triggers = DBfetchArray(DBSelect($sql));
@@ -1033,7 +1031,8 @@ class CService extends CZBXAPI {
 	protected function fetchChildDependencies(array $parentServiceIds, $output) {
 		$sqlParts = API::getApi()->createSelectQueryParts('services_links', 'sl', array(
 			'output' => $output,
-			'filter' => array('serviceupid' => $parentServiceIds)
+			'filter' => array('serviceupid' => $parentServiceIds),
+			'nodeids' => get_current_nodeid(true)
 		));
 
 		// sort by sortorder
@@ -1058,18 +1057,22 @@ class CService extends CZBXAPI {
 	 *
 	 * @param array $childServiceIds
 	 * @param $output
+	 * @param boolean $soft             if set to true, will return only soft-linked dependencies
 	 *
 	 * @return array    an array of service links sorted by "sortorder" in ascending order
 	 */
-	protected function fetchParentDependencies(array $childServiceIds, $output) {
+	protected function fetchParentDependencies(array $childServiceIds, $output, $soft = null) {
 		$sqlParts = API::getApi()->createSelectQueryParts('services_links', 'sl', array(
 			'output' => $output,
-			'filter' => array('servicedownid' => $childServiceIds)
+			'filter' => array('servicedownid' => $childServiceIds),
+			'nodeids' => get_current_nodeid(true)
 		));
 
-		// sort by sortorder
 		$sqlParts['from'][] = $this->tableName().' '.$this->tableAlias();
 		$sqlParts['where'][] = 'sl.serviceupid='.$this->fieldId('serviceid');
+		if ($soft !== null) {
+			$sqlParts['where'][] = 'sl.soft='.($soft ? 1 : 0);
+		}
 		$sqlParts = $this->addQueryOrder($this->fieldId('sortorder'), $sqlParts);
 		$sqlParts = $this->addQueryOrder($this->fieldId('serviceid'), $sqlParts);
 
@@ -1405,7 +1408,7 @@ class CService extends CZBXAPI {
 	 *
 	 * @throws APIException if at least one cycle is possible
 	 *
-	 * @param array $depsToValid	dpendency list to be validated
+	 * @param array $depsToValid	dependency list to be validated
 	 *
 	 * @return void
 	 */
@@ -1423,7 +1426,7 @@ class CService extends CZBXAPI {
 			$arr[$dbDep['serviceupid']][$dbDep['servicedownid']] = $dbDep['servicedownid'];
 		}
 
-		// chech for circularity and add dependencies to the graph
+		// check for circularity and add dependencies to the graph
 		foreach ($depsToValid as $dep) {
 			$this->DFCircularitySearch($dep['serviceid'], $dep['dependsOnServiceid'], $arr);
 			$arr[$dep['serviceid']][$dep['dependsOnServiceid']] = $dep['dependsOnServiceid'];
@@ -1511,124 +1514,98 @@ class CService extends CZBXAPI {
 		$serviceIds = array_keys($result);
 
 		// selectDependencies
-		if ($options['selectDependencies'] !== null) {
-			$dependencyOutput = $this->extendOutputOption('services_links', 'serviceupid', $options['selectDependencies']);
-			$dependencies = $this->fetchChildDependencies($serviceIds, $dependencyOutput);
-			foreach ($result as &$service) {
-				$service['dependencies'] = array();
-			}
-			unset($service);
-			foreach ($dependencies as $dependency) {
-				$refId = $dependency['serviceupid'];
-				$dependency = $this->unsetExtraFields('services_links', $dependency, $options['selectDependencies']);
-				$result[$refId]['dependencies'][] = $dependency;
-			}
+		if ($options['selectDependencies'] !== null && $options['selectDependencies'] != API_OUTPUT_COUNT) {
+			$dependencies = $this->fetchChildDependencies($serviceIds,
+				$this->outputExtend('services_links', array('serviceupid', 'linkid'), $options['selectDependencies'])
+			);
+			$dependencies = zbx_toHash($dependencies, 'linkid');
+			$relationMap = $this->createRelationMap($dependencies, 'serviceupid', 'linkid');
+
+			$dependencies = $this->unsetExtraFields($dependencies, array('serviceupid', 'linkid'), $options['selectDependencies']);
+			$result = $relationMap->mapMany($result, $dependencies, 'dependencies');
 		}
 
 		// selectParentDependencies
-		if ($options['selectParentDependencies'] !== null) {
-			$dependencyOutput = $this->extendOutputOption('services_links', 'servicedownid', $options['selectParentDependencies']);
-			$dependencies = $this->fetchParentDependencies($serviceIds, $dependencyOutput);
-			foreach ($result as &$service) {
-				$service['parentDependencies'] = array();
-			}
-			unset($service);
-			foreach ($dependencies as $dependency) {
-				$refId = $dependency['servicedownid'];
-				$dependency = $this->unsetExtraFields('services_links', $dependency, $options['selectParentDependencies']);
-				$result[$refId]['parentDependencies'][] = $dependency;
-			}
+		if ($options['selectParentDependencies'] !== null && $options['selectParentDependencies'] != API_OUTPUT_COUNT) {
+			$dependencies = $this->fetchParentDependencies($serviceIds,
+				$this->outputExtend('services_links', array('servicedownid', 'linkid'), $options['selectParentDependencies'])
+			);
+			$dependencies = zbx_toHash($dependencies, 'linkid');
+			$relationMap = $this->createRelationMap($dependencies, 'servicedownid', 'linkid');
+
+			$dependencies = $this->unsetExtraFields($dependencies, array('servicedownid', 'linkid'),
+				$options['selectParentDependencies']
+			);
+			$result = $relationMap->mapMany($result, $dependencies, 'parentDependencies');
 		}
 
 		// selectParent
-		if ($options['selectParent'] !== null) {
+		if ($options['selectParent'] !== null && $options['selectParent'] != API_OUTPUT_COUNT) {
+			$dependencies = $this->fetchParentDependencies($serviceIds, array('servicedownid', 'serviceupid'), false);
+			$relationMap = $this->createRelationMap($dependencies, 'servicedownid', 'serviceupid');
 			$parents = $this->get(array(
 				'output' => $options['selectParent'],
-				'childids' => $serviceIds,
-				'selectDependencies' => array('servicedownid', 'soft')
+				'serviceids' => $relationMap->getRelatedIds(),
+				'preservekeys' => true
 			));
-			foreach ($result as &$service) {
-				$service['parent'] = array();
-			}
-			unset($service);
-
-			// map the parents to their children, look for the first hard linked dependency
-			foreach ($parents as $parent) {
-				foreach ($parent['dependencies'] as $dependency) {
-					if (!$dependency['soft']) {
-						unset($parent['dependencies']);
-						if (isset($result[$dependency['servicedownid']])) {
-							$result[$dependency['servicedownid']]['parent'] = $parent;
-						}
-					}
-				}
-			}
+			$result = $relationMap->mapOne($result, $parents, 'parent');
 		}
 
 		// selectTimes
-		if ($options['selectTimes'] !== null) {
-			$timesOutput = $this->extendOutputOption('services_times', array('serviceid', 'type'), $options['selectTimes']);
-
+		if ($options['selectTimes'] !== null && $options['selectTimes'] != API_OUTPUT_COUNT) {
 			$serviceTimes = API::getApi()->select('services_times', array(
-				'output' => $timesOutput,
-				'filter' => array('serviceid' => $serviceIds)
+				'output' => $this->outputExtend('services_times', array('serviceid', 'timeid'), $options['selectTimes']),
+				'filter' => array('serviceid' => $serviceIds),
+				'preservekeys' => true,
+				'nodeids' => get_current_nodeid(true)
 			));
-			foreach ($result as &$service) {
-				$service['times'] = array();
-			}
-			unset($service);
+			$relationMap = $this->createRelationMap($serviceTimes, 'serviceid', 'timeid');
 
-			foreach ($serviceTimes as $serviceTime) {
-				$refId = $serviceTime['serviceid'];
-
-				// convert periodical service time timestamps from old 1.8 format
-				if ($serviceTime['type'] == SERVICE_TIME_TYPE_UPTIME || $serviceTime['type'] == SERVICE_TIME_TYPE_DOWNTIME) {
-					if (isset($serviceTime['ts_from'])) {
-						$serviceTime['ts_from'] = prepareServiceTime($serviceTime['ts_from']);
-					}
-					if (isset($serviceTime['ts_to'])) {
-						$serviceTime['ts_to'] = prepareServiceTime($serviceTime['ts_to']);
-					}
-				}
-
-				$serviceTime = $this->unsetExtraFields('services_times', $serviceTime, $options['selectTimes']);
-				$result[$refId]['times'][] = $serviceTime;
-			}
+			$serviceTimes = $this->unsetExtraFields($serviceTimes, array('serviceid', 'timeid'), $options['selectTimes']);
+			$result = $relationMap->mapMany($result, $serviceTimes, 'times');
 		}
 
 		// selectAlarms
-		if ($options['selectAlarms'] !== null) {
-			$alarmsOutput = $this->extendOutputOption('service_alarms', 'serviceid', $options['selectAlarms']);
-			$alarmsTimes = API::getApi()->select('service_alarms', array(
-				'output' => $alarmsOutput,
-				'filter' => array('serviceid' => $serviceIds)
+		if ($options['selectAlarms'] !== null && $options['selectAlarms'] != API_OUTPUT_COUNT) {
+			$serviceAlarms = API::getApi()->select('service_alarms', array(
+				'output' => $this->outputExtend('service_alarms', array('serviceid', 'servicealarmid'), $options['selectAlarms']),
+				'filter' => array('serviceid' => $serviceIds),
+				'preservekeys' => true,
+				'nodeids' => get_current_nodeid(true)
 			));
-			foreach ($result as &$service) {
-				$service['times'] = array();
-			}
-			unset($service);
-			foreach ($alarmsTimes as $serviceAlarm) {
-				$refId = $serviceAlarm['serviceid'];
-				$serviceAlarm = $this->unsetExtraFields('service_alarms', $serviceAlarm, $options['selectAlarms']);
-				$result[$refId]['times'][] = $serviceAlarm;
-			}
+			$relationMap = $this->createRelationMap($serviceAlarms, 'serviceid', 'servicealarmid');
+
+			$serviceAlarms = $this->unsetExtraFields($serviceAlarms, array('serviceid', 'servicealarmid'),
+				$options['selectAlarms']
+			);
+			$result = $relationMap->mapMany($result, $serviceAlarms, 'alarms');
 		}
 
 		// selectTrigger
-		if ($options['selectTrigger'] !== null) {
+		if ($options['selectTrigger'] !== null && $options['selectTrigger'] != API_OUTPUT_COUNT) {
+			$relationMap = $this->createRelationMap($result, 'serviceid', 'triggerid');
 			$triggers = API::getApi()->select('triggers', array(
 				'output' => $options['selectTrigger'],
-				'triggerids' => array_unique(zbx_objectValues($result, 'triggerid')),
-				'preservekeys' => true
+				'triggerids' => $relationMap->getRelatedIds(),
+				'preservekeys' => true,
+				'nodeids' => get_current_nodeid(true)
 			));
-
-			foreach ($result as &$service) {
-				$service['trigger'] = ($service['triggerid']) ? $triggers[$service['triggerid']] : array();
-			}
-			unset($service);
+			$result = $relationMap->mapOne($result, $triggers, 'trigger');
 		}
 
 		return $result;
+	}
+
+	protected function applyQueryOutputOptions($tableName, $tableAlias, array $options, array $sqlParts) {
+		$sqlParts = parent::applyQueryOutputOptions($tableName, $tableAlias, $options, $sqlParts);
+
+		if ($options['countOutput'] === null) {
+			if ($options['selectTrigger'] !== null) {
+				$sqlParts = $this->addQuerySelect($this->fieldId('triggerid'), $sqlParts);
+			}
+		}
+
+		return $sqlParts;
 	}
 
 	/**
@@ -1652,7 +1629,7 @@ class CService extends CZBXAPI {
 										' AND f.itemid=i.itemid'.
 										' AND i.hostid=hgg.hostid'.
 									' GROUP BY f.triggerid'.
-									' HAVING MIN(r.permission)>='.PERM_READ_ONLY.
+									' HAVING MIN(r.permission)>'.PERM_DENY.
 									')'.
 								' OR s.triggerid IS NULL)';
 

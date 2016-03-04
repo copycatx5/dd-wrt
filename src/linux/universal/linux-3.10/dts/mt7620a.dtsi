@@ -150,6 +150,25 @@
 			status = "disabled";
 		};
 
+		gpio3: gpio@688 {
+			compatible = "ralink,mt7620a-gpio", "ralink,rt2880-gpio";
+			reg = <0x688 0x24>;
+
+			interrupt-parent = <&intc>;
+			interrupts = <6>;
+
+			gpio-controller;
+			#gpio-cells = <2>;
+
+			ralink,gpio-base = <72>;
+			ralink,num-gpios = <1>;
+			ralink,register-map = [ 00 04 08 0c
+						10 14 18 1c
+						20 24 ];
+
+			status = "disabled";
+		};
+
 		i2c@900 {
 			compatible = "link,mt7620a-i2c", "ralink,rt2880-i2c";
 			reg = <0x900 0x100>;
@@ -175,6 +194,10 @@
 
 			interrupt-parent = <&intc>;
 			interrupts = <10>;
+
+			dmas = <&gdma 4>,
+				<&gdma 5>;
+			dma-names = "tx", "rx";
 
 			status = "disabled";
 		};
@@ -235,7 +258,7 @@
 			status = "disabled";
 		};
 
-		gdma@2800 {
+		gdma: gdma@2800 {
 			compatible = "ralink,mt7620a-gdma", "ralink,rt2880-gdma";
 			reg = <0x2800 0x800>;
 
@@ -244,6 +267,10 @@
 
 			interrupt-parent = <&intc>;
 			interrupts = <7>;
+
+			#dma-cells = <1>;
+			#dma-channels = <16>;
+			#dma-requests = <16>;
 
 			status = "disabled";
 		};
@@ -261,6 +288,12 @@
 				ralink,function = "pcm i2s";
 			};
 		};
+		uartf_gpio_pins: uartf_gpio {
+			uartf_gpio {
+				ralink,group = "uartf";
+				ralink,function = "gpio uartf";
+			};
+		};
 		spi_pins: spi {
 			spi {
 				ralink,group = "spi";
@@ -269,8 +302,8 @@
 		};
 		i2c_pins: i2c {
 			i2c {
-				lantiq,group = "i2c";
-				lantiq,function = "i2c";
+				ralink,group = "i2c";
+				ralink,function = "i2c";
 			};
 		};
 		uartlite_pins: uartlite {
@@ -298,15 +331,21 @@
 			};
 		};
 		rgmii1_pins: rgmii1 {
-			mdio {
+			rgmii1 {
 				ralink,group = "rgmii1";
 				ralink,function = "rgmii1";
 			};
 		};
 		rgmii2_pins: rgmii2 {
-			mdio {
+			rgmii2 {
 				ralink,group = "rgmii2";
 				ralink,function = "rgmii2";
+			};
+		};
+		pcie_pins: pcie {
+			pcie {
+				ralink,group = "pcie";
+				ralink,function = "pcie rst";
 			};
 		};
 	};
@@ -316,7 +355,7 @@
 		#reset-cells = <1>;
 	};
 
-	ubsphy {
+	usbphy {
 		compatible = "ralink,mt7620a-usbphy";
 
 		resets = <&rstctrl 22 &rstctrl 25>;
@@ -333,14 +372,28 @@
 		interrupt-parent = <&cpuintc>;
 		interrupts = <5>;
 
+		resets = <&rstctrl 21 &rstctrl 23>;
+		reset-names = "fe", "esw";
+
+		port@4 {
+			compatible = "ralink,mt7620a-gsw-port", "ralink,eth-port";
+			reg = <4>;
+
+			status = "disabled";
+		};
+
+		port@5 {
+			compatible = "ralink,mt7620a-gsw-port", "ralink,eth-port";
+			reg = <5>;
+
+			status = "disabled";
+		};
+
 		mdio-bus {
 			#address-cells = <1>;
 			#size-cells = <0>;
 
 			status = "disabled";
-
-/*			pinctrl-names = "default";
-			pinctrl-0 = <&mdio_pins>;*/
 		};
 	};
 
@@ -348,19 +401,15 @@
 		compatible = "ralink,mt7620a-gsw";
 		reg = <0x10110000 8000>;
 
+		resets = <&rstctrl 23>;
+		reset-names = "esw";
+
 		interrupt-parent = <&intc>;
 		interrupts = <17>;
 	};
 
-	wmac@10180000 {
-		compatible = "ralink,rt7620-wmac", "ralink,rt2880-wmac";
-		reg = <0x10180000 40000>;
-		interrupt-parent = <&cpuintc>;
-		interrupts = <6>;
-	};
-
 	sdhci@10130000 {
-		compatible = "ralink,mt7620a-sdhci";
+		compatible = "ralink,mt7620-sdhci";
 		reg = <0x10130000 4000>;
 
 		interrupt-parent = <&intc>;
@@ -390,9 +439,12 @@
 	};
 
 	pcie@10140000 {
-		compatible = "ralink,mt7620a-pci";
+		compatible = "mediatek,mt7620-pci";
 		reg = <0x10140000 0x100
 			0x10142000 0x100>;
+
+		#address-cells = <3>;
+		#size-cells = <2>;
 
 		resets = <&rstctrl 26>;
 		reset-names = "pcie0";
@@ -400,6 +452,36 @@
 		interrupt-parent = <&cpuintc>;
 		interrupts = <4>;
 
+/*		pinctrl-names = "default";
+		pinctrl-0 = <&pcie_pins>;*/
+
+		device_type = "pci";
+
+		bus-range = <0 255>;
+		ranges = <
+			0x02000000 0 0x00000000 0x20000000 0 0x10000000 /* pci memory */
+			0x01000000 0 0x00000000 0x10160000 0 0x00010000 /* io space */
+		>;
+
 		status = "disabled";
+
+		pcie-bridge {
+			reg = <0x0000 0 0 0 0>;
+
+			#address-cells = <3>;
+			#size-cells = <2>;
+
+			device_type = "pci";
+		};
+	};
+
+	wmac@10180000 {
+		compatible = "ralink,rt7620-wmac", "ralink,rt2880-wmac";
+		reg = <0x10180000 40000>;
+
+		interrupt-parent = <&cpuintc>;
+		interrupts = <6>;
+
+		ralink,eeprom = "soc_wmac.eeprom";
 	};
 };

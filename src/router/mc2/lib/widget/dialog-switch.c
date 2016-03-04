@@ -3,8 +3,8 @@
 
    Original idea and code: Oleg "Olegarch" Konovalov <olegarch@linuxinside.com>
 
-   Copyright (C) 2009-2014
-   The Free Software Foundation
+   Copyright (C) 2009-2015
+   Free Software Foundation, Inc.
 
    Written by:
    Daniel Borca <dborca@yahoo.com>, 2007
@@ -250,7 +250,8 @@ dialog_switch_list (void)
         else
             title = g_strdup ("");
 
-        listbox_add_item (listbox->list, LISTBOX_APPEND_BEFORE, get_hotkey (i++), title, NULL);
+        listbox_add_item (listbox->list, LISTBOX_APPEND_BEFORE, get_hotkey (i++), title, NULL,
+                          FALSE);
 
         g_free (title);
     }

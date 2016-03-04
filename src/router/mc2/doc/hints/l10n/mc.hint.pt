@@ -28,7 +28,7 @@ conteúdo.
 
 Dica: Também temos uma página manual interessante.
 
-Dica: Deseja navegação tipo lynx? Ative-a no diálogo de Configuração.
+Hint: Do you want Lynx-style navigation? Set it in the Configuration dialog.
 
 Dica: % macros funcionam mesmo na linha de comandos.
 
@@ -54,7 +54,7 @@ Configuração.
 Dica: Preenchimento funciona em todas as linhas de entrada em todos os
 diálogos. Pressione apenas M-Tab.
 
-Dica: Em terminais lentos a flag -s pode ajudar.
+Dica: Em terminais lentos o parâmetro -s pode ajudar.
 
 Dica: Procurar Ficheiro: pode trabalhar nos ficheiros encontrados usando o
 botão Panelize.

@@ -40,66 +40,66 @@
 #include <fcntl.h>
 #include <errno.h>
 
-#if defined(HAVE_UNIWIP) || defined(HAVE_OCTEON)
-void set_gpio(int pin, int value)
+static int writeint(char *path, int a)
 {
-	char str[32];
-	char strdir[64];
-	FILE *fp;
-	sprintf(str, "/sys/class/gpio/gpio%d/value", pin);
-	sprintf(strdir, "/sys/class/gpio/gpio%d/direction", pin);
-      new_try:;
-	fp = fopen(str, "rb");
-	if (!fp) {
-		fp = fopen("/sys/class/gpio/export", "wb");
-		if (fp) {
-			fprintf(fp, "%d", pin);
-			fclose(fp);
-		} else {
-			return;	//prevent deadlock
-		}
-		goto new_try;
-	}
-	fclose(fp);
-	fp = fopen(strdir, "wb");
-	if (fp) {
-		fprintf(fp, "out");
-		fclose(fp);
-	}
-	fp = fopen(str, "wb");
-	if (fp) {
-		fprintf(fp, "%d", value);
-		fclose(fp);
-	}
+	int fd = open(path, O_WRONLY);
+	if (fd == -1)
+		return -1;
+	char strval[32];
+	snprintf(strval, sizeof(strval), "%d", a);
+	write(fd, strval, strlen(strval));
+	close(fd);
+	return 0;
 }
 
-int get_gpio(int pin)
+static int writestr(char *path, char *a)
+{
+	int fd = open(path, O_WRONLY);
+	if (fd == -1)
+		return -1;
+	write(fd, a, strlen(a));
+	close(fd);
+	return 0;
+}
+
+static void set_linux_gpio(int pin, int value)
+{
+	char str[32];
+	char strdir[64];
+	int fd;
+	snprintf(str, sizeof(str), "/sys/class/gpio/gpio%d/value", pin);
+	snprintf(strdir, sizeof(strdir), "/sys/class/gpio/gpio%d/direction", pin);
+      new_try:;
+	fd = open(str, O_RDONLY);
+	if (fd == -1) {
+		if (writeint("/sys/class/gpio/export", pin))
+			return;	//prevent deadlock
+		goto new_try;
+	}
+	close(fd);
+	writestr(strdir, "out");
+	writeint(str, value);
+}
+
+static int get_linux_gpio(int pin)
 {
 
 	char str[32];
 	char strdir[64];
 	FILE *fp;
+	int fd;
 	int val = 0;
 	sprintf(str, "/sys/class/gpio/gpio%d/value", pin);
 	sprintf(strdir, "/sys/class/gpio/gpio%d/direction", pin);
       new_try:;
 	fp = fopen(str, "rb");
 	if (!fp) {
-		fp = fopen("/sys/class/gpio/export", "wb");
-		if (fp) {
-			fprintf(fp, "%d", pin);
-			fclose(fp);
-		} else {
+		if (writeint("/sys/class/gpio/export", pin))
 			return 0;	// prevent deadlock
-		}
 		goto new_try;
 	}
 	fclose(fp);
-	fp = fopen(strdir, "wb");
-	if (fp) {
-		fprintf(fp, "in");
-		fclose(fp);
-	}
+	writestr(strdir, "in");
 	fp = fopen(str, "rb");
 	if (fp) {
 		fscanf(fp, "%d", &val);
@@ -109,18 +109,29 @@ int get_gpio(int pin)
 
 }
 
+#if defined(HAVE_UNIWIP) || defined(HAVE_OCTEON)
+void set_gpio(int pin, int value)
+{
+	set_linux_gpio(pin, value);
+}
+
+int get_gpio(int pin)
+{
+	return get_linux_gpio(pin);
+}
+
 #elif HAVE_WDR4900
 void set_gpio(int gpio, int value)
 {
 	switch (gpio) {
 	case 0:		// system
-		sysprintf("echo %d > /sys/devices/leds.4/leds/tp-link\\:blue\\:system/brightness", value);
+		sysprintf("echo %d > /sys/devices/leds/leds/tp-link\\:blue\\:system/brightness", value);
 		break;
 	case 1:		// usb1
-		sysprintf("echo %d > /sys/devices/leds.4/leds/tp-link\\:green\\:usb1/brightness", value);
+		sysprintf("echo %d > /sys/devices/leds/leds/tp-link\\:green\\:usb1/brightness", value);
 		break;
 	case 2:		// usb2
-		sysprintf("echo %d > /sys/devices/leds.4/leds/tp-link\\:green\\:usb2/brightness", value);
+		sysprintf("echo %d > /sys/devices/leds/leds/tp-link\\:green\\:usb2/brightness", value);
 		break;
 
 	}
@@ -148,6 +159,263 @@ int get_gpio(int gpio)
 	return 0;
 }
 
+#elif HAVE_WRT1900AC
+
+int get_gpio(int pin)
+{
+	return get_linux_gpio(pin);
+}
+
+void set_gpio(int gpio, int value)
+{
+	//value 0 off 255 on
+	if (value == 1)
+		value = 255;
+	//fprintf(stderr, "GPIO %d value %d\n", gpio, value);
+	int brand = getRouterBrand();
+	if (brand == ROUTER_WRT_1900AC) {
+		switch (gpio) {
+		case 0:	// power
+			sysprintf("echo %d > /sys/class/leds/mamba\\:white\\:power/brightness", value);
+			break;
+		case 1:	// 2G
+			sysprintf("echo %d > /sys/class/leds/mamba\\:white\\:wlan_2g/brightness", value);
+			break;
+		case 2:	// 5G
+			sysprintf("echo %d > /sys/class/leds/mamba\\:white\\:wlan_5g/brightness", value);
+			break;
+		case 3:	// 5G
+			sysprintf("echo %d > /sys/class/leds/mamba\\:white\\:esata/brightness", value);
+			break;
+		case 4:
+			sysprintf("echo %d > /sys/class/leds/mamba\\:white\\:usb3_1/brightness", value);
+			break;
+		case 5:
+			sysprintf("echo %d > /sys/class/leds/mamba\\:white\\:usb2/brightness", value);
+			break;
+		case 6:
+			sysprintf("echo %d > /sys/class/leds/mamba\\:white\\:wan/brightness", value);
+			break;
+		case 7:
+			sysprintf("echo %d > /sys/class/leds/mamba\\:amber\\:wan/brightness", value);
+			break;
+		case 8:
+			sysprintf("echo %d > /sys/class/leds/mamba\\:white\\:usb3_2/brightness", value);
+			break;
+		case 9:
+			sysprintf("echo %d > /sys/class/leds/mamba\\:white\\:wps/brightness", value);
+			break;
+		case 10:
+			sysprintf("echo %d > /sys/class/leds/mamba\\:amber\\:wps/brightness", value);
+			break;
+		default:
+			set_linux_gpio(gpio, value);
+			break;
+		}
+	}
+
+	if (brand == ROUTER_WRT_1200AC) {
+		switch (gpio) {
+		case 0:	// power
+			sysprintf("echo %d > /sys/class/leds/caiman\\:white\\:power/brightness", value);
+			break;
+		case 1:	// 2G
+			sysprintf("echo %d > /sys/class/leds/pca963x\\:caiman\\:white\\:wlan_2g/brightness", value);
+			break;
+		case 2:	// 5G
+			sysprintf("echo %d > /sys/class/leds/pca963x\\:caiman\\:white\\:wlan_5g/brightness", value);
+			break;
+		case 3:
+			sysprintf("echo %d > /sys/class/leds/caiman\\:white\\:sata/brightness", value);
+			break;
+		case 4:
+			sysprintf("echo %d > /sys/class/leds/pca963x\\:caiman\\:white\\:usb3_1/brightness", value);
+			break;
+		case 5:	// 5G
+			sysprintf("echo %d > /sys/class/leds/pca963x\\:caiman\\:white\\:usb2/brightness", value);
+			break;
+		case 6:	// power
+			sysprintf("echo %d > /sys/class/leds/pca963x\\:caiman\\:white\\:wan/brightness", value);
+			break;
+		case 7:	// power
+			sysprintf("echo %d > /sys/class/leds/pca963x\\:caiman\\:amber\\:wan/brightness", value);
+			break;
+		case 8:
+			sysprintf("echo %d > /sys/class/leds/pca963x\\:caiman\\:white\\:usb3_2/brightness", value);
+			break;
+		case 9:
+			sysprintf("echo %d > /sys/class/leds/pca963x\\:caiman\\:white\\:wps/brightness", value);
+			break;
+		case 10:
+			sysprintf("echo %d > /sys/class/leds/pca963x\\:caiman\\:amber\\:wps/brightness", value);
+			break;
+		default:
+			set_linux_gpio(gpio, value);
+			break;
+		}
+
+	}
+
+	if (brand == ROUTER_WRT_1900ACV2) {
+		switch (gpio) {
+		case 0:	// power
+			sysprintf("echo %d > /sys/class/leds/cobra\\:white\\:power/brightness", value);
+			break;
+		case 1:	// 2G
+			sysprintf("echo %d > /sys/class/leds/pca963x\\:cobra\\:white\\:wlan_2g/brightness", value);
+			break;
+		case 2:	// 5G
+			sysprintf("echo %d > /sys/class/leds/pca963x\\:cobra\\:white\\:wlan_5g/brightness", value);
+			break;
+		case 3:
+			sysprintf("echo %d > /sys/class/leds/cobra\\:white\\:sata/brightness", value);
+			break;
+		case 4:
+			sysprintf("echo %d > /sys/class/leds/pca963x\\:cobra\\:white\\:usb3_1/brightness", value);
+			break;
+		case 5:	// 5G
+			sysprintf("echo %d > /sys/class/leds/pca963x\\:cobra\\:white\\:usb2/brightness", value);
+			break;
+		case 6:	// power
+			sysprintf("echo %d > /sys/class/leds/pca963x\\:cobra\\:white\\:wan/brightness", value);
+			break;
+		case 7:	// power
+			sysprintf("echo %d > /sys/class/leds/pca963x\\:cobra\\:amber\\:wan/brightness", value);
+			break;
+		case 8:
+			sysprintf("echo %d > /sys/class/leds/pca963x\\:cobra\\:white\\:usb3_2/brightness", value);
+			break;
+		case 9:
+			sysprintf("echo %d > /sys/class/leds/pca963x\\:cobra\\:white\\:wps/brightness", value);
+			break;
+		case 10:
+			sysprintf("echo %d > /sys/class/leds/pca963x\\:cobra\\:amber\\:wps/brightness", value);
+			break;
+		default:
+			set_linux_gpio(gpio, value);
+			break;
+		}
+
+	}
+
+	if (brand == ROUTER_WRT_1900ACS) {
+		switch (gpio) {
+		case 0:	// power
+			sysprintf("echo %d > /sys/class/leds/shelby\\:white\\:power/brightness", value);
+			break;
+		case 1:	// 2G
+			sysprintf("echo %d > /sys/class/leds/pca963x\\:shelby\\:white\\:wlan_2g/brightness", value);
+			break;
+		case 2:	// 5G
+			sysprintf("echo %d > /sys/class/leds/pca963x\\:shelby\\:white\\:wlan_5g/brightness", value);
+			break;
+		case 3:
+			sysprintf("echo %d > /sys/class/leds/shelby\\:white\\:sata/brightness", value);
+			break;
+		case 4:
+			sysprintf("echo %d > /sys/class/leds/pca963x\\:shelby\\:white\\:usb3_1/brightness", value);
+			break;
+		case 5:	// 5G
+			sysprintf("echo %d > /sys/class/leds/pca963x\\:shelby\\:white\\:usb2/brightness", value);
+			break;
+		case 6:	// power
+			sysprintf("echo %d > /sys/class/leds/pca963x\\:shelby\\:white\\:wan/brightness", value);
+			break;
+		case 7:	// power
+			sysprintf("echo %d > /sys/class/leds/pca963x\\:shelby\\:amber\\:wan/brightness", value);
+			break;
+		case 8:
+			sysprintf("echo %d > /sys/class/leds/pca963x\\:shelby\\:white\\:usb3_2/brightness", value);
+			break;
+		case 9:
+			sysprintf("echo %d > /sys/class/leds/pca963x\\:shelby\\:white\\:wps/brightness", value);
+			break;
+		case 10:
+			sysprintf("echo %d > /sys/class/leds/pca963x\\:shelby\\:amber\\:wps/brightness", value);
+			break;
+		default:
+			set_linux_gpio(gpio, value);
+			break;
+		}
+
+	}
+
+}
+
+#elif HAVE_IPQ806X
+
+int get_gpio(int gpio)
+{
+	return get_linux_gpio(gpio);
+}
+
+void set_gpio(int gpio, int value)
+{
+	//value 0 off 255 on
+	if (value == 1)
+		value = 255;
+	//fprintf(stderr, "GPIO %d value %d\n", gpio, value);
+	int brand = getRouterBrand();
+	if (brand == ROUTER_NETGEAR_R7500) {
+		switch (gpio) {
+		case 0:	// power
+			sysprintf("echo %d > /sys/class/leds/r7500\\:white\\:power/brightness", value);
+			break;
+		case 1:	// 2G
+			//
+			break;
+		case 2:	// 5G
+			sysprintf("echo %d > /sys/class/leds/r7500\\:white\\:wifi5g/brightness", value);
+			break;
+		case 3:
+			sysprintf("echo %d > /sys/class/leds/r7500\\:white\\:esata/brightness", value);
+			break;
+		case 4:
+			sysprintf("echo %d > /sys/class/leds/r7500\\:amber\\:usb1/brightness", value);
+			break;
+		case 5:
+			sysprintf("echo %d > /sys/class/leds/r7500\\:amber\\:usb3/brightness", value);
+			break;
+		case 6:
+			sysprintf("echo %d > /sys/class/leds/r7500\\:white\\:wan/brightness", value);
+			break;
+		case 7:
+			sysprintf("echo %d > /sys/class/leds/r7500\\:white\\:internet/brightness", value);
+			break;
+		case 8:
+			sysprintf("echo %d > /sys/class/leds/r7500\\:white\\:rfkill/brightness", value);
+			break;
+		case 9:
+			sysprintf("echo %d > /sys/class/leds/r7500\\:white\\:wps/brightness", value);
+			break;
+		case 10:
+			sysprintf("echo %d > /sys/class/leds/r7500\\:amber\\:status/brightness", value);
+			break;
+		default:
+			set_linux_gpio(gpio, value);
+			break;
+		}
+	} else if (brand == ROUTER_LINKSYS_EA8500) {
+		switch (gpio) {
+		case 0:
+			sysprintf("echo %d > /sys/class/leds/ea8500\\:white\\:power/brightness", value);
+			break;
+		case 1:
+			sysprintf("echo %d > /sys/class/leds/ea8500\\:green\\:wifi/brightness", value);
+			break;
+		case 2:
+			sysprintf("echo %d > /sys/class/leds/ea8500\\:green\\:wps/brightness", value);
+			break;
+		default:
+			set_linux_gpio(gpio, value);
+			break;
+		}
+	} else {
+		set_linux_gpio(gpio, value);
+	}
+
+}
+
 #elif defined(HAVE_AR531X) || defined(HAVE_LSX) || defined(HAVE_DANUBE) || defined(HAVE_ADM5120)
 
 void set_gpio(int gpio, int value)
@@ -161,13 +429,16 @@ void set_gpio(int gpio, int value)
 #endif
 	if (gpio < GPIOMAX) {
 		sprintf(buf, "/proc/gpio/%d_dir", gpio);
-		in = fopen(buf, "wb");
-		if (in == NULL)
+		if (writestr(buf, "1"))
 			return;
-		fprintf(in, "1");
-		fclose(in);
 		sprintf(buf, "/proc/gpio/%d_out", gpio);
 	} else
+#ifdef HAVE_ERC
+	if (gpio >= 55) {
+		set_linux_gpio(gpio, value);
+		return;
+	} else
+#endif
 #ifdef HAVE_DANUBE
 	if (gpio >= 200)
 		sprintf(buf, "/proc/gpiostp/%d_out", gpio - 200);
@@ -177,11 +448,9 @@ void set_gpio(int gpio, int value)
 		sprintf(buf, "/proc/wl0gpio/%d_out", (gpio - GPIOMAX));
 	}
 
-	in = fopen(buf, "wb");
-	if (in == NULL)
-		return;
-	fprintf(in, "%d", value);
-	fclose(in);
+	writeint(buf, value);
+
+//      sysprintf("echo %d > %s", value, buf);
 }
 
 int get_gpio(int gpio)
@@ -191,20 +460,15 @@ int get_gpio(int gpio)
 	char buf[64];
 	if (gpio < GPIOMAX) {
 		sprintf(buf, "/proc/gpio/%d_dir", gpio);
-		in = fopen(buf, "wb");
-		if (in == NULL)
-			return;
-		fprintf(in, "0");
-		fclose(in);
+		if (writestr(buf, "0"))
+			return -1;
 		sprintf(buf, "/proc/gpio/%d_in", gpio);
 		in = fopen(buf, "rb");
 	} else {
 		sprintf(buf, "/proc/wl0gpio/%d_dir", (gpio - GPIOMAX));
-		in = fopen(buf, "wb");
-		if (in != NULL) {
-			fprintf(in, "0");
-			fclose(in);
-		}
+
+		if (writestr(buf, "0"))
+			return -1;
 		sprintf(buf, "/proc/wl0gpio/%d_in", (gpio - GPIOMAX));
 		in = fopen(buf, "rb");
 		if (in == NULL) {
@@ -533,6 +797,22 @@ enum {
 #endif
 };
 
+#define	RALINK_GPIO6332_SET_DIR		0x51
+#define RALINK_GPIO6332_SET_DIR_IN	0x13
+#define RALINK_GPIO6332_SET_DIR_OUT	0x14
+#define	RALINK_GPIO6332_READ		0x52
+#define	RALINK_GPIO6332_WRITE		0x53
+#define	RALINK_GPIO6332_SET		0x22
+#define	RALINK_GPIO6332_CLEAR		0x32
+
+#define	RALINK_GPIO9564_SET_DIR		0x61
+#define RALINK_GPIO9564_SET_DIR_IN	0x15
+#define RALINK_GPIO9564_SET_DIR_OUT	0x16
+#define	RALINK_GPIO9564_READ		0x62
+#define	RALINK_GPIO9564_WRITE		0x63
+#define	RALINK_GPIO9564_SET		0x23
+#define	RALINK_GPIO9564_CLEAR		0x33
+
 #define	RALINK_GPIO_SET_DIR		0x01
 #define RALINK_GPIO_SET_DIR_IN		0x11
 #define RALINK_GPIO_SET_DIR_OUT		0x12
@@ -540,10 +820,6 @@ enum {
 #define	RALINK_GPIO_WRITE		0x03
 #define	RALINK_GPIO_SET			0x21
 #define	RALINK_GPIO_CLEAR		0x31
-#define	RALINK_GPIO_READ_BIT		0x04
-#define	RALINK_GPIO_WRITE_BIT		0x05
-#define	RALINK_GPIO_READ_BYTE		0x06
-#define	RALINK_GPIO_WRITE_BYTE		0x07
 #define	RALINK_GPIO_READ_INT		0x02	//same as read
 #define	RALINK_GPIO_WRITE_INT		0x03	//same as write
 #define	RALINK_GPIO_SET_INT		0x21	//same as set
@@ -577,7 +853,15 @@ int gpio_set_dir_in(int gpio)
 	}
 	int req;
 	int val;
-#ifdef HAVE_MT7620
+#ifdef HAVE_MT7621
+	if (gpio <= 95 && gpio >= 64) {
+		req = RALINK_GPIO9564_SET_DIR_IN;
+		val = 1 << (gpio - 64);
+	} else if (gpio <= 63 && gpio >= 32) {
+		req = RALINK_GPIO6332_SET_DIR_IN;
+		val = 1 << (gpio - 32);
+	} else
+#elif defined(HAVE_MT7620)
 	if (gpio == 72) {
 		req = RALINK_GPIO72_SET_DIR_IN;
 		val = 1 << (gpio - 72);
@@ -613,7 +897,15 @@ int gpio_set_dir_out(int gpio)
 	}
 	int req;
 	int val;
-#ifdef HAVE_MT7620
+#ifdef HAVE_MT7621
+	if (gpio <= 95 && gpio >= 64) {
+		req = RALINK_GPIO9564_SET_DIR_OUT;
+		val = 1 << (gpio - 64);
+	} else if (gpio <= 63 && gpio >= 32) {
+		req = RALINK_GPIO6332_SET_DIR_OUT;
+		val = 1 << (gpio - 32);
+	} else
+#elif defined(HAVE_MT7620)
 	if (gpio == 72) {
 		req = RALINK_GPIO72_SET_DIR_OUT;
 		val = 1 << (gpio - 72);
@@ -638,8 +930,6 @@ int gpio_set_dir_out(int gpio)
 	return 0;
 }
 
-#define RALINK_GPIO_DATA_LEN		24
-
 int gpio_read_bit(int gpio, int *value)
 {
 	int fd;
@@ -652,7 +942,15 @@ int gpio_read_bit(int gpio, int *value)
 	}
 	int req;
 	int val;
-#ifdef HAVE_MT7620
+#ifdef HAVE_MT7621
+	if (gpio <= 95 && gpio >= 64) {
+		req = RALINK_GPIO9564_READ;
+		val = 1 << (gpio - 64);
+	} else if (gpio <= 63 && gpio >= 32) {
+		req = RALINK_GPIO6332_READ;
+		val = 1 << (gpio - 32);
+	} else
+#elif defined(HAVE_MT7620)
 	if (gpio == 72) {
 		req = RALINK_GPIO72_READ;
 		val = 1 << (gpio - 72);
@@ -695,7 +993,17 @@ int gpio_write_bit(int gpio, int setvalue)
 	int req;
 	int wreq;
 	int val;
-#ifdef HAVE_MT7620
+#ifdef HAVE_MT7621
+	if (gpio <= 95 && gpio >= 64) {
+		req = RALINK_GPIO9564_READ;
+		wreq = RALINK_GPIO9564_WRITE;
+		val = 1 << (gpio - 64);
+	} else if (gpio <= 63 && gpio >= 32) {
+		req = RALINK_GPIO6332_READ;
+		wreq = RALINK_GPIO6332_WRITE;
+		val = 1 << (gpio - 32);
+	} else
+#elif defined(HAVE_MT7620)
 	if (gpio == 72) {
 		req = RALINK_GPIO72_READ;
 		wreq = RALINK_GPIO72_WRITE;
@@ -1020,9 +1328,6 @@ int get_gpio(int pin)
 #elif HAVE_VENTANA
 void set_gpio(int pin, int value)
 {
-	char str[32];
-	char strdir[64];
-	FILE *fp;
 	switch (pin) {
 	case 102:
 		sysprintf("echo none > /sys/class/leds/user1/trigger");
@@ -1037,32 +1342,7 @@ void set_gpio(int pin, int value)
 		sysprintf("echo %d > /sys/class/leds/user3/brightness", value ? 255 : 0);
 		break;
 	default:
-		sprintf(str, "/sys/class/gpio/gpio%d/value", pin);
-		sprintf(strdir, "/sys/class/gpio/gpio%d/direction", pin);
-	      new_try:;
-		fp = fopen(str, "rb");
-		if (!fp) {
-			fp = fopen("/sys/class/gpio/export", "wb");
-			if (fp) {
-				fprintf(fp, "%d", pin);
-				fclose(fp);
-			} else {
-				return;	// no export available, prevent deadlock
-
-			}
-			goto new_try;
-		}
-		fclose(fp);
-		fp = fopen(strdir, "wb");
-		if (fp) {
-			fprintf(fp, "out");
-			fclose(fp);
-		}
-		fp = fopen(str, "wb");
-		if (fp) {
-			fprintf(fp, "%d", value);
-			fclose(fp);
-		}
+		set_linux_gpio(pin, value);
 		break;
 	}
 }
@@ -1070,9 +1350,6 @@ void set_gpio(int pin, int value)
 int get_gpio(int pin)
 {
 
-	char str[32];
-	char strdir[64];
-	FILE *fp;
 	int val = 0;
 	switch (pin) {
 	case 102:
@@ -1080,31 +1357,7 @@ int get_gpio(int pin)
 	case 111:
 		break;
 	default:
-		sprintf(str, "/sys/class/gpio/gpio%d/value", pin);
-		sprintf(strdir, "/sys/class/gpio/gpio%d/direction", pin);
-	      new_try:;
-		fp = fopen(str, "rb");
-		if (!fp) {
-			fp = fopen("/sys/class/gpio/export", "wb");
-			if (fp) {
-				fprintf(fp, "%d", pin);
-				fclose(fp);
-			} else {
-				return 0;	// prevent deadlock
-			}
-			goto new_try;
-		}
-		fclose(fp);
-		fp = fopen(strdir, "wb");
-		if (fp) {
-			fprintf(fp, "in");
-			fclose(fp);
-		}
-		fp = fopen(str, "rb");
-		if (fp) {
-			fscanf(fp, "%d", &val);
-			fclose(fp);
-		}
+		val = get_linux_gpio(pin);
 	}
 	return val;
 }

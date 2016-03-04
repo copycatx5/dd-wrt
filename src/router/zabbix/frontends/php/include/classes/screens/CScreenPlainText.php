@@ -1,7 +1,7 @@
 <?php
 /*
 ** Zabbix
-** Copyright (C) 2001-2013 Zabbix SIA
+** Copyright (C) 2001-2015 Zabbix SIA
 **
 ** This program is free software; you can redistribute it and/or modify
 ** it under the terms of the GNU General Public License as published by
@@ -38,13 +38,15 @@ class CScreenPlainText extends CScreenBase {
 		}
 
 		if ($this->screenitem['resourceid'] == 0) {
-			$table = new CTableInfo(_('No data defined.'));
+			$table = new CTableInfo(_('No values found.'));
 			$table->setHeader(array(_('Timestamp'), _('Item')));
 
 			return $this->getOutput($table);
 		}
 
-		$item = get_item_by_itemid($this->screenitem['resourceid']);
+		$items = CMacrosResolverHelper::resolveItemNames(array(get_item_by_itemid($this->screenitem['resourceid'])));
+		$item = reset($items);
+
 		switch ($item['value_type']) {
 			case ITEM_VALUE_TYPE_TEXT:
 			case ITEM_VALUE_TYPE_LOG:
@@ -58,8 +60,8 @@ class CScreenPlainText extends CScreenBase {
 
 		$host = get_host_by_itemid($this->screenitem['resourceid']);
 
-		$table = new CTableInfo(_('No data defined.'));
-		$table->setHeader(array(_('Timestamp'), $host['name'].': '.itemName($item)));
+		$table = new CTableInfo(_('No values found.'));
+		$table->setHeader(array(_('Timestamp'), $host['name'].NAME_DELIMITER.$item['name_expanded']));
 
 		$stime = zbxDateToTime($this->timeline['stime']);
 

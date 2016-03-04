@@ -21,6 +21,12 @@ endif
 ifdef CONFIG_KORENRON
  MOTD_ADD:=.korenron
 endif
+ifdef CONFIG_TESTEM
+ MOTD_ADD:=.testem
+endif
+ifdef CONFIG_HOBBIT
+ MOTD_ADD:=.hobbit
+endif
 ifdef CONFIG_ONNET
 ifdef CONFIG_ONNET_BLANK
  MOTD_ADD:=.onnet_blank
@@ -49,6 +55,10 @@ ifdef CONFIG_NORTHSTAR
 	install -d $(INSTALLDIR)/etc/cfe
 	install cfe/cfe_600.bin $(INSTALLDIR)/etc/cfe
 endif
+ifdef CONFIG_MT7612
+	install -d $(INSTALLDIR)/etc/wlan
+	install rt2880/SingleSKU.dat $(INSTALLDIR)/etc/wlan
+endif
 ifdef CONFIG_RT3052
 	install -d $(INSTALLDIR)/etc/wlan
 	install rt2880/RT30*.bin $(INSTALLDIR)/etc/wlan
@@ -68,7 +78,11 @@ endif
 ifdef CONFIG_SER
 	install profile2 $(INSTALLDIR)/etc/profile
 else
+ifeq ($(CONFIG_DIST),"micro")
+	install profile_micro $(INSTALLDIR)/etc
+else
 	install profile $(INSTALLDIR)/etc
+endif
 endif
 ifndef CONFIG_MAKSAT
 ifndef CONFIG_WIKINGS
@@ -118,6 +132,9 @@ endif
 ifdef CONFIG_NCURSES
 	install -d $(INSTALLDIR)/etc/terminfo
 	cp -r terminfo $(INSTALLDIR)/etc/
+endif
+ifdef CONFIG_WDR4900
+	ln -sf /tmp/firmware $(INSTALLDIR)/lib/firmware
 endif
 
 

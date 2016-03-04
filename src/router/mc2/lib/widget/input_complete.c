@@ -2,7 +2,7 @@
    Input line filename/username/hostname/variable/command completion.
    (Let mc type for you...)
 
-   Copyright (C) 1995-2014
+   Copyright (C) 1995-2015
    Free Software Foundation, Inc.
 
    Written by:
@@ -270,14 +270,11 @@ filename_completion_function (const char *text, int state, input_complete_t flag
             mc_closedir (directory);
             directory = NULL;
         }
-        g_free (dirname);
-        dirname = NULL;
+        MC_PTR_FREE (dirname);
         vfs_path_free (dirname_vpath);
         dirname_vpath = NULL;
-        g_free (filename);
-        filename = NULL;
-        g_free (users_dirname);
-        users_dirname = NULL;
+        MC_PTR_FREE (filename);
+        MC_PTR_FREE (users_dirname);
         return NULL;
     }
 
@@ -291,7 +288,7 @@ filename_completion_function (const char *text, int state, input_complete_t flag
             g_string_append (temp, users_dirname);
 
             /* We need a '/' at the end. */
-            if (temp->str[temp->len - 1] != PATH_SEP)
+            if (!IS_PATH_SEP (temp->str[temp->len - 1]))
                 g_string_append_c (temp, PATH_SEP);
         }
         g_string_append (temp, entry->d_name);
@@ -660,18 +657,14 @@ command_completion_function (const char *_text, int state, input_complete_t flag
             }
             found = filename_completion_function (cur_word, state - init_state, flags);
             if (!found)
-            {
-                g_free (cur_word);
-                cur_word = NULL;
-            }
+                MC_PTR_FREE (cur_word);
         }
+    default:
+        break;
     }
 
     if (found == NULL)
-    {
-        g_free (path);
-        path = NULL;
-    }
+        MC_PTR_FREE (path);
     else
     {
         p = strrchr (found, PATH_SEP);
@@ -795,11 +788,9 @@ completion_matches (const char *text, CompletionFunction entry_function, input_c
             match_list[0] = g_strndup (match_list[1], low);
         }
     }
-    else
-    {                           /* There were no matches. */
-        g_free (match_list);
-        match_list = NULL;
-    }
+    else                        /* There were no matches. */
+        MC_PTR_FREE (match_list);
+
     return match_list;
 }
 
@@ -920,7 +911,7 @@ try_complete_all_possible (try_complete_automation_state_t * state, char *text, 
         SHOW_C_CTX ("try_complete:filename_subst_1");
         matches = completion_matches (state->word, filename_completion_function, state->flags);
 
-        if (matches == NULL && state->is_cd && *state->word != PATH_SEP && *state->word != '~')
+        if (matches == NULL && state->is_cd && !IS_PATH_SEP (*state->word) && *state->word != '~')
         {
             state->q = text + *lc_start;
             for (state->p = text;
@@ -1039,7 +1030,6 @@ query_callback (Widget * w, Widget * sender, widget_msg_t msg, int parm, void *d
                 input_handle_char (input, parm);
                 h->ret_value = B_USER;
                 dlg_stop (h);
-                return MSG_HANDLED;
             }
             else
             {
@@ -1079,7 +1069,6 @@ query_callback (Widget * w, Widget * sender, widget_msg_t msg, int parm, void *d
                 /* This means we want to refill the list box and start again */
                 h->ret_value = B_USER;
                 dlg_stop (h);
-                return MSG_HANDLED;
             }
             else
             {
@@ -1099,6 +1088,8 @@ query_callback (Widget * w, Widget * sender, widget_msg_t msg, int parm, void *d
                     /* fallthrough */
                 case -2:
                     return MSG_HANDLED;
+                default:
+                    break;
                 }
 
                 for (i = 0, e = listbox_get_first_link (LISTBOX (h->current->data));
@@ -1172,9 +1163,8 @@ query_callback (Widget * w, Widget * sender, widget_msg_t msg, int parm, void *d
                 }
                 bl = 0;
             }
-            return MSG_HANDLED;
         }
-        break;
+        return MSG_HANDLED;
 
     default:
         return dlg_default_callback (w, sender, msg, parm, data);
@@ -1261,7 +1251,7 @@ complete_engine (WInput * in, int what_to_do)
             query_list = listbox_new (1, 1, h - 2, w - 2, FALSE, NULL);
             add_widget (query_dlg, query_list);
             for (p = in->completions + 1; *p; p++)
-                listbox_add_item (query_list, LISTBOX_APPEND_AT_END, 0, *p, NULL);
+                listbox_add_item (query_list, LISTBOX_APPEND_AT_END, 0, *p, NULL, FALSE);
             dlg_run (query_dlg);
             q = NULL;
             if (query_dlg->ret_value == B_ENTER)

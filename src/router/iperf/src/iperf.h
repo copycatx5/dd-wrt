@@ -1,20 +1,48 @@
 /*
- * Copyright (c) 2009-2014, The Regents of the University of California,
- * through Lawrence Berkeley National Laboratory (subject to receipt of any
- * required approvals from the U.S. Dept. of Energy).  All rights reserved.
+ * iperf, Copyright (c) 2014, The Regents of the University of
+ * California, through Lawrence Berkeley National Laboratory (subject
+ * to receipt of any required approvals from the U.S. Dept. of
+ * Energy).  All rights reserved.
  *
- * This code is distributed under a BSD style license, see the LICENSE file
- * for complete information.
+ * If you have questions about your rights to use or distribute this
+ * software, please contact Berkeley Lab's Technology Transfer
+ * Department at TTD@lbl.gov.
+ *
+ * NOTICE.  This software is owned by the U.S. Department of Energy.
+ * As such, the U.S. Government has been granted for itself and others
+ * acting on its behalf a paid-up, nonexclusive, irrevocable,
+ * worldwide license in the Software to reproduce, prepare derivative
+ * works, and perform publicly and display publicly.  Beginning five
+ * (5) years after the date permission to assert copyright is obtained
+ * from the U.S. Department of Energy, and subject to any subsequent
+ * five (5) year renewals, the U.S. Government is granted for itself
+ * and others acting on its behalf a paid-up, nonexclusive,
+ * irrevocable, worldwide license in the Software to reproduce,
+ * prepare derivative works, distribute copies to the public, perform
+ * publicly and display publicly, and to permit others to do so.
+ *
+ * This code is distributed under a BSD style license, see the LICENSE
+ * file for complete information.
  */
-
 #ifndef __IPERF_H
 #define __IPERF_H
 
+#include "iperf_config.h"
+
 #include <sys/time.h>
 #include <sys/types.h>
+#ifdef HAVE_STDINT_H
 #include <stdint.h>
+#endif
+#include <sys/select.h>
 #include <sys/socket.h>
 #include <netinet/tcp.h>
+
+#if defined(HAVE_CPUSET_SETAFFINITY)
+#include <sys/param.h>
+#include <sys/cpuset.h>
+#endif /* HAVE_CPUSET_SETAFFINITY */
+
 #include "timer.h"
 #include "queue.h"
 #include "cjson.h"
@@ -38,8 +66,9 @@ struct iperf_interval_results
     int       cnt_error;
 
     int omitted;
-#if defined(linux) || defined(__FreeBSD__)
-    struct tcp_info tcpInfo;	/* getsockopt(TCP_INFO) for Linux and FreeBSD */
+#if (defined(linux) || defined(__FreeBSD__) || defined(__NetBSD__)) && \
+	defined(TCP_INFO)
+    struct tcp_info tcpInfo; /* getsockopt(TCP_INFO) for Linux, {Free,Net}BSD */
 #else
     /* Just placeholders, never accessed. */
     char *tcpInfo;
@@ -49,6 +78,7 @@ struct iperf_interval_results
     int snd_cwnd;
     TAILQ_ENTRY(iperf_interval_results) irlistentries;
     void     *custom_data;
+    int rtt;
 };
 
 struct iperf_stream_result
@@ -61,6 +91,11 @@ struct iperf_stream_result
     int stream_retrans;
     int stream_prev_total_sacks;
     int stream_sacks;
+    int stream_max_rtt;
+    int stream_min_rtt;
+    int stream_sum_rtt;
+    int stream_count_rtt;
+    int stream_max_snd_cwnd;
     struct timeval start_time;
     struct timeval end_time;
     TAILQ_HEAD(irlisthead, iperf_interval_results) interval_results;
@@ -80,8 +115,9 @@ struct iperf_settings
     int       tos;                  /* type of service bit */
     int       flowlabel;            /* IPv6 flow label */
     iperf_size_t bytes;             /* number of bytes to send */
-    int       blocks;               /* number of blocks (packets) to send */
+    iperf_size_t blocks;            /* number of blocks (packets) to send */
     char      unit_format;          /* -f */
+    int       num_ostreams;         /* SCTP initmsg settings */
 };
 
 struct iperf_test;
@@ -152,6 +188,12 @@ struct iperf_textline {
     TAILQ_ENTRY(iperf_textline) textlineentries;
 };
 
+struct xbind_entry {
+    char *name;
+    struct addrinfo *ai;
+    TAILQ_ENTRY(xbind_entry) link;
+};
+
 struct iperf_test
 {
     char      role;                             /* 'c' lient or 's' erver */
@@ -160,14 +202,23 @@ struct iperf_test
     struct protocol *protocol;
     signed char state;
     char     *server_hostname;                  /* -c option */
-    char     *bind_address;                     /* -B option */
+    char     *bind_address;                     /* first -B option */
+    TAILQ_HEAD(xbind_addrhead, xbind_entry) xbind_addrs; /* all -X opts */
+    int       bind_port;                        /* --cport option */
     int       server_port;
     int       omit;                             /* duration of omit period (-O flag) */
     int       duration;                         /* total duration of test (-t flag) */
     char     *diskfile_name;			/* -F option */
     int       affinity, server_affinity;	/* -A option */
+#if defined(HAVE_CPUSET_SETAFFINITY)
+    cpuset_t cpumask;
+#endif /* HAVE_CPUSET_SETAFFINITY */
     char     *title;				/* -T option */
     char     *congestion;			/* -C option */
+    char     *pidfile;				/* -P option */
+
+    char     *logfile;				/* --logfile option */
+    FILE     *outfile;
 
     int       ctrl_sck;
     int       listener;
@@ -175,6 +226,7 @@ struct iperf_test
 
     /* boolean variables for Options */
     int       daemon;                           /* -D option */
+    int       one_off;                          /* -1 option */
     int       no_delay;                         /* -N option */
     int       reverse;                          /* -R option */
     int	      verbose;                          /* -V option - verbose mode */
@@ -182,9 +234,11 @@ struct iperf_test
     int	      zerocopy;                         /* -Z option - use sendfile */
     int       debug;				/* -d option - enable debug */
     int	      get_server_output;		/* --get-server-output */
+    int	      udp_counters_64bit;		/* --use-64-bit-udp-counters */
 
     int	      multisend;
 
+    char     *json_output_string; /* rendered JSON output if json_output is set */
     /* Select related parameters */
     int       max_fd;
     fd_set    read_set;                         /* set of read sockets */
@@ -208,7 +262,7 @@ struct iperf_test
     int       num_streams;                      /* total streams in the test (-P) */
 
     iperf_size_t bytes_sent;
-    int       blocks_sent;
+    iperf_size_t blocks_sent;
     char      cookie[COOKIE_SIZE];
 //    struct iperf_stream *streams;               /* pointer to list of struct stream */
     SLIST_HEAD(slisthead, iperf_stream) streams;
@@ -253,6 +307,8 @@ struct iperf_test
 #define MB (1024 * 1024)
 #define MAX_TCP_BUFFER (512 * MB)
 #define MAX_BLOCKSIZE MB
+/* Maximum size UDP send is (64K - 1) - IP and UDP header sizes */
+#define MAX_UDP_BLOCKSIZE (65535 - 8 - 20)
 #define MIN_INTERVAL 0.1
 #define MAX_INTERVAL 60.0
 #define MAX_TIME 86400

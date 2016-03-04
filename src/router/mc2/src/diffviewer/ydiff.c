@@ -1,5 +1,5 @@
 /*
-   Copyright (C) 2007-2014
+   Copyright (C) 2007-2015
    Free Software Foundation, Inc.
 
    Written by:
@@ -28,7 +28,6 @@
 #include <config.h>
 #include <ctype.h>
 #include <errno.h>
-#include <fcntl.h>
 #include <stdlib.h>
 #include <sys/stat.h>
 #include <sys/types.h>
@@ -573,20 +572,20 @@ dview_get_byte (char *str, gboolean * result)
 
 /* --------------------------------------------------------------------------------------------- */
 
+#ifdef HAVE_CHARSET
 /**
  * Get utf multibyte char from string
  *
- * @param char * str, int * char_width, gboolean * result
+ * @param char * str, int * char_length, gboolean * result
  * @return int as utf character or 0 and result == FALSE if fail
  */
 
 static int
-dview_get_utf (char *str, int *char_width, gboolean * result)
+dview_get_utf (char *str, int *char_length, gboolean * result)
 {
     int res = -1;
     gunichar ch;
-    gchar *next_ch = NULL;
-    int width = 0;
+    int ch_len = 0;
 
     *result = TRUE;
 
@@ -602,15 +601,14 @@ dview_get_utf (char *str, int *char_width, gboolean * result)
         ch = *str;
     else
     {
+        gchar *next_ch;
+
         ch = res;
-        /* Calculate UTF-8 char width */
+        /* Calculate UTF-8 char length */
         next_ch = g_utf8_next_char (str);
-        if (next_ch != NULL)
-            width = next_ch - str;
-        else
-            ch = 0;
+        ch_len = next_ch - str;
     }
-    *char_width = width;
+    *char_length = ch_len;
     return ch;
 }
 
@@ -648,6 +646,7 @@ dview_str_utf8_offset_to_pos (const char *text, size_t length)
     }
     return max (length, (size_t) result);
 }
+#endif /*HAVE_CHARSET */
 
 /* --------------------------------------------------------------------------------------------- */
 
@@ -1413,15 +1412,17 @@ cvt_mget (const char *src, size_t srcsize, char *dst, int dstsize, int skip, int
             }
             else if (skip > 0)
             {
-                int utf_ch = 0;
+#ifdef HAVE_CHARSET
                 gboolean res;
-                int w;
+                int ch_len = 1;
+
+                (void) dview_get_utf ((char *) src, &ch_len, &res);
+
+                if (ch_len > 1)
+                    skip += ch_len - 1;
+#endif
 
                 skip--;
-                utf_ch = dview_get_utf ((char *) src, &w, &res);
-                if (w > 1)
-                    skip += w - 1;
-                (void) utf_ch;
             }
             else
             {
@@ -1514,15 +1515,16 @@ cvt_mgeta (const char *src, size_t srcsize, char *dst, int dstsize, int skip, in
             }
             else if (skip != 0)
             {
-                int utf_ch = 0;
+#ifdef HAVE_CHARSET
                 gboolean res;
-                int w;
+                int ch_len = 1;
+
+                (void) dview_get_utf ((char *) src, &ch_len, &res);
+                if (ch_len > 1)
+                    skip += ch_len - 1;
+#endif
 
                 skip--;
-                utf_ch = dview_get_utf ((char *) src, &w, &res);
-                if (w > 1)
-                    skip += w - 1;
-                (void) utf_ch;
             }
             else
             {
@@ -1858,8 +1860,7 @@ destroy_hdiff (WDiff * dview)
 
     mc_search_free (dview->search.handle);
     dview->search.handle = NULL;
-    g_free (dview->search.last_string);
-    dview->search.last_string = NULL;
+    MC_PTR_FREE (dview->search.last_string);
 }
 
 /* --------------------------------------------------------------------------------------------- */
@@ -2001,6 +2002,8 @@ get_current_hunk (WDiff * dview, int *start_line1, int *end_line1, int *start_li
             break;
         case CHG_CH:
             res = DIFF_CHG;
+            break;
+        default:
             break;
         }
         while (pos > 0 && ((DIFFLN *) & g_array_index (a0, DIFFLN, pos))->ch != EQU_CH)
@@ -2237,6 +2240,8 @@ do_merge_hunk (WDiff * dview, action_direction_t merge_direction)
         case DIFF_CHG:
             dview_replace_hunk (dview, merge_file, from1, to1, from2, to2, merge_direction);
             break;
+        default:
+            break;
         }
         fflush (merge_file);
         fclose (merge_file);
@@ -2432,8 +2437,8 @@ dview_init (WDiff * dview, const char *args, const char *file1, const char *file
     dview->merged[DIFF_RIGHT] = FALSE;
     dview->hdiff = NULL;
     dview->dsrc = dsrc;
-    dview->converter = str_cnv_from_term;
 #ifdef HAVE_CHARSET
+    dview->converter = str_cnv_from_term;
     dview_set_codeset (dview);
 #endif
     dview->a[DIFF_LEFT] = g_array_new (FALSE, FALSE, sizeof (DIFFLN));
@@ -2491,8 +2496,10 @@ dview_fini (WDiff * dview)
         f_close (dview->f[DIFF_LEFT]);
     }
 
+#ifdef HAVE_CHARSET
     if (dview->converter != str_cnv_from_term)
         str_close_conv (dview->converter);
+#endif
 
     destroy_hdiff (dview);
     if (dview->a[DIFF_LEFT] != NULL)
@@ -2593,9 +2600,11 @@ dview_display_file (const WDiff * dview, diff_place_t ord, int r, int c, int hei
                 {
                     char att[BUFSIZ];
 
+#ifdef HAVE_CHARSET
                     if (dview->utf8)
                         k = dview_str_utf8_offset_to_pos (p->p, width);
                     else
+#endif
                         k = width;
 
                     cvt_mgeta (p->p, p->u.len, buf, k, skip, tab_size, show_cr,
@@ -2605,18 +2614,21 @@ dview_display_file (const WDiff * dview, diff_place_t ord, int r, int c, int hei
 
                     for (cnt = 0; cnt < strlen (buf) && col < width; cnt++)
                     {
-                        int w;
                         gboolean ch_res;
 
+#ifdef HAVE_CHARSET
                         if (dview->utf8)
                         {
-                            next_ch = dview_get_utf (buf + cnt, &w, &ch_res);
-                            if (w > 1)
-                                cnt += w - 1;
+                            int ch_len = 0;
+
+                            next_ch = dview_get_utf (buf + cnt, &ch_len, &ch_res);
+                            if (ch_len > 1)
+                                cnt += ch_len - 1;
                             if (!g_unichar_isprint (next_ch))
                                 next_ch = '.';
                         }
                         else
+#endif
                             next_ch = dview_get_byte (buf + cnt, &ch_res);
 
                         if (ch_res)
@@ -2647,9 +2659,11 @@ dview_display_file (const WDiff * dview, diff_place_t ord, int r, int c, int hei
                 if (ch == CHG_CH)
                     tty_setcolor (DFF_CHH_COLOR);
 
+#ifdef HAVE_CHARSET
                 if (dview->utf8)
                     k = dview_str_utf8_offset_to_pos (p->p, width);
                 else
+#endif
                     k = width;
                 cvt_mget (p->p, p->u.len, buf, k, skip, tab_size, show_cr);
             }
@@ -2677,18 +2691,21 @@ dview_display_file (const WDiff * dview, diff_place_t ord, int r, int c, int hei
         col = 0;
         for (cnt = 0; cnt < strlen (buf) && col < width; cnt++)
         {
-            int w;
             gboolean ch_res;
 
+#ifdef HAVE_CHARSET
             if (dview->utf8)
             {
-                next_ch = dview_get_utf (buf + cnt, &w, &ch_res);
-                if (w > 1)
-                    cnt += w - 1;
+                int ch_len = 0;
+
+                next_ch = dview_get_utf (buf + cnt, &ch_len, &ch_res);
+                if (ch_len > 1)
+                    cnt += ch_len - 1;
                 if (!g_unichar_isprint (next_ch))
                     next_ch = '.';
             }
             else
+#endif
                 next_ch = dview_get_byte (buf + cnt, &ch_res);
             if (ch_res)
             {
@@ -2896,21 +2913,21 @@ dview_edit (WDiff * dview, diff_place_t ord)
 static void
 dview_goto_cmd (WDiff * dview, diff_place_t ord)
 {
+    static gboolean first_run = TRUE;
+
     /* *INDENT-OFF* */
     static const char *title[2] = {
         N_("Goto line (left)"),
         N_("Goto line (right)")
     };
     /* *INDENT-ON* */
-    static char prev[256];
-    /* XXX some statics here, to be remembered between runs */
 
     int newline;
     char *input;
 
     input =
-        input_dialog (_(title[ord]), _("Enter line:"), MC_HISTORY_YDIFF_GOTO_LINE, prev,
-                      INPUT_COMPLETE_NONE);
+        input_dialog (_(title[ord]), _("Enter line:"), MC_HISTORY_YDIFF_GOTO_LINE,
+                      first_run ? NULL : INPUT_LAST_TEXT, INPUT_COMPLETE_NONE);
     if (input != NULL)
     {
         const char *s = input;
@@ -2931,10 +2948,11 @@ dview_goto_cmd (WDiff * dview, diff_place_t ord)
                 }
             }
             dview->skip_rows = dview->search.last_accessed_num_line = (ssize_t) i;
-            g_snprintf (prev, sizeof (prev), "%d", newline);
         }
         g_free (input);
     }
+
+    first_run = FALSE;
 }
 
 /* --------------------------------------------------------------------------------------------- */
@@ -3194,7 +3212,7 @@ dview_execute_cmd (WDiff * dview, unsigned long command)
             find_prev_hunk (dview->a[DIFF_LEFT], dview->skip_rows);
         break;
     case CK_Goto:
-        dview_goto_cmd (dview, TRUE);
+        dview_goto_cmd (dview, DIFF_RIGHT);
         break;
     case CK_Edit:
         dview_edit (dview, dview->ord);

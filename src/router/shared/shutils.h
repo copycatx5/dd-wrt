@@ -53,7 +53,11 @@ extern int waitfor(int fd, int timeout);
 
 int _evalpid(char *const argv[], char *path, int timeout, int *ppid);
 
-extern int _eval(char *const argv[]);
+//extern int _eval(char *const argv[]);
+extern int eval_va(const char *cmd, ...);
+
+#define eval(cmd, args...) eval_va(cmd, ## args, NULL)
+#define eval_silence(cmd, args...) eval_va_silence(cmd, ## args, NULL)
 
 /*
  * Concatenates NULL-terminated list of arguments into a single
@@ -88,8 +92,7 @@ extern int safe_fread(void *ptr, size_t size, size_t nmemb, FILE * stream);
  * @param       stream  file stream
  * @return      number of items successfully written
  */
-extern int safe_fwrite(const void *ptr, size_t size, size_t nmemb,
-		       FILE * stream);
+extern int safe_fwrite(const void *ptr, size_t size, size_t nmemb, FILE * stream);
 
 /*
  * Convert Ethernet address string representation to binary data
@@ -97,7 +100,7 @@ extern int safe_fwrite(const void *ptr, size_t size, size_t nmemb,
  * @param       e       binary data
  * @return      TRUE if conversion was successful and FALSE otherwise
  */
-extern int ether_atoe(const char *a, unsigned char *e);
+extern int ether_atoe(const char *a, char *e);
 
 int indexof(char *str, char c);
 
@@ -107,12 +110,10 @@ int indexof(char *str, char c);
  * @param       a       string in xx:xx:xx:xx:xx:xx notation
  * @return      a
  */
-extern char *ether_etoa(const unsigned char *e, char *a);
+extern char *ether_etoa(const char *e, char *a);
 
-extern int nvifname_to_osifname(const char *nvifname, char *osifname_buf,
-				int osifname_buf_len);
-extern int osifname_to_nvifname(const char *osifname, char *nvifname_buf,
-				int nvifname_buf_len);
+extern int nvifname_to_osifname(const char *nvifname, char *osifname_buf, int osifname_buf_len);
+extern int osifname_to_nvifname(const char *osifname, char *nvifname_buf, int nvifname_buf_len);
 
 extern int system2(char *command);
 extern int sysprintf(const char *fmt, ...);
@@ -129,11 +130,9 @@ extern int get_ifname_unit(const char *ifname, int *unit, int *subunit);
  */
 char *strcat_r(const char *s1, const char *s2, char *buf);
 
-
-
 #ifdef MEMDEBUG
 
-void *mymalloc(int size,char *func);
+void *mymalloc(int size, char *func);
 void myfree(void *mem);
 void showmemdebugstat();
 
@@ -144,7 +143,7 @@ void showmemdebugstat();
 #define memdebug_enter()  \
 	struct sysinfo memdebuginfo; \
 	sysinfo(&memdebuginfo); \
-	long before = memdebuginfo.freeram; 
+	long before = memdebuginfo.freeram;
 
 #define memdebug_leave()  \
 	sysinfo(&memdebuginfo); \
@@ -177,12 +176,7 @@ void showmemdebugstat();
 /*
  * Strip trailing CR/NL from string <s> 
  */
-#define chomp(s) ({ \
-	char *c = (s) + strlen((s)) - 1; \
-	while ((c > (s)) && (*c == '\n' || *c == '\r' || *c == ' ')) \
-		*c-- = '\0'; \
-	s; \
-})
+char *chomp(char *s);
 
 /*
  * Simple version of _backtick() 
@@ -210,29 +204,21 @@ void showmemdebugstat();
 #define cprintf(fmt, args...)
 #endif
 
-/*
- * Simple version of _eval() (no timeout and wait for child termination) 
- */
-#define eval(cmd, args...) ({ \
-	char *argv[] = { cmd, ## args, NULL }; \
-	_eval(argv); \
-})
+void strcpyto(char *dest, char *src, char c);
+
+
+char *foreach_first(char *foreachwordlist, char *word);
+
+char *foreach_last(char *next, char *word);
+
 
 /*
  * Copy each token in wordlist delimited by space into word 
  */
 #define foreach(word, foreachwordlist, next) \
-	for (next = &foreachwordlist[strspn(foreachwordlist, " ")], \
-	     strncpy(word, next, sizeof(word)), \
-	     word[strcspn(word, " ")] = '\0', \
-	     word[sizeof(word) - 1] = '\0', \
-	     next = strchr(next, ' '); \
+	for (next = foreach_first(foreachwordlist, word); \
 	     strlen(word); \
-	     next = next ? &next[strspn(next, " ")] : "", \
-	     strncpy(word, next, sizeof(word)), \
-	     word[strcspn(word, " ")] = '\0', \
-	     word[sizeof(word) - 1] = '\0', \
-	     next = strchr(next, ' ')) \
+	     next = foreach_last(next, word)) 
 
 /*
  * Return NUL instead of NULL if undefined 

@@ -1,4 +1,4 @@
-.\" -*- mode: troff; coding: utf8 -*-
+.\" -*- mode: troff; coding: UTF-8 -*-
 .\"TOPICS "Topics:"
 .TH MC 1 "%DATE_OF_MAN_PAGE%" "MC Version %DISTR_VERSION%" "GNU Midnight Commander"
 .\"SKIP_SECTION"
@@ -295,7 +295,7 @@ You may redefine key bindings. See
 .I redefine hotkey bindings
 .\"Keys_redefine"
 .PP
-for more info. All other key bindings (described in this manual) relative
+for more info. All other key bindings (described in this manual) are relative
 to default behavior.
 
 .PP
@@ -826,8 +826,8 @@ and
 The full directory view shows the file name, the size of the file and
 the modification time.
 .PP
-The brief view shows only the file name and it has two columns
-(therefore showing twice as many files as other views). The long view
+The brief view shows only the file name and it has from 1 up to 9 columns
+(therefore showing more files unlike other views). The long view
 is similar to the output of
 .B "ls \-l"
 command. The long view takes the whole screen width.
@@ -3541,9 +3541,10 @@ bbarhotkey, bbarbutton. Status bar color: statusbar. Menu colors are: menunormal
 menusel, menuhot, menuhotsel, menuinactive. Dialog colors are: dnormal, dfocus,
 dhotnormal, dhotfocus, dtitle. Error dialog colors are: errdfocus, errdhotnormal,
 errdhotfocus, errdtitle.  Help colors are: helpnormal, helpitalic, helpbold,
-helplink, helpslink, helptitle.  Viewer color are: viewbold, viewunderline, viewselected.
-Editor colors are: editnormal, editbold, editmarked, editwhitespace, editlinestate.
-Popup menu colors are: pmenunormal, pmenusel, pmenutitle.
+helplink, helpslink, helptitle.  Viewer colors are: viewnormal, viewbold,
+viewunderline, viewselected. Editor colors are: editnormal, editbold, editmarked,
+editwhitespace, editlinestate. Popup menu colors are: pmenunormal, pmenusel,
+pmenutitle.
 .PP
 .I header
 determines the color of panel header, the line that contains column titles
@@ -3608,7 +3609,7 @@ color16 to color255, or as rgb000 to rgb555 and gray0 to gray23. Example:
 base_color=normal=white,default:marked=magenta,default
 .fi
 .PP
-Attributes can be any of bold, underline, reverse and blink, appended by a
+Attributes can be any of bold, italic, underline, reverse and blink, appended by a
 plus sign if more than one are desired.  The special word "none" means no
 attributes, without attempting to fall back to base_color.  Example:
 .PP
@@ -3736,7 +3737,7 @@ color of input lines used in query dialogs
 .I inputmark
 color of input selected text
 .TP
-.I inputunhanged
+.I inputunchanged
 color of input text before first modification or cursor movement
 .TP
 .I commandlinemark

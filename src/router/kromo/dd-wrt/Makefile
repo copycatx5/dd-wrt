@@ -27,12 +27,15 @@ endif
 	rm -f $(INSTALLDIR)/www/Log_outgoing.asp
 endif
 
-ifneq ($(CONFIG_AOSS),y)
-	rm -f $(INSTALLDIR)/www/AOSS.asp
-endif
+#ifneq ($(CONFIG_AOSS),y)
+#	rm -f $(INSTALLDIR)/www/AOSS.asp
+#endif
 
 ifneq ($(CONFIG_SPOTPASS),y)
 	rm -f $(INSTALLDIR)/www/Nintendo.asp
+endif
+ifneq ($(CONFIG_IPV6),y)
+	rm -f $(INSTALLDIR)/www/IPV6.asp
 endif
 
 ifeq ($(CONFIG_DIST),"micro-special")
@@ -170,12 +173,28 @@ ifeq ($(CONFIG_UNFY),y)
 	cp buffalo/help/* $(INSTALLDIR)/www/help
 endif
 
+#ifeq ($(CONFIG_IDEXX),y)
+#	mkdir $(INSTALLDIR)/www/style/buffalo
+#	cp buffalo/style.css $(INSTALLDIR)/www/style/buffalo
+#	cp buffalo/favicon.ico $(INSTALLDIR)/www/images
+#	cp buffalo/images/* $(INSTALLDIR)/www/images
+#	cp buffalo/help/* $(INSTALLDIR)/www/help
+#endif
 ifeq ($(CONFIG_IDEXX),y)
-	mkdir $(INSTALLDIR)/www/style/buffalo
-	cp buffalo/style.css $(INSTALLDIR)/www/style/buffalo
-	cp buffalo/favicon.ico $(INSTALLDIR)/www/images
-	cp buffalo/images/* $(INSTALLDIR)/www/images
-	cp buffalo/help/* $(INSTALLDIR)/www/help
+	mkdir $(INSTALLDIR)/www/style/idexx
+	cp idexx/style.css $(INSTALLDIR)/www/style/idexx
+#	cp idexx/favicon.ico $(INSTALLDIR)/www/images
+	cp idexx/AOSS.asp $(INSTALLDIR)/www/
+	cp idexx/images/* $(INSTALLDIR)/www/images
+	cp idexx/help/* $(INSTALLDIR)/www/help
+	cp -fa idexx/files/* $(INSTALLDIR) || true
+ifeq ($(CONFIG_IDEXX_WORLD),y)
+	echo "iw reg set 00" >> $(INSTALLDIR)/etc/config/idexx.startup
+	echo "startservice configurewifi" >> $(INSTALLDIR)/etc/config/idexx.startup
+else
+	echo "iw reg set US" >> $(INSTALLDIR)/etc/config/idexx.startup
+	echo "startservice configurewifi" >> $(INSTALLDIR)/etc/config/idexx.startup
+endif
 endif
 
 ifeq ($(CONFIG_AXTEL),y)
@@ -203,6 +222,10 @@ ifeq ($(CONFIG_ENEO),y)
 	cp eneo/images/* $(INSTALLDIR)/www/images
 	cp eneo/help/* $(INSTALLDIR)/www/help
 	cp eneo/About.htm $(INSTALLDIR)/www
+	mkdir -p $(INSTALLDIR)/etc/config
+	cp -f eneo/defaults/config/* $(INSTALLDIR)/etc/config
+	mkdir -p $(INSTALLDIR)/sbin
+	cp -f eneo/defaults/sbin/* $(INSTALLDIR)/sbin
 endif
 
 ifeq ($(CONFIG_OCTAGON),y)
@@ -264,6 +287,8 @@ ifneq ($(CONFIG_ROUTERSTYLE),y)
 	cp elegant/style.css $(INSTALLDIR)/www/style/elegant
 	cp elegant/style_ie.css $(INSTALLDIR)/www/style/elegant
 else
+	cp elegant/fresh.css $(INSTALLDIR)/www/style/elegant
+	cp elegant/fresh-dark.css $(INSTALLDIR)/www/style/elegant
 	touch $(INSTALLDIR)/www/style/elegant/style.css
 endif
 	cp common_style/common.css $(INSTALLDIR)/www/style
@@ -462,6 +487,7 @@ endif
 ifeq ($(CONFIG_ONNET),y)
 	mkdir $(INSTALLDIR)/www/style/onnet
 	cp onnet/style.css $(INSTALLDIR)/www/style/onnet
+	cp onnet/SuperChannel.asp $(INSTALLDIR)/www
 	cp onnet/images/* $(INSTALLDIR)/www/images
 	cp onnet/help/* $(INSTALLDIR)/www/help
   ifeq ($(CONFIG_ONNET_BLANK),y)
@@ -475,6 +501,7 @@ ifeq ($(CONFIG_ONNET),y)
   endif
 	rm -f $(INSTALLDIR)/www/images/favicon.ico
 	ls -l $(INSTALLDIR)/www/help/
+#	cp -fa onnet/files/* $(INSTALLDIR) || true
 endif
 
 ifeq ($(CONFIG_GLAUCO),y)
@@ -597,6 +624,20 @@ ifeq ($(CONFIG_KORENRON),y)
 	cp korenron/help/* $(INSTALLDIR)/www/help/
 	cp korenron/About.htm $(INSTALLDIR)/www
 endif
+ifeq ($(CONFIG_TESTEM),y)
+	mkdir $(INSTALLDIR)/www/style/testem
+	cp testem/images/* $(INSTALLDIR)/www/images
+	cp testem/style.css $(INSTALLDIR)/www/style/testem
+	cp testem/help/* $(INSTALLDIR)/www/help/
+	cp testem/About.htm $(INSTALLDIR)/www
+endif
+ifeq ($(CONFIG_HOBBIT),y)
+	mkdir $(INSTALLDIR)/www/style/hobbit
+	cp hobbit/images/* $(INSTALLDIR)/www/images
+	cp hobbit/style.css $(INSTALLDIR)/www/style/hobbit
+	cp hobbit/help/* $(INSTALLDIR)/www/help
+	cp hobbit/About.htm $(INSTALLDIR)/www
+endif
 ifeq ($(CONFIG_WIRCOM),y)
 	mkdir $(INSTALLDIR)/www/style/wircom
 	cp wircom/images/logo.png $(INSTALLDIR)/www/style
@@ -620,11 +661,14 @@ ifeq ($(CONFIG_ERC),y)
 	cp -f erc/common.js $(INSTALLDIR)/www/common.js
 	cp -f erc/help/* $(INSTALLDIR)/www/help
 	cp -f erc/favicon.ico $(INSTALLDIR)/www/images/favicon.ico
-	-cp -f erc/*.asp $(INSTALLDIR)/www/
+	cp -f erc/*.asp $(INSTALLDIR)/www/
 #copy extra scripts and whatever
+ifeq ($(CONFIG_CARAMBOLA),y)
+	cp -fa erc/extra_hornet/* $(INSTALLDIR) || true
+else
 	cp -fa erc/extra/* $(INSTALLDIR) || true
 endif
-
+endif
 ifeq ($(CONFIG_MAKSAT_CORAL),y)
  ifneq ($(CONFIG_MAKSAT_BLANK),y)
 	cp -f maksat/logo-coral.png $(INSTALLDIR)/www/style/logo-coral.png
@@ -738,7 +782,7 @@ endif
 
 ifneq ($(CONFIG_USB),y)
 	rm -f $(INSTALLDIR)/www/USB.asp
-	rm -f $(INSTALLDIR)/www/USB.live.asp	
+	rm -f $(INSTALLDIR)/www/USB.live.asp
 	rm -f $(INSTALLDIR)/www/help/HUSB.asp
 endif
 
@@ -748,9 +792,13 @@ ifneq ($(CONFIG_WEBSERVER),y)
 endif
 
 ifneq ($(CONFIG_FTP),y)
-ifneq ($(CONFIG_SAMBASRV),y)
+ifneq ($(CONFIG_TRANSMISSION),y)
+ifneq ($(CONFIG_SAMBA3),y)
+ifneq ($(CONFIG_MINIDLNA),y)
 	rm -f $(INSTALLDIR)/www/NAS.asp
 	rm -f $(INSTALLDIR)/www/help/HNAS.asp.asp
+endif
+endif
 endif
 endif
 
@@ -837,7 +885,9 @@ ifneq ($(CONFIG_DANUBE),y)
 	rm -f $(INSTALLDIR)/www/index_dhcp.asp
 endif
 ifneq ($(CONFIG_AOSS),y)
+ifneq ($(CONFIG_WPS),y)
 	rm -f $(INSTALLDIR)/www/AOSS.asp
+endif
 endif
 ifneq ($(CONFIG_BUFFALO),y)
 	rm -f $(INSTALLDIR)/www/SetupAssistant.asp
@@ -964,11 +1014,28 @@ optimizefiles:
 	-repugly $(INSTALLDIR)/www
 ifeq ($(CONFIG_IAS),y)
 	-repugly $(INSTALLDIR)/www/intatstart/js
+	../../../../tools/removewhitespace.sh $(TOP)/../../tools $(INSTALLDIR)/www/intatstart/js
 endif
 ifeq ($(CONFIG_PWC),y)
 	-repugly $(INSTALLDIR)/www/js
+	../../../../tools/removewhitespace.sh $(TOP)/../../tools $(INSTALLDIR)/www/js
 endif
-#	repugly $(INSTALLDIR)/www/lang_pack
+	../../../../tools/removewhitespace.sh $(TOP)/../../tools $(INSTALLDIR)/www
+	../../../../tools/removewhitespace.sh $(TOP)/../../tools $(INSTALLDIR)/www/help
+	../../../../tools/removewhitespace.sh $(TOP)/../../tools $(INSTALLDIR)/www/lang_pack
+	../../../../tools/removewhitespace.sh $(TOP)/../../tools $(INSTALLDIR)/www/style
+	../../../../tools/removewhitespace.sh $(TOP)/../../tools $(INSTALLDIR)/www/style/blue
+	../../../../tools/removewhitespace.sh $(TOP)/../../tools $(INSTALLDIR)/www/style/brainslayer
+	../../../../tools/removewhitespace.sh $(TOP)/../../tools $(INSTALLDIR)/www/style/cyan
+	../../../../tools/removewhitespace.sh $(TOP)/../../tools $(INSTALLDIR)/www/style/elegant
+	../../../../tools/removewhitespace.sh $(TOP)/../../tools $(INSTALLDIR)/www/style/green
+	../../../../tools/removewhitespace.sh $(TOP)/../../tools $(INSTALLDIR)/www/style/kromo
+	../../../../tools/removewhitespace.sh $(TOP)/../../tools $(INSTALLDIR)/www/style/orange
+	../../../../tools/removewhitespace.sh $(TOP)/../../tools $(INSTALLDIR)/www/style/pwc
+	../../../../tools/removewhitespace.sh $(TOP)/../../tools $(INSTALLDIR)/www/style/red
+	../../../../tools/removewhitespace.sh $(TOP)/../../tools $(INSTALLDIR)/www/style/wikar
+	../../../../tools/removewhitespace.sh $(TOP)/../../tools $(INSTALLDIR)/www/style/xirian
+	../../../../tools/removewhitespace.sh $(TOP)/../../tools $(INSTALLDIR)/www/style/yellow
 
 removeobsolete:
 	cd $(INSTALLDIR)/www  &&  find . -iname "CVS" | xargs rm -rf

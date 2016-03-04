@@ -7,22 +7,21 @@
 -- able to add new targets. Post-scanning scripts (postrule) are not
 -- allowed to add new targets.
 --
--- @copyright Same as Nmap--See http://nmap.org/book/man-legal.html
+-- @copyright Same as Nmap--See https://nmap.org/book/man-legal.html
 --
 -- @args newtargets  If specified, lets NSE scripts add new targets.
 -- @args max-newtargets  Sets the number of the maximum allowed
 --                       new targets. If set to 0 or less then there
 --                       is no limit. The default value is 0.
 
+local nmap = require "nmap"
+local stdnse = require "stdnse"
+local table = require "table"
 local type      = type
 local select    = select
-local unpack    = unpack
 local tonumber  = tonumber
 
-local stdnse  = require "stdnse"
-local nmap    = require "nmap"
-
-module ("target")
+_ENV = stdnse.module("target", stdnse.seeall)
 
 
 -- This is a special variable and it is a global one, so
@@ -69,7 +68,7 @@ end
 -- local status, err = target.add("192.168.1.1")
 -- local status, err = target.add("192.168.1.1","192.168.1.2",...)
 -- local status, err = target.add("scanme.nmap.org","192.168.1.1",...)
--- local status, err = target.add(unpack(array_of_targets))
+-- local status, err = target.add(table.unpack(array_of_targets))
 -- local status, pending_targets = target.add()
 -- @return True if it has been able to add a minimum one target, or
 --         False on failures and if no targets were added. If this
@@ -83,7 +82,7 @@ add = function (...)
   -- Force the check here, but it would be better if scripts
   -- check ALLOW_NEW_TARGETS before calling target.add()
   if not ALLOW_NEW_TARGETS then
-    stdnse.print_debug(1,
+    stdnse.debug1(
         "ERROR: to add targets run with --script-args 'newtargets'")
     return false, "to add targets run with --script-args 'newtargets'"
   end
@@ -98,17 +97,19 @@ add = function (...)
   new_targets.count = calc_max_targets(new_targets.count)
 
   if new_targets.count == 0 then
-    stdnse.print_debug(3,
+    stdnse.debug3(
         "Warning: Maximum new targets reached, no more new targets.")
     return false, "Maximum new targets reached, no more new targets."
   end
 
-  local hosts, err = nmap.add_targets(unpack(new_targets,1,new_targets.count))
+  local hosts, err = nmap.add_targets(table.unpack(new_targets,1,new_targets.count))
 
   if hosts == 0 then
-    stdnse.print_debug(3, "%s", err)
+    stdnse.debug3("%s", err)
     return false, err
   end
 
   return true, hosts
 end
+
+return _ENV;

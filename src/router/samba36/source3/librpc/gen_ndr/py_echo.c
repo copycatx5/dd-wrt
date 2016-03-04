@@ -1225,10 +1225,10 @@ void initecho(void)
 	if (m == NULL)
 		return;
 
-	PyModule_AddObject(m, "ECHO_ENUM1", PyInt_FromLong(ECHO_ENUM1));
 	PyModule_AddObject(m, "ECHO_ENUM2_32", PyInt_FromLong(ECHO_ENUM2_32));
 	PyModule_AddObject(m, "ECHO_ENUM2", PyInt_FromLong(ECHO_ENUM2));
 	PyModule_AddObject(m, "ECHO_ENUM1_32", PyInt_FromLong(ECHO_ENUM1_32));
+	PyModule_AddObject(m, "ECHO_ENUM1", PyInt_FromLong(ECHO_ENUM1));
 	Py_INCREF((PyObject *)(void *)&echo_info1_Type);
 	PyModule_AddObject(m, "info1", (PyObject *)(void *)&echo_info1_Type);
 	Py_INCREF((PyObject *)(void *)&echo_info2_Type);

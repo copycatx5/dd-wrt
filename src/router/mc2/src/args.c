@@ -1,7 +1,7 @@
 /*
    Handle command line arguments.
 
-   Copyright (C) 2009-2014
+   Copyright (C) 2009-2015
    Free Software Foundation, Inc.
 
    Written by:
@@ -46,9 +46,6 @@
 
 /*** global variables ****************************************************************************/
 
-/* If true, show version info and exit */
-gboolean mc_args__show_version = FALSE;
-
 /* If true, assume we are running on an xterm terminal */
 gboolean mc_args__force_xterm = FALSE;
 
@@ -57,7 +54,7 @@ gboolean mc_args__nomouse = FALSE;
 /* Force colors, only used by Slang */
 gboolean mc_args__force_colors = FALSE;
 
-/* Don't load keymap form file and use default one */
+/* Don't load keymap from file and use default one */
 gboolean mc_args__nokeymap = FALSE;
 
 char *mc_args__last_wd_file = NULL;
@@ -80,11 +77,14 @@ char *mc_run_param1 = NULL;
 
 /*** file scope variables ************************************************************************/
 
+/* If true, show version info and exit */
+static gboolean mc_args__show_version = FALSE;
+
 /* forward declarations */
 static gboolean parse_mc_e_argument (const gchar * option_name, const gchar * value,
-                                     gpointer data, GError ** error);
+                                     gpointer data, GError ** mcerror);
 static gboolean parse_mc_v_argument (const gchar * option_name, const gchar * value,
-                                     gpointer data, GError ** error);
+                                     gpointer data, GError ** mcerror);
 
 static GOptionContext *context;
 
@@ -172,15 +172,16 @@ static const GOptionEntry argument_main_table[] = {
     },
 #endif /* ENABLE_VFS_SMB */
 
-    /* single file operations */
     {
-     "view", 'v', G_OPTION_FLAG_IN_MAIN, G_OPTION_ARG_CALLBACK,
+     /* handle arguments manually */
+     "view", 'v', G_OPTION_FLAG_IN_MAIN | G_OPTION_FLAG_NO_ARG, G_OPTION_ARG_CALLBACK,
      parse_mc_v_argument,
      N_("Launches the file viewer on a file"),
      "<file>"
     },
 
     {
+     /* handle arguments manually */
      "edit", 'e', G_OPTION_FLAG_IN_MAIN | G_OPTION_FLAG_NO_ARG, G_OPTION_ARG_CALLBACK,
      parse_mc_e_argument,
      N_("Edit files"),
@@ -192,7 +193,7 @@ static const GOptionEntry argument_main_table[] = {
     /* *INDENT-ON* */
 };
 
-GOptionGroup *terminal_group;
+static GOptionGroup *terminal_group;
 #define ARGS_TERM_OPTIONS 0
 static const GOptionEntry argument_terminal_table[] = {
     /* *INDENT-OFF* */
@@ -248,12 +249,14 @@ static const GOptionEntry argument_terminal_table[] = {
      NULL
     },
 
+#ifdef HAVE_SLANG
     {
      "resetsoft", 'k', ARGS_TERM_OPTIONS, G_OPTION_ARG_NONE,
      &reset_hp_softkeys,
      N_("Resets soft keys on HP terminals"),
      NULL
     },
+#endif
 
     {
      "keymap", 'K', ARGS_TERM_OPTIONS, G_OPTION_ARG_STRING,
@@ -277,7 +280,7 @@ static const GOptionEntry argument_terminal_table[] = {
 
 #undef ARGS_TERM_OPTIONS
 
-GOptionGroup *color_group;
+static GOptionGroup *color_group;
 #define ARGS_COLOR_OPTIONS 0
 /* #define ARGS_COLOR_OPTIONS G_OPTION_FLAG_IN_MAIN */
 static const GOptionEntry argument_color_table[] = {
@@ -330,17 +333,10 @@ static gchar *mc_args__loc__usage_string = NULL;
 static void
 mc_args_clean_temp_help_strings (void)
 {
-    g_free (mc_args__loc__colors_string);
-    mc_args__loc__colors_string = NULL;
-
-    g_free (mc_args__loc__footer_string);
-    mc_args__loc__footer_string = NULL;
-
-    g_free (mc_args__loc__header_string);
-    mc_args__loc__header_string = NULL;
-
-    g_free (mc_args__loc__usage_string);
-    mc_args__loc__usage_string = NULL;
+    MC_PTR_FREE (mc_args__loc__colors_string);
+    MC_PTR_FREE (mc_args__loc__footer_string);
+    MC_PTR_FREE (mc_args__loc__header_string);
+    MC_PTR_FREE (mc_args__loc__usage_string);
 }
 
 /* --------------------------------------------------------------------------------------------- */
@@ -366,7 +362,7 @@ mc_args_new_color_group (void)
                                                      "   Editor:       editnormal, editbold, editmarked, editwhitespace,\n"
                                                      "                 editlinestate, editbg, editframe, editframeactive\n"
                                                      "                 editframedrag\n"
-                                                     "   Viewer:       viewbold, viewunderline, viewselected\n"
+                                                     "   Viewer:       viewnormal,viewbold, viewunderline, viewselected\n"
                                                      "   Help:         helpnormal, helpitalic, helpbold, helplink, helpslink\n"),
                                                    /* TRANSLATORS: don't translate color names and attributes */
                                                    _("Standard Colors:\n"
@@ -376,7 +372,7 @@ mc_args_new_color_group (void)
                                                     "Extended colors, when 256 colors are available:\n"
                                                     "   color16 to color255, or rgb000 to rgb555 and gray0 to gray23\n\n"
                                                     "Attributes:\n"
-                                                    "   bold, underline, reverse, blink; append more with '+'\n")
+                                                    "   bold, italic, underline, reverse, blink; append more with '+'\n")
                                                     );
 /* *INDENT-ON* */
 
@@ -418,7 +414,7 @@ mc_args_add_extended_info_to_help (void)
 /* --------------------------------------------------------------------------------------------- */
 
 static gchar *
-mc_args__convert_help_to_syscharset (const gchar * charset, const gchar * error_message,
+mc_args__convert_help_to_syscharset (const gchar * charset, const gchar * error_message_str,
                                      const gchar * help_str)
 {
     GString *buffer;
@@ -427,7 +423,7 @@ mc_args__convert_help_to_syscharset (const gchar * charset, const gchar * error_
 
     buffer = g_string_new ("");
     conv = g_iconv_open (charset, "UTF-8");
-    full_help_str = g_strdup_printf ("%s\n\n%s\n", error_message, help_str);
+    full_help_str = g_strdup_printf ("%s\n\n%s\n", error_message_str, help_str);
 
     str_convert (conv, full_help_str, buffer);
 
@@ -440,12 +436,14 @@ mc_args__convert_help_to_syscharset (const gchar * charset, const gchar * error_
 /* --------------------------------------------------------------------------------------------- */
 
 static gboolean
-parse_mc_e_argument (const gchar * option_name, const gchar * value, gpointer data, GError ** error)
+parse_mc_e_argument (const gchar * option_name, const gchar * value, gpointer data,
+                     GError ** mcerror)
 {
     (void) option_name;
     (void) value;
     (void) data;
-    (void) error;
+
+    mc_return_val_if_error (mcerror, FALSE);
 
     mc_global.mc_run_mode = MC_RUN_EDITOR;
 
@@ -455,14 +453,16 @@ parse_mc_e_argument (const gchar * option_name, const gchar * value, gpointer da
 /* --------------------------------------------------------------------------------------------- */
 
 static gboolean
-parse_mc_v_argument (const gchar * option_name, const gchar * value, gpointer data, GError ** error)
+parse_mc_v_argument (const gchar * option_name, const gchar * value, gpointer data,
+                     GError ** mcerror)
 {
     (void) option_name;
+    (void) value;
     (void) data;
-    (void) error;
+
+    mc_return_val_if_error (mcerror, FALSE);
 
     mc_global.mc_run_mode = MC_RUN_VIEWER;
-    mc_run_param0 = g_strdup (value);
 
     return TRUE;
 }
@@ -576,10 +576,12 @@ parse_mcedit_arguments (int argc, char **argv)
 /* --------------------------------------------------------------------------------------------- */
 
 gboolean
-mc_args_parse (int *argc, char ***argv, const char *translation_domain, GError ** error)
+mc_args_parse (int *argc, char ***argv, const char *translation_domain, GError ** mcerror)
 {
     const gchar *_system_codepage;
     gboolean ok = TRUE;
+
+    mc_return_val_if_error (mcerror, FALSE);
 
     _system_codepage = str_detect_termencoding ();
 
@@ -613,38 +615,30 @@ mc_args_parse (int *argc, char ***argv, const char *translation_domain, GError *
     g_option_context_add_group (context, color_group);
     g_option_group_set_translation_domain (color_group, translation_domain);
 
-    if (!g_option_context_parse (context, argc, argv, error))
+    if (!g_option_context_parse (context, argc, argv, mcerror))
     {
-        GError *error2 = NULL;
-
-        if (*error == NULL)
-            *error = g_error_new (MC_ERROR, 0, "%s\n", _("Arguments parse error!"));
+        if (*mcerror == NULL)
+            mc_propagate_error (mcerror, 0, "%s\n", _("Arguments parse error!"));
         else
         {
             gchar *help_str;
 
-#if GLIB_CHECK_VERSION(2,14,0)
             help_str = g_option_context_get_help (context, TRUE, NULL);
-#else
-            help_str = g_strdup ("");
-#endif
+
             if (str_isutf8 (_system_codepage))
-                error2 = g_error_new ((*error)->domain, (*error)->code, "%s\n\n%s\n",
-                                      (*error)->message, help_str);
+                mc_replace_error (mcerror, (*mcerror)->code, "%s\n\n%s\n", (*mcerror)->message,
+                                  help_str);
             else
             {
                 gchar *full_help_str;
 
                 full_help_str =
-                    mc_args__convert_help_to_syscharset (_system_codepage, (*error)->message,
+                    mc_args__convert_help_to_syscharset (_system_codepage, (*mcerror)->message,
                                                          help_str);
-                error2 = g_error_new ((*error)->domain, (*error)->code, "%s", full_help_str);
+                mc_replace_error (mcerror, (*mcerror)->code, "%s", full_help_str);
                 g_free (full_help_str);
             }
-
             g_free (help_str);
-            g_error_free (*error);
-            *error = error2;
         }
 
         ok = FALSE;
@@ -696,10 +690,12 @@ mc_args_show_info (void)
 /* --------------------------------------------------------------------------------------------- */
 
 gboolean
-mc_setup_by_args (int argc, char **argv, GError ** error)
+mc_setup_by_args (int argc, char **argv, GError ** mcerror)
 {
     const char *base;
     char *tmp;
+
+    mc_return_val_if_error (mcerror, FALSE);
 
     if (mc_args__force_colors)
         mc_global.tty.disable_colors = FALSE;
@@ -736,76 +732,60 @@ mc_setup_by_args (int argc, char **argv, GError ** error)
     if (strncmp (base, "mce", 3) == 0 || strcmp (base, "vi") == 0)
     {
         /* mce* or vi is link to mc */
-
-        mc_run_param0 = parse_mcedit_arguments (argc - 1, &argv[1]);
         mc_global.mc_run_mode = MC_RUN_EDITOR;
     }
     else if (strncmp (base, "mcv", 3) == 0 || strcmp (base, "view") == 0)
     {
         /* mcv* or view is link to mc */
-
-        if (tmp != NULL)
-            mc_run_param0 = g_strdup (tmp);
-        else
-        {
-            *error = g_error_new (MC_ERROR, 0, "%s\n", _("No arguments given to the viewer."));
-            return FALSE;
-        }
         mc_global.mc_run_mode = MC_RUN_VIEWER;
     }
 #ifdef USE_DIFF_VIEW
     else if (strncmp (base, "mcd", 3) == 0 || strcmp (base, "diff") == 0)
     {
         /* mcd* or diff is link to mc */
+        mc_global.mc_run_mode = MC_RUN_DIFFVIEWER;
+    }
+#endif /* USE_DIFF_VIEW */
 
-        if (argc < 3)
+    switch (mc_global.mc_run_mode)
+    {
+    case MC_RUN_EDITOR:
+        mc_run_param0 = parse_mcedit_arguments (argc - 1, &argv[1]);
+        break;
+
+    case MC_RUN_VIEWER:
+        if (tmp == NULL)
         {
-            *error = g_error_new (MC_ERROR, 0, "%s\n",
-                                  _("Two files are required to evoke the diffviewer."));
+            mc_propagate_error (mcerror, 0, "%s\n", _("No arguments given to the viewer."));
             return FALSE;
         }
 
+        mc_run_param0 = g_strdup (tmp);
+        break;
+
+#ifdef USE_DIFF_VIEW
+    case MC_RUN_DIFFVIEWER:
+        if (argc < 3)
+        {
+            mc_propagate_error (mcerror, 0, "%s\n",
+                                _("Two files are required to envoke the diffviewer."));
+            return FALSE;
+        }
+        /* fallthrough */
+#endif /* USE_DIFF_VIEW */
+
+    case MC_RUN_FULL:
+    default:
+        /* set the current dir and the other dir for filemanager,
+           or two files for diff viewer */
         if (tmp != NULL)
         {
             mc_run_param0 = g_strdup (tmp);
             tmp = (argc > 1) ? argv[2] : NULL;
             if (tmp != NULL)
                 mc_run_param1 = g_strdup (tmp);
-            mc_global.mc_run_mode = MC_RUN_DIFFVIEWER;
         }
-    }
-#endif /* USE_DIFF_VIEW */
-    else
-    {
-        /* MC is run as mc */
-
-        switch (mc_global.mc_run_mode)
-        {
-        case MC_RUN_EDITOR:
-            mc_run_param0 = parse_mcedit_arguments (argc - 1, &argv[1]);
-            break;
-
-        case MC_RUN_VIEWER:
-            /* mc_run_param0 is set up in parse_mc_v_argument() */
-            break;
-
-        case MC_RUN_DIFFVIEWER:
-            /* not implemented yet */
-            break;
-
-        case MC_RUN_FULL:
-        default:
-            /* sets the current dir and the other dir */
-            if (tmp != NULL)
-            {
-                mc_run_param0 = g_strdup (tmp);
-                tmp = (argc > 1) ? argv[2] : NULL;
-                if (tmp != NULL)
-                    mc_run_param1 = g_strdup (tmp);
-            }
-            mc_global.mc_run_mode = MC_RUN_FULL;
-            break;
-        }
+        break;
     }
 
     return TRUE;

@@ -112,12 +112,12 @@ share.port="Port";
 share.ssid="SSID";
 share.channel="Channel";
 share.frequency="Frequency";
-share.rssi="Rssi";
+share.rssi="RSSI";
 share.signal="Signal";
 share.noise="Noise";
-share.beacon="beacon";
+share.beacon="Beacon";
 share.openn="Open";
-share.dtim="dtim";
+share.dtim="DTIM";
 share.rates="Rate";
 share.rate="Rate";
 share.txrate="TX Rate";
@@ -168,11 +168,13 @@ share.key="Key";
 share.wireless="Wireless";
 share.dhcp="DHCP";
 share.styl="Style";
+share.styl_dark="Use Dark Styles";
 share.err="error";
 share.errs="errors";
 share.meters="meters";
-share.ht80="VHT (80+80 MHz)";
-share.ht40="Wide HT40 (20+20 MHz)";
+share.ht160="VHT160 (80+80 MHz)";
+share.ht80="VHT80 (80 MHz)";
+share.ht40="Wide HT40 (40 MHz)";
 share.ht20="Full HT20 (20 MHz)";
 share.dynamicturbo="Dynamic (20/40 MHz)";
 share.turbo="Turbo (40 MHz)";
@@ -393,6 +395,7 @@ errmsg.err102="Upgrading firmware...<br/>Please, wait";
 var bmenu= new Object();
 bmenu.setup="Setup";
 bmenu.setupbasic="Basic Setup";
+bmenu.setupipv6="IPV6";
 bmenu.setupddns="DDNS";
 bmenu.setupmacclone="MAC Address Clone";
 bmenu.setuprouting="Advanced Routing";
@@ -408,10 +411,12 @@ bmenu.wimax="WiMAX";
 bmenu.wirelessSecurity="Wireless Security";
 bmenu.wirelessAoss="AOSS";
 bmenu.wirelessAossWPS="AOSS / WPS";
+bmenu.wirelessWPS="WPS";
 bmenu.wirelessMac="MAC Filter";
 bmenu.wirelessAdvanced="Advanced Settings";
 bmenu.wirelessAdvancedwl0="WL0-Advanced";
 bmenu.wirelessAdvancedwl1="WL1-Advanced";
+bmenu.wirelessAdvancedwl2="WL2-Advanced";
 bmenu.wirelessWds="WDS";
 bmenu.wirelessWds0="Ath0-WDS";
 bmenu.wirelessWds1="Ath1-WDS";
@@ -419,6 +424,7 @@ bmenu.wirelessWds2="Ath2-WDS";
 bmenu.wirelessWds3="Ath3-WDS";
 bmenu.wirelessWdswl0="WL0-WDS";
 bmenu.wirelessWdswl1="WL1-WDS";
+bmenu.wirelessWdswl2="WL2-WDS";
 
 bmenu.security="Security";
 bmenu.firwall="Firewall";
@@ -579,6 +585,8 @@ diag.startup="Startup";
 diag.shutdown="Shutdown";
 diag.firewall="Firewall";
 diag.custom="Custom Script";
+diag.running="Running";
+diag.stopped="Stopped";
 
 //help container
 var hdiag=new Object();
@@ -792,6 +800,7 @@ usb.usb_automnt="Automatic Drive Mount";
 usb.usb_mntpoint="Disk Mount Point";
 usb.usb_runonmount="Run-on-mount Script Name";
 usb.usb_diskinfo="Disk Info";
+usb.usb_diskspace="Diskspace";
 usb.usb_mntjffs="Mount this Partition to /jffs";
 usb.usb_mntopt="Mount this Partition to /opt";
 usb.usb_ses_umount="Use SES Button to remove drives";
@@ -836,7 +845,7 @@ nas.uname="User Name";
 nas.pwd="Password";
 
 var hnas=new Object();
-hnas.right2="In order to share resources add new shares by supplying path and share name. Define users that can access the share through ftp or samba.";
+hnas.right2="In order to share resources add new shares by supplying path and share name. Define users that can access the share through ftp or samba.<br><p><b>Minidlna Warning:</b> Unless you mount a partition to /jffs the index db will be stored in ram. This can fill up your ram and will cause a reindex at every boot.";
 
 //help page
 hnas.page1="<dd>FTP Server enables you to share files : <br/><ul><li>Over the Internet - WAN</li><li>On local network</li></ul></dd>";
@@ -850,6 +859,7 @@ privoxy.titl="Adblocking";
 privoxy.server="Privoxy";
 privoxy.legend="Filtering Proxy Server";
 privoxy.transp="Transparent Mode";
+privoxy.exclude="Exclude IP";
 privoxy.whitel="Whitelist";
 privoxy.custom="Custom Configuration";
 
@@ -869,6 +879,7 @@ lighttpd.legend="Lighttpd Webserver";
 lighttpd.port="HTTP Port";
 lighttpd.sslport="HTTPS Port";
 lighttpd.wan="WAN Access";
+lighttpd.url="URL";
 
 var hlighttpd=new Object();
 hlighttpd.right2="Enable lighttpd and configure the HTTP/HTTPS ports lighttpd will listen for request. Default webserver root is under /jffs/www where you can place your websites.";
@@ -1105,6 +1116,7 @@ idx.stp_mess="(disable for COMCAST ISP)";
 idx.optional="Optional Settings";
 idx.mtu="MTU";
 idx.txqlen="TX Queue Length";
+idx.label="Label";
 idx.h23="Network Setup";
 idx.routerip="Router IP";
 idx.lanip="Local IP Address";
@@ -1125,6 +1137,9 @@ idx.dhcp_lease="Client Lease Time";
 idx.dhcp_dnsmasq="Use DNSMasq for DHCP";
 idx.dns_dnsmasq="Use DNSMasq for DNS";
 idx.auth_dnsmasq="DHCP-Authoritative";
+idx.force_dnsmasq="Forced DNS Redirection";
+idx.recursive_dns="Recursive DNS Resolving";
+idx.dns_redirect="Optional DNS Target";
 idx.summt_opt1="none";
 idx.summt_opt2="first Sun Apr - last Sun Oct";
 idx.summt_opt3="last Sun Mar - last Sun Oct";
@@ -1174,7 +1189,7 @@ hidx.page18="<dd>Enter the maximum number of PCs that you want the DHCP server t
 hidx.page19="<dd>The Client Lease Time is the amount of time a network user will be allowed connection to the router with their current dynamic IP address. Enter the amount of time, in minutes, that the user will be \"leased\" this dynamic IP address.</dd>";
 hidx.page20="<dd>The Domain Name System (DNS) is how the Internet translates domain or website names into Internet addresses or URLs. Your ISP will provide you with at least one DNS Server IP address. If you wish to utilize another, enter that IP address in one of these fields. You can enter up to three DNS Server IP addresses here. The router will utilize these for quicker access to functioning DNS servers.</dd>";
 hidx.page21="<dd>The Windows Internet Naming Service (WINS) manages each PC's interaction with the Internet. If you use a WINS server, enter that server's IP address here. Otherwise, leave this blank.</dd>";
-hidx.page22="<dd>Select the time zone for your location. To use local time, leave the checkmark in the box next to <i>Use local time</i>.</dd><dd>Check all values and click <i>Save Settings</i> to save your settings. Click <i>Cancel Changes</i> to cancel your unsaved changes. You can test the settings by connecting to the Internet.</dd>";
+hidx.page22="<dd>Select the time zone for your location, or desired location.</dd><dd>Check all values and click <i>Save Settings</i> to save your settings. Click <i>Cancel Changes</i> to cancel your unsaved changes. You can test the settings by connecting to the internet.</dd>";
 
 // ** DSL ** //
 var dsl=new Object();
@@ -1260,11 +1275,27 @@ management.routing_legend="Routing";
 management.routing_srv="Routing";
 management.ipv6_legend="IPv6 Support";
 management.ipv6_srv="IPv6";
-management.ipv6_rad="Radvd enabled";
+management.ipv6_typ="IPv6 Type";
+management.ipv6_pf_len="Prefix Length";
+management.ipv6_rad_enable="Radvd";
+management.ipv6_rad="Radvd custom";
 management.ipv6_radconf="Radvd config";
+management.ipv6_dns="Static DNS";
+management.ipv6_prefix="Assigned / Routed Prefix";
+management.ipv6_addr="Router IPv6 Address";
+management.ipv6_dhcp6c_cust="Dhcp6c custom";
+management.ipv6_dhcp6c_conf="Dhcp6c config";
+management.ipv6_dhcp6s="Dhcp6s";
+management.ipv6_dhcp6s_seq_ips="Sequential IPs";
+management.ipv6_dhcp6s_hosts="Custom hosts";
+management.ipv6_dhcp6s_cust="Dhcp6s custom";
+management.ipv6_dhcp6s_conf="Dhcp6s config";
+management.ipv6_tun_end_ipv4="Tunnel Endpoint IPv4 Address";
+management.ipv6_tun_client_addr="Tunnel Client IPv6 Address";
+management.ipv6_tun_upd_url="Tunnel Update URL";
 management.jffs_legend="JFFS2 Support";
-management.jffs_srv="JFFS2";
-management.jffs_clean="Clean JFFS2";
+management.jffs_srv="Internal Flash Storage";
+management.jffs_clean="Clean Internal Flash Storage";
 management.lang_legend="Language Selection";
 management.lang_srv="Language";
 management.lang_bulgarian="Bulgarian";
@@ -1331,7 +1362,7 @@ hmanagement.page8="<dd>Enable / disable the loopback interface. The loopback int
 hmanagement.page9="<dd>A limited 802.1x server needed to fulfill WPA handshake requirements to allow Windows XP clients to work with WPA.</dd>";
 hmanagement.page10="<dd>This feature controls the resetbuttond process. The reset button initiates actions depending on how long you press it.<ul><li>Short press &ndash; Reset the router (reboot)</li><li>Long press (&gt;5s) &ndash; Reboot and restore the factory default configuration.</li></ul></dd>";
 hmanagement.page11="<dd>Routing enables the OSPF and RIP routing daemons if you have set up OSPF or RIP routing in the Advanced Routing page.</dd>";
-hmanagement.page12="<dd>If you have any peer-to-peer (P2P) applications running on your network please increase the maximum ports and lower the TCP/UDP timeouts. This is necessary to maintain router stability because peer-to-peer applications open many connections and don't close them properly. Consider using these:<ul><li>Maximum Ports: 4096</li><li>TCP Timeout: 120 sec</li><li>UDP Timeout: 120 sec</li></ul></dd><dd>Check all values and click <em>Save Settings</em> to save your settings. Click <em>Cancel Changes</em> to cancel your unsaved changes. Click <em>Reboot router</em> to reboot your router immediately.</dd>";
+hmanagement.page12="<dd>If you have any peer-to-peer (P2P) applications running on your network please increase the maximum ports and lower the TCP/UDP timeouts. This is necessary to maintain router stability because peer-to-peer applications open many connections and don't close them properly. Consider using these for old low end routers:<ul><li>Maximum Ports: 4096</li><li>TCP Timeout: 300 sec</li><li>UDP Timeout: 60 sec</li></ul></dd><dd>Check all values and click <em>Save Settings</em> to save your settings. Click <em>Cancel Changes</em> to cancel your unsaved changes. Click <em>Reboot router</em> to reboot your router immediately.</dd>";
 
 // ************ Port_Services.asp (used by Filters.asp and QoS.asp, QOSPort_Services.asp not used anymore) *****************************************//
 var portserv=new Object();
@@ -1359,6 +1390,7 @@ networking.prio="Prio";
 networking.bridge="Bridge";
 networking.snooping="IGMP Snooping";
 networking.assign="Assignment";
+networking.bridgeassign="Bridge Assignment";
 networking.bonding="Bonding";
 networking.bondtype="Bonding Type";
 networking.bondifaces="Bonding Interfaces";
@@ -1366,7 +1398,29 @@ networking.bond="Bond";
 networking.slave="Slave";
 networking.max="Max";
 networking.leasetime="Leasetime";
-
+networking.ipvs="IP Virtual Server";
+networking.create_ipvs="Create Virtual Server";
+networking.ipvs_name="Server Name";
+networking.ipvs_sourceip="Source IP";
+networking.ipvs_sourceport="Source Port";
+networking.ipvs_scheduler="Scheduler";
+networking.wrr="Weighted Round Robin";
+networking.lc="Least-Connection";
+networking.wlc="Weighted Least-Connection";
+networking.fo="Weighted Failover";
+networking.ovf="Weighted Overflow";
+networking.lblc="Locality Least-Connection";
+networking.lblcr="Locality Least-Connection / Replication";
+networking.dh="Destination Hash";
+networking.sh="Source Hash";
+networking.sed="Shortest Expected Delay";
+networking.nq="Never Queue";
+networking.ipvs_targets="Virtual Server Targets";
+networking.ipvs_targetip="Target IP";
+networking.ipvs_targetport="Target Port";
+networking.ipvs_weight="Weight";
+networking.ipvs_role="Role";
+networking.ipvs_config="Configuration";
 //help container
 var hnetworking=new Object();
 hnetworking.right1="Multi DHCPD";
@@ -1389,6 +1443,7 @@ qos.aqd="Queueing Discipline";
 qos.aqd_sfq="SFQ";
 qos.aqd_codel="CODEL";
 qos.aqd_fqcodel="FQ_CODEL";
+qos.aqd_pie="PIE";
 qos.uplink="Uplink (kbps)";
 qos.dnlink="Downlink (kbps)";
 qos.legend2="Services Priority";
@@ -1408,6 +1463,7 @@ qos.legend4="MAC Priority";
 qos.legend5="Ethernet Port Priority";
 qos.legend6="Default Bandwidth Level";
 qos.legend7="TCP-Packet Priority";
+qos.legend8="Interface Priority";
 qos.pktdesc="Prioritize small TCP-packets with the following flags:";
 qos.pktack="ACK";
 qos.pktrst="RST";
@@ -1417,6 +1473,7 @@ qos.enabledefaultlvls="Enable Per User Default Limits";
 qos.bandwidth="Bandwidth in kbits";
 qos.up="Up";
 qos.down="Down";
+qos.service="Service";
 
 //help container
 var hqos=new Object();
@@ -1541,7 +1598,20 @@ service.dnsmasq_legend="DNSMasq";
 service.dnsmasq_srv="DNSMasq";
 service.dnsmasq_loc="Local DNS";
 service.dnsmasq_no_dns_rebind="No DNS Rebind";
+service.dnsmasq_strict="Query DNS in Strict Order";
+service.dnsmasq_add_mac="Add Requestor MAC to DNS Query";
 service.dnsmasq_opt="Additional DNSMasq Options";
+service.tor_legend="The Onion Router Project";
+service.tor_srv="TOR";
+service.tor_address="DNS Name or External IP";
+service.tor_nickname="Nickname / ID";
+service.tor_relay="Relay Mode";
+service.tor_dir="Directory Mirror";
+service.tor_bridge="Tor Bridge Mode";
+service.tor_transparent="Transparent Proxy";
+service.tor_bwrate="Bandwidth Rate";
+service.tor_bwburst="Bandwidth Burst";
+
 
 //pptp.webservices
 service.pptp_legend="PPTP";
@@ -1557,6 +1627,9 @@ service.syslog_ip="Remote Server";
 //telnet.webservices
 service.telnet_legend="Telnet";
 service.telnet_srv="Telnet";
+
+service.mactelnetd_legend="Mikrotik MAC Telnet";
+service.mactelnetd="MAC Telnet";
 
 //pptpd_client.webservices
 service.pptpd_legend="PPTP Client";
@@ -1640,6 +1713,7 @@ service.vpnd_switch="Config as";
 service.vpnd_dupcn="Allow duplicate cn";
 service.vpnd_proxy="DHCP-Proxy mode";
 service.vpnd_clcon="Client connect script";
+service.vpnd_cldiscon="Client disconnect script";
 service.vpnd_ccddef="CCD-Dir DEFAULT file";
 service.vpnd_dhcpbl="Block DHCP across the tunnel";
 service.vpnd_static="Static Key";
@@ -1665,6 +1739,8 @@ service.vpn_bridge="Bridge TAP to br0";
 service.vpn_adv="Advanced Options";
 service.vpn_tlscip="TLS Cipher";
 service.vpn_route="Policy based Routing";
+service.vpn_scramble="XOR scrambling method";
+service.vpn_upauth="User Pass Authentication";
 service.vpnd_server="Server";
 service.vpnd_deamon="Daemon";
 service.vpnd_lzoyes="Yes";
@@ -1691,8 +1767,8 @@ hstatus_vpn.right2="Additional Config:<br><i>To push routes to clients add \'pus
 hstatus_vpn.right3="General:<br><i>3 auth methods are supported: pkcs12 (+dh on server), static, standard certs. Enable MSS only on one side of the link, fragment on both.</i>";
 
 //help page
-hstatus_vpn.page1="<dd>A VPN technology by Microsoft and remote access vendors. It is implemented in Windows XP. Configuring this allows you to access your LAN at home remotely.<ul class=\"wide\"><li>Server IP &ndash; The IP address of your router</li><li>Client IP &ndash; A list or range of IP addresses for remotely connected machines. This range should not overlap with the DHCP range (for example 192.168.0.2,192.168.0.3), a range (for example 192.168.0.1-254 or 192.168.0-255.2) or some combination (for example 192.168.0.2,192.168.0.5-8).</li><li>CHAP-Secrets &ndash; A list of usernames and passwords for the VPN login, one user per line (Example: joe * joespassword *). For more details look up the pppd man page.</li></ul></dd>";
-hstatus_vpn.page2="<dd>A VPN Client that enable you to connect to VPN servers by Microsoft and remote access vendors. Configuring this allows the router to VPN into a remote network.<ul class=\"wide\"><li>Server IP or DNS Name &ndash; The IP address or DNS Name of the VPN server that you would like to connect to (Example: www.MyServer.com). </li><li>Remote Subnet &ndash; Remote Subnet of the network you are connecting to (Example: 192.168.2.0). </li><li>Remote Subnet Mask &ndash; Remote Subnet Mask of the network you are connecting to (Example: 255.255.255.0). </li><li>MPPE Encryption  &ndash; The type of security to use for the connection. If you are connecting to another DD-WRT router you need (Example: mppe required). But if you are connecting to a Windows VPN server you need (Example: mppe required,no40,no56,stateless) or (Example: mppe required,no40,no56,stateful) </li><li>MTU &ndash; Default Maximum Transmission Unit (Default: 1450) </li><li>MRU &ndash; Default Maximum Receiving Unit (Default: 1450) </li><li>User Name &ndash; Enter the UserName that you will use to connect to the VPN server. If you are connecting to another Linux base PPTP server you just need to enter the UserName (Example: root). But if you are connecting to a Windows VPN server you need to enter the servername and username (Example: DOMAIN\\\\UserName). </li><li>Password &ndash; Enter the password of the for the username </li></ul></dd><dd>Check all values and click <i>Save Settings</i> to save your settings. Click <i>Cancel Changes</i> to cancel your unsaved changes.</dd>";
+hstatus_vpn.page1="<dd>A VPN technology by Microsoft and remote access vendors, it is implemented in multiple OS's both desktop and mobile. Configuring this allows you to access your LAN at home remotely.<ul class=\"wide\"><li>Server IP &ndash; The IP address of your router</li><li>Client IP &ndash; A list or range of IP addresses for remotely connected machines. This range should not overlap with the DHCP range (for example 192.168.0.2,192.168.0.3), a range (192.168.0.1-254 or 192.168.0-255.2) or some combination (192.168.0.2,192.168.0.5-8).</li><li>CHAP-Secrets &ndash; A list of usernames and passwords for the VPN login, one user per line (Example: joe * joespassword *). For more details look up the pppd main page.</li></ul></dd>";
+hstatus_vpn.page2="<dd>A VPN Client that enables you to connect to VPN servers by Microsoft and remote access vendors. Configuring this allows the router to VPN into a remote network.<ul class=\"wide\"><li>Server IP or DNS Name &ndash; The IP address or DNS Name of the VPN server that you would like to connect to (Example: www.MyServer.com). </li><li>Remote Subnet &ndash; Remote Subnet of the network you are connecting to (Example: 192.168.2.0). </li><li>Remote Subnet Mask &ndash; Remote Subnet Mask of the network you are connecting to (Example: 255.255.255.0). </li><li>MPPE Encryption  &ndash; The type of security to use for the connection. If you are connecting to another DD-WRT router you need (Example: mppe required). But if you are connecting to a Windows VPN server you need (Example: mppe required,no40,no56,stateless) or (Example: mppe required,no40,no56,stateful) </li><li>MTU &ndash; Maximum Transmission Unit (Default: 1436) </li><li>MRU &ndash; Maximum Receiving Unit (Default: 1436) </li><li>NAT &ndash; Enabling this option will make outbound traffic from inside appear to be coming from router IP, instead of client IP. Enabling this can improve security, but can cause issues in some cases, i.e. when VoIP is used. </li><li>User Name &ndash; Enter the username that you will use to connect to the VPN server. If you are connecting to another Linux based PPTP server you just need to enter the username. But if you are connecting to a Windows VPN server you need to enter the servername and username (Example: DOMAIN\\username). </li><li>Password &ndash; Enter the password of the for the username </li><li>Additional PPTP Options &ndash; If default options are not working for your setup, you can use this field. If defined, they will replace the default internal options. The options above are still used. </li></ul></dd><dd>Check all values and click <i>Save Settings</i> to save your settings. Click <i>Cancel Changes</i> to cancel your unsaved changes.</dd>";
 
 //vnc.repeater
 service.vncrepeater_legend="VNC";
@@ -1721,8 +1797,8 @@ service.ses_script="Custom Script";
 
 //hwmon.webservices
 service.hwmon_legend="Hardware Monitoring";
-service.hwmon_critemp="Critical Temperature (FAN Switch On)";
-service.hwmon_hystemp="Hysteresis Temperature (FAN Switch Off)";
+service.hwmon_critemp="High Temperature (FAN On)";
+service.hwmon_hystemp="Normal Temperature (FAN Off)";
 
 //rstat.webservices
 service.rstats_legend="Bandwidth Monitoring";
@@ -1956,7 +2032,7 @@ hstatus_router.right10="This is a measure of the time the router has been \"up\"
 hstatus_router.right12="This is given as three numbers that represent the system load during the last one, five, and fifteen minute periods.";
 
 //help page
-hstatus_router.page1="<dd>This status screen displays the router's current status and configuration. All information is read-only.</dd><dt>Firmware Version </dt><dd>The version number of the firmware currently installed is displayed here. Firmware should only be upgraded from the System screen if you experience problems with the router. Visit <a href=\"http:\/\/www.dd-wrt.com\" target=\"_new\">www.dd-wrt.com</a> to find out if there is updated firmware.</dd><dt>Current Time</dt><dd>The current date and time are displayed here.</dd><dt>MAC Address </dt><dd>The MAC Address of the Internet interface is displayed here.</dd><dt>Router Name</dt><dd>Shows the configured name of the router</dd><dt>Router Model</dt><dd>Shows the router vendor and the model</dd><dt>CPU</dt><dd>Shows the CPU type and revision</dd><dt>CPU Clock</dt><dd>Shows the current CPU clock</dd><dt>Host Name</dt><dd>The Host Name is the name of the router. This entry is necessary for some ISPs.</dd><dt>Configuration Type</dt><dt>IP Address, Subnet Mask, and Default Gateway</dt><dd>The Internet IP Address, Subnet Mask, and Default Gateway IP Address of the router, as seen by external users on the Internet, are displayed here.</dd><dt>DNS</dt><dd>The DNS (Domain Name System) IP Addresses currently used by the router are shown here. Multiple DNS IP settings are common. In most cases, the first available DNS entry is used.</dd><dt>Traffic</dt><dd>This shows your router's Internet traffic (total since last reboot or by month).</dd>";
+hstatus_router.page1="<dd>This status screen displays the router's current status and configuration. All information is read-only.</dd><dt>Firmware Version </dt><dd>The version number of the firmware currently installed is displayed here. Firmware should only be upgraded from the Administration Tab if you experience problems with the router. Visit <a href=\"http:\/\/www.dd-wrt.com\" target=\"_new\">www.dd-wrt.com</a> to find out if there is updated firmware.</dd><dt>Current Time</dt><dd>The current date and time is displayed here.</dd><dt>MAC Address </dt><dd>The MAC Address of the Internet interface is displayed here.</dd><dt>Router Name</dt><dd>Shows the configured name of the router.</dd><dt>Router Model</dt><dd>Shows the router vendor and model.</dd><dt>CPU</dt><dd>Shows the CPU type, revision, # of cores, clock speed, load average, & temperature if temp monitoring is supported.</dd><dt>Memory</dt><dd>Shows info on how much RAM is used, free, and allocated to where.,</dd><dt>Host Name</dt><dd>The Host Name is the name of the router.</dd><dt>Configuration Type</dt><dt>IP Address, Subnet Mask, and Default Gateway</dt><dd>The Internet IP Address, Subnet Mask, and Default Gateway IP Address of the router, as seen by external users on the Internet, are displayed here.</dd><dt>DNS</dt><dd>The DNS (Domain Name System) IP Addresses currently used by the router are shown here. Multiple DNS IP settings are common. In most cases, the first available DNS entry is used.</dd><dt>Traffic</dt><dd>This shows your router's Internet traffic (total since last reboot or by month).</dd>";
 
 // ** Status_Internet.asp **//
 var status_inet=new Object();
@@ -2131,10 +2207,10 @@ var hvpn=new Object();
 hvpn.right1="You may choose to enable IPSec, PPTP and/or L2TP passthrough to allow your network devices to communicate via VPN.";
 
 //help page
-hvpn.page1="<dd>Virtual Private Networking (VPN) is typically used for work-related networking. For VPN tunnels, the router supports IPSec Passthrough, PPTP Passthrough and L2TP Passthrough.</dd>";
+hvpn.page1="<dd>Virtual Private Networking (VPN) is typically used for work-related networking. For VPN tunnels, the router supports IPSec, PPTP and L2TP Passthrough.</dd>";
 hvpn.page2="<dd>Internet Protocol Security (IPSec) is a suite of protocols used to implement secure exchange of packets at the IP layer. To allow IPSec tunnels to pass through the router, IPSec Passthrough is enabled by default. To disable IPSec Passthrough, select <i>Disable</i>.</dd>";
-hvpn.page3="<dd>Point-to-Point Tunneling Protocol is the method used to enable VPN sessions to a Windows NT 4.0 or 2000 server. To allow PPTP tunnels to pass through the router, PPTP Passthrough is enabled by default. To disable PPTP Passthrough, select <i>Disable</i>.</dd>";
-hvpn.page4="<dd>Layer Two (2) Tunneling Protocol, an extension to the PPP protocol that enables ISPs to operate Virtual Private Networks (VPNs). L2TP merges the best features of two other tunneling protocols: PPTP from Microsoft and L2F from Cisco Systems. To allow L2TP tunnels to pass through the router, L2TP Passthrough is enabled by default. To disable L2TP Passthrough, select <i>Disable</i>.</dd><dd>Check all the values and click <i>Save Settings</i> to save your settings. Click <i>Cancel Changes</i> to cancel your unsaved changes.</dd>";
+hvpn.page3="<dd>Point-to-Point Tunneling Protocol is the method used to enable VPN sessions to PPTP VPN servers. To allow PPTP tunnels to pass through the router, PPTP Passthrough is enabled by default. To disable PPTP Passthrough, select <i>Disable</i>.</dd>";
+hvpn.page4="<dd>Layer 2 Tunneling Protocol, an extension to the PPP protocol that enables ISPs to operate VPNs. L2TP merges the best features of two other tunneling protocols: PPTP from Microsoft and L2F from Cisco Systems. To allow L2TP tunnels to pass through the router, L2TP Passthrough is enabled by default. To disable L2TP Passthrough, select <i>Disable</i>.</dd>";
 
 // ** Vlan.asp **//
 var vlan=new Object();
@@ -2225,7 +2301,6 @@ wpa.radius_key="RADIUS Key";
 wpa.algorithms="WPA Algorithms";
 wpa.shared_key="WPA Shared Key";
 
-
 var aoss=new Object();
 aoss.titl="AOSS Security";
 aoss.aoss="AOSS";
@@ -2286,7 +2361,7 @@ var hwpa=new Object();
 hwpa.right2="You may choose from Disable, WEP, WPA Personal, WPA Enterprise, or RADIUS. All devices on your network must use the same security mode. With N-Mode you must use WPA2/AES.";
 
 //help page
-hwpa.page1="<dd>The router supports different types of security settings for your network. Wi-Fi Protected Access (WPA) Personal, WPA Remote Access Dial In User Service (RADIUS), RADIUS, and Wire Equivalence Protection (WEP), which can be selected from the list next to Security Mode. To disable security settings, keep the default setting, <i>Disable</i>.</dd>";
+hwpa.page1="<dd>The router supports different types of security settings for your network. Wi-Fi Protected Access (WPA), Wi-Fi Protected Access 2 (WPA2), Remote Access Dial In User Service (RADIUS), and Wired Equivalent Privacy (WEP), which can be selected from the list next to Security Mode. To disable security settings, keep the default setting, <i>Disabled</i>.</dd>";
 hwpa.page2="<dd>TKIP stands for Temporal Key Integrity Protocol, which utilizes a stronger encryption method than WEP, and incorporates Message Integrity Code (MIC) to provide protection against packet tampering. AES stands for Advanced Encryption System, which utilizes a symmetric 128-Bit block data encryption and MIC. You should choose AES if your wireless clients supports it.<br /><br />To use WPA Personal, enter a password in the <i>WPA Shared Key</i> field between 8 and 63 characters long. You may also enter a <i>Group Key Renewal Interval</i> time between 0 and 99,999 seconds.</dd>";
 hwpa.page3="<dd>WPA Enterprise uses an external RADIUS server to perform user authentication. To use WPA RADIUS, enter the IP address of the RADIUS server, the RADIUS Port (default is 1812) and the shared secret from the RADIUS server.</dd>";
 hwpa.page4="<dd>WPA2 uses 802.11i to provide additional security beyond what is provided in WPA. AES is required under WPA2, and you may need additional updates to your OS and/or wireless drivers for WPA2 support. Please note WPA2/TKIP is not a supported configuration. Aditionally the WPA2 security mode is not supported under WDS.</dd>";
@@ -2332,6 +2407,7 @@ var radius=new Object();
 radius.titl="Radius";
 radius.h2="Remote Authentication Dial-In User Service";
 radius.legend="Radius";
+radius.retry="Primary Server Retry Limit";
 radius.label="MAC Radius Client";
 radius.label2="MAC Format";
 radius.label3="Radius Auth Server Address";
@@ -2349,6 +2425,7 @@ radius.label13="Radius Acct Server Address";
 radius.label14="Radius Acct Server Port";
 radius.label17="Radius Acct Shared Secret";
 radius.label18="Radius Accounting";
+radius.local_ip="Force Client IP";
 
 // help page
 var hradauth=new Object();
@@ -2539,6 +2616,7 @@ wl_basic.label6="Sensitivity Range (ACK Timing)";
 wl_basic.label7="802.11n Transmission Mode";
 wl_basic.igmpsnooping="Optimize Multicast Traffic";
 wl_basic.turboqam="TurboQAM (QAM256) support";
+wl_basic.nitroqam="NitroQAM (QAM1024) support";
 wl_basic.scanlist="ScanList";
 wl_basic.duallink="Dual Link";
 wl_basic.parent="Parent IP";
@@ -2555,12 +2633,15 @@ wl_basic.wdsap="WDS AP";
 wl_basic.mixed="Mixed";
 wl_basic.bft="Explicit Beamforming";
 wl_basic.bfr="Implicit Beamforming";
+wl_basic.atf="Airtime Fairness";
+wl_basic.shortgi="Short GI";
 wl_basic.greenfield="Greenfield";
 wl_basic.preamble="Short Preamble";
 wl_basic.clientRelaydDefaultGwMode="Default GW Mode";
 wl_basic.b="B-Only";
 wl_basic.a="A-Only";
 wl_basic.ac="AC-Only";
+wl_basic.acn="AC/N-Mixed";
 wl_basic.na="NA-Mixed";
 wl_basic.ng="NG-Mixed";
 wl_basic.n5="N-Only (5 GHz)";
@@ -2579,6 +2660,8 @@ wl_basic.radio_off="Radio is Off";
 wl_basic.h2_v24="Wireless Physical Interface";
 wl_basic.h2_vi="Virtual Interfaces";
 wl_basic.regdom="Regulatory Domain";
+wl_basic.regmode="Regulatory Mode";
+wl_basic.tpcdb="TPC Mitigation Factor";
 wl_basic.TXpower="TX Power";
 wl_basic.TXpowerFcc="TX Peak Power (FCC)";
 wl_basic.AntGain="Antenna Gain";
@@ -2634,18 +2717,18 @@ wl_basic.lower="lower";
 
 //help container
 var hwl_basic=new Object();
-hwl_basic.right2="If you wish to exclude Wireless-G clients, choose <em>B-Only</em> mode. If you would like to disable wireless access, choose <em>Disable</em>.<br/><b>Note :</b> when changing wireless mode, some advanced parameters are succeptible to be modified (\"" + wl_adv.label16 + "\", \"" + wl_adv.label2 + "\" or \"" + wl_adv.label5 + "\").";
+hwl_basic.right2="Attention: It is recommended that you press <em>Apply Settings</em> after you change a value in order to update the fileds with the corresponding parameters.";
 hwl_basic.right3="Sensitivity Range: ";
 hwl_basic.right4="Adjusts the ACK timing. 0 disables ack timing completely for Broadcom firmwares. On Atheros based firmware, 0 enables auto ACK timing mode.";
 hwl_basic.right6="Click any hour to enable or disable the radio signal (<em>green</em> indicates allowed Wireless access, and <em>red</em> indicates blocked Wireless access)";
 
 //help page
-hwl_basic.page1="<dd>The wireless part of your router can run in different modes:<ul class=\"wide\"><li>AP mode &ndash; This is the default mode, also called Infrastructure mode. Your router acts as an central connection point, which wireless clients can connect to.</li>li>Client mode &ndash; The radio interface is used to connect the internet-facing side of the router (i.e., the WAN) as a client to a remote accesspoint. NAT or routing are performed between WAN and LAN, like in \"normal\" gateway or router mode. Use this mode, e.g., if your internet connection is provided by a remote accesspoint, and you want to connect a subnet of your own to it. </li><li>Client Bridged mode &ndash; The radio interface is used to connect the LAN side of the router to a remote accesspoint. The LAN and the remote AP will be in the same subnet (This is called a \"bridge\" between two network segments). The WAN side of the router is unused and can be disabled. Use this mode, e.g., to make the router act as a \"WLAN adapter\" for a device connected to one of its LAN ethernet ports.</li><li>Ad-Hoc mode &ndash; This is for peer to peer wireless connections. Clients running in Ad-Hoc mode can connect to each other as required without involving central access points.</li></ul><br /><br /><div class=\"note\"><h4>Note</h4><div>Note that <a href=\"HWDS.asp\">WDS</a> is only available in AP mode.</div></div></dd>";
-hwl_basic.page2="<dd>If you have Wireless-G and 802.11b devices in your network, then keep the default setting, <i>Mixed</i>. If you have only Wireless-G devices, select <i>G-Only</i>. If you would like to limit your network to only 802.11b devices, then select <i>B-Only</i>. If you want to disable wireless networking, select <i>Disable</i>. Note that <i>B-Only</i> mode is not supported under WDS.</dd>";
+hwl_basic.page1="<dd>The wireless part of your router can run in different modes:<ul class=\"wide\"><li>AP mode &ndash; This is the default mode, also called Infrastructure mode. Your router acts as an central connection point, which wireless clients can connect to.</li><li>Client mode &ndash; The radio interface is used to connect the internet-facing side of the router (i.e., the WAN) as a client to a remote accesspoint. NAT or routing are performed between WAN and LAN, like in \"normal\" gateway or router mode. Use this mode, e.g., if your internet connection is provided by a remote accesspoint, and you want to connect a subnet of your own to it. </li><li>Client Bridged (Routed) mode &ndash; The radio interface is used to connect the LAN side of the router to a remote accesspoint. The LAN and the remote AP will be in the same subnet (This is called a \"bridge\" between two network segments). The WAN side of the router is unused and can be disabled. Use this mode, e.g., to make the router act as a \"WLAN adapter\" for a device connected to one of its LAN ethernet ports.</li><li>Ad-Hoc mode &ndash; This is for peer to peer wireless connections. Clients running in Ad-Hoc mode can connect to each other as required without involving central access points.</li></ul><br /><br /><div class=\"note\"><h4>Note</h4><div>Note that <a href=\"HWDS.asp\">WDS</a> is only available in AP mode.</div></div></dd>";
+hwl_basic.page2="<dd>If you have mixed b/g/n devices on your network, then keep the default setting, <i>Mixed</i>. If you have only 802.11n devices, select <i>N-Only</i>. If you would like to limit your network to only 802.11g devices, then select <i>G-Only</i>. If you want to disable wireless networking, select <i>Disable</i>. Note that <i>B-Only</i> mode is not supported under WDS.</dd>";
 hwl_basic.page3="<dd>The SSID is the network name shared among all devices in a wireless network. The SSID must be identical for all devices in the wireless network. It is case-sensitive and must not exceed 32 alphanumeric characters, which may be any keyboard character. Make sure this setting is the same for all devices in your wireless network.<br /><br /><div class=\"note\"><h4>Note</h4><div>For added security, it is recommended to change the default SSID <tt>dd-wrt</tt> to a unique name of your choice.</div></div></dd>";
 hwl_basic.page4="<dd>Select the appropriate channel from the list provided to correspond with your network settings (in North America between channel 1 and 11, in Europe 1 and 13, in Japan all 14 channels). All devices in your wireless network must use the same channel in order to function correctly. Try to avoid conflicts with other wireless networks by choosing a channel where the upper and lower three channels are not in use.</dd>";
 hwl_basic.page5="<dd>When wireless clients survey the local area for wireless networks to associate with, they will detect the SSID broadcast by the router. To broadcast the router SSID, keep the default setting, <i>Enable</i>. If you do not want to broadcast the router SSID, then select <i>Disable</i>.</dd>";
-hwl_basic.page6="<dd>Adjusts the ack timing in Atheros typical way based on the maximum distance in meters<div class=\"note\"><h4>Note</h4><div>On Atheros based DD-WRT firmwares 0 will not disable ack timing but will turn into auto ACK timing mode</div></div><ul class=\"wide\"><li> 0 disables ack timing completely</li><li> 1 - 999999 adjusts ack timing</li></ul></dd>";
+hwl_basic.page6="<dd>Adjusts the ACK timing based on the maximum distance in meters<div class=\"note\"><h4>Note</h4><div>On earlier Atheros based DD-WRT firmwares, 0 will enable auto ACK mode instead of disable it.</div></div><ul class=\"wide\"><li> 0 disables ACK timing completely (0 = No-ACK mode)</li><li> 1 - 999999 adjusts ACK timing</li></ul></dd>";
 hwl_basic.page7="<dd>Check all values and click <i>Save Settings</i> to save your settings. Click <i>Cancel Changes</i> to cancel your unsaved changes.</dd>";
 
 // ** Fail_s.asp / Fail_u_s.asp / Fail.asp **//

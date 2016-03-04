@@ -8,10 +8,12 @@
 #endif
 #include <string.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <unistd.h>
 #include <signal.h>
 #include <typedefs.h>
 
+#define sys_reboot() eval("sync"); eval("event","3","1","15")
 /*
  * 2 byte router ID number; Eko 4.jul.06
  * 
@@ -377,9 +379,9 @@
 #ifdef HAVE_WMBR_G300NH
 #define ROUTER_BOARD_DANUBE 0x6101
 #elif HAVE_VF803
-#define ROUTER_BOARD_DANUBE 0x6101 //dummy. gpio 28
+#define ROUTER_BOARD_DANUBE 0x6101	//dummy. gpio 28
 #elif HAVE_SX763
-#define ROUTER_BOARD_DANUBE 0x6101 //dummy. gpio 28
+#define ROUTER_BOARD_DANUBE 0x6101	//dummy. gpio 28
 #else
 #define ROUTER_BOARD_DANUBE 0x610f
 #endif
@@ -416,6 +418,8 @@
 // Netgear WNR3500L (BCM4718A cpu, 8MB serial flash, USB, Gigabit switch, fccid: Netgear PY308400093)
 // Netgear WNR3500v2 - same - half flash
 #define ROUTER_NETGEAR_WNR3500L 0x7414	//(18)
+// Netgear WNR3500L V2 (BCM47186B0 cpu, 128MB ram,  128MB nand flash, int. antennae can be replaced with ext)
+#define ROUTER_NETGEAR_WNR3500LV2 0x7416
 
 // Linksys WRT320N (BCM4717A cpu, 8MB serial flash, Gigabit switch, fccid: Linksys Q87-WRT320N)
 // Linksys E2000 (BCM4717A cpu, 8MB serial flash, Gigabit switch, fccid: Linksys Q87-E2000)
@@ -554,7 +558,7 @@
 // Linksys E4200 (dual radio, BCM53115 giga switch, BCM4718 cpu, 16MB flash / 64MB ram, fccid: Linksys Q87-E4200) >_60K nvram_<
 #define ROUTER_LINKSYS_E4200 0xa816
 
-#define ROUTER_BOARD_RT3352 0xa91a // concept
+#define ROUTER_BOARD_RT3352 0xa91a	// concept
 
 // Asus RT-N10U (BCM5358 cpu, 8MB serial flash / 32MB ram, USB 2.0)
 #define ROUTER_ASUS_RTN10U 0xaa115
@@ -573,7 +577,7 @@
 // Asus RT-N66U (BCM4706 @ 600MHz cpu, 32MB flash / 256MB ram, fccid: Asus MSQ-RTN66U)
 #define ROUTER_ASUS_RTN66 0xaf19
 
-// Asus RT-N53		    
+// Asus RT-N53              
 #define ROUTER_ASUS_RTN53 0xb013
 
 // Netgear WNDR3400 (dual radio, BCM5325E switch, BCM4718 cpu, 8MB flash / 64MB ram, fccid: Netgear PY309300116) >_64K nvram_<
@@ -582,7 +586,6 @@
 // Netgear WNDRR6300(dual radio, BCM53115 giga switch, BCM4706 @ 600MHz cpu, 2MB serial + 128MB NAND flash / 128MB ram, fccid: Netgear PY312100188) >_64K nvram_<
 // Netgear WNDR4500 (dual radio, BCM53115 giga switch, BCM4706 @ 600MHz cpu, 2MB serial + 128MB NAND flash / 128MB ram, fccid: Netgear PY311200162) >_64K nvram_<
 #define ROUTER_NETGEAR_R6300 0xb216
-
 
 #define ROUTER_BOARD_WCRGN 0xb31a
 
@@ -612,21 +615,21 @@
 
 #define ROUTER_ASUS_AC66U 0xbd19
 
-#define ROUTER_ASUS_AC56U 0xbe1b // BCM4708 SMP 800 Mhz 128 MB Nand Flash, 128 MB Ram
+#define ROUTER_ASUS_AC56U 0xbe1b	// BCM4708 SMP 800 Mhz 128 MB Nand Flash, 128 MB Ram
 
 #define ROUTER_BOARD_NORTHSTAR 0xbf0f
 
-#define ROUTER_ASUS_AC67U 0xc01b // BCM4708 SMP 800 Mhz 128 MB Nand Flash, 128 MB Ram
+#define ROUTER_ASUS_AC67U 0xc01b	// BCM4708 SMP 800 Mhz 128 MB Nand Flash, 128 MB Ram
 
 #define ROUTER_ASUS_RTN10PLUSD1 0xc1115
 
 #define ROUTER_BOARD_WDR4900 0xc203
 
-#define ROUTER_BUFFALO_WZR1750 0xc31b // BCM4708 SMP 800 Mhz 128 MB Nand Flash, 512 MB Ram
+#define ROUTER_BUFFALO_WZR1750 0xc31b	// BCM4708 SMP 800 Mhz 128 MB Nand Flash, 512 MB Ram
 
-#define ROUTER_BUFFALO_WZR900DHP 0xc41b // BCM4707 Single Core 800 Mhz 128 MB Nand Flash, 256 MB Ram
+#define ROUTER_BUFFALO_WZR900DHP 0xc41b	// BCM4707 Single Core 800 Mhz 128 MB Nand Flash, 256 MB Ram
 
-#define ROUTER_BUFFALO_WZR600DHP2 0xc51b // BCM4707 Single Core 800 Mhz 128 MB Nand Flash, 256 MB Ram
+#define ROUTER_BUFFALO_WZR600DHP2 0xc51b	// BCM4707 Single Core 800 Mhz 128 MB Nand Flash, 256 MB Ram
 
 #define ROUTER_LINKSYS_E800 0xc61a
 
@@ -664,15 +667,72 @@
 
 #define ROUTER_NETGEAR_AC1450 0xd716
 
-#define ROUTER_ASUS_RTN18U 0xd817 // BCM4708 SMP 800 Mhz 128 MB Nand Flash, 128 MB Ram
+#define ROUTER_ASUS_RTN18U 0xd817	// BCM4708 SMP 800 Mhz 128 MB Nand Flash, 128 MB Ram
 
-#define ROUTER_NETGEAR_EX6200 0xd916  // BCM4708 SMP 800 Mhz 8MB SPI Flash, 128 MB Ram
+#define ROUTER_NETGEAR_EX6200 0xd916	// BCM4708 SMP 800 Mhz 8MB SPI Flash, 128 MB Ram
 
-#define ROUTER_BUFFALO_WXR1900DHP 0xda10f // BCM4709 SMP 1000 Mhz 128 MB Nand Flash, 512 MB Ram
+#define ROUTER_BUFFALO_WXR1900DHP 0xda10f	// BCM4709 SMP 1000 Mhz 128 MB Nand Flash, 512 MB Ram
 
-#define ROUTER_ASUS_AC87U 0xdb1b // BCM4708 SMP 800 Mhz 128 MB Nand Flash, 128 MB Ram
+#define ROUTER_ASUS_AC87U 0xdb1b	// BCM4708 SMP 800 Mhz 128 MB Nand Flash, 128 MB Ram
 
-#define ROUTER_UBNT_EROUTERLITE 0xdc1b // Edgerouter Lite  (e100) Cavium Octeon SMP
+#define ROUTER_UBNT_EROUTERLITE 0xdc1b	// Edgerouter Lite  (e100) Cavium Octeon SMP
+#define ROUTER_UBNT_EROUTERPRO 0xdd10	// Edgerouter Lite  (e200) Cavium Octeon SMP
+
+#define ROUTER_NETGEAR_R8000 0xde16
+
+#define ROUTER_BOARD_E1700 0xdf11
+
+#define ROUTER_DLINK_DIR865 0xe00f
+
+#define ROUTER_BOARD_AIRROUTER 0xe11c
+
+#define ROUTER_UBNT_UNIFIAC 0xe218
+
+#define ROUTER_DIR810L 0xe311
+
+#define ROUTER_WRT_1900AC 0xe411
+
+#define ROUTER_DIR860LB1 0xe417
+
+#define ROUTER_TPLINK_ARCHERC9 0xe513
+
+#define ROUTER_DLINK_DIR890 0xe6111
+
+#define ROUTER_DLINK_DIR880 0xe71b
+
+#define ROUTER_DLINK_DIR860 0xe81b
+
+#define ROUTER_TRENDNET_TEW828 0xe91b
+
+#define ROUTER_DLINK_DIR868C 0xea1b
+
+#define ROUTER_ASUS_AC3200 0xeb1b
+
+#define ROUTER_LINKSYS_EA6400 0xec1b
+
+#define ROUTER_WRT_1200AC 0xed11
+
+#define ROUTER_WRT_1900ACV2 0xee11
+
+#define ROUTER_DLINK_DIR885 0xef111
+
+#define ROUTER_DLINK_DIR895 0xf0111
+
+#define ROUTER_ASUS_AC88U 0xf11b
+
+#define ROUTER_ASUS_AC5300 0xf21b
+
+#define ROUTER_WRT_1900ACS 0xf311
+
+#define ROUTER_LINKSYS_EA6350 0xf41b
+
+#define ROUTER_NETGEAR_R7500 0xf50e
+
+#define ROUTER_LINKSYS_EA8500 0xf60e
+
+#define ROUTER_TRENDNET_TEW827 0xf701
+
+#define ROUTER_NETGEAR_R8500 0xf81a
 
 #define NVROUTER "DD_BOARD"
 
@@ -686,11 +746,11 @@ typedef struct {
 	const char *tz_string;
 } TIMEZONE_TO_TZSTRING;
 
- 
+extern void update_timezone(void);
 extern TIMEZONE_TO_TZSTRING allTimezones[];
 
-extern char *getBridge(char *ifname);
-extern char *getRealBridge(char *ifname);
+extern char *getBridge(char *ifname, char *word);
+extern char *getRealBridge(char *ifname, char *word);
 extern char *getWDSSTA(void);
 extern char *getSTA(void);
 extern char *getWET(void);
@@ -711,6 +771,7 @@ extern int pos_nthoccurence(char *source, int cmp, int which);
 extern char *substring(int start, int stop, const char *src, char *dst);
 extern void strtrim_right(char *p, int c);
 extern unsigned int daysformonth(unsigned int month, unsigned int year);
+const char *getifaddr(char *ifname, int family, int linklocal);
 extern int weekday(int month, int day, int year);
 extern int getRouterBrand(void);
 extern char *getRouter(void);
@@ -746,16 +807,17 @@ extern void set_host_domain_name(void);
 
 extern void encode(char *buf, int len);
 extern void decode(char *buf, int len);
-extern char *zencrypt(char *passwd);
+#define MD5_OUT_BUFSIZE 36
+extern char *zencrypt(char *passwd, char *passout);
 
 extern void getLANMac(char *newmac);
-extern void getWirelessMac(char *newmac,int instance);
+extern void getWirelessMac(char *newmac, int instance);
 extern void getWANMac(char *newmac);
 extern char *cpustring(void);
 extern int isap8x(void);
 extern int led_control(int type, int act);
 enum { LED_POWER, LED_DIAG, LED_DIAG_DISABLED, LED_DMZ, LED_CONNECTED, LED_DISCONNECTED, LED_BRIDGE, LED_VPN,
-	LED_SES, LED_SES2, LED_WLAN, LED_WLAN0, LED_WLAN1, LED_USB, LED_USB1, LED_SEC0, LED_SEC1, USB_POWER, USB_POWER1, BEEPER
+	LED_SES, LED_SES2, LED_WLAN, LED_WLAN0, LED_WLAN1, LED_WLAN2, LED_USB, LED_USB1, LED_SEC0, LED_SEC1, USB_POWER, USB_POWER1, BEEPER
 };
 enum { LED_ON, LED_OFF, LED_FLASH };
 
@@ -765,8 +827,7 @@ extern int coreleft(void);
 static void cdebug(char *function)
 {
 	// FILE *in = fopen ("/tmp/console.log", "a");
-	fprintf(stderr, "free ram in %s = %d (malloc %d)\n", function,
-		coreleft(), mcoreleft());
+	fprintf(stderr, "free ram in %s = %d (malloc %d)\n", function, coreleft(), mcoreleft());
 	// fclose (in);
 }
 
@@ -775,8 +836,7 @@ static void cdebug(char *function)
 #endif
 extern int first_time(void);
 
-extern int set_register_value(unsigned short port_addr,
-			      unsigned short option_content);
+extern int set_register_value(unsigned short port_addr, unsigned short option_content);
 extern unsigned int get_register_value(unsigned short id, unsigned short num);
 // extern int sys_netdev_ioctl(int family, int socket, char *if_name, int
 // cmd, struct ifreq *ifr);
@@ -786,8 +846,7 @@ void ct_syslog(int level, int enable, const char *fmt, ...);
 void ct_logger(int level, const char *fmt, ...);
 struct wl_assoc_mac *get_wl_assoc_mac(int instance, int *c);
 
-extern struct detect_wans *detect_protocol(char *wan_face, char *lan_face,
-					   char *type);
+extern struct detect_wans *detect_protocol(char *wan_face, char *lan_face, char *type);
 
 enum { WL = 0,
 	DIAG = 1,
@@ -840,6 +899,11 @@ struct wl_assoc_mac {
 	char mac[18];
 };
 
+struct nvram_param {
+	char *name;
+	char *value;
+};
+
 struct mtu_lists {
 	char *proto;		/* protocol */
 	char *min;		/* min mtu */
@@ -852,6 +916,9 @@ struct detect_wans {
 	char *name;
 	char desc[1024];
 };
+
+#define GIF_LINKLOCAL  0x0001	/* return link-local addr */
+#define GIF_PREFIXLEN  0x0002	/* return addr & prefix */
 
 #define	PROTO_DHCP	0
 #define	PROTO_STATIC	1
@@ -923,21 +990,21 @@ void lcdmessaged(char *dual, char *message);
 #define lcdmessaged(a,b)
 #endif
 
-extern char *getBridgeMTU(char *);
+extern char *getBridgeMTU(const char *, char *word);
 extern char *getMTU(char *);
-
-/* NF packet marks */
-char *get_NFServiceMark(char *service, uint32 mark);
+extern int getBridgeSTP(char *br);
+extern char *get_NFServiceMark(char *service, uint32 mark);
 
 #ifdef HAVE_SVQOS
-#define qos_nfmark(x) get_NFServiceMark("QOS", (uint32)(x))
+char *qos_nfmark(uint32 x);
 
-#if !(defined(ARCH_broadcom) && !defined(HAVE_BCMMODERN))
+#if !defined(ARCH_broadcom) || defined(HAVE_BCMMODERN)
 extern char *get_tcfmark(uint32 mark);
 #endif
 
 extern char *get_wshaper_dev(void);
-extern char *get_mtu_val(void);
+extern char *get_mtu_val(char *buf);
+extern void add_client_dev_srvfilter(char *name, char *type, char *data, char *level, int base, char *chain);
 extern void add_client_mac_srvfilter(char *name, char *type, char *data, char *level, int base, char *client);
 extern void add_client_ip_srvfilter(char *name, char *type, char *data, char *level, int base, char *client);
 #ifdef HAVE_AQOS
@@ -959,8 +1026,7 @@ int sv_valid_statics(char *value);
 void get_network(char *ipaddr, char *netmask);
 int get_net(char *netmask);
 void get_broadcast(char *ipaddr, char *netmask);
-int route_manip(int cmd, char *name, int metric, char *dst, char *gateway,
-		char *genmask);
+int route_manip(int cmd, char *name, int metric, char *dst, char *gateway, char *genmask);
 int route_add(char *name, int metric, char *dst, char *gateway, char *genmask);
 int route_del(char *name, int metric, char *dst, char *gateway, char *genmask);
 extern char *psname(int pid, char *buffer, int maxlen);
@@ -972,13 +1038,24 @@ extern void getIfLists(char *eths, int size);
 extern int ifexists(const char *ifname);
 extern void getinterfacelist(const char *ifprefix, char *buffer);
 extern int count_processes(char *pidName);
+#ifdef HAVE_ATH5K
+extern int is_ath5k(const char *prefix);
+#else
+#define is_ath5k(prefix) 0
+#endif
 #ifdef HAVE_ATH9K
 extern int is_ath9k(const char *prefix);
 extern int getath9kdevicecount(void);
 #endif
-
+#ifdef HAVE_ATH10K
+extern int is_ath10k(const char *prefix);
+#endif
+#ifdef HAVE_MVEBU
+extern int is_mvebu(const char *prefix);
+#else
+#define is_mvebu(prefix) 0
+#endif
 extern char *get3GDeviceVendor(void);
-
 
 int isGrep(char *string, char *cmp);
 int softkill(char *name);
@@ -1006,6 +1083,7 @@ struct wl_client_mac {
 	int status;		// 0:offline 1:online
 	int check;
 };
+#include <time.h>
 
 extern int dd_timer_delete(timer_t timer);
 extern int dd_timer_create(clockid_t clock_id, struct sigevent *evp, timer_t * pTimer);
@@ -1026,6 +1104,7 @@ int nvram_restore(char *filename);
 
 void nvram_clear(void);
 int nvram_critical(char *name);
+void getSystemMac(char *mac);
 
 int do80211priv(const char *ifname, int op, void *data, size_t len);
 int getsocket(void);
@@ -1081,7 +1160,6 @@ struct arph {
 	char dest_add[ETH_ALEN];
 	char dest_ip[IP_ALEN];
 
-
 } __attribute__((packed));
 */
 
@@ -1090,6 +1168,8 @@ struct arph {
 
 int gratarp_main(char *iface);
 
-int writeproc(char *path,char *value);
+int writeproc(char *path, char *value);
 
-int writevaproc(char *value, char *fmt,...);
+int set_smp_affinity(int irq, int cpu);
+
+int writevaproc(char *value, char *fmt, ...);

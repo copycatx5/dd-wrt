@@ -1,7 +1,7 @@
 <?php
 /*
 ** Zabbix
-** Copyright (C) 2001-2013 Zabbix SIA
+** Copyright (C) 2001-2015 Zabbix SIA
 **
 ** This program is free software; you can redistribute it and/or modify
 ** it under the terms of the GNU General Public License as published by
@@ -17,11 +17,12 @@
 ** along with this program; if not, write to the Free Software
 ** Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 **/
-?>
-<?php
+
 
 $workingTimeTab = new CFormList('scriptsTab');
-$workingTimeTab->addRow(_('Working time'), new CTextBox('work_period', $this->data['config']['work_period'], ZBX_TEXTBOX_STANDARD_SIZE));
+$wtTextBox = new CTextBox('work_period', $this->data['config']['work_period'], ZBX_TEXTBOX_STANDARD_SIZE);
+$wtTextBox->attr('autofocus', 'autofocus');
+$workingTimeTab->addRow(_('Working time'), $wtTextBox);
 
 $workingTimeView = new CTabView();
 $workingTimeView->addTab('workingTime', _('Working time'), $workingTimeTab);
@@ -31,7 +32,6 @@ $workingTimeForm->setName('workingTimeForm');
 
 $workingTimeForm->addVar('form_refresh', $this->data['form_refresh'] + 1);
 $workingTimeForm->addItem($workingTimeView);
-$workingTimeForm->addItem(makeFormFooter(array(new CSubmit('save', _('Save')))));
+$workingTimeForm->addItem(makeFormFooter(new CSubmit('save', _('Save'))));
 
 return $workingTimeForm;
-?>

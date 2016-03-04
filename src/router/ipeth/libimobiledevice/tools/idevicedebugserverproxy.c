@@ -28,8 +28,8 @@
 #include <libimobiledevice/libimobiledevice.h>
 #include <libimobiledevice/lockdown.h>
 
-#include "socket.h"
-#include "thread.h"
+#include "common/socket.h"
+#include "common/thread.h"
 
 #define info(...) fprintf(stdout, __VA_ARGS__); fflush(stdout)
 #define debug(...) if(debug_mode) fprintf(stdout, __VA_ARGS__)
@@ -223,6 +223,7 @@ static void* connection_handler(void* data)
 int main(int argc, char *argv[])
 {
 	lockdownd_client_t lockdown = NULL;
+	lockdownd_error_t ldret = LOCKDOWN_E_UNKNOWN_ERROR;
 	idevice_t device = NULL;
 	idevice_connection_t connection = NULL;
 	idevice_error_t ret = IDEVICE_E_UNKNOWN_ERROR;
@@ -291,8 +292,8 @@ int main(int argc, char *argv[])
 		goto leave_cleanup;
 	}
 
-	if (LOCKDOWN_E_SUCCESS != lockdownd_client_new_with_handshake(device, &lockdown, "idevicedebugserverproxy")) {
-		fprintf(stderr, "Could not connect to lockdownd. Exiting.\n");
+	if (LOCKDOWN_E_SUCCESS != (ldret = lockdownd_client_new_with_handshake(device, &lockdown, "idevicedebugserverproxy"))) {
+		fprintf(stderr, "ERROR: Could not connect to lockdownd, error code %d\n", ldret);
 		result = EXIT_FAILURE;
 		goto leave_cleanup;
 	}

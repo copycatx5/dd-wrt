@@ -1,6 +1,6 @@
 /*
 ** Zabbix
-** Copyright (C) 2001-2013 Zabbix SIA
+** Copyright (C) 2001-2015 Zabbix SIA
 **
 ** This program is free software; you can redistribute it and/or modify
 ** it under the terms of the GNU General Public License as published by
@@ -27,7 +27,7 @@ static int	fdpid = -1;
 int	create_pid_file(const char *pidfile)
 {
 	int		fd;
-	struct stat	buf;
+	zbx_stat_t	buf;
 	struct flock	fl;
 
 	fl.l_type = F_WRLCK;
@@ -37,7 +37,7 @@ int	create_pid_file(const char *pidfile)
 	fl.l_pid = getpid();
 
 	/* check if pid file already exists */
-	if (0 == stat(pidfile, &buf))
+	if (0 == zbx_stat(pidfile, &buf))
 	{
 		if (-1 == (fd = open(pidfile, O_WRONLY | O_APPEND)))
 		{

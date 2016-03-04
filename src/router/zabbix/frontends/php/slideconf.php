@@ -1,7 +1,7 @@
 <?php
 /*
 ** Zabbix
-** Copyright (C) 2001-2013 Zabbix SIA
+** Copyright (C) 2001-2015 Zabbix SIA
 **
 ** This program is free software; you can redistribute it and/or modify
 ** it under the terms of the GNU General Public License as published by
@@ -21,8 +21,6 @@
 
 require_once dirname(__FILE__).'/include/config.inc.php';
 require_once dirname(__FILE__).'/include/screens.inc.php';
-require_once dirname(__FILE__).'/include/forms.inc.php';
-require_once dirname(__FILE__).'/include/maps.inc.php';
 
 $page['title'] = _('Configuration of slide shows');
 $page['file'] = 'slideconf.php';
@@ -61,8 +59,10 @@ if (isset($_REQUEST['slideshowid'])) {
 	if (!slideshow_accessible($_REQUEST['slideshowid'], PERM_READ_WRITE)) {
 		access_deny();
 	}
+
 	$dbSlideshow = get_slideshow_by_slideshowid(get_request('slideshowid'));
-	if (empty($dbSlideshow)) {
+
+	if (!$dbSlideshow) {
 		access_deny();
 	}
 }
@@ -71,8 +71,11 @@ if (isset($_REQUEST['go'])) {
 		access_deny();
 	}
 	else {
-		$dbSlideshowChk = DBfetch(DBselect('SELECT COUNT(*) AS cnt FROM slideshows s WHERE '.dbConditionInt('s.slideshowid', $_REQUEST['shows'])));
-		if ($dbSlideshowChk['cnt'] != count($_REQUEST['shows'])) {
+		$dbSlideshowCount = DBfetch(DBselect(
+			'SELECT COUNT(*) AS cnt FROM slideshows s WHERE '.dbConditionInt('s.slideshowid', $_REQUEST['shows'])
+		));
+
+		if ($dbSlideshowCount['cnt'] != count($_REQUEST['shows'])) {
 			access_deny();
 		}
 	}
@@ -108,6 +111,7 @@ elseif (isset($_REQUEST['save'])) {
 	if ($result) {
 		add_audit($audit_action, AUDIT_RESOURCE_SLIDESHOW, ' Name "'.$_REQUEST['name'].'" ');
 		unset($_REQUEST['form'], $_REQUEST['slideshowid']);
+		clearCookies($result);
 	}
 }
 elseif (isset($_REQUEST['delete']) && isset($_REQUEST['slideshowid'])) {
@@ -121,27 +125,29 @@ elseif (isset($_REQUEST['delete']) && isset($_REQUEST['slideshowid'])) {
 	}
 
 	unset($_REQUEST['slideshowid'], $_REQUEST['form']);
+	clearCookies($result);
 }
 elseif ($_REQUEST['go'] == 'delete') {
-	$go_result = true;
+	$goResult = true;
+
 	$shows = get_request('shows', array());
 	DBstart();
+
 	foreach ($shows as $showid) {
-		$go_result &= delete_slideshow($showid);
-		if (!$go_result) {
+		$goResult &= delete_slideshow($showid);
+		if (!$goResult) {
 			break;
 		}
 	}
-	$go_result = DBend($go_result);
-	if ($go_result) {
+
+	$goResult = DBend($goResult);
+
+	if ($goResult) {
 		unset($_REQUEST['form']);
 	}
-	show_messages($go_result, _('Slide show deleted'), _('Cannot delete slide show'));
-}
-if ($_REQUEST['go'] != 'none' && !empty($go_result)) {
-	$url = new CUrl();
-	$path = $url->getPath();
-	insert_js('cookie.eraseArray(\''.$path.'\')');
+
+	show_messages($goResult, _('Slide show deleted'), _('Cannot delete slide show'));
+	clearCookies($goResult);
 }
 
 /*
@@ -162,7 +168,7 @@ if (isset($_REQUEST['form'])) {
 		$data['delay'] = $dbSlideshow['delay'];
 
 		// get slides
-		$db_slides = DBselect('SELECT s.* FROM slides s WHERE s.slideshowid='.$data['slideshowid'].' ORDER BY s.step');
+		$db_slides = DBselect('SELECT s.* FROM slides s WHERE s.slideshowid='.zbx_dbstr($data['slideshowid']).' ORDER BY s.step');
 		while ($slide = DBfetch($db_slides)) {
 			$data['slides'][$slide['step']] = array(
 				'slideid' => $slide['slideid'],
@@ -184,16 +190,47 @@ if (isset($_REQUEST['form'])) {
 	$slideshowView->show();
 }
 else {
-	$data['slides'] = DBfetchArray(DBselect(
-		'SELECT s.slideshowid,s.name,s.delay,COUNT(sl.slideshowid) AS cnt'.
-		' FROM slideshows s'.
-			' LEFT JOIN slides sl ON sl.slideshowid=s.slideshowid'.
-		' WHERE '.DBin_node('s.slideshowid').
-		' GROUP BY s.slideshowid,s.name,s.delay'
-	));
-	order_result($data['slides'], getPageSortField('name'), getPageSortOrder());
+	$config = select_config();
+	$limit = $config['search_limit'] + 1;
 
-	$data['paging'] = getPagingLine($data['slides']);
+	$sortfield = getPageSortField('name');
+	$sortorder = getPageSortOrder();
+
+	$data['slides'] = DBfetchArray(DBselect(
+			'SELECT s.slideshowid,s.name,s.delay,COUNT(sl.slideshowid) AS cnt'.
+			' FROM slideshows s'.
+				' LEFT JOIN slides sl ON sl.slideshowid=s.slideshowid'.
+			whereDbNode('s.slideshowid').
+			' GROUP BY s.slideshowid,s.name,s.delay'.
+			' ORDER BY '.(($sortfield === 'cnt') ? 'cnt' : 's.'.$sortfield)
+	));
+
+	foreach ($data['slides'] as $key => $slide) {
+		if (!slideshow_accessible($slide['slideshowid'], PERM_READ_WRITE)) {
+			unset($data['slides'][$key]);
+		}
+	}
+
+	order_result($data['slides'], $sortfield, $sortorder);
+
+	if ($sortorder == ZBX_SORT_UP) {
+		$data['slides'] = array_slice($data['slides'], 0, $limit);
+	}
+	else {
+		$data['slides'] = array_slice($data['slides'], -$limit, $limit);
+	}
+
+	order_result($data['slides'], $sortfield, $sortorder);
+
+	$data['paging'] = getPagingLine($data['slides'], array('slideshowid'));
+
+	// nodes
+	if ($data['displayNodes'] = is_array(get_current_nodeid())) {
+		foreach ($data['slides'] as &$slide) {
+			$slide['nodename'] = get_node_name_by_elid($slide['slideshowid'], true);
+		}
+		unset($slide);
+	}
 
 	// render view
 	$slideshowView = new CView('configuration.slideconf.list', $data);
@@ -202,4 +239,3 @@ else {
 }
 
 require_once dirname(__FILE__).'/include/page_footer.php';
-?>

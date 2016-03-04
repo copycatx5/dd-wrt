@@ -1,6 +1,6 @@
 /*
 ** Zabbix
-** Copyright (C) 2001-2013 Zabbix SIA
+** Copyright (C) 2001-2015 Zabbix SIA
 **
 ** This program is free software; you can redistribute it and/or modify
 ** it under the terms of the GNU General Public License as published by
@@ -64,7 +64,7 @@ var CMessageList = Class.create(CDebug, {
 		addListener(this.dom.mute, 'click', this.mute.bindAsEventListener(this));
 
 		jQuery(this.dom.container).draggable({
-			handle: [this.dom.caption, this.dom.move],
+			handle: this.dom.header,
 			axis: 'y',
 			containment: [0, 0, 0, 1600]
 		});
@@ -294,6 +294,8 @@ var CMessageList = Class.create(CDebug, {
 			}
 			count++;
 		}
+
+		this.stopSound();
 	},
 
 	timeoutMessages: function() {

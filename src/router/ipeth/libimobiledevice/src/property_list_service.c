@@ -25,7 +25,7 @@
 #include <string.h>
 
 #include "property_list_service.h"
-#include "debug.h"
+#include "common/debug.h"
 #include "endianness.h"
 
 /**
@@ -54,19 +54,7 @@ static property_list_service_error_t service_to_property_list_service_error(serv
 	return PROPERTY_LIST_SERVICE_E_UNKNOWN_ERROR;
 }
 
-/**
- * Creates a new property list service for the specified port.
- * 
- * @param device The device to connect to.
- * @param service The service descriptor returned by lockdownd_start_service.
- * @param client Pointer that will be set to a newly allocated
- *     property_list_service_client_t upon successful return.
- *
- * @return PROPERTY_LIST_SERVICE_E_SUCCESS on success,
- *     PROPERTY_LIST_SERVICE_E_INVALID_ARG when one of the arguments is invalid,
- *     or PROPERTY_LIST_SERVICE_E_MUX_ERROR when connecting to the device failed.
- */
-property_list_service_error_t property_list_service_client_new(idevice_t device, lockdownd_service_descriptor_t service, property_list_service_client_t *client)
+LIBIMOBILEDEVICE_API property_list_service_error_t property_list_service_client_new(idevice_t device, lockdownd_service_descriptor_t service, property_list_service_client_t *client)
 {
 	if (!device || !service || service->port == 0 || !client || *client)
 		return PROPERTY_LIST_SERVICE_E_INVALID_ARG;
@@ -86,22 +74,16 @@ property_list_service_error_t property_list_service_client_new(idevice_t device,
 	return PROPERTY_LIST_SERVICE_E_SUCCESS;
 }
 
-/**
- * Frees a PropertyList service.
- *
- * @param client The property list service to free.
- *
- * @return PROPERTY_LIST_SERVICE_E_SUCCESS on success,
- *     PROPERTY_LIST_SERVICE_E_INVALID_ARG when client is invalid, or a
- *     PROPERTY_LIST_SERVICE_E_UNKNOWN_ERROR when another error occured.
- */
-property_list_service_error_t property_list_service_client_free(property_list_service_client_t client)
+LIBIMOBILEDEVICE_API property_list_service_error_t property_list_service_client_free(property_list_service_client_t client)
 {
 	if (!client)
 		return PROPERTY_LIST_SERVICE_E_INVALID_ARG;
 
 	property_list_service_error_t err = service_to_property_list_service_error(service_client_free(client->parent));
+
 	free(client);
+	client = NULL;
+
 	return err;
 }
 
@@ -165,34 +147,12 @@ static property_list_service_error_t internal_plist_send(property_list_service_c
 	return res;
 }
 
-/**
- * Sends an XML plist.
- *
- * @param client The property list service client to use for sending.
- * @param plist plist to send
- *
- * @return PROPERTY_LIST_SERVICE_E_SUCCESS on success,
- *      PROPERTY_LIST_SERVICE_E_INVALID_ARG when client or plist is NULL,
- *      PROPERTY_LIST_SERVICE_E_PLIST_ERROR when dict is not a valid plist,
- *      or PROPERTY_LIST_SERVICE_E_UNKNOWN_ERROR when an unspecified error occurs.
- */
-property_list_service_error_t property_list_service_send_xml_plist(property_list_service_client_t client, plist_t plist)
+LIBIMOBILEDEVICE_API property_list_service_error_t property_list_service_send_xml_plist(property_list_service_client_t client, plist_t plist)
 {
 	return internal_plist_send(client, plist, 0);
 }
 
-/**
- * Sends a binary plist.
- *
- * @param client The property list service client to use for sending.
- * @param plist plist to send
- *
- * @return PROPERTY_LIST_SERVICE_E_SUCCESS on success,
- *      PROPERTY_LIST_SERVICE_E_INVALID_ARG when client or plist is NULL,
- *      PROPERTY_LIST_SERVICE_E_PLIST_ERROR when dict is not a valid plist,
- *      or PROPERTY_LIST_SERVICE_E_UNKNOWN_ERROR when an unspecified error occurs.
- */
-property_list_service_error_t property_list_service_send_binary_plist(property_list_service_client_t client, plist_t plist)
+LIBIMOBILEDEVICE_API property_list_service_error_t property_list_service_send_binary_plist(property_list_service_client_t client, plist_t plist)
 {
 	return internal_plist_send(client, plist, 1);
 }
@@ -223,7 +183,11 @@ static property_list_service_error_t internal_plist_receive_timeout(property_lis
 		return PROPERTY_LIST_SERVICE_E_INVALID_ARG;
 	}
 
-	service_receive_with_timeout(client->parent, (char*)&pktlen, sizeof(pktlen), &bytes, timeout);
+	*plist = NULL;
+	service_error_t serr = service_receive_with_timeout(client->parent, (char*)&pktlen, sizeof(pktlen), &bytes, timeout);
+	if ((serr == SERVICE_E_SUCCESS) && (bytes == 0)) {
+		return PROPERTY_LIST_SERVICE_E_RECEIVE_TIMEOUT;
+	}
 	debug_info("initial read=%i", bytes);
 	if (bytes < 4) {
 		debug_info("initial read failed!");
@@ -235,6 +199,10 @@ static property_list_service_error_t internal_plist_receive_timeout(property_lis
 			char *content = NULL;
 			debug_info("%d bytes following", pktlen);
 			content = (char*)malloc(pktlen);
+			if (!content) {
+				debug_info("out of memory when allocating %d bytes", pktlen);
+				return PROPERTY_LIST_SERVICE_E_UNKNOWN_ERROR;
+			}
 
 			while (curlen < pktlen) {
 				service_receive(client->parent, content+curlen, pktlen-curlen, &bytes);
@@ -245,15 +213,27 @@ static property_list_service_error_t internal_plist_receive_timeout(property_lis
 				debug_info("received %d bytes", bytes);
 				curlen += bytes;
 			}
-			if (!memcmp(content, "bplist00", 8)) {
+			if (curlen < pktlen) {
+				debug_info("received incomplete packet (%d of %d bytes)", curlen, pktlen);
+				if (curlen > 0) {
+					debug_info("incomplete packet following:");
+					debug_buffer(content, curlen);
+				}
+				free(content);
+				return res;
+			}
+			if ((pktlen > 8) && !memcmp(content, "bplist00", 8)) {
 				plist_from_bin(content, pktlen, plist);
-			} else {
+			} else if ((pktlen > 5) && !memcmp(content, "<?xml", 5)) {
 				/* iOS 4.3+ hack: plist data might contain invalid characters, thus we convert those to spaces */
 				for (bytes = 0; bytes < pktlen-1; bytes++) {
 					if ((content[bytes] >= 0) && (content[bytes] < 0x20) && (content[bytes] != 0x09) && (content[bytes] != 0x0a) && (content[bytes] != 0x0d))
 						content[bytes] = 0x20;
 				}
 				plist_from_xml(content, pktlen, plist);
+			} else {
+				debug_info("WARNING: received unexpected non-plist content");
+				debug_buffer(content, pktlen);
 			}
 			if (*plist) {
 				debug_plist(*plist);
@@ -270,81 +250,24 @@ static property_list_service_error_t internal_plist_receive_timeout(property_lis
 	return res;
 }
 
-/**
- * Receives a plist using the given property list service client with specified
- * timeout.
- * Binary or XML plists are automatically handled.
- *
- * @param client The property list service client to use for receiving
- * @param plist pointer to a plist_t that will point to the received plist
- *              upon successful return
- * @param timeout Maximum time in milliseconds to wait for data.
- *
- * @return PROPERTY_LIST_SERVICE_E_SUCCESS on success,
- *      PROPERTY_LIST_SERVICE_E_INVALID_ARG when connection or *plist is NULL,
- *      PROPERTY_LIST_SERVICE_E_PLIST_ERROR when the received data cannot be
- *      converted to a plist, PROPERTY_LIST_SERVICE_E_MUX_ERROR when a
- *      communication error occurs, or PROPERTY_LIST_SERVICE_E_UNKNOWN_ERROR when
- *      an unspecified error occurs.
- */
-property_list_service_error_t property_list_service_receive_plist_with_timeout(property_list_service_client_t client, plist_t *plist, unsigned int timeout)
+LIBIMOBILEDEVICE_API property_list_service_error_t property_list_service_receive_plist_with_timeout(property_list_service_client_t client, plist_t *plist, unsigned int timeout)
 {
 	return internal_plist_receive_timeout(client, plist, timeout);
 }
 
-/**
- * Receives a plist using the given property list service client.
- * Binary or XML plists are automatically handled.
- *
- * This function is like property_list_service_receive_plist_with_timeout
- *   using a timeout of 10 seconds.
- * @see property_list_service_receive_plist_with_timeout
- *
- * @param client The property list service client to use for receiving
- * @param plist pointer to a plist_t that will point to the received plist
- *      upon successful return
- *
- * @return PROPERTY_LIST_SERVICE_E_SUCCESS on success,
- *      PROPERTY_LIST_SERVICE_E_INVALID_ARG when client or *plist is NULL,
- *      PROPERTY_LIST_SERVICE_E_PLIST_ERROR when the received data cannot be
- *      converted to a plist, PROPERTY_LIST_SERVICE_E_MUX_ERROR when a
- *      communication error occurs, or PROPERTY_LIST_SERVICE_E_UNKNOWN_ERROR when
- *      an unspecified error occurs.
- */
-property_list_service_error_t property_list_service_receive_plist(property_list_service_client_t client, plist_t *plist)
+LIBIMOBILEDEVICE_API property_list_service_error_t property_list_service_receive_plist(property_list_service_client_t client, plist_t *plist)
 {
 	return internal_plist_receive_timeout(client, plist, 10000);
 }
 
-/**
- * Enable SSL for the given property list service client.
- *
- * @param client The connected property list service client for which SSL
- *     should be enabled.
- *
- * @return PROPERTY_LIST_SERVICE_E_SUCCESS on success,
- *     PROPERTY_LIST_SERVICE_E_INVALID_ARG if client or client->connection is
- *     NULL, PROPERTY_LIST_SERVICE_E_SSL_ERROR when SSL could not be enabled,
- *     or PROPERTY_LIST_SERVICE_E_UNKNOWN_ERROR otherwise.
- */
-property_list_service_error_t property_list_service_enable_ssl(property_list_service_client_t client)
+LIBIMOBILEDEVICE_API property_list_service_error_t property_list_service_enable_ssl(property_list_service_client_t client)
 {
 	if (!client || !client->parent)
 		return PROPERTY_LIST_SERVICE_E_INVALID_ARG;
 	return service_to_property_list_service_error(service_enable_ssl(client->parent));
 }
 
-/**
- * Disable SSL for the given property list service client.
- *
- * @param client The connected property list service client for which SSL
- *     should be disabled.
- *
- * @return PROPERTY_LIST_SERVICE_E_SUCCESS on success,
- *     PROPERTY_LIST_SERVICE_E_INVALID_ARG if client or client->connection is
- *     NULL, or PROPERTY_LIST_SERVICE_E_UNKNOWN_ERROR otherwise.
- */
-property_list_service_error_t property_list_service_disable_ssl(property_list_service_client_t client)
+LIBIMOBILEDEVICE_API property_list_service_error_t property_list_service_disable_ssl(property_list_service_client_t client)
 {
 	if (!client || !client->parent)
 		return PROPERTY_LIST_SERVICE_E_INVALID_ARG;

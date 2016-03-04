@@ -173,9 +173,9 @@ int main(int argc, char **argv)
 		goto cleanup;
 	}
 
-	if (LOCKDOWN_E_SUCCESS != lockdownd_client_new_with_handshake(device, &lockdown_client, "idevicediagnostics")) {
+	if (LOCKDOWN_E_SUCCESS != (ret = lockdownd_client_new_with_handshake(device, &lockdown_client, "idevicediagnostics"))) {
 		idevice_free(device);
-		printf("Unable to connect to lockdownd.\n");
+		printf("ERROR: Could not connect to lockdownd, error code %d\n", ret);
 		goto cleanup;
 	}
 
@@ -203,7 +203,7 @@ int main(int argc, char **argv)
 					}
 				break;
 				case CMD_RESTART:
-					if (diagnostics_relay_restart(diagnostics_client, 0) == DIAGNOSTICS_RELAY_E_SUCCESS) {
+					if (diagnostics_relay_restart(diagnostics_client, DIAGNOSTICS_RELAY_ACTION_FLAG_WAIT_FOR_DISCONNECT) == DIAGNOSTICS_RELAY_E_SUCCESS) {
 						printf("Restarting device.\n");
 						result = EXIT_SUCCESS;
 					} else {
@@ -211,7 +211,7 @@ int main(int argc, char **argv)
 					}
 				break;
 				case CMD_SHUTDOWN:
-					if (diagnostics_relay_shutdown(diagnostics_client, 0) == DIAGNOSTICS_RELAY_E_SUCCESS) {
+					if (diagnostics_relay_shutdown(diagnostics_client, DIAGNOSTICS_RELAY_ACTION_FLAG_WAIT_FOR_DISCONNECT) == DIAGNOSTICS_RELAY_E_SUCCESS) {
 						printf("Shutting down device.\n");
 						result = EXIT_SUCCESS;
 					} else {

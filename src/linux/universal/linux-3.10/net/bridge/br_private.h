@@ -66,6 +66,20 @@ struct br_ip
 	__u16		vid;
 };
 
+#ifdef CONFIG_BRIDGE_IGMP_SNOOPING
+/* our own querier */
+struct bridge_mcast_query {
+	struct timer_list	timer;
+	u32			startup_sent;
+};
+
+/* other querier */
+struct bridge_mcast_querier {
+	struct timer_list		timer;
+	unsigned long			delay_time;
+};
+#endif
+
 struct net_port_vlans {
 	u16				port_idx;
 	u16				pvid;
@@ -164,10 +178,12 @@ struct net_bridge_port
 #define BR_MULTICAST_TO_UCAST	0x00000040
 
 #ifdef CONFIG_BRIDGE_IGMP_SNOOPING
-	u32				multicast_startup_queries_sent;
+	struct bridge_mcast_query	ip4_query;
+#if IS_ENABLED(CONFIG_IPV6)
+	struct bridge_mcast_query	ip6_query;
+#endif /* IS_ENABLED(CONFIG_IPV6) */
 	unsigned char			multicast_router;
 	struct timer_list		multicast_router_timer;
-	struct timer_list		multicast_query_timer;
 	struct hlist_head		mglist;
 	struct hlist_node		rlist;
 #endif
@@ -251,12 +267,12 @@ struct net_bridge
 
 	u8				multicast_disabled:1;
 	u8				multicast_querier:1;
+	u8				multicast_query_use_ifaddr:1;
 
 	u32				hash_elasticity;
 	u32				hash_max;
 
 	u32				multicast_last_member_count;
-	u32				multicast_startup_queries_sent;
 	u32				multicast_startup_query_count;
 
 	unsigned long			multicast_last_member_interval;
@@ -271,8 +287,12 @@ struct net_bridge
 	struct hlist_head		router_list;
 
 	struct timer_list		multicast_router_timer;
-	struct timer_list		multicast_querier_timer;
-	struct timer_list		multicast_query_timer;
+	struct bridge_mcast_querier	ip4_querier;
+	struct bridge_mcast_query	ip4_query;
+#if IS_ENABLED(CONFIG_IPV6)
+	struct bridge_mcast_querier	ip6_querier;
+	struct bridge_mcast_query	ip6_query;
+#endif /* IS_ENABLED(CONFIG_IPV6) */
 #endif
 
 	struct timer_list		hello_timer;
@@ -434,6 +454,16 @@ extern netdev_features_t br_features_recompute(struct net_bridge *br,
 extern int br_handle_frame_finish(struct sk_buff *skb);
 extern rx_handler_result_t br_handle_frame(struct sk_buff **pskb);
 
+static inline bool br_rx_handler_check_rcu(const struct net_device *dev)
+{
+	return rcu_dereference(dev->rx_handler) == br_handle_frame;
+}
+
+static inline struct net_bridge_port *br_port_get_check_rcu(const struct net_device *dev)
+{
+	return br_rx_handler_check_rcu(dev) ? br_port_get_rcu(dev) : NULL;
+}
+
 /* br_ioctl.c */
 extern int br_dev_ioctl(struct net_device *dev, struct ifreq *rq, int cmd);
 extern int br_ioctl_deviceless_stub(struct net *net, unsigned int cmd, void __user *arg);
@@ -483,21 +513,34 @@ extern void br_mdb_notify(struct net_device *dev, struct net_bridge_port *port,
 #define mlock_dereference(X, br) \
 	rcu_dereference_protected(X, lockdep_is_held(&br->multicast_lock))
 
-#if IS_ENABLED(CONFIG_IPV6)
-#include <net/addrconf.h>
-static inline int ipv6_is_transient_multicast(const struct in6_addr *addr)
-{
-	if (ipv6_addr_is_multicast(addr) && IPV6_ADDR_MC_FLAG_TRANSIENT(addr))
-		return 1;
-	return 0;
-}
-#endif
-
 static inline bool br_multicast_is_router(struct net_bridge *br)
 {
 	return br->multicast_router == 2 ||
 	       (br->multicast_router == 1 &&
 		timer_pending(&br->multicast_router_timer));
+}
+
+static inline bool
+__br_multicast_querier_exists(struct net_bridge *br,
+			      struct bridge_mcast_querier *querier)
+{
+	return time_is_before_jiffies(querier->delay_time) &&
+	       (br->multicast_querier || timer_pending(&querier->timer));
+}
+
+static inline bool br_multicast_querier_exists(struct net_bridge *br,
+					       struct ethhdr *eth)
+{
+	switch (eth->h_proto) {
+	case (htons(ETH_P_IP)):
+		return __br_multicast_querier_exists(br, &br->ip4_querier);
+#if IS_ENABLED(CONFIG_IPV6)
+	case (htons(ETH_P_IPV6)):
+		return __br_multicast_querier_exists(br, &br->ip6_querier);
+#endif
+	default:
+		return false;
+	}
 }
 #else
 static inline int br_multicast_rcv(struct net_bridge *br,
@@ -554,6 +597,11 @@ static inline void br_multicast_forward(struct net_bridge_mdb_entry *mdst,
 static inline bool br_multicast_is_router(struct net_bridge *br)
 {
 	return 0;
+}
+static inline bool br_multicast_querier_exists(struct net_bridge *br,
+					       struct ethhdr *eth)
+{
+	return false;
 }
 static inline void br_mdb_init(void)
 {

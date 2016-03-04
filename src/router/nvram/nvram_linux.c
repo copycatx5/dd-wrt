@@ -31,6 +31,12 @@
 
 #ifdef NVRAM_SPACE_256
 #define NVRAMSPACE NVRAM_SPACE_256
+#elif HAVE_NVRAM_128
+#define NVRAMSPACE 0x20000
+#elif HAVE_MVEBU
+#define NVRAMSPACE 0x10000
+#elif HAVE_IPQ806X
+#define NVRAMSPACE 0x10000
 #else
 #define NVRAMSPACE NVRAM_SPACE
 #endif
@@ -48,7 +54,6 @@ int nvram_init(void *unused)
 
 	/* Map kernel string buffer into user space */
 	nvram_buf = mmap(NULL, NVRAMSPACE, PROT_READ, MAP_SHARED, nvram_fd, 0);
-
 	if (nvram_buf == MAP_FAILED) {
 		close(nvram_fd);
 		fprintf(stderr, "nvram_init(): failed\n");
@@ -71,7 +76,7 @@ void lock(void)
 		fclose(in);
 		lockwait++;
 		if (lockwait == 30) {
-			fprintf(stderr,"deadlock detected, try to fix it\n");
+			fprintf(stderr,"removing lockfile\n");
 			unlink("/tmp/.nvlock");	//something crashed, we fix it
 			break;
 		}
@@ -264,7 +269,7 @@ int nvram_commit(void)
 		fprintf(stderr, "not allowed, flash process in progress");
 		return 1;
 	}
-#if defined(HAVE_WZRHPG300NH) || defined(HAVE_WHRHPGN) || defined(HAVE_WZRHPAG300NH) || defined(HAVE_DIR825) || defined(HAVE_TEW632BRP) || defined(HAVE_TG2521) || defined(HAVE_WR1043)  || defined(HAVE_WRT400) || defined(HAVE_WZRHPAG300NH) || defined(HAVE_WZRG450) || defined(HAVE_DANUBE) || defined(HAVE_WR741) || defined(HAVE_NORTHSTAR) || defined(HAVE_DIR615I) || defined(HAVE_WDR4900) || defined(HAVE_VENTANA)
+#if defined(HAVE_WZRHPG300NH) || defined(HAVE_WHRHPGN) || defined(HAVE_WZRHPAG300NH) || defined(HAVE_DIR825) || defined(HAVE_TEW632BRP) || defined(HAVE_TG2521) || defined(HAVE_WR1043)  || defined(HAVE_WRT400) || defined(HAVE_WZRHPAG300NH) || defined(HAVE_WZRG450) || defined(HAVE_DANUBE) || defined(HAVE_WR741) || defined(HAVE_NORTHSTAR) || defined(HAVE_DIR615I) || defined(HAVE_WDR4900) || defined(HAVE_VENTANA) || defined(HAVE_UBNTM)
 	system("/sbin/ledtool 1");
 #elif HAVE_LSX
 	//nothing

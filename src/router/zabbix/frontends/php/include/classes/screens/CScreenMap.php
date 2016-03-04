@@ -1,7 +1,7 @@
 <?php
 /*
 ** Zabbix
-** Copyright (C) 2001-2013 Zabbix SIA
+** Copyright (C) 2001-2015 Zabbix SIA
 **
 ** This program is free software; you can redistribute it and/or modify
 ** it under the terms of the GNU General Public License as published by
@@ -19,9 +19,14 @@
 **/
 
 
-require_once dirname(__FILE__).'/../../views/js/monitoring.maps.js.php';
-
 class CScreenMap extends CScreenBase {
+
+	/**
+	 * Params for monitoring maps js.
+	 *
+	 * @var array
+	 */
+	private $data = array();
 
 	/**
 	 * Process screen.
@@ -45,7 +50,9 @@ class CScreenMap extends CScreenBase {
 			));
 			$sysmap = reset($sysmap);
 
-			$actionMap = getActionMapBySysmap($sysmap);
+			$image->setSrc($image->getAttribute('src').'&severity_min='.$sysmap['severity_min']);
+
+			$actionMap = getActionMapBySysmap($sysmap, array('severity_min' => $sysmap['severity_min']));
 			$image->setMap($actionMap->getName());
 
 			$output = array($actionMap, $image);

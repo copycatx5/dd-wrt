@@ -1,7 +1,7 @@
 <?php
 /*
 ** Zabbix
-** Copyright (C) 2001-2013 Zabbix SIA
+** Copyright (C) 2001-2015 Zabbix SIA
 **
 ** This program is free software; you can redistribute it and/or modify
 ** it under the terms of the GNU General Public License as published by
@@ -20,39 +20,32 @@
 
 
 /**
- * File containing CScreen class for API.
+ * Class containing methods for operations with screens.
+ *
  * @package API
- */
-/**
- * Class containing methods for operations with Screens
  */
 class CScreen extends CZBXAPI {
 
 	protected $tableName = 'screens';
 	protected $tableAlias = 's';
+	protected $sortColumns = array('screenid', 'name');
 
 	/**
-	 * Get Screen data
+	 * Get screen data.
 	 *
-	 * @param array $options
-	 * @param array $options['nodeids'] Node IDs
-	 * @param boolean $options['with_items'] only with items
-	 * @param boolean $options['editable'] only with read-write permission. Ignored for SuperAdmins
-	 * @param int $options['count'] count Hosts, returned column name is rowscount
-	 * @param string $options['pattern'] search hosts by pattern in host names
-	 * @param int $options['limit'] limit selection
-	 * @param string $options['order'] deprecated parameter (for now)
-	 * @return array|boolean Host data as array or false if error
+	 * @param array  $options
+	 * @param array  $options['nodeids']		node IDs
+	 * @param bool   $options['editable']		only with read-write permission. Ignored for SuperAdmins
+	 * @param int    $options['count']			count Hosts, returned column name is rowscount
+	 * @param string $options['pattern']		search hosts by pattern in host names
+	 * @param int    $options['limit']			limit selection
+	 * @param string $options['order']			deprecated parameter (for now)
+	 *
+	 * @return array
 	 */
 	public function get($options = array()) {
 		$result = array();
 		$userType = self::$userData['type'];
-
-		// allowed columns for sorting
-		$sortColumns = array('screenid', 'name');
-
-		// allowed output options for [ select_* ] params
-		$subselectsAllowedOutputs = array(API_OUTPUT_REFER, API_OUTPUT_EXTEND);
 
 		$sqlParts = array(
 			'select'	=> array('screens' => 's.screenid'),
@@ -88,18 +81,6 @@ class CScreen extends CZBXAPI {
 		);
 		$options = zbx_array_merge($defOptions, $options);
 
-		if (is_array($options['output'])) {
-			unset($sqlParts['select']['screens']);
-
-			$dbTable = DB::getSchema('screens');
-			foreach ($options['output'] as $field) {
-				if (isset($dbTable['fields'][$field])) {
-					$sqlParts['select'][$field] = 's.'.$field;
-				}
-			}
-			$options['output'] = API_OUTPUT_CUSTOM;
-		}
-
 		// screenids
 		if (!is_null($options['screenids'])) {
 			zbx_value2array($options['screenids']);
@@ -127,39 +108,19 @@ class CScreen extends CZBXAPI {
 			zbx_db_search('screens s', $options, $sqlParts);
 		}
 
-		// output
-		if ($options['output'] == API_OUTPUT_EXTEND) {
-			$sqlParts['select']['screens'] = 's.*';
-		}
-
-		// countOutput
-		if (!is_null($options['countOutput'])) {
-			$options['sortfield'] = '';
-			$sqlParts['select'] = array('COUNT(DISTINCT s.screenid) AS rowscount');
-
-			// groupCount
-			if (!is_null($options['groupCount'])) {
-				foreach ($sqlParts['group'] as $key => $fields) {
-					$sqlParts['select'][$key] = $fields;
-				}
-			}
-		}
-
-		// sorting
-		zbx_db_sorting($sqlParts, $options, $sortColumns, 's');
-
 		// limit
 		if (zbx_ctype_digit($options['limit']) && $options['limit']) {
 			$sqlParts['limit'] = $options['limit'];
 		}
 
-		$screenids = array();
-
+		$screenIds = array();
+		$sqlParts = $this->applyQueryOutputOptions($this->tableName(), $this->tableAlias(), $options, $sqlParts);
+		$sqlParts = $this->applyQuerySortOptions($this->tableName(), $this->tableAlias(), $options, $sqlParts);
 		$sqlParts = $this->applyQueryNodeOptions($this->tableName(), $this->tableAlias(), $options, $sqlParts);
 		$res = DBselect($this->createSelectQueryFromParts($sqlParts), $sqlParts['limit']);
 		while ($screen = DBfetch($res)) {
-			if (!is_null($options['countOutput'])) {
-				if (!is_null($options['groupCount'])) {
+			if ($options['countOutput'] !== null) {
+				if ($options['groupCount'] !== null) {
 					$result[] = $screen;
 				}
 				else {
@@ -167,35 +128,28 @@ class CScreen extends CZBXAPI {
 				}
 			}
 			else {
-				$screenids[$screen['screenid']] = $screen['screenid'];
+				$screenIds[$screen['screenid']] = $screen['screenid'];
 
-				if ($options['output'] == API_OUTPUT_SHORTEN) {
-					$result[$screen['screenid']] = array('screenid' => $screen['screenid']);
+				if (!isset($result[$screen['screenid']])) {
+					$result[$screen['screenid']]= array();
 				}
-				else {
-					if (!isset($result[$screen['screenid']])) {
-						$result[$screen['screenid']]= array();
-					}
-					if (!is_null($options['selectScreenItems']) && !isset($result[$screen['screenid']]['screenitems'])) {
+
+				if (isset($screen['screenitemid']) && $options['selectScreenItems'] === null) {
+					if (!isset($result[$screen['screenid']]['screenitems'])) {
 						$result[$screen['screenid']]['screenitems'] = array();
 					}
-					if (isset($screen['screenitemid']) && is_null($options['selectScreenItems'])) {
-						if (!isset($result[$screen['screenid']]['screenitems'])) {
-							$result[$screen['screenid']]['screenitems'] = array();
-						}
-						$result[$screen['screenid']]['screenitems'][] = array('screenitemid' => $screen['screenitemid']);
-						unset($screen['screenitemid']);
-					}
-
-					$result[$screen['screenid']] += $screen;
+					$result[$screen['screenid']]['screenitems'][] = array('screenitemid' => $screen['screenitemid']);
+					unset($screen['screenitemid']);
 				}
+
+				$result[$screen['screenid']] += $screen;
 			}
 		}
 
 		// editable + PERMISSION CHECK
-		if (USER_TYPE_SUPER_ADMIN == $userType || $options['nopermissions']) {
+		if ($userType == USER_TYPE_SUPER_ADMIN || $options['nopermissions']) {
 		}
-		elseif (!empty($result)) {
+		elseif ($result) {
 			$groupsToCheck = array();
 			$hostsToCheck = array();
 			$graphsToCheck = array();
@@ -204,34 +158,40 @@ class CScreen extends CZBXAPI {
 			$screensToCheck = array();
 			$screensItems = array();
 
-			$dbSitems = DBselect('SELECT si.* FROM screens_items si WHERE '.dbConditionInt('si.screenid', $screenids));
-			while ($sitem = DBfetch($dbSitems)) {
-				$screensItems[$sitem['screenitemid']] = $sitem;
+			$dbScreenItems = DBselect('SELECT si.* FROM screens_items si WHERE '.dbConditionInt('si.screenid', $screenIds));
 
-				if ($sitem['resourceid']) {
-					switch ($sitem['resourcetype']) {
+			while ($screenItem = DBfetch($dbScreenItems)) {
+				$screensItems[$screenItem['screenitemid']] = $screenItem;
+
+				if ($screenItem['resourceid']) {
+					switch ($screenItem['resourcetype']) {
 						case SCREEN_RESOURCE_HOSTS_INFO:
 						case SCREEN_RESOURCE_TRIGGERS_INFO:
 						case SCREEN_RESOURCE_TRIGGERS_OVERVIEW:
 						case SCREEN_RESOURCE_DATA_OVERVIEW:
 						case SCREEN_RESOURCE_HOSTGROUP_TRIGGERS:
-							$groupsToCheck[] = $sitem['resourceid'];
+							$groupsToCheck[] = $screenItem['resourceid'];
 							break;
+
 						case SCREEN_RESOURCE_HOST_TRIGGERS:
-							$hostsToCheck[] = $sitem['resourceid'];
+							$hostsToCheck[] = $screenItem['resourceid'];
 							break;
+
 						case SCREEN_RESOURCE_GRAPH:
-							$graphsToCheck[] = $sitem['resourceid'];
+							$graphsToCheck[] = $screenItem['resourceid'];
 							break;
+
 						case SCREEN_RESOURCE_SIMPLE_GRAPH:
 						case SCREEN_RESOURCE_PLAIN_TEXT:
-							$itemsToCheck[] = $sitem['resourceid'];
+							$itemsToCheck[] = $screenItem['resourceid'];
 							break;
+
 						case SCREEN_RESOURCE_MAP:
-							$mapsToCheck[] = $sitem['resourceid'];
+							$mapsToCheck[] = $screenItem['resourceid'];
 							break;
+
 						case SCREEN_RESOURCE_SCREEN:
-							$screensToCheck[] = $sitem['resourceid'];
+							$screensToCheck[] = $screenItem['resourceid'];
 							break;
 					}
 				}
@@ -270,9 +230,10 @@ class CScreen extends CZBXAPI {
 
 			// item
 			$allowedItems = API::Item()->get(array(
+				'output' => array('itemid'),
 				'nodeids' => $options['nodeids'],
 				'itemids' => $itemsToCheck,
-				'webitems' => 1,
+				'webitems' => true,
 				'editable' => $options['editable']
 			));
 			$allowedItems = zbx_objectValues($allowedItems, 'itemid');
@@ -301,92 +262,77 @@ class CScreen extends CZBXAPI {
 			$restrScreens = array_diff($screensToCheck, $allowedScreens);
 
 			// group
-			foreach ($restrGroups as $resourceid) {
-				foreach ($screensItems as $screenItemid => $screenItem) {
-					if (bccomp($screenItem['resourceid'], $resourceid) == 0
+			foreach ($restrGroups as $resourceId) {
+				foreach ($screensItems as $screenItemId => $screenItem) {
+					if (bccomp($screenItem['resourceid'], $resourceId) == 0
 							&& uint_in_array($screenItem['resourcetype'], array(
 								SCREEN_RESOURCE_HOSTS_INFO, SCREEN_RESOURCE_TRIGGERS_INFO, SCREEN_RESOURCE_TRIGGERS_OVERVIEW,
 								SCREEN_RESOURCE_DATA_OVERVIEW, SCREEN_RESOURCE_HOSTGROUP_TRIGGERS))) {
-						unset($result[$screenItem['screenid']], $screensItems[$screenItemid]);
+						unset($result[$screenItem['screenid']], $screensItems[$screenItemId]);
 					}
 				}
 			}
 
 			// host
-			foreach ($restrHosts as $resourceid) {
-				foreach ($screensItems as $screenItemid => $screenItem) {
-					if (bccomp($screenItem['resourceid'], $resourceid) == 0
+			foreach ($restrHosts as $resourceId) {
+				foreach ($screensItems as $screenItemId => $screenItem) {
+					if (bccomp($screenItem['resourceid'], $resourceId) == 0
 							&& uint_in_array($screenItem['resourcetype'], array(SCREEN_RESOURCE_HOST_TRIGGERS))) {
-						unset($result[$screenItem['screenid']], $screensItems[$screenItemid]);
+						unset($result[$screenItem['screenid']], $screensItems[$screenItemId]);
 					}
 				}
 			}
 
 			// graph
-			foreach ($restrGraphs as $resourceid) {
-				foreach ($screensItems as $screenItemid => $screenItem) {
-					if (bccomp($screenItem['resourceid'], $resourceid) == 0 && $screenItem['resourcetype'] == SCREEN_RESOURCE_GRAPH) {
-						unset($result[$screenItem['screenid']], $screensItems[$screenItemid]);
+			foreach ($restrGraphs as $resourceId) {
+				foreach ($screensItems as $screenItemId => $screenItem) {
+					if (bccomp($screenItem['resourceid'], $resourceId) == 0 && $screenItem['resourcetype'] == SCREEN_RESOURCE_GRAPH) {
+						unset($result[$screenItem['screenid']], $screensItems[$screenItemId]);
 					}
 				}
 			}
 
 			// item
-			foreach ($restrItems as $resourceid) {
-				foreach ($screensItems as $screenItemid => $screenItem) {
-					if (bccomp($screenItem['resourceid'], $resourceid) == 0
+			foreach ($restrItems as $resourceId) {
+				foreach ($screensItems as $screenItemId => $screenItem) {
+					if (bccomp($screenItem['resourceid'], $resourceId) == 0
 							&& uint_in_array($screenItem['resourcetype'], array(SCREEN_RESOURCE_SIMPLE_GRAPH, SCREEN_RESOURCE_PLAIN_TEXT))) {
-						unset($result[$screenItem['screenid']], $screensItems[$screenItemid]);
+						unset($result[$screenItem['screenid']], $screensItems[$screenItemId]);
 					}
 				}
 			}
 
 			// map
-			foreach ($restrMaps as $resourceid) {
-				foreach ($screensItems as $screenItemid => $screenItem) {
-					if (bccomp($screenItem['resourceid'], $resourceid) == 0
+			foreach ($restrMaps as $resourceId) {
+				foreach ($screensItems as $screenItemId => $screenItem) {
+					if (bccomp($screenItem['resourceid'], $resourceId) == 0
 							&& $screenItem['resourcetype'] == SCREEN_RESOURCE_MAP) {
-						unset($result[$screenItem['screenid']], $screensItems[$screenItemid]);
+						unset($result[$screenItem['screenid']], $screensItems[$screenItemId]);
 					}
 				}
 			}
 
 			// screen
-			foreach ($restrScreens as $resourceid) {
-				foreach ($screensItems as $screenItemid => $screenItem) {
-					if (bccomp($screenItem['resourceid'], $resourceid) == 0
+			foreach ($restrScreens as $resourceId) {
+				foreach ($screensItems as $screenItemId => $screenItem) {
+					if (bccomp($screenItem['resourceid'], $resourceId) == 0
 							&& $screenItem['resourcetype'] == SCREEN_RESOURCE_SCREEN) {
-						unset($result[$screenItem['screenid']], $screensItems[$screenItemid]);
+						unset($result[$screenItem['screenid']], $screensItems[$screenItemId]);
 					}
 				}
 			}
 		}
 
-		if (!is_null($options['countOutput'])) {
+		if ($options['countOutput'] !== null) {
 			return $result;
 		}
 
-		// adding ScreenItems
-		if (!is_null($options['selectScreenItems']) && str_in_array($options['selectScreenItems'], $subselectsAllowedOutputs)) {
-			if (!isset($screensItems)) {
-				$screensItems = array();
-				$dbSitems = DBselect('SELECT si.* FROM screens_items si WHERE '.dbConditionInt('si.screenid', $screenids));
-				while ($sitem = DBfetch($dbSitems)) {
-					$screensItems[$sitem['screenitemid']] = $sitem;
-				}
-			}
-
-			foreach ($screensItems as $sitem) {
-				if (!isset($result[$sitem['screenid']]['screenitems'])) {
-					$result[$sitem['screenid']]['screenitems'] = array();
-				}
-
-				$result[$sitem['screenid']]['screenitems'][] = $sitem;
-			}
+		if ($result) {
+			$result = $this->addRelatedObjects($options, $result);
 		}
 
 		// removing keys (hash -> array)
-		if (is_null($options['preservekeys'])) {
+		if ($options['preservekeys'] === null) {
 			$result = zbx_cleanHashes($result);
 		}
 
@@ -399,7 +345,7 @@ class CScreen extends CZBXAPI {
 		$options = array(
 			'filter' => zbx_array_mintersect($keyFields, $data),
 			'preservekeys' => true,
-			'output' => API_OUTPUT_SHORTEN,
+			'output' => array('screenid'),
 			'nopermissions' => true,
 			'limit' => 1
 		);
@@ -420,62 +366,68 @@ class CScreen extends CZBXAPI {
 	 * @throws APIException if the input is invalid
 	 *
 	 * @param array $screens
-	 *
-	 * @return void
 	 */
 	protected function validateCreate(array $screens) {
-		$newScreenNames = zbx_objectValues($screens, 'name');
+		$screenDbFields = array('name' => null);
 
-		foreach ($screens as $screen) {
-			$screenDbFields = array('name' => null);
+		foreach ($screens as &$screen) {
 			if (!check_db_fields($screenDbFields, $screen)) {
-				self::exception(ZBX_API_ERROR_PARAMETERS, _s('Wrong fields for screen "%1$s".', $screen['name']));
+				self::exception(ZBX_API_ERROR_PARAMETERS, _('Incorrect input parameters.'));
 			}
 
-			// check for "templateid", because it is not allowed
+			// "templateid", is not allowed
 			if (array_key_exists('templateid', $screen)) {
-				self::exception(ZBX_API_ERROR_PARAMETERS, _s('Cannot set "templateid" for screen "%1$s".', $screen['name']));
+				self::exception(
+					ZBX_API_ERROR_PARAMETERS,
+					_s('Cannot set "templateid" for screen "%1$s".', $screen['name'])
+				);
 			}
-		}
 
-		$dbScreens = $this->get(array(
-			'filter' => array('name' => $newScreenNames),
-			'output' => API_OUTPUT_EXTEND,
-			'nopermissions' => true
+			unset($screen['screenid']);
+		}
+		unset($screen);
+
+		$dbScreens = API::getApi()->select('screens', array(
+			'filter' => array('name' => zbx_objectValues($screens, 'name')),
+			'output' => array('name')
 		));
+
 		foreach ($dbScreens as $dbScreen) {
 			self::exception(ZBX_API_ERROR_PARAMETERS, _s('Screen "%1$s" already exists.', $dbScreen['name']));
 		}
 	}
 
 	/**
-	 * Create Screen
+	 * Create screen.
 	 *
-	 * @param _array $screens
-	 * @param string $screens['name']
-	 * @param array $screens['hsize']
-	 * @param int $screens['vsize']
+	 * @param array $screens
+	 *
 	 * @return array
 	 */
 	public function create(array $screens) {
 		$screens = zbx_toArray($screens);
+
 		$this->validateCreate($screens);
-		$insertScreenItems = array();
 
-		$screenids = DB::insert('screens', $screens);
+		$screenIds = DB::insert('screens', $screens);
 
-		foreach ($screens as $snum => $screen) {
+		// create screen items
+		$screenItems = array();
+		foreach ($screens as $key => $screen) {
 			if (isset($screen['screenitems'])) {
-				foreach ($screen['screenitems'] as $screenitem) {
-					$screenitem['screenid'] = $screenids[$snum];
-					$insertScreenItems[] = $screenitem;
+				foreach ($screen['screenitems'] as $screenItem) {
+					$screenItem['screenid'] = $screenIds[$key];
+
+					$screenItems[] = $screenItem;
 				}
 			}
 		}
 
-		API::ScreenItem()->create($insertScreenItems);
+		if ($screenItems) {
+			API::ScreenItem()->create($screenItems);
+		}
 
-		return array('screenids' => $screenids);
+		return array('screenids' => $screenIds);
 	}
 
 	/**
@@ -484,130 +436,260 @@ class CScreen extends CZBXAPI {
 	 * @throws APIException if the input is invalid
 	 *
 	 * @param array $screens
-	 *
-	 * @return void
+	 * @param array $dbScreens	array of existing screens with screen IDs as keys
 	 */
-	protected function validateUpdate(array $screens) {
-		$updScreens = $this->get(array(
-			'screenids' => zbx_objectValues($screens, 'screenid'),
-			'editable' => true,
-			'output' => API_OUTPUT_SHORTEN,
-			'preservekeys' => true
-		));
+	protected function validateUpdate(array $screens, array $dbScreens) {
 		foreach ($screens as $screen) {
-			if (!isset($screen['screenid'], $updScreens[$screen['screenid']])) {
-				self::exception(ZBX_API_ERROR_PERMISSIONS, _('No permissions to referred object or it does not exist!'));
+			if (!isset($dbScreens[$screen['screenid']])) {
+				self::exception(ZBX_API_ERROR_PERMISSIONS,
+					_('No permissions to referred object or it does not exist!')
+				);
 			}
 		}
 
 		$screens = $this->extendObjects($this->tableName(), $screens, array('name'));
 
 		foreach ($screens as $screen) {
-			// check for "templateid", because it is not allowed
+			// "templateid" is not allowed
 			if (array_key_exists('templateid', $screen)) {
-				self::exception(ZBX_API_ERROR_PARAMETERS, _s('Cannot update "templateid" for screen "%1$s".', $screen['name']));
+				self::exception(
+					ZBX_API_ERROR_PARAMETERS,
+					_s('Cannot update "templateid" for screen "%1$s".', $screen['name'])
+				);
 			}
 
 			if (isset($screen['name'])) {
-				$existScreen = $this->get(array(
+				$dbScreenExist = API::getApi()->select('screens', array(
 					'filter' => array('name' => $screen['name']),
-					'preservekeys' => true,
-					'nopermissions' => true,
-					'output' => API_OUTPUT_SHORTEN
+					'output' => array('screenid')
 				));
-				$existScreen = reset($existScreen);
+				$dbScreenExist = reset($dbScreenExist);
 
-				if ($existScreen && (bccomp($existScreen['screenid'], $screen['screenid']) != 0)) {
-					self::exception(ZBX_API_ERROR_PERMISSIONS, _s('Screen "%1$s" already exists.', $screen['name']));
+				if ($dbScreenExist && bccomp($dbScreenExist['screenid'], $screen['screenid']) != 0) {
+					self::exception(ZBX_API_ERROR_PARAMETERS, _s('Screen "%1$s" already exists.', $screen['name']));
 				}
 			}
 		}
 	}
 
 	/**
-	 * Update Screen
+	 * Update screen.
 	 *
-	 * @param _array $screens multidimensional array with Hosts data
-	 * @param string $screens['screenid']
-	 * @param int $screens['name']
-	 * @param int $screens['hsize']
-	 * @param int $screens['vsize']
-	 * @return boolean
+	 * @param array $screens
+	 *
+	 * @return array
 	 */
 	public function update(array $screens) {
 		$screens = zbx_toArray($screens);
-		$this->validateUpdate($screens);
-		$update = array();
 
-		foreach ($screens as $screen) {
-			$screenid = $screen['screenid'];
-			unset($screen['screenid']);
-			if (!empty($screen)) {
-				$update[] = array(
-					'values' => $screen,
-					'where' => array('screenid' => $screenid),
-				);
-			}
+		// check screen IDs before doing anything
+		$this->checkObjectIds($screens, 'screenid',
+			_('No "%1$s" given for screen.'),
+			_('Empty screen ID for screen.'),
+			_('Incorrect screen ID.')
+		);
 
-			// udpate screen items
-			if (isset($screen['screenitems'])) {
-				$this->replaceItems($screenid, $screen['screenitems']);
-			}
-		}
-		DB::update('screens', $update);
+		$dbScreens = $this->get(array(
+			'output' => array('screenid', 'hsize', 'vsize'),
+			'selectScreenItems' => array('screenitemid', 'x', 'y', 'colspan', 'rowspan'),
+			'screenids' => zbx_objectValues($screens, 'screenid'),
+			'editable' => true,
+			'preservekeys' => true
+		));
+
+		$this->validateUpdate($screens, $dbScreens);
+		$this->updateReal($screens);
+		$this->truncateScreenItems($screens, $dbScreens);
 
 		return array('screenids' => zbx_objectValues($screens, 'screenid'));
 	}
 
 	/**
-	 * Delete Screen
+	 * Saves screens and screen items.
 	 *
-	 * @param array $screenids
-	 * @return boolean
+	 * @param array $screens
 	 */
-	public function delete($screenids) {
-		$screenids = zbx_toArray($screenids);
+	protected function updateReal(array $screens) {
+		$update = array();
 
-		$delScreens = $this->get(array(
-			'screenids' => $screenids,
-			'editable' => true,
-			'preservekeys' => true
-		));
-		foreach ($screenids as $screenid) {
-			if (!isset($delScreens[$screenid])) {
-				self::exception(ZBX_API_ERROR_PERMISSIONS, _('No permissions to referred object or it does not exist!'));
+		foreach ($screens as $screen) {
+			$screenId = $screen['screenid'];
+			unset($screen['screenid'], $screen['screenitems']);
+
+			if ($screen) {
+				$update[] = array(
+					'values' => $screen,
+					'where' => array('screenid' => $screenId)
+				);
 			}
 		}
 
-		DB::delete('screens_items', array('screenid'=>$screenids));
-		DB::delete('screens_items', array('resourceid'=>$screenids, 'resourcetype'=>SCREEN_RESOURCE_SCREEN));
-		DB::delete('slides', array('screenid'=>$screenids));
-		DB::delete('screens', array('screenid'=>$screenids));
+		DB::update('screens', $update);
 
-		return array('screenids' => $screenids);
+		// replace screen items
+		foreach ($screens as $screen) {
+			if (isset($screen['screenitems'])) {
+				$this->replaceItems($screen['screenid'], $screen['screenitems']);
+			}
+		}
 	}
 
+	/**
+	 * Delete or reduce the size of screens items when reducing the size of the screens.
+	 *
+	 * Each array in the $screens array must have the following values:
+	 * - screenid
+	 * - hsize
+	 * - vsize
+	 *
+	 * Each array in the $dbScreens array must have the following values:
+	 * - screenid
+	 * - hsize
+	 * - vsize
+	 * - screenitems
+	 *
+	 * @param array $screens
+	 * @param array $dbScreens	array of existing screens with screen IDs as keys
+	 */
+	protected function truncateScreenItems(array $screens, array $dbScreens) {
+		$deleteScreenItemIds = array();
+		$updateScreenItems = array();
+		foreach ($screens as $screen) {
+			$dbScreen = $dbScreens[$screen['screenid']];
+			$dbScreenItems = $dbScreen['screenitems'];
+
+			if (isset($screen['hsize'])) {
+				foreach ($dbScreenItems as $dbScreenItem) {
+					// delete screen items that are located on the deleted columns
+					if ($dbScreenItem['x'] > $screen['hsize'] - 1) {
+						$deleteScreenItemIds[$dbScreenItem['screenitemid']] = $dbScreenItem['screenitemid'];
+					}
+					// reduce the colspan of screenitems that are displayed on the deleted columns
+					elseif (($dbScreenItem['x'] + $dbScreenItem['colspan']) > $screen['hsize']) {
+						$colspan = $screen['hsize'] - $dbScreenItem['x'];
+
+						$screenItemId = $dbScreenItem['screenitemid'];
+						$updateScreenItems[$screenItemId]['screenitemid'] = $dbScreenItem['screenitemid'];
+						$updateScreenItems[$screenItemId]['colspan'] = $colspan;
+					}
+				}
+			}
+
+			if (isset($screen['vsize'])) {
+				foreach ($dbScreenItems as $dbScreenItem) {
+					// delete screen items that are located on the deleted rows
+					if ($dbScreenItem['y'] > $screen['vsize'] - 1) {
+						$deleteScreenItemIds[$dbScreenItem['screenitemid']] = $dbScreenItem['screenitemid'];
+					}
+					// reduce the rowspan of screenitems that are displayed on the deleted rows
+					elseif (($dbScreenItem['y'] + $dbScreenItem['rowspan']) > $screen['vsize']) {
+						$rowspan = $screen['vsize'] - $dbScreenItem['y'];
+
+						$screenItemId = $dbScreenItem['screenitemid'];
+						$updateScreenItems[$screenItemId]['screenitemid'] = $dbScreenItem['screenitemid'];
+						$updateScreenItems[$screenItemId]['rowspan'] = $rowspan;
+					}
+				}
+			}
+		}
+
+		if ($deleteScreenItemIds) {
+			DB::delete('screens_items', array('screenitemid' => $deleteScreenItemIds));
+		}
+
+		foreach ($updateScreenItems as $screenItem) {
+			DB::updateByPk('screens_items', $screenItem['screenitemid'], $screenItem);
+		}
+	}
 
 	/**
-	 * Replaces all of the screen items of the given screen with the new ones.
+	 * Validate input for delete method.
 	 *
-	 * @param int $screenid			The ID of the target screen
-	 * @param array $screenItems	An array of screen items
+	 * @param array $screenIds
 	 */
-	protected function replaceItems($screenid, $screenItems) {
-		$dbScreenItems = API::ScreenItem()->get(array(
-			'screenids' => $screenid,
+	protected function validateDelete(array $screenIds) {
+		$dbScreens = $this->get(array(
+			'screenids' => $screenIds,
+			'editable' => true,
 			'preservekeys' => true
 		));
 
-		foreach ($screenItems as &$screenItem) {
-			$screenItem['screenid'] = $screenid;
+		foreach ($screenIds as $screenId) {
+			if (!isset($dbScreens[$screenId])) {
+				self::exception(ZBX_API_ERROR_PERMISSIONS, _('No permissions to referred object or it does not exist!'));
+			}
 		}
-		$result = API::ScreenItem()->updateByPosition($screenItems);
+	}
 
-		// deleted the old items
-		$deleteItemids = array_diff(array_keys($dbScreenItems), $result['screenitemids']);
-		API::ScreenItem()->delete($deleteItemids);
+	/**
+	 * Delete screen.
+	 *
+	 * @param array $screenIds
+	 *
+	 * @return array
+	 */
+	public function delete($screenIds) {
+		$screenIds = zbx_toArray($screenIds);
+
+		$this->validateDelete($screenIds);
+
+		DB::delete('screens_items', array('screenid' => $screenIds));
+		DB::delete('screens_items', array('resourceid' => $screenIds, 'resourcetype' => SCREEN_RESOURCE_SCREEN));
+		DB::delete('slides', array('screenid' => $screenIds));
+		DB::delete('screens', array('screenid' => $screenIds));
+		DB::delete('profiles', array(
+			'idx' => 'web.favorite.screenids',
+			'source' => 'screenid',
+			'value_id' => $screenIds
+		));
+
+		return array('screenids' => $screenIds);
+	}
+
+	/**
+	 * Replaces all of the screen items of the given screen.
+	 *
+	 * @param int   $screenId		The ID of the target screen
+	 * @param array $screenItems	An array of screen items
+	 */
+	protected function replaceItems($screenId, $screenItems) {
+		foreach ($screenItems as &$screenItem) {
+			$screenItem['screenid'] = $screenId;
+		}
+		unset($screenItem);
+
+		$createScreenItems = $deleteScreenItems = $updateScreenItems = array();
+		$deleteScreenItemsIds = array();
+
+		$dbScreenItems = API::ScreenItem()->get(array(
+			'screenids' => $screenId,
+			'preservekeys' => true
+		));
+
+		foreach ($screenItems as $screenItem) {
+			if (isset($screenItem['screenitemid']) && isset($dbScreenItems[$screenItem['screenitemid']])) {
+				$updateScreenItems[$screenItem['screenitemid']] = $screenItem;
+			}
+			else {
+				$createScreenItems[] = $screenItem;
+			}
+		}
+
+		foreach ($dbScreenItems as $dbScreenItem) {
+			if (!isset($updateScreenItems[$dbScreenItem['screenitemid']])) {
+				$deleteScreenItemsIds[$dbScreenItem['screenitemid']] = $dbScreenItem['screenitemid'];
+			}
+		}
+
+		if ($deleteScreenItemsIds) {
+			API::ScreenItem()->delete($deleteScreenItemsIds);
+		}
+		if ($updateScreenItems) {
+			API::ScreenItem()->update($updateScreenItems);
+		}
+		if ($createScreenItems) {
+			API::ScreenItem()->create($createScreenItems);
+		}
 	}
 
 	protected function applyQueryNodeOptions($tableName, $tableAlias, array $options, array $sqlParts) {
@@ -617,5 +699,28 @@ class CScreen extends CZBXAPI {
 		}
 
 		return $sqlParts;
+	}
+
+	protected function addRelatedObjects(array $options, array $result) {
+		$result = parent::addRelatedObjects($options, $result);
+
+		$screenIds = array_keys($result);
+
+		// adding ScreenItems
+		if ($options['selectScreenItems'] !== null && $options['selectScreenItems'] != API_OUTPUT_COUNT) {
+			$screenItems = API::getApi()->select('screens_items', array(
+				'output' => $this->outputExtend('screens_items', array('screenid', 'screenitemid'), $options['selectScreenItems']),
+				'filter' => array('screenid' => $screenIds),
+				'preservekeys' => true,
+				'nodeids' => get_current_nodeid(true)
+			));
+
+			$relationMap = $this->createRelationMap($screenItems, 'screenid', 'screenitemid');
+
+			$screenItems = $this->unsetExtraFields($screenItems, array('screenid', 'screenitemid'), $options['selectScreenItems']);
+			$result = $relationMap->mapMany($result, $screenItems, 'screenitems');
+		}
+
+		return $result;
 	}
 }

@@ -1,5 +1,16 @@
+local bin = require "bin"
+local bit = require "bit"
+local ipOps = require "ipOps"
+local math = require "math"
+local nmap = require "nmap"
+local packet = require "packet"
+local shortport = require "shortport"
+local stdnse = require "stdnse"
+local string = require "string"
+local table = require "table"
+
 author = "jah"
-license = "Same as Nmap--See http://nmap.org/book/man-legal.html"
+license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
 categories = {"discovery", "intrusive"}
 description = [[
 Obtains and prints an NTP server's monitor data.
@@ -28,8 +39,8 @@ the NTP service.
 It should be noted that the very nature of the NTP monitor data means that the
 Mode 7 commands sent by this script are recorded by the target (and will often
 appear in these results). Since the monitor data is a MRU list, it is probable
-that you can overwrite the record of the Mode 7 command by sending an innoccuous
-looking Client Mode request. This can be acheived easily using Nmap:
+that you can overwrite the record of the Mode 7 command by sending an innocuous
+looking Client Mode request. This can be achieved easily using Nmap:
 <code>nmap -sU -pU:123 -Pn -n --max-retries=0 <target></code>
 
 Notes:
@@ -79,18 +90,11 @@ local MAX_RECORDS  = 1200
 
 local TIMEOUT      = 5000 -- ms
 
-local bin    = require 'bin'
-local bit    = require 'bit'
-local nmap   = require 'nmap'
-local ipOps  = require 'ipOps'
-local packet = require 'packet'
-local stdnse = require 'stdnse'
-local short  = require 'shortport'
 
 ---
 -- ntp-monlist will run against the ntp service which only runs on UDP 123
 --
-portrule = short.port_or_service(123, 'ntp', {'udp'})
+portrule = shortport.port_or_service(123, 'ntp', {'udp'})
 
 ---
 -- Send an NTPv2 Mode 7 'monlist' command to the target, receive any responses
@@ -155,10 +159,7 @@ function doquery(sock, host, port, inum, rcode, records)
   records.peerlist = records.peerlist or {}
 
   if #records + #records.peerlist >= MAX_RECORDS then
-    stdnse.print_debug(1,
-      'MAX_RECORDS has been reached for target %s - only processing what we have already!',
-      target
-    )
+    stdnse.debug1('MAX_RECORDS has been reached for target %s - only processing what we have already!', target)
     if sock then sock:close() end
     return nil
   end
@@ -169,25 +170,17 @@ function doquery(sock, host, port, inum, rcode, records)
     sock:set_timeout(TIMEOUT)
     local constatus, conerr = sock:connect(host, port)
     if not constatus then
-      stdnse.print_debug(1,
-        'Error establishing a UDP connection for %s - %s', target, conerr
-      )
+      stdnse.debug1('Error establishing a UDP connection for %s - %s', target, conerr)
       return nil
     end
   end
 
   -- send
-  stdnse.print_debug(2,
-    'Sending NTPv2 Mode 7 Request %d Implementation %d to %s.',
-    rcode, inum, target
-  )
+  stdnse.debug2('Sending NTPv2 Mode 7 Request %d Implementation %d to %s.', rcode, inum, target)
   local ntpData = getPrivateMode(inum, rcode)
   local sendstatus, senderr = sock:send(ntpData)
   if not sendstatus then
-    stdnse.print_debug(1,
-      'Error sending NTP request to %s:%d - %s',
-      host.ip, port.number,  senderr
-    )
+    stdnse.debug1('Error sending NTP request to %s:%d - %s', host.ip, port.number, senderr)
     sock:close()
     return nil
   end
@@ -215,25 +208,16 @@ function doquery(sock, host, port, inum, rcode, records)
     if not track.errcond then
       local remain = parse_v2m7(packet_to_parse, records)
       if remain > 0 then
-        stdnse.print_debug(1,
-          'MAX_RECORDS has been reached while parsing NTPv2 Mode 7 Code %d responses from the target %s.',
-          rcode, target
-        )
+        stdnse.debug1('MAX_RECORDS has been reached while parsing NTPv2 Mode 7 Code %d responses from the target %s.', rcode, target)
         track.rcv_again = false
       elseif remain == -1 then
-        stdnse.print_debug(1,
-          'Parsing of NTPv2 Mode 7 implementation number %d request code %d response from %s has not been implemented.',
-          inum, rcode, target
-        )
+        stdnse.debug1('Parsing of NTPv2 Mode 7 implementation number %d request code %d response from %s has not been implemented.', inum, rcode, target)
         track.rcv_again = false
       end
     end
     records.badpkts = records.badpkts + track.evil_pkts
     if records.badpkts >= MAXIMUM_EVIL then
-      stdnse.print_debug(1,
-        'Had %d bad packets from %s - Not continuing with this host!',
-        target, records.badpkts
-      )
+      stdnse.debug1('Had %d bad packets from %s - Not continuing with this host!', target, records.badpkts)
       sock:close()
       return nil
     end
@@ -266,16 +250,15 @@ function getPrivateMode(impl, requestCode)
   -- Request Code 8bits: e.g. 0x2a (MON_GETLIST_1)
   -- Err 4bits: 0, Number of Data Items 12bits: 0
   -- MBZ 4bits: 0, Size of Data Items 12bits: 0
-  pay = string.char(
+  return string.char(
     0x17, 0x00, impl or 0x03, requestCode or 0x2a,
     0x00, 0x00, 0x00, 0x00
   )
   -- Data 40 Octets: 0
-  pay = pay .. string.char(0x00):rep(40)
+  .. ("\x00"):rep(40)
   -- The following are optional if the Authenticated bit is set:
   -- Encryption Keyid 4 Octets: 0
   -- Message Authentication Code 16 Octets (MD5): 0
-  return pay
 end
 
 
@@ -302,9 +285,7 @@ function check(status, response, track)
     track.errcond = true
     track.rcv_again = false
     if track.rcv_again then -- we were expecting more responses
-      stdnse.print_debug(1,
-        'Socket error while reading from %s - %s', track.target, response
-      )
+      stdnse.debug1('Socket error while reading from %s - %s', track.target, response)
     end
     return nil
   end
@@ -318,9 +299,7 @@ function check(status, response, track)
   if pkt == nil then
     track.errcond = true
     track.evil_pkts = track.evil_pkts+1
-    stdnse.print_debug(1,
-      'Failed to create a Packet object with response from %s', track.target
-    )
+    stdnse.debug1('Failed to create a Packet object with response from %s', track.target)
     return nil
   end
 
@@ -336,10 +315,7 @@ function check(status, response, track)
   if val < 8 then
     track.errcond = true
     track.evil_pkts = track.evil_pkts+1
-    stdnse.print_debug(1,
-      'Expected a response of at least 8 bytes from %s, got %d bytes.',
-      track.target, val
-    )
+    stdnse.debug1('Expected a response of at least 8 bytes from %s, got %d bytes.', track.target, val)
     return nil
   end
 
@@ -347,9 +323,7 @@ function check(status, response, track)
   if bit.rshift(pkt:u8(off), 7) ~= 1 then
     track.errcond = true
     track.evil_pkts = track.evil_pkts+1
-    stdnse.print_debug(1,
-      'Bad response from %s - did not have response bit set.', track.target
-    )
+    stdnse.debug1('Bad response from %s - did not have response bit set.', track.target)
     return nil
   end
   -- version is as expected
@@ -357,10 +331,7 @@ function check(status, response, track)
   if val ~= track.v then
     track.errcond = true
     track.evil_pkts = track.evil_pkts+1
-    stdnse.print_debug(1,
-      'Bad response from %s - expected NTP version %d, got %d', track.target,
-      track.v, val
-    )
+    stdnse.debug1('Bad response from %s - expected NTP version %d, got %d', track.target, track.v, val)
     return nil
   end
   -- mode is as expected
@@ -368,10 +339,7 @@ function check(status, response, track)
   if val ~= track.m then
     track.errcond = true
     track.evil_pkts = track.evil_pkts+1
-    stdnse.print_debug(1,
-      'Bad response from %s - expected NTP mode %d, got %d', track.target,
-      track.m, val
-    )
+    stdnse.debug1('Bad response from %s - expected NTP mode %d, got %d', track.target, track.m, val)
     return nil
   end
   -- implementation number is as expected
@@ -379,10 +347,7 @@ function check(status, response, track)
   if val ~= track.i then
     track.errcond = true
     track.evil_pkts = track.evil_pkts+1
-    stdnse.print_debug(1,
-      'Bad response from %s - expected NTP implementation number %d, got %d',
-      track.target, track.i, val
-    )
+    stdnse.debug1('Bad response from %s - expected NTP implementation number %d, got %d', track.target, track.i, val)
     return nil
   end
   -- request code is as expected
@@ -390,10 +355,7 @@ function check(status, response, track)
   if val ~= track.c then
     track.errcond = true
     track.evil_pkts = track.evil_pkts+1
-    stdnse.print_debug(1,
-      'Bad response from %s - expected NTP request code %d got %d.', track.target,
-      track.c, val
-    )
+    stdnse.debug1('Bad response from %s - expected NTP request code %d got %d.', track.target, track.c, val)
     return nil
   end
   -- NTP error conditions - defined codes are not evil (bogus codes are).
@@ -403,7 +365,7 @@ function check(status, response, track)
     -- NoOp
   elseif err == 1 then
     fail = true
-    msg = 'Incompatable Implementation Number'
+    msg = 'Incompatible Implementation Number'
   elseif err == 2 then
     fail = true
     msg = 'Unimplemented Request Code'
@@ -426,9 +388,7 @@ function check(status, response, track)
   end
   if fail then
     track.errcond = true
-    stdnse.print_debug(1,
-      'Response from %s was NTP Error Code %d - "%s"', track.target, err, msg
-    )
+    stdnse.debug1('Response from %s was NTP Error Code %d - "%s"', track.target, err, msg)
     return nil
   end
 
@@ -443,32 +403,24 @@ function check(status, response, track)
   if icount < 1 then
     track.errcond = true
     track.evil_pkts = track.evil_pkts+1
-    stdnse.print_debug(1,
-      'Expected at least one record from %s.', track.target
-    )
+    stdnse.debug1('Expected at least one record from %s.', track.target)
     return nil
   elseif icount*isize + 8 > response:len() then
     track.errcond = true
     track.evil_pkts = track.evil_pkts+1
-    stdnse.print_debug(1,
-      'NTP Mode 7 response from %s has invalid count (%d) and/or size (%d) values.',
-      track.target, icount, isize
-    )
+    stdnse.debug1('NTP Mode 7 response from %s has invalid count (%d) and/or size (%d) values.', track.target, icount, isize)
     return nil
   elseif icount*isize > 500 then
     track.errcond = true
     track.evil_pkts = track.evil_pkts+1
-    stdnse.print_debug(1,
-      'NTP Mode 7 data section is larger than 500 bytes (%d) in response from %s.',
-      icount*isize, track.target
-    )
+    stdnse.debug1('NTP Mode 7 data section is larger than 500 bytes (%d) in response from %s.', icount*isize, track.target)
     return nil
   end
 
   if track.c == 42 and track.i == 3 and isize ~= 72 then
     track.errcond = true
     track.evil_pkts = track.evil_pkts+1
-    stdnse.print_debug(1,
+    stdnse.debug1(
       'Expected item size of 72 bytes (got %d) for request code 42 implementation number 3 in response from %s.',
       isize, track.target
     )
@@ -476,7 +428,7 @@ function check(status, response, track)
   elseif track.c == 0 and track.i == 3 and isize ~= 32 then
     track.errcond = true
     track.evil_pkts = track.evil_pkts+1
-    stdnse.print_debug(1,
+    stdnse.debug1(
       'Expected item size of 32 bytes (got %d) for request code 0 implementation number 3 in response from %s.',
       isize, track.target
     )
@@ -489,23 +441,22 @@ function check(status, response, track)
     track.hseq = track.hseq+1
   elseif track.mseq:match(('|%d|'):format(seq)) then -- one of our missing seq#
     track.mseq:gsub(('|%d|'):format(seq), '|', 1)
-    stdnse.print_debug(3,
-      'Response from %s with sequence number %s was previously missing.', -- this never seems to happen!
+    stdnse.debug3('Response from %s with sequence number %s was previously missing.', -- this never seems to happen!
       track.target, seq
     )
   elseif seq > track.hseq then -- some seq# have gone missing
     for i=track.hseq+1, seq-1 do
       track.mseq = ('%s%d|'):format(track.mseq, i)
     end
-    stdnse.print_debug(3,
+    stdnse.debug3(
       'Response from %s was out of sequence - expected #%d but got #%d (missing:%s)',
       track.target, track.hseq+1, seq, track.mseq
     )
     track.hseq = seq
   else -- seq <= hseq !duplicate!
     track.evil_pkts = track.evil_pkts+1
-    stdnse.print_debug(1,
-      'Response from %s had a duplcate sequence number - dropping it.',
+    stdnse.debug1(
+      'Response from %s had a duplicate sequence number - dropping it.',
       track.target
     )
     return nil
@@ -543,16 +494,16 @@ function make_udp_packet(response)
 
   -- dummy headers
   -- ip
-  local dh = string.char(0x45, 0x00)
-  dh = dh .. bin.pack('S', iplen)
-  dh = dh .. string.char(
-    0x00, 0x00, 0x40, 0x00, 0x40, 0x11, 0x00, 0x00,
-    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-  -- udp
-    0x00, 0x00, 0x00, 0x00
-  )
-  dh = dh .. bin.pack('S', udplen)
-  dh = dh .. string.char(0x00, 0x00)
+  local dh = "\x45\x00" -- IPv4, 20-byte header, no DSCP, no ECN
+  .. bin.pack('>S', iplen) -- total length
+  .. "\x00\x00" -- IPID 0
+  .. "\x40\x00" -- DF
+  .. "\x40\x11" -- TTL 0x40, UDP (proto 17)
+  .. "\x00\x00" -- checksum 0
+  .. "\x00\x00\x00\x00\x00\x00\x00\x00" -- Source, destination 0.0.0.0
+  .. "\x00\x00\x00\x00" -- UDP source, dest port 0
+  .. bin.pack('S', udplen) -- UDP length
+  .. "\x00\x00" -- UDP checksum 0
 
   return packet.Packet:new(dh .. response, iplen)
 
@@ -613,14 +564,14 @@ function parse_monlist_1(pkt, recs)
     if #recs + #recs.peerlist >= MAX_RECORDS then
       return remaining
     end
-    pos = off + isize * (i-1) -- beginning of item
+    local pos = off + isize * (i-1) -- beginning of item
     local t = {}
 
     -- src and dst addresses
     -- IPv4 if impl == 2 or v6 flag is not set
     if isize == 32 or pkt:u8(pos+32) ~= 1 then -- IPv4
-      local saddr = packet.toip(pkt:raw(pos+16, 4))
-      local daddr = packet.toip(pkt:raw(pos+20, 4))
+      local saddr = ipOps.str_to_ip(pkt:raw(pos+16, 4))
+      local daddr = ipOps.str_to_ip(pkt:raw(pos+20, 4))
       t.saddr = saddr
       t.daddr = daddr
     else -- IPv6
@@ -681,13 +632,13 @@ function parse_peerlist(pkt, recs)
     if #recs + #recs.peerlist >= MAX_RECORDS then
       return remaining
     end
-    pos = off + (i * isize) -- beginning of item
+    local pos = off + (i * isize) -- beginning of item
     local t = {}
 
     -- src address
     -- IPv4 if impl == 2 or v6 flag is not set
     if isize == 8 or pkt:u8(pos+8) ~= 1 then
-      local saddr = packet.toip(pkt:raw(pos, 4))
+      local saddr = ipOps.str_to_ip(pkt:raw(pos, 4))
       t.saddr = saddr
     else -- IPv6
       local saddr = {}
@@ -803,7 +754,7 @@ function interpret(recs, targetip)
       elseif r.flags == 4 then
         t.casts.m[af][r.daddr] = r.daddr
       else -- shouldn't happen
-        stdnse.print_debug(1,
+        stdnse.debug1(
           'Host associated with %s had transmission flag value %d - Strange!',
           targetip, r.flags
         )
@@ -1065,7 +1016,7 @@ function output_ips(t)
   local i = 1
   local limit = #t['6']
   while i <= limit do
-    work = {}
+    local work = {}
     local len = 0
     local j = i
     repeat

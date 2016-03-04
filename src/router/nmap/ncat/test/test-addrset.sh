@@ -1,51 +1,61 @@
-#!/usr/bin/env bash
+#!/bin/sh
 
 # Automated tests for the addrset functions in ncat_hostmatch.c. This
 # program runs various addresses against different host specifications
 # and checks that the output is what is expected.
 
 ADDRSET=./addrset
+TESTS=0
+TEST_PASS=0
+TEST_FAIL=0
 
 # Takes as arguments a whitespace-separated list of host specifications
 # and a space-separated list of expected matching addresses. Tests hosts
 # are passed in stdin.
-function test_addrset() {
+test_addrset() {
 	specs=$1
 	expected=$2
 	result=$($ADDRSET $specs)
 	ret=$?
 	# Change newlines to spaces.
 	result=$(echo $result)
+	TESTS=$(expr $TESTS + 1);
 	if [ "$ret" != "0" ]; then
 		echo "FAIL $ADDRSET returned $ret."
+		TEST_FAIL=$(expr $TEST_FAIL + 1)
 	elif [ "$result" != "$expected" ]; then
 		echo "FAIL \"$result\" !="
 		echo "     \"$expected\"."
+		TEST_FAIL=$(expr $TEST_FAIL + 1)
 	else
 		echo "PASS $specs"
+		TEST_PASS=$(expr $TEST_PASS + 1)
 	fi
 }
 
 # Takes as an argument a host specification with invalid syntax. The
 # test passes if addrset returns with a non-zero exit code.
-function expect_fail() {
+expect_fail() {
 	specs=$1
 	$ADDRSET $specs < /dev/null 2> /dev/null
 	ret=$?
-	if [ "$ret" == "0" ]; then
+	TESTS=$(expr $TESTS + 1)
+	if [ "$ret" = "0" ]; then
 		echo "FAIL $ADDRSET $specs was expected to fail, but didn't."
+		TEST_FAIL=$(expr $TEST_FAIL + 1)
 	else
 		echo "PASS $specs"
+		TEST_PASS=$(expr $TEST_PASS + 1)
 	fi
 }
 
 # seq replacement for systems without seq.
-function seq() {
+seq() {
 	low=$1
 	high=$2
 	while [ $low -le $high ]; do
 		echo $low
-		low=$((low + 1))
+		low=$(expr $low + 1)
 	done
 }
 
@@ -218,23 +228,23 @@ ff::00
 EOF
 
 # Name lookup.
-test_addrset "google.com" "google.com" <<EOF
+test_addrset "scanme.nmap.org" "scanme.nmap.org" <<EOF
 1:2::3:4
 1.2.3.4
-google.com
+scanme.nmap.org
 EOF
 
 # Name lookup combined with CIDR netmask.
-test_addrset "google.com/30" "google.com" <<EOF
+test_addrset "scanme.nmap.org/30" "scanme.nmap.org" <<EOF
 1:2::3:4
 1.2.3.4
-google.com
+scanme.nmap.org
 EOF
 
 # Name lookup combined with /0 CIDR netmask.
-test_addrset "google.com/0" "1.2.3.4 google.com" <<EOF
+test_addrset "scanme.nmap.org/0" "1.2.3.4 scanme.nmap.org" <<EOF
 1.2.3.4
-google.com
+scanme.nmap.org
 EOF
 
 expect_fail "."
@@ -296,3 +306,9 @@ expect_fail "FF::FF/129"
 # 1.2.0.3
 # 1.2.3.4
 # EOF
+
+if [ "$TEST_FAIL" -gt 0 ]; then
+	echo "$TEST_PASS / $TESTS passed, $TEST_FAIL failed"
+	exit 1
+fi
+echo "$TEST_PASS / $TESTS passed"

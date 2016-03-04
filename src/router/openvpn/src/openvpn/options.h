@@ -596,7 +596,11 @@ struct options
   bool exit_event_initial_state;
   bool show_net_up;
   int route_method;
+  bool block_outside_dns;
 #endif
+
+  bool use_peer_id;
+  uint32_t peer_id;
 };
 
 #define streq(x, y) (!strcmp((x), (y)))
@@ -632,6 +636,7 @@ struct options
 #define OPT_P_SOCKBUF         (1<<25)
 #define OPT_P_SOCKFLAGS       (1<<26)
 #define OPT_P_CONNECTION      (1<<27)
+#define OPT_P_PEER_ID         (1<<28)
 
 #define OPT_P_DEFAULT   (~(OPT_P_INSTANCE|OPT_P_PULL_MODE))
 
@@ -685,6 +690,12 @@ void parse_argv (struct options *options,
 void notnull (const char *arg, const char *description);
 
 void usage_small (void);
+
+void show_library_versions(const unsigned int flags);
+
+#ifdef WIN32
+void show_windows_version(const unsigned int flags);
+#endif
 
 void init_options (struct options *o, const bool init_gc);
 void uninit_options (struct options *o);
@@ -774,8 +785,7 @@ void options_string_import (struct options *options,
 			    struct env_set *es);
 
 bool get_ipv6_addr( const char * prefix_str, struct in6_addr *network,
-		    unsigned int * netbits, char ** printable_ipv6, 
-		    int msglevel );
+		    unsigned int * netbits, int msglevel );
 
 /*
  * inline functions

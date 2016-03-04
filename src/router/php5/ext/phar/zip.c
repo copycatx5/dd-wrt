@@ -2,7 +2,7 @@
   +----------------------------------------------------------------------+
   | ZIP archive support for Phar                                         |
   +----------------------------------------------------------------------+
-  | Copyright (c) 2007-2014 The PHP Group                                |
+  | Copyright (c) 2007-2015 The PHP Group                                |
   +----------------------------------------------------------------------+
   | This source file is subject to version 3.01 of the PHP license,      |
   | that is bundled with this package in the file LICENSE, and is        |
@@ -396,7 +396,9 @@ foundit:
 
 		if (entry.filename[entry.filename_len - 1] == '/') {
 			entry.is_dir = 1;
-			entry.filename_len--;
+			if(entry.filename_len > 1) {
+				entry.filename_len--;
+			}
 			entry.flags |= PHAR_ENT_PERM_DEF_DIR;
 		} else {
 			entry.is_dir = 0;

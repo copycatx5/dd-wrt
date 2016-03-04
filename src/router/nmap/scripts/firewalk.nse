@@ -1,3 +1,12 @@
+local bin = require "bin"
+local ipOps = require "ipOps"
+local math = require "math"
+local nmap = require "nmap"
+local packet = require "packet"
+local stdnse = require "stdnse"
+local tab = require "tab"
+local table = require "table"
+
 description = [[
 Tries to discover firewall rules using an IP TTL expiration technique known
 as firewalking.
@@ -38,11 +47,11 @@ firewalk tool.
 -- nmap --script=firewalk --traceroute --script-args=firewalk.max-probed-ports=7 <host>
 --
 --
--- @args firewalk.max-retries the maximum number of allowed retransmissions
--- @args firewalk.recv-timeout the duration of the packets capture loop (in milliseconds)
--- @args firewalk.probe-timeout validity period of a probe (in milliseconds)
--- @args firewalk.max-active-probes maximum number of parallel active probes
--- @args firewalk.max-probed-ports maximum number of ports to probe per protocol. Set to -1 to scan every filtered ports
+-- @args firewalk.max-retries the maximum number of allowed retransmissions.
+-- @args firewalk.recv-timeout the duration of the packets capture loop (in milliseconds).
+-- @args firewalk.probe-timeout validity period of a probe (in milliseconds).
+-- @args firewalk.max-active-probes maximum number of parallel active probes.
+-- @args firewalk.max-probed-ports maximum number of ports to probe per protocol. Set to -1 to scan every filtered port.
 --
 --
 -- @output
@@ -63,7 +72,7 @@ firewalk tool.
 
 author = "Henri Doreau"
 
-license = "Same as Nmap--See http://nmap.org/book/man-legal.html"
+license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
 
 categories = {"safe", "discovery"}
 
@@ -73,10 +82,6 @@ categories = {"safe", "discovery"}
 --  o remove traceroute dependency
 
 
-require('bin')
-require('stdnse')
-require('packet')
-require('tab')
 
 
 -----=  scan parameters defaults  =-----
@@ -123,19 +128,6 @@ local proto_vtable = {}
 -- Layer 3 specific function tables for the scanner
 local Firewalk = {}
 
-
---- Printable representation of a v4 or v6 IP address.
--- @param addr Binary representation of the address
--- @return the printable representation of the address, as a string.
-local function toip(addr)
-  -- XXX Beware this function uses nmap.address_family() to format the result.
-
-  if nmap.address_family() == "inet" then
-    return packet.toip(addr)
-  else
-    return packet.toipv6(addr)
-  end
-end
 
 --- lookup for TTL of a given gateway in a traceroute results table
 -- @param traceroute a host traceroute results table
@@ -189,7 +181,7 @@ local tcp_funcs_v4 = {
 
     if port and scanner.ports.tcp[port] then
 
-      stdnse.print_debug("Marking port %d/tcp v4 as forwarded (reply from %s)", ip2.tcp_dport, ip.ip_src)
+      stdnse.debug1("Marking port %d/tcp v4 as forwarded (reply from %s)", ip2.tcp_dport, ip.ip_src)
 
       -- mark the gateway as forwarding the packet
       scanner.ports.tcp[port].final_ttl = gateway_ttl(scanner.target.traceroute, ip.ip_src)
@@ -203,7 +195,7 @@ local tcp_funcs_v4 = {
       end
 
     else
-      stdnse.print_debug("Invalid reply to port %d/tcp", ip2.tcp_dport)
+      stdnse.debug1("Invalid reply to port %d/tcp", ip2.tcp_dport)
     end
   end,
 
@@ -253,7 +245,7 @@ local udp_funcs_v4 = {
 
     if port and scanner.ports.udp[port] then
 
-      stdnse.print_debug("Marking port %d/udp v4 as forwarded", ip2.udp_dport)
+      stdnse.debug1("Marking port %d/udp v4 as forwarded", ip2.udp_dport)
 
       -- mark the gateway as forwarding the packet
       scanner.ports.udp[port].final_ttl = gateway_ttl(scanner.target.traceroute, ip.ip_src)
@@ -266,7 +258,7 @@ local udp_funcs_v4 = {
       end
 
     else
-      stdnse.print_debug("Invalid reply to port %d/udp", ip2.udp_dport)
+      stdnse.debug1("Invalid reply to port %d/udp", ip2.udp_dport)
     end
 
   end,
@@ -316,7 +308,7 @@ local tcp_funcs_v6 = {
 
     if port and scanner.ports.tcp[port] then
 
-      stdnse.print_debug("Marking port %d/tcp v6 as forwarded (reply from %s)", ip2.tcp_dport, ip.ip_src)
+      stdnse.debug1("Marking port %d/tcp v6 as forwarded (reply from %s)", ip2.tcp_dport, ip.ip_src)
 
       -- mark the gateway as forwarding the packet
       scanner.ports.tcp[port].final_ttl = gateway_ttl(scanner.target.traceroute, ip.ip_src)
@@ -330,7 +322,7 @@ local tcp_funcs_v6 = {
       end
 
     else
-      stdnse.print_debug("Invalid reply to port %d/tcp", ip2.tcp_dport)
+      stdnse.debug1("Invalid reply to port %d/tcp", ip2.tcp_dport)
     end
   end,
 
@@ -378,7 +370,7 @@ local udp_funcs_v6 = {
 
     if port and scanner.ports.udp[port] then
 
-      stdnse.print_debug("Marking port %d/udp v6 as forwarded (reply from %s)", ip2.udp_dport, ip2.ip_src)
+      stdnse.debug1("Marking port %d/udp v6 as forwarded (reply from %s)", ip2.udp_dport, ip2.ip_src)
 
       -- mark the gateway as forwarding the packet
       scanner.ports.udp[port].final_ttl = gateway_ttl(scanner.target.traceroute, ip.ip_src)
@@ -391,7 +383,7 @@ local udp_funcs_v6 = {
       end
 
     else
-      stdnse.print_debug("Invalid reply to port %d/udp", ip2.udp_dport)
+      stdnse.debug1("Invalid reply to port %d/udp", ip2.udp_dport)
     end
 
   end,
@@ -440,7 +432,7 @@ local Firewalk_v4 = {
   --- IPv4 initialization function. Open injection and reception sockets.
   -- @param scanner the scanner handle
   init = function(scanner)
-    local saddr = packet.toip(scanner.target.bin_ip_src)
+    local saddr = ipOps.str_to_ip(scanner.target.bin_ip_src)
 
     scanner.sock = nmap.new_dnet()
     scanner.pcap = nmap.new_socket()
@@ -493,7 +485,7 @@ local Firewalk_v4 = {
         -- mark port as forwarded and discard any related pending probes
         proto_func.update_scan(scanner, ip, ip2)
       else
-        stdnse.print_debug("Invalid protocol for reply (%d)", ip2.ip_p)
+        stdnse.debug1("Invalid protocol for reply (%d)", ip2.ip_p)
       end
     end
   end,
@@ -506,7 +498,7 @@ local Firewalk_v6 = {
   --- IPv6 initialization function. Open injection and reception sockets.
   -- @param scanner the scanner handle
   init = function(scanner)
-    local saddr = packet.toipv6(scanner.target.bin_ip_src)
+    local saddr = ipOps.str_to_ip(scanner.target.bin_ip_src)
 
     scanner.sock = nmap.new_dnet()
     scanner.pcap = nmap.new_socket()
@@ -559,7 +551,7 @@ local Firewalk_v6 = {
         -- mark port as forwarded and discard any related pending probes
         proto_func.update_scan(scanner, ip, ip2)
       else
-        stdnse.print_debug("Invalid protocol for reply (%d)", ip2.ip_p)
+        stdnse.debug1("Invalid protocol for reply (%d)", ip2.ip_p)
       end
     end
   end,
@@ -650,7 +642,7 @@ local function getopts()
     RecvTimeout = parse_timespec_ms(timespec)
 
     if not RecvTimeout then
-      stdnse.print_debug("Invalid time specification for option: firewalk.recv-timeout (%s)", timespec)
+      stdnse.debug1("Invalid time specification for option: firewalk.recv-timeout (%s)", timespec)
       return false
     end
 
@@ -667,7 +659,7 @@ local function getopts()
     ProbeTimeout = parse_timespec_ms(timespec)
 
     if not ProbeTimeout then
-      stdnse.print_debug("Invalid time specification for option: firewalk.probe-timeout (%s)", timespec)
+      stdnse.debug1("Invalid time specification for option: firewalk.probe-timeout (%s)", timespec)
       return false
     end
 
@@ -685,7 +677,7 @@ hostrule = function(host)
   if not nmap.is_privileged() then
     nmap.registry[SCRIPT_NAME] = nmap.registry[SCRIPT_NAME] or {}
     if not nmap.registry[SCRIPT_NAME].rootfail then
-      stdnse.print_verbose("%s not running for lack of privileges.", SCRIPT_NAME)
+      stdnse.verbose1("not running for lack of privileges.")
     end
     nmap.registry[SCRIPT_NAME].rootfail = true
     return false
@@ -725,13 +717,13 @@ local function initial_ttl(host)
     nmap.registry['firewalk']['traceroutefail'] = true
 
     if nmap.verbosity() > 0 then
-      stdnse.print_debug("%s requires unavailable traceroute informations.", SCRIPT_NAME)
+      stdnse.debug1("requires unavailable traceroute information.")
     end
 
     return nil
   end
 
-  stdnse.print_debug("Using ttl %d", #host.traceroute)
+  stdnse.debug1("Using ttl %d", #host.traceroute)
   return #host.traceroute
 end
 
@@ -817,7 +809,7 @@ local function report(scanner)
   -- duplicate traceroute results and add localhost at the beginning
   local path = {
     -- XXX 'localhost' might be a better choice?
-    {ip = toip(scanner.target.bin_ip_src)}
+    {ip = ipOps.str_to_ip(scanner.target.bin_ip_src)}
   }
 
   for _, v in pairs(scanner.target.traceroute) do
@@ -902,19 +894,19 @@ end
 
 --- send a probe and update it
 -- @param scanner the scanner handle
--- @param probe the probe specifications and related informations
+-- @param probe the probe specifications and related information
 local function send_probe(scanner, probe)
 
   local try = nmap.new_try(function() scanner.sock:ip_close() end)
 
-  stdnse.print_debug("Sending new probe (%d/%s ttl=%d)", probe.portno, probe.proto, probe.ttl)
+  stdnse.debug1("Sending new probe (%d/%s ttl=%d)", probe.portno, probe.proto, probe.ttl)
 
   -- craft the raw packet
   local pkt = proto_vtable[probe.proto].getprobe(scanner.target, probe.portno, probe.ttl)
 
-  try(scanner.sock:ip_send(pkt.buf))
+  try(scanner.sock:ip_send(pkt.buf, scanner.target))
 
-  -- update probe informations
+  -- update probe information
   probe.retry = probe.retry + 1
   probe.sent_time = nmap.clock_ms()
 
@@ -927,6 +919,7 @@ local function send_next_probes(scanner)
   -- this prevents sending too much probes at the same time
   while #scanner.active_probes < MaxActiveProbes do
 
+    local probe
     -- perform resends
     if #scanner.pending_resends > 0 then
 

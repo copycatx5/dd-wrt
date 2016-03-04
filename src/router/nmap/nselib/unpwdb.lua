@@ -63,9 +63,13 @@
 -- 30 minutes. The default depends on the timing template level (see the module
 -- description). Use the value <code>0</code> to disable the time limit.
 -- @author Kris Katterjohn 06/2008
--- @copyright Same as Nmap--See http://nmap.org/book/man-legal.html
+-- @copyright Same as Nmap--See https://nmap.org/book/man-legal.html
 
-module(... or "unpwdb", package.seeall)
+local io = require "io"
+local nmap = require "nmap"
+local os = require "os"
+local stdnse = require "stdnse"
+_ENV = stdnse.module("unpwdb", stdnse.seeall)
 
 local usertable = {}
 local passtable = {}
@@ -76,62 +80,63 @@ local customdata = false
 local args = nmap.registry.args
 
 local userfile = function()
-	if args.userdb then
-		customdata = true
-		return args.userdb
-	end
+  if args.userdb then
+    customdata = true
+    return args.userdb
+  end
 
-	return nmap.fetchfile("nselib/data/usernames.lst")
+  return nmap.fetchfile("nselib/data/usernames.lst")
 end
 
 local passfile = function()
-	if args.passdb then
-		customdata = true
-		return args.passdb
-	end
+  if args.passdb then
+    customdata = true
+    return args.passdb
+  end
 
-	return nmap.fetchfile("nselib/data/passwords.lst")
+  return nmap.fetchfile("nselib/data/passwords.lst")
 end
 
 local filltable = function(filename, table)
-	if #table ~= 0 then
-		return true
-	end
+  if #table ~= 0 then
+    return true
+  end
 
-	local file = io.open(filename, "r")
+  local file = io.open(filename, "r")
 
-	if not file then
-		return false
-	end
+  if not file then
+    return false
+  end
 
-	for l in file:lines() do
-		-- Comments takes up a whole line
-		if not l:match("#!comment:") then
-			table[#table + 1] = l
-		end
-	end
+  for l in file:lines() do
+    -- Comments takes up a whole line
+    if not l:match("#!comment:") then
+      table[#table + 1] = l
+    end
+  end
 
-	file:close()
+  file:close()
 
-	return true
+  return true
 end
 
-local closure = function(table)
-	local i = 1
+table_iterator = function(table)
+  local i = 1
 
-	return function(cmd)
-		if cmd == "reset" then
-			i = 1
-			return
-		end
-		local elem = table[i]
-		if elem then i = i + 1 end
-		return elem
-	end
+  return function(cmd)
+    if cmd == "reset" then
+      i = 1
+      return
+    end
+    local elem = table[i]
+    if elem then i = i + 1 end
+    return elem
+  end
 end
 
---- Returns the suggested number of seconds to attempt a brute force attack,
--- based on the <code>unpwdb.timelimit</code> script argument, Nmap's timing
+--- Returns the suggested number of seconds to attempt a brute force attack
+--
+-- Based on the <code>unpwdb.timelimit</code> script argument, Nmap's timing
 -- values (<code>-T4</code> etc.) and whether or not a user-defined list is
 -- used.
 --
@@ -141,30 +146,30 @@ end
 -- still check for <code>nil</code> return values on the above two functions in
 -- case you finish before the time limit is up.
 timelimit = function()
-   -- If we're reading from a user-defined username or password list,
-   -- we'll give them a timeout 1.5x the default.  If the "notimelimit"
-   -- script argument is used, we return nil.
-	local t = nmap.timing_level()
+  -- If we're reading from a user-defined username or password list,
+  -- we'll give them a timeout 1.5x the default.  If the "notimelimit"
+  -- script argument is used, we return nil.
+  local t = nmap.timing_level()
 
-	-- Easy enough
-	if args.notimelimit then
-		return nil
-	end
-	if args["unpwdb.timelimit"] then
-		local limit, err = stdnse.parse_timespec(args["unpwdb.timelimit"])
-		if not limit then
-			error(err)
-		end
-		return limit
-	end
+  -- Easy enough
+  if args.notimelimit then
+    return nil
+  end
+  if args["unpwdb.timelimit"] then
+    local limit, err = stdnse.parse_timespec(args["unpwdb.timelimit"])
+    if not limit then
+      error(err)
+    end
+    return limit
+  end
 
-	if t <= 3 then
-		return (customdata and 900) or 600
-	elseif t == 4 then
-		return (customdata and 450) or 300
-	elseif t == 5 then
-		return (customdata and 270) or 180
-	end
+  if t <= 3 then
+    return (customdata and 900) or 600
+  elseif t == 4 then
+    return (customdata and 450) or 300
+  elseif t == 5 then
+    return (customdata and 270) or 180
+  end
 end
 
 --- Returns a function closure which returns a new username with every call
@@ -173,17 +178,17 @@ end
 -- @return boolean Status.
 -- @return function The usernames iterator.
 local usernames_raw = function()
-	local path = userfile()
+  local path = userfile()
 
-	if not path then
-		return false, "Cannot find username list"
-	end
+  if not path then
+    return false, "Cannot find username list"
+  end
 
-	if not filltable(path, usertable) then
-		return false, "Error parsing username list"
-	end
+  if not filltable(path, usertable) then
+    return false, "Error parsing username list"
+  end
 
-	return true, closure(usertable)
+  return true, table_iterator(usertable)
 end
 
 --- Returns a function closure which returns a new password with every call
@@ -192,48 +197,49 @@ end
 -- @return boolean Status.
 -- @return function The passwords iterator.
 local passwords_raw = function()
-	local path = passfile()
+  local path = passfile()
 
-	if not path then
-		return false, "Cannot find password list"
-	end
+  if not path then
+    return false, "Cannot find password list"
+  end
 
-	if not filltable(path, passtable) then
-		return false, "Error parsing password list"
-	end
+  if not filltable(path, passtable) then
+    return false, "Error parsing password list"
+  end
 
-	return true, closure(passtable)
+  return true, table_iterator(passtable)
 end
 
---- Wraps time and count limits around an iterator. When either limit expires,
--- starts returning <code>nil</code>. Calling the iterator with an argument of
--- "reset" resets the count.
+--- Wraps time and count limits around an iterator.
+--
+-- When either limit expires, starts returning <code>nil</code>. Calling the
+-- iterator with an argument of "reset" resets the count.
 -- @param time_limit Time limit in seconds. Use 0 or <code>nil</code> for no limit.
 -- @param count_limit Count limit in seconds. Use 0 or <code>nil</code> for no limit.
 -- @return boolean Status.
 -- @return function The wrapped iterator.
 limited_iterator = function(iterator, time_limit, count_limit)
-	local start, count, elem
+  local start, count, elem
 
-	time_limit = (time_limit and time_limit > 0) and time_limit
-	count_limit = (count_limit and count_limit > 0) and count_limit
+  time_limit = (time_limit and time_limit > 0) and time_limit
+  count_limit = (count_limit and count_limit > 0) and count_limit
 
-	start = os.time()
-	count = 0
-	return function(cmd)
-		if cmd == "reset" then
-			count = 0
-		else
-			count = count + 1
-		end
-		if count_limit and count > count_limit then
-			return
-		end
-		if time_limit and os.time() - start >= time_limit then
-			return
-		end
-		return iterator(cmd)
-	end
+  start = os.time()
+  count = 0
+  return function(cmd)
+    if cmd == "reset" then
+      count = 0
+    else
+      count = count + 1
+    end
+    if count_limit and count > count_limit then
+      return
+    end
+    if time_limit and os.time() - start >= time_limit then
+      return
+    end
+    return iterator(cmd)
+  end
 end
 
 --- Returns a function closure which returns a new password with every call
@@ -244,19 +250,19 @@ end
 -- @return boolean Status.
 -- @return function The usernames iterator.
 usernames = function(time_limit, count_limit)
-	local status, iterator
+  local status, iterator
 
-	status, iterator = usernames_raw()
-	if not status then
-		return false, iterator
-	end
+  status, iterator = usernames_raw()
+  if not status then
+    return false, iterator
+  end
 
-	time_limit = time_limit or timelimit()
-	if not count_limit and args["unpwdb.userlimit"] then
-		count_limit = tonumber(args["unpwdb.userlimit"])
-	end
+  time_limit = time_limit or timelimit()
+  if not count_limit and args["unpwdb.userlimit"] then
+    count_limit = tonumber(args["unpwdb.userlimit"])
+  end
 
-	return true, limited_iterator(iterator, time_limit, count_limit)
+  return true, limited_iterator(iterator, time_limit, count_limit)
 end
 
 --- Returns a function closure which returns a new password with every call
@@ -267,17 +273,61 @@ end
 -- @return boolean Status.
 -- @return function The passwords iterator.
 passwords = function(time_limit, count_limit)
-	local status, iterator
+  local status, iterator
 
-	status, iterator = passwords_raw()
-	if not status then
-		return false, iterator
-	end
+  status, iterator = passwords_raw()
+  if not status then
+    return false, iterator
+  end
 
-	time_limit = time_limit or timelimit()
-	if not count_limit and args["unpwdb.passlimit"] then
-		count_limit = tonumber(args["unpwdb.passlimit"])
-	end
+  time_limit = time_limit or timelimit()
+  if not count_limit and args["unpwdb.passlimit"] then
+    count_limit = tonumber(args["unpwdb.passlimit"])
+  end
 
-	return true, limited_iterator(iterator, time_limit, count_limit)
+  return true, limited_iterator(iterator, time_limit, count_limit)
 end
+
+--- Returns a new iterator that iterates through its consecutive iterators,
+-- basically concatenating them.
+-- @param iter1 First iterator to concatenate.
+-- @param iter2 Second iterator to concatenate.
+-- @return function The concatenated iterators.
+function concat_iterators (iter1, iter2)
+  local function helper (next_iterator, command, first, ...)
+    if first ~= nil then
+      return first, ...
+    elseif next_iterator ~= nil then
+      return helper(nil, command, next_iterator(command))
+    end
+  end
+  local function iterator (command)
+    if command == "reset" then
+      iter1 "reset"
+      iter2 "reset"
+    else
+      return helper(iter2, command, iter1(command))
+    end
+  end
+  return iterator
+end
+
+--- Returns a new iterator that filters its results based on the filter.
+-- @param iterator Iterator that needs to be filtered
+-- @param filter Function that returns bool, which serves as a filter
+-- @return function The filtered iterator.
+function filter_iterator (iterator, filter)
+  return function (command)
+    if command == "reset" then
+      iterator "reset"
+    else
+      local val = iterator(command)
+      while val and not filter(val) do
+        val = iterator(command)
+      end
+      return val
+    end
+  end
+end
+
+return _ENV;

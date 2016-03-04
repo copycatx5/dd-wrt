@@ -759,6 +759,10 @@ static int split_rootfs_data(struct mtd_info *master, struct mtd_info *rpart, co
 	dpart->size = rpart->size - (split_offset - spart->offset);
 	dpart->size /= 65536;
 	dpart->size *= 65536;
+#ifdef CONFIG_SOC_MT7620_OPENWRT
+	// todo: add proper board detection
+	dpart->size -= 0x110000;
+#endif
 	dpart->offset = split_offset;
 	dpart->mask_flags = 0;
 
@@ -863,8 +867,10 @@ int add_mtd_partitions(struct mtd_info *master,
 
 	for (i = 0; i < nbparts; i++) {
 		slave = allocate_partition(master, parts + i, i, cur_offset);
-		if (IS_ERR(slave))
+		if (IS_ERR(slave)) {
+			del_mtd_partitions(master);
 			return PTR_ERR(slave);
+		}
 
 		mutex_lock(&mtd_partitions_mutex);
 		list_add(&slave->list, &mtd_partitions);
@@ -873,8 +879,7 @@ int add_mtd_partitions(struct mtd_info *master,
 		add_mtd_device(&slave->mtd);
 #ifdef CONFIG_MTD_ROOTFS_GEN
 		if (!strcmp(parts[i].name, "linux")) {
-
-		char *buf = vmalloc(4096);
+		unsigned int buf;
 		int offset = slave->offset;
 		int bootsize = slave->offset;
 		printk(KERN_INFO "scan from offset %X\n",bootsize);
@@ -882,8 +887,8 @@ int add_mtd_partitions(struct mtd_info *master,
 			    while((offset + master->erasesize) < master->size)
 			    {
 			    int retlen;
-			    mtd_read(master,offset,4, &retlen, buf);
-			    if (*((__u32 *) buf) == SQUASHFS_MAGIC)
+			    mtd_read(master,offset,4, &retlen, (u_char *)&buf);
+			    if (buf == SQUASHFS_MAGIC)
 				    {
 				    	printk(KERN_EMERG "\nfound squashfs at %X\n",offset);
 				    	struct mtd_partition part;
@@ -894,9 +899,8 @@ int add_mtd_partitions(struct mtd_info *master,
 				    	add_mtd_partitions(master,&part,1);
 					break;
 				    } 
-			    offset+=4096;
+			    offset+=64;
 			    }
-		vfree(buf);		
 		}
 #endif
 		if (!strcmp(parts[i].name, "rootfs")) {

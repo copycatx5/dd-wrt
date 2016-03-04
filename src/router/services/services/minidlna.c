@@ -48,14 +48,14 @@ void start_dlna(void)
 #endif
 		mkdir("/jffs/minidlna", 0700);
 		if (nvram_match("dlna_cleandb", "1")) {
-			eval("rm", "-f", "/jffs/minidlna/files.db");
+			unlink("/jffs/minidlna/files.db");
 			nvram_set("dlna_cleandb", "0");
 		}
 		fprintf(fp, "db_dir=/jffs/minidlna\n");
 #ifndef HAVE_VENTANA
 	} else {
 		mkdir("/tmp/db", 0700);
-		eval("rm", "-f", "/tmp/db/files.db");
+		unlink("/tmp/db/files.db");
 	}
 #endif
 	fprintf(fp, "port=8200\n");
@@ -63,17 +63,21 @@ void start_dlna(void)
 	dlna_shares = getdlnashares();
 	for (cs = dlna_shares; cs; cs = csnext) {
 		if (strlen(cs->mp)) {
-			if (cs->types & TYPE_VIDEO)
-				fprintf(fp, "media_dir=V,%s\n", cs->mp);	// comma separted list
-			if (cs->types & TYPE_AUDIO)
-				fprintf(fp, "media_dir=A,%s\n", cs->mp);	// comma separted list
-			if (cs->types & TYPE_IMAGES)
-				fprintf(fp, "media_dir=P,%s\n", cs->mp);	// comma separted list
+			if ((cs->types & (TYPE_VIDEO | TYPE_AUDIO | TYPE_IMAGES))) {
+				fprintf(fp, "media_dir=%s%s%s,%s%s%s\n",	//
+					cs->types & TYPE_VIDEO ? "V" : "",	//
+					cs->types & TYPE_AUDIO ? "A" : "",	//
+					cs->types & TYPE_IMAGES ? "P" : "",	// 
+					cs->mp,	//
+					(cs->sd[0] != '/' && cs->sd[0] != 0) ? "/" : "",	//
+					cs->sd);
+			}
+
 		}
 		csnext = cs->next;
 		free(cs);
 	}
-	fprintf(fp, "friendly_name=%s:DLNA\n", nvram_safe_get("DD_BOARD"));	//enter any name you want here, but should be unique within a network
+	fprintf(fp, "friendly_name=%s\n", nvram_safe_get("router_name"));	//enter any name you want here, but should be unique within a network
 	if (nvram_match("dlna_thumb", "1")) {
 		fprintf(fp, "album_art_names=Cover.jpg/cover.jpg/AlbumArtSmall.jpg/albumartsmall.jpg/AlbumArt.jpg/albumart.jpg/Album.jpg/album.jpg/Folder.jpg/folder.jpg/Thumb.jpg/thumb.jpg\n");
 	}
@@ -83,6 +87,7 @@ void start_dlna(void)
 	fprintf(fp, "inotify=yes\n");
 	fprintf(fp, "enable_tivo=no\n");
 	fprintf(fp, "strict_dlna=no\n");
+	fprintf(fp, "max_connections=10\n");
 	fprintf(fp, "notify_interval=300\n");
 	fprintf(fp, "serial=12345678\nmodel_number=1\n");
 	fclose(fp);

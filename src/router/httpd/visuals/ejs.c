@@ -64,13 +64,13 @@ void (*do_ej) (struct mime_handler * handler, char *path, webs_t stream, char *q
 									// 8/4/2003
 int (*ejArgs) (int argc, char_t ** argv, char_t * fmt, ...) = NULL;
 FILE *(*getWebsFile) (char *path) = NULL;
-int (*wfflush) (webs_t fp) = NULL;
-int (*wfputc) (char c, webs_t fp) = NULL;
 int (*wfputs) (char *buf, webs_t fp) = NULL;
-char *(*live_translate) (char *tran) = NULL;
+char *(*live_translate) (const char *tran) = NULL;
 websRomPageIndexType *PwebsRomPageIndex = NULL;
 char *(*GOZILA_GET) (webs_t wp, char *name) = NULL;
 void (*validate_cgi) (webs_t fp) = NULL;
+
+char *request_url;
 
 #ifdef HAVE_HTTPS
 int do_ssl;
@@ -90,19 +90,19 @@ void initWeb(struct Webenvironment *env)
 #endif
 	ejArgs = env->PejArgs;
 	getWebsFile = env->PgetWebsFile;
-	wfflush = env->Pwfflush;
-	wfputc = env->Pwfputc;
 	wfputs = env->Pwfputs;
 	PwebsRomPageIndex = env->PwebsRomPageIndex;
 	live_translate = env->Plive_translate;
 	GOZILA_GET = env->PGOZILA_GET;
 	validate_cgi = env->Pvalidate_cgi;
+	request_url = env->Prequest_url;
 }
 
 struct onload onloads[] = {
 	// { "Filters", filter_onload },
 	{"WL_ActiveTable-wl0", wl_active_onload},
 	{"WL_ActiveTable-wl1", wl_active_onload},
+	{"WL_ActiveTable-wl2", wl_active_onload},
 	{"MACClone", macclone_onload},
 	{"FilterSummary", filtersummary_onload},
 	{"Ping", ping_onload},
@@ -142,10 +142,11 @@ void ej_no_cache(webs_t wp, int argc, char_t ** argv)
 
 void prefix_ip_get(char *name, char *buf, int type)
 {
+	char *val = nvram_safe_get(name);
 	if (type == 1)
-		sprintf(buf, "%d.%d.%d.", get_single_ip(nvram_safe_get(name), 0), get_single_ip(nvram_safe_get(name), 1), get_single_ip(nvram_safe_get(name), 2));
+		sprintf(buf, "%d.%d.%d.", get_single_ip(val, 0), get_single_ip(val, 1), get_single_ip(val, 2));
 	if (type == 2)
-		sprintf(buf, "%d.%d.", get_single_ip(nvram_safe_get(name), 0), get_single_ip(nvram_safe_get(name), 1));
+		sprintf(buf, "%d.%d.", get_single_ip(val, 0), get_single_ip(val, 1));
 }
 
 /*
@@ -161,10 +162,12 @@ void ej_prefix_ip_get(webs_t wp, int argc, char_t ** argv)
 	name = argv[0];
 	type = atoi(argv[1]);
 
+	char *val = nvram_safe_get(name);
+
 	if (type == 1)
-		websWrite(wp, "%d.%d.%d.", get_single_ip(nvram_safe_get(name), 0), get_single_ip(nvram_safe_get(name), 1), get_single_ip(nvram_safe_get(name), 2));
+		websWrite(wp, "%d.%d.%d.", get_single_ip(val, 0), get_single_ip(val, 1), get_single_ip(val, 2));
 	if (type == 2)
-		websWrite(wp, "%d.%d.", get_single_ip(nvram_safe_get(name), 0), get_single_ip(nvram_safe_get(name), 1));
+		websWrite(wp, "%d.%d.", get_single_ip(val, 0), get_single_ip(val, 1));
 
 	return;
 }
@@ -559,6 +562,9 @@ static char *s_conditions[] = {
 #ifdef HAVE_USBIP
 	"USBIP",
 #endif
+#ifdef HAVE_80211AC
+	"80211AC",
+#endif
 	NULL
 };
 
@@ -630,8 +636,10 @@ void ej_ifndef(webs_t wp, int argc, char_t ** argv)
 		name = name + 11;
 		if (!strncmp(name, "_wl0", 4))
 			ifname = nvram_safe_get("wl0_ifname");
-		else		// "_wl1"
+		else if (!strncmp(name, "_wl1", 4))
 			ifname = nvram_safe_get("wl1_ifname");
+		else		// "_wl1"
+			ifname = nvram_safe_get("wl2_ifname");
 		char *next;
 
 		if (wl_iovar_get(ifname, "cap", (void *)caps, WLC_IOCTL_SMLEN)
@@ -739,7 +747,7 @@ void ej_nvram_list(webs_t wp, int argc, char_t ** argv)
  */
 int get_dns_ip(char *name, int which, int count)
 {
-	static char word[256];
+	char word[256];
 	char *next;
 	int ip;
 	char *list = nvram_safe_get(name);
@@ -790,20 +798,14 @@ void ej_get_http_prefix(webs_t wp, int argc, char_t ** argv)
 	if (do_ssl && http_enable == NULL && https_enable == NULL) {
 		strcpy(http, "https");
 	} else if (do_ssl && http_enable && https_enable) {
-		if (atoi(https_enable) && atoi(http_enable))
+		if (atoi(https_enable))
 			strcpy(http, "https");
-		else if (atoi(https_enable) && !atoi(http_enable))
-			strcpy(http, "https");
-		else		// !atoi(https_enable) && atoi(http_enable)
+		else
 			strcpy(http, "http");
-	} else if (do_ssl && !http_enable && !https_enable) {
-		strcpy(http, "http");
 	} else if (!do_ssl && http_enable && https_enable) {
-		if (atoi(https_enable) && atoi(http_enable))
-			strcpy(http, "http");
-		else if (atoi(https_enable) && !atoi(http_enable))
+		if (atoi(https_enable) && !atoi(http_enable))
 			strcpy(http, "https");
-		else		// !atoi(https_enable) && atoi(http_enable)
+		else
 			strcpy(http, "http");
 	} else
 #endif
@@ -888,11 +890,11 @@ void ej_show_forward(webs_t wp, int argc, char_t ** argv)
 		websWrite(wp, "<option value=\"udp\" ");
 		port_forward_table(wp, "sel_udp", i);
 		websWrite(wp, ">UDP</option>\n");
-		websWrite(wp, "<script type=\"text/javascript\">\n//<![CDATA[\n\
-		 		document.write(\"<option value=\\\"both\\\" ");
+		websWrite(wp, "<script type=\"text/javascript\">\n//<![CDATA[\n"	//
+			  "document.write(\"<option value=\\\"both\\\" ");
 		port_forward_table(wp, "sel_both", i);
-		websWrite(wp, " >\" + share.both + \"</option>\");\n\
-      	\n//]]>\n</script>\n");
+		websWrite(wp, " >\" + share.both + \"</option>\");\n"	//
+			  "\n//]]>\n</script>\n");
 		websWrite(wp, "</select></td>\n");
 		websWrite(wp, "<td>\n");
 		websWrite(wp, "<input class=\"num\" maxlength=\"15\" size=\"15\" name=\"ip%d\" value=\"", i);
@@ -926,7 +928,7 @@ void ej_show_forward_spec(webs_t wp, int argc, char_t ** argv)
 	for (i = 0; i < c; i++) {
 		//name
 		websWrite(wp, "<tr><td>\n");
-		websWrite(wp, "<input maxlength=\"12\" size=\"12\" name=\"name%d\" onblur=\"valid_name(this,'Name')\" value=\"", i);
+		websWrite(wp, "<input maxlength=\"12\" size=\"10\" name=\"name%d\" onblur=\"valid_name(this,'Name')\" value=\"", i);
 		port_forward_spec(wp, "name", i);
 		websWrite(wp, "\" /></td>\n");
 
@@ -938,16 +940,15 @@ void ej_show_forward_spec(webs_t wp, int argc, char_t ** argv)
 		websWrite(wp, "<option value=\"udp\" ");
 		port_forward_spec(wp, "sel_udp", i);
 		websWrite(wp, ">UDP</option>\n");
-		websWrite(wp, "<script type=\"text/javascript\">\n//<![CDATA[\n\
-		 		document.write(\"<option value=\\\"both\\\" ");
+		websWrite(wp, "<script type=\"text/javascript\">\n//<![CDATA[\n"	//
+			  "document.write(\"<option value=\\\"both\\\" ");
 		port_forward_spec(wp, "sel_both", i);
-		websWrite(wp, " >\" + share.both + \"</option>\");\n\
-      		\n//]]>\n</script>\n");
+		websWrite(wp, " >\" + share.both + \"</option>\");\n" "\n//]]>\n</script>\n");
 		websWrite(wp, "</select></td>\n");
 
 		//src net
 		websWrite(wp, "<td>\n");
-		websWrite(wp, "<input class=\"num\" maxlength=\"18\" size=\"18\" name=\"src%d\" value=\"", i);
+		websWrite(wp, "<input class=\"num\" maxlength=\"15\" size=\"15\" name=\"src%d\" value=\"", i);
 		port_forward_spec(wp, "src", i);
 		websWrite(wp, "\" /></td>\n");
 
@@ -1011,11 +1012,10 @@ void ej_show_triggering(webs_t wp, int argc, char_t ** argv)
 		websWrite(wp, "<option value=\"udp\" ");
 		port_trigger_table(wp, "sel_udp", i);
 		websWrite(wp, ">UDP</option>\n");
-		websWrite(wp, "<script type=\"text/javascript\">\n//<![CDATA[\n\
-		 		document.write(\"<option value=\\\"both\\\" ");
+		websWrite(wp, "<script type=\"text/javascript\">\n//<![CDATA[\n"	//
+			  "document.write(\"<option value=\\\"both\\\" ");
 		port_trigger_table(wp, "sel_both", i);
-		websWrite(wp, " >\" + share.both + \"</option>\");\n\
-      		\n//]]>\n</script>\n");
+		websWrite(wp, " >\" + share.both + \"</option>\");\n" "\n//]]>\n</script>\n");
 		websWrite(wp, "</select></td>\n");
 		websWrite(wp, "<td><input class=\"num\" maxlength=\"5\" size=\"5\" name=\"o_from%d\" onblur=\"valid_range(this,1,65535,'Port')\" value=\"", i);
 		port_trigger_table(wp, "o_from", i);
@@ -1260,6 +1260,10 @@ void ej_get_sysmodel(webs_t wp, int argc, char_t ** argv)
 	websWrite(wp, "%s", "SANSFIL");
 #elif HAVE_KORENRON
 	websWrite(wp, "KORENRON %s", nvram_get("DD_BOARD"));
+#elif HAVE_TESTEM
+	websWrite(wp, "TESTEM %s", nvram_get("DD_BOARD"));
+#elif HAVE_HOBBIT
+	websWrite(wp, "HQ-NDS %s", nvram_get("DD_BOARD"));
 #else
 	websWrite(wp, "%s", nvram_safe_get("DD_BOARD"));
 #endif
@@ -1275,7 +1279,7 @@ void ej_get_syskernel(webs_t wp, int argc, char_t ** argv)
 void ej_get_totaltraff(webs_t wp, int argc, char_t ** argv)
 {
 	char *type;
-	static char wanface[32];
+	char wanface[32];
 	char line[256];
 	unsigned long long rcvd, sent, megcounti, megcounto;
 	FILE *in;
@@ -1340,14 +1344,16 @@ void show_bwif(webs_t wp, char *ifname, char *name)
 	websWrite(wp, "</iframe>\n");
 	websWrite(wp, "</fieldset>\n");
 	websWrite(wp, "<br />\n");
-} void ej_show_bandwidth(webs_t wp, int argc, char_t ** argv)
+}
+
+void ej_show_bandwidth(webs_t wp, int argc, char_t ** argv)
 {
 	char name[32];
 	char *next, *bnext;
 	char var[80];
 	char eths[256];
 	char eths2[256];
-	static char bword[256];
+	char bword[256];
 	char bufferif[512];
 #ifdef HAVE_ATH9K
 	glob_t globbuf;
@@ -1379,21 +1385,23 @@ void show_bwif(webs_t wp, char *ifname, char *name)
 	}
 #endif
 	foreach(var, eths, next) {
+		if (!strcmp(get_wan_face(), var))
+			continue;
+		if (!strcmp(nvram_safe_get("wan_ifname2"), var))
+			continue;
 		if (!strcmp("etherip0", var))
 			continue;
 		if (!strncmp("ath", var, 3))
 			continue;
+		if (!strcmp(nvram_safe_get("lan_ifname"), var))
+			continue;
 		if (strchr(var, '.') == NULL) {
-			if (!strcmp(get_wan_face(), var))
-				continue;
-			if (!strcmp(nvram_safe_get("lan_ifname"), var))
-				continue;
 			foreach(bword, bufferif, bnext) {
 				if (!strcmp(bword, var)) {
 					goto skip;
 				}
 			}
-			sprintf(name, "LAN (%s)", var);
+			snprintf(name, sizeof(name), "LAN (%s)", getNetworkLabel(var));
 			show_bwif(wp, var, name);
 		}
 	      skip:;
@@ -1401,9 +1409,9 @@ void show_bwif(webs_t wp, char *ifname, char *name)
 
 	if (!nvram_match("wan_proto", "disabled")) {
 		if (getSTA()) {
-			sprintf(name, "%s WAN (%s)", live_translate("share.wireless"), get_wan_face());
+			snprintf(name, sizeof(name), "%s WAN (%s)", live_translate("share.wireless"), getNetworkLabel(get_wan_face()));
 		} else
-			sprintf(name, "WAN (%s)", get_wan_face());
+			snprintf(name, sizeof(name), "WAN (%s)", getNetworkLabel(get_wan_face()));
 
 		show_bwif(wp, get_wan_face(), name);
 
@@ -1424,14 +1432,14 @@ void show_bwif(webs_t wp, char *ifname, char *name)
 
 		sprintf(dev, "ath%d", i);
 
-		sprintf(name, "%s (%s)", live_translate("share.wireless"), dev);
+		snprintf(name, sizeof(name), "%s (%s)", live_translate("share.wireless"), getNetworkLabel(dev));
 		show_bwif(wp, dev, name);
 		char *vifs = nvram_nget("%s_vifs", dev);
 
 		if (vifs == NULL)
 			continue;
 		foreach(var, vifs, next) {
-			sprintf(name, "%s (%s)", live_translate("share.wireless"), var);
+			snprintf(name, sizeof(name), "%s (%s)", live_translate("share.wireless"), getNetworkLabel(var));
 			show_bwif(wp, var, name);
 		}
 		int s;
@@ -1444,7 +1452,7 @@ void show_bwif(webs_t wp, char *ifname, char *name)
 				continue;
 			if (nvram_nmatch("0", "%s_wds%d_enable", dev, s))
 				continue;
-			sprintf(name, "%s (%s)", live_translate("share.wireless"), wdsdev);
+			snprintf(name, sizeof(name), "%s (%s)", live_translate("share.wireless"), getNetworkLabel(wdsdev));
 			show_bwif(wp, wdsdev, name);
 		}
 #ifdef HAVE_ATH9K
@@ -1457,8 +1465,8 @@ void show_bwif(webs_t wp, char *ifname, char *name)
 				ifname = strrchr(globbuf.gl_pathv[awdscount], '/');
 				if (!ifname)
 					continue;
-				sprintf(name, "%s (%s)", live_translate("share.wireless"), ifname);
-				show_bwif(wp, ifname, name);
+				sprintf(name, "%s (%s)", live_translate("share.wireless"), ifname + 1);
+				show_bwif(wp, ifname + 1, name);
 			}
 			globfree(&globbuf);
 		}
@@ -1467,7 +1475,7 @@ void show_bwif(webs_t wp, char *ifname, char *name)
 
 #else
 	for (c = 0; c < cnt; c++) {
-		sprintf(name, "%s (wl%d)", live_translate("share.wireless"), c);
+		snprintf(name, sizeof(name), "%s (wl%d)", live_translate("share.wireless"), c);
 		show_bwif(wp, get_wl_instance_name(c), name);
 	}
 #endif
@@ -1486,6 +1494,8 @@ void ej_do_menu(webs_t wp, int argc, char_t ** argv)
 	submenu = argv[1];
 
 	int vlan_supp = check_vlan_support();
+	if (getRouterBrand() == ROUTER_UBNT_UNIFIAC)
+		vlan_supp = 1;
 
 #ifdef HAVE_SPUTNIK_APD
 	int sputnik = nvram_match("apd_enable", "1");
@@ -1515,7 +1525,7 @@ void ej_do_menu(webs_t wp, int argc, char_t ** argv)
 	int wimaxwifi = 0;
 #endif
 #ifdef HAVE_ERC
-	static char menu_s[8][12][32] = {
+	static char menu_s[8][13][32] = {
 		{"index.asp", "DDNS.asp", "", "", "", "", "", "", "", "", "", ""},	//
 		{"Wireless_Basic.asp", "WL_WPATable.asp", "", "", "", "", "", "", "", "", "", ""},	//
 		{"ForwardSpec.asp", "", "", "", "", "", "", "", "", "", "", ""},	//
@@ -1529,7 +1539,7 @@ void ej_do_menu(webs_t wp, int argc, char_t ** argv)
 	/*
 	 * real name is bmenu.menuname[i][j] 
 	 */
-	static char menuname_s[8][13][32] = {
+	static char menuname_s[8][14][32] = {
 		{"setup", "setupbasic", "setupddns", "", "", "", "", "", "", "", "", "", ""},	//
 		{"wireless", "wirelessBasic", "wirelessSecurity", "", "", "", "", "", "", "", "", "", ""},	//
 		{"applications", "applicationspforwarding", "", "", "", "", "", "", "", "", "", "", ""},	//
@@ -1546,7 +1556,7 @@ void ej_do_menu(webs_t wp, int argc, char_t ** argv)
 #endif
 
 	static char menu_t[8][13][32] = {
-		{"index.asp", "DDNS.asp", "WanMAC.asp", "Routing.asp", "Vlan.asp", "Networking.asp", "eop-tunnel.asp", "", "", "", "", ""},	// 
+		{"index.asp", "IPV6.asp", "DDNS.asp", "WanMAC.asp", "Routing.asp", "Vlan.asp", "Networking.asp", "eop-tunnel.asp", "", "", "", ""},	// 
 		{"Wireless_Basic.asp", "SuperChannel.asp", "WiMAX.asp", "Wireless_radauth.asp", "WL_WPATable.asp", "AOSS.asp", "Wireless_MAC.asp", "Wireless_Advanced.asp", "Wireless_WDS.asp", "", "", ""},	//
 		{"Services.asp", "FreeRadius.asp", "PPPoE_Server.asp", "PPTP.asp", "USB.asp", "NAS.asp", "Hotspot.asp", "Nintendo.asp", "Milkfish.asp", "Privoxy.asp", "Lighttpd.asp", ""},	//
 		{"Firewall.asp", "VPN.asp", "", "", "", "", "", "", "", "", "", ""},	//
@@ -1559,12 +1569,16 @@ void ej_do_menu(webs_t wp, int argc, char_t ** argv)
 	 * real name is bmenu.menuname[i][j] 
 	 */
 	static char menuname_t[8][14][32] = {
-		{"setup", "setupbasic", "setupddns", "setupmacclone", "setuprouting", "setupvlan", "networking", "setupeop", "", "", "", "", ""},	//
+		{"setup", "setupbasic", "setupipv6", "setupddns", "setupmacclone", "setuprouting", "setupvlan", "networking", "setupeop", "", "", "", ""},	//
 		{"wireless", "wirelessBasic", "wirelessSuperchannel", "wimax", "wirelessRadius", "wirelessSecurity",	//
-#ifdef HAVE_WPS
+#if defined(HAVE_AOSS) && defined(HAVE_WPS)
 		 "wirelessAossWPS",
-#else
+#elif defined(HAVE_AOSS) && !defined(HAVE_WPS)
 		 "wirelessAoss",
+#elif !defined(HAVE_AOSS) && defined(HAVE_WPS)
+		 "wirelessWPS",
+#else
+		 "",		// place holder
 #endif
 		 "wirelessMac", "wirelessAdvanced", "wirelessWds", "", "", ""},	//
 		{"services", "servicesServices", "servicesRadius", "servicesPppoesrv", "servicesPptp", "servicesUSB", "servicesNAS", "servicesHotspot", "servicesNintendo", "servicesMilkfish", "servicesPrivoxy", "servicesLighttpd", ""},	//
@@ -1574,8 +1588,8 @@ void ej_do_menu(webs_t wp, int argc, char_t ** argv)
 		{"admin", "adminManagement", "adminAlive", "adminDiag", "adminWol", "adminFactory", "adminUpgrade", "adminBackup", "", "", "", "", ""},	//
 		{"statu", "statuRouter", "statuInet", "statuLAN", "statuWLAN", "statuSputnik", "statuVPN", "statuBand", "statuSyslog", "statuSysInfo", "statuActivate", "statuMyPage", "statuGpio", "statuCWMP"}	//
 	};
-	static char menu[8][13][32];
-	static char menuname[8][14][32];
+	char menu[8][13][32];
+	char menuname[8][14][32];
 	memcpy(menu, menu_t, 8 * 13 * 32);
 	memcpy(menuname, menuname_t, 8 * 14 * 32);
 #if HAVE_ERC
@@ -1718,7 +1732,12 @@ void ej_do_menu(webs_t wp, int argc, char_t ** argv)
 					// WiMAX
 					j++;
 #endif
-#ifndef HAVE_AOSS
+#if !defined(HAVE_AOSS) && !defined(HAVE_WPS)
+				if (!strcmp(menu[i][j], "AOSS.asp"))	// jump over
+					// AOSS
+					j++;
+#endif
+#if defined(HAVE_WPS) && !defined(HAVE_IDEXX)
 				if (!strcmp(menu[i][j], "AOSS.asp"))	// jump over
 					// AOSS
 					j++;
@@ -1790,6 +1809,10 @@ void ej_do_menu(webs_t wp, int argc, char_t ** argv)
 #endif
 #ifndef HAVE_MILKFISH
 				if (!strcmp(menu[i][j], "Milkfish.asp"))
+					j++;
+#endif
+#ifndef HAVE_IPV6
+				if (!strcmp(menu[i][j], "IPV6.asp"))
 					j++;
 #endif
 //#ifdef HAVE_WIKINGS
@@ -1921,6 +1944,7 @@ void ej_do_menu(webs_t wp, int argc, char_t ** argv)
 void ej_do_pagehead(webs_t wp, int argc, char_t ** argv)	// Eko
 {
 	char *style = nvram_get("router_style");
+	char *style_dark = nvram_get("router_style_dark");
 
 	/*
 	 * websWrite (wp, "<\?xml version=\"1.0\" encoding=\"%s\"\?>\n",
@@ -1945,7 +1969,12 @@ void ej_do_pagehead(webs_t wp, int argc, char_t ** argv)	// Eko
 #endif
 	websWrite(wp, "\t\t<link type=\"text/css\" rel=\"stylesheet\" href=\"style/%s/style.css\" />\n", style);
 	websWrite(wp, "\t\t<!--[if IE]><link type=\"text/css\" rel=\"stylesheet\" href=\"style/%s/style_ie.css\" /><![endif]-->\n", style);
-
+	if (!strcmp(style, "blue") || !strcmp(style, "cyan") || !strcmp(style, "elegant") || !strcmp(style, "green") || !strcmp(style, "orange") || !strcmp(style, "red") || !strcmp(style, "yellow")) {
+		websWrite(wp, "\t\t<link type=\"text/css\" rel=\"stylesheet\" href=\"style/elegant/fresh.css\" />\n");
+		if (style_dark != NULL && !strcmp(style_dark, "1")) {
+			websWrite(wp, "\t\t<link type=\"text/css\" rel=\"stylesheet\" href=\"style/elegant/fresh-dark.css\" />\n");
+		}
+	}
 #ifdef HAVE_PWC
 	websWrite(wp, "\t\t<script type=\"text/javascript\" src=\"js/prototype.js\"></script>\n");
 	websWrite(wp, "\t\t<script type=\"text/javascript\" src=\"js/effects.js\"></script>\n");
@@ -1954,6 +1983,8 @@ void ej_do_pagehead(webs_t wp, int argc, char_t ** argv)	// Eko
 	websWrite(wp, "\t\t<link type=\"text/css\" rel=\"stylesheet\" href=\"style/pwc/default.css\" />\n");
 	websWrite(wp, "\t\t<link type=\"text/css\" rel=\"stylesheet\" href=\"style/pwc/ddwrt.css\" />\n");
 #endif
+	if (get_wl_instances() == 3 && (startswith(request_url, "Wireless") || startswith(request_url, "WL_WPA")))
+		websWrite(wp, "\t\t<style type=\"text/css\">#header { height: 11.5em; }</style>\n");
 #ifdef HAVE_WIKINGS
 	websWrite(wp, "\t\t<title>:::: Excel Networks ::::");
 #elif HAVE_ESPOD
@@ -2004,6 +2035,15 @@ void ej_show_timeoptions(webs_t wp, int argc, char_t ** argv)	// Eko
 
 }
 
+#ifdef HAVE_IPV6
+void ej_show_ipv6options(webs_t wp, int argc, char_t ** argv)
+{
+	websWrite(wp, "<option value=\"ipv6native\" %s>Native IPv6 from ISP</option>\n", nvram_match("ipv6_typ", "ipv6native") ? "selected=\"selected\"" : "");
+	websWrite(wp, "<option value=\"ipv6pd\" %s>DHCPv6 with Prefix Delegation</option>\n", nvram_match("ipv6_typ", "ipv6pd") ? "selected=\"selected\"" : "");
+	websWrite(wp, "<option value=\"ipv6in4\" %s>6in4 Static Tunnel</option>\n", nvram_match("ipv6_typ", "ipv6in4") ? "selected=\"selected\"" : "");
+	//websWrite(wp, "<option value=\"ipv6to4\" %s>6to4 Anycast Releay</option>\n", nvram_match("ipv6_typ", "ipv6to4") ? "selected=\"selected\"" : "");
+}
+#endif
 void ej_show_wanipinfo(webs_t wp, int argc, char_t ** argv)	// Eko
 {
 	char *wan_ipaddr;
@@ -2042,7 +2082,23 @@ void ej_show_wanipinfo(webs_t wp, int argc, char_t ** argv)	// Eko
 		wan_ipaddr = nvram_safe_get("wan_ipaddr");
 	}
 
-	websWrite(wp, "&nbsp;IP: %s", wan_ipaddr);
+#ifdef HAVE_IPV6
+	if (nvram_match("ipv6_typ", "ipv6in4") || nvram_match("ipv6_typ", "ipv6pd") || nvram_match("ipv6_typ", "ipv6native"))
+		websWrite(wp, "&nbsp;IPv4: %s", wan_ipaddr);
+	else
+#endif
+		websWrite(wp, "&nbsp;IP: %s", wan_ipaddr);
+#ifdef HAVE_IPV6
+	char *ipv6addr = NULL;
+	if (nvram_match("ipv6_typ", "ipv6native"))
+		ipv6addr = getifaddr(get_wan_face(), AF_INET6, 0);
+	if (nvram_match("ipv6_typ", "ipv6in4"))
+		ipv6addr = getifaddr("ip6tun", AF_INET6, 0);
+	if (nvram_match("ipv6_typ", "ipv6pd"))
+		ipv6addr = getifaddr(nvram_safe_get("lan_ifname"), AF_INET6, 0);
+	if (ipv6addr)
+		websWrite(wp, "&nbsp;IPv6: %s", ipv6addr);
+#endif
 
 	return;
 }
@@ -2104,6 +2160,8 @@ void ej_getrebootflags(webs_t wp, int argc, char_t ** argv)
 	websWrite(wp, "3");
 #elif HAVE_WZR600DHP
 	websWrite(wp, "3");
+#elif HAVE_NORTHSTAR
+	websWrite(wp, "4");
 #else
 	websWrite(wp, "0");
 #endif
@@ -2171,22 +2229,109 @@ void ej_make_time_list(webs_t wp, int argc, char_t ** argv)
 #include <qcnapi.h>
 #endif
 
+void ej_get_service_state(webs_t wp, int argc, char_t ** argv)
+{
+	websWrite(wp, "<div class=\"setting\"><div class=\"label\">%s</div>", live_translate("service.dhcp_legend2"));
+	if (nvram_match("lan_proto", "dhcp")) {
+		websWrite(wp, "%s", live_translate("share.enabled"));
+		if (pidof("dnsmasq") > 0 || pidof("udhcpd") > 0) {
+			websWrite(wp, " - %s", live_translate("diag.running"));
+		} else {
+			websWrite(wp, " - %s", live_translate("diag.stopped"));
+		}
+	} else {
+		websWrite(wp, "%s", live_translate("share.disabled"));
+	}
+	websWrite(wp, "&nbsp;</div>");
+
+#ifdef HAVE_SAMBA_SERVER
+	websWrite(wp, "<div class=\"setting\"><div class=\"label\">%s</div>", live_translate("service.samba3_srv"));
+	if (nvram_match("samba3_enable", "1")) {
+		websWrite(wp, "%s", live_translate("share.enabled"));
+		if (pidof("smbd") > 0) {
+			websWrite(wp, " - %s", live_translate("diag.running"));
+		} else {
+			websWrite(wp, " - %s", live_translate("diag.stopped"));
+		}
+	} else {
+		websWrite(wp, "%s", live_translate("share.disabled"));
+	}
+	websWrite(wp, "&nbsp;</div>");
+#endif
+}
+
+#ifdef HAVE_MVEBU
+static void show_temp(webs_t wp, int mon, int input, char *fmt)
+{
+	char sysfs[64];
+	snprintf(sysfs, 64, "/sys/class/hwmon/hwmon%d/temp%d_input", mon, input);
+	FILE *tempfp = fopen(sysfs, "rb");
+	if (tempfp) {
+		int cpu;
+		fscanf(tempfp, "%d", &cpu);
+		fclose(tempfp);
+		websWrite(wp, fmt, cpu / 1000, (cpu % 1000) / 100);
+	}
+}
+#endif
+
+#ifdef HAVE_IPQ806X
+static void show_temp(webs_t wp, char *fmt)
+{
+	char sysfs[64];
+	int mon;
+	float temperature = 0.0f;
+	for (mon = 0; mon < 11; mon++) {
+		snprintf(sysfs, 64, "/sys/class/hwmon/hwmon%d/temp1_input", mon);
+		FILE *tempfp = fopen(sysfs, "rb");
+		if (tempfp) {
+			int cpu;
+			fscanf(tempfp, "%d", &cpu);
+			fclose(tempfp);
+			temperature += cpu;
+		}
+	}
+	temperature /= mon;
+	websWrite(wp, fmt, temperature);
+}
+#endif
+
 void ej_get_cputemp(webs_t wp, int argc, char_t ** argv)
 {
+#ifdef HAVE_MVEBU
+	if (getRouterBrand() == ROUTER_WRT_1900AC) {
+		show_temp(wp, 1, 1, "CPU %d.%d &#176;C");
+		show_temp(wp, 2, 1, " / WL0 %d.%d &#176;C");
+		show_temp(wp, 2, 2, " / WL1 %d.%d &#176;C");
+	} else {
+		show_temp(wp, 0, 1, "CPU %d.%d &#176;C");
+		show_temp(wp, 1, 1, " / WL0 %d.%d &#176;C");
+		show_temp(wp, 1, 2, " / WL1 %d.%d &#176;C");
+	}
+	return;
+#endif
+#ifdef HAVE_IPQ806X
+	show_temp(wp, "CPU %4.2f &#176;C");
+	return;
+#endif
 #ifdef HAVE_BCMMODERN
 
 	static int tempcount = 0;
 	char buf[WLC_IOCTL_SMLEN];
 	char buf2[WLC_IOCTL_SMLEN];
+	char buf3[WLC_IOCTL_SMLEN];
 	int ret;
 	unsigned int *ret_int = NULL;
 	unsigned int *ret_int2 = NULL;
+	unsigned int *ret_int3 = NULL;
 	static double tempavg_24 = 0.000;
 	static double tempavg_50 = 0.000;
+	static double tempavg_502 = 0.000;
 	static double tempavg_max = 0.000;
-	int no2 = 0, no5 = 0;
+	int no2 = 0, no5 = 0, no52 = 0;
 	strcpy(buf, "phy_tempsense");
 	strcpy(buf2, "phy_tempsense");
+	strcpy(buf3, "phy_tempsense");
 
 	if (nvram_match("wl0_net_mode", "disabled") || (ret = wl_ioctl("eth1", WLC_GET_VAR, buf, sizeof(buf)))) {
 		no2 = 1;
@@ -2195,27 +2340,36 @@ void ej_get_cputemp(webs_t wp, int argc, char_t ** argv)
 	if (nvram_match("wl1_net_mode", "disabled") || (ret = wl_ioctl("eth2", WLC_GET_VAR, buf2, sizeof(buf2)))) {
 		no5 = 1;
 	}
+	if (nvram_match("wl2_net_mode", "disabled") || (ret = wl_ioctl("eth3", WLC_GET_VAR, buf3, sizeof(buf3)))) {
+		no52 = 1;
+	}
 	ret_int = (unsigned int *)buf;
 	ret_int2 = (unsigned int *)buf2;
-
-	if (tempcount == -2) {
+	ret_int3 = (unsigned int *)buf3;
+	if (tempcount == -3) {
 		tempcount++;
 		tempavg_24 = *ret_int;
 		tempavg_50 = *ret_int2;
+		tempavg_502 = *ret_int3;
 		if (tempavg_24 < 0.0)
 			tempavg_24 = 0.0;
 		if (tempavg_50 < 0.0)
 			tempavg_50 = 0.0;
+		if (tempavg_502 < 0.0)
+			tempavg_502 = 0.0;
 	} else {
 		if (tempavg_24 < 10.0 && *ret_int > 0.0)
 			tempavg_24 = *ret_int;
 		if (tempavg_50 < 10.0 && *ret_int2 > 0.0)
 			tempavg_50 = *ret_int2;
-
+		if (tempavg_502 < 10.0 && *ret_int3 > 0.0)
+			tempavg_502 = *ret_int3;
 		if (tempavg_24 > 200.0 && *ret_int > 0.0)
 			tempavg_24 = *ret_int;
 		if (tempavg_50 > 200.0 && *ret_int2 > 0.0)
 			tempavg_50 = *ret_int2;
+		if (tempavg_502 > 200.0 && *ret_int3 > 0.0)
+			tempavg_502 = *ret_int3;
 
 		tempavg_24 = (tempavg_24 * 4 + *ret_int) / 5;
 		tempavg_50 = (tempavg_50 * 4 + *ret_int2) / 5;
@@ -2251,13 +2405,13 @@ void ej_get_cputemp(webs_t wp, int argc, char_t ** argv)
 #endif
 	if (no2 && no5 && cputemp)
 		websWrite(wp, "%s", live_translate("status_router.notavail"));	// no 
-	else if (no2)
+	else if (no2) {
 #ifdef HAVE_QTN
 		websWrite(wp, "WL1 %4.2f &#176;C", tempavg_50);
 #else
 		websWrite(wp, "WL1 %4.2f &#176;C", tempavg_50 * 0.5 + 20.0);
 #endif
-	else if (no5)
+	} else if (no5)
 		websWrite(wp, "WL0 %4.2f &#176;C", tempavg_24 * 0.5 + 20.0);
 	else
 #ifdef HAVE_QTN
@@ -2265,6 +2419,8 @@ void ej_get_cputemp(webs_t wp, int argc, char_t ** argv)
 #else
 		websWrite(wp, "WL0 %4.2f &#176;C / WL1 %4.2f &#176;C", tempavg_24 * 0.5 + 20.0, tempavg_50 * 0.5 + 20.0);
 #endif
+	if (!no52)
+		websWrite(wp, " / WL2 %4.2f &#176;C", tempavg_502 * 0.5 + 20.0);
 
 #else
 #ifdef HAVE_GATEWORX
@@ -2286,43 +2442,70 @@ void ej_get_cputemp(webs_t wp, int argc, char_t ** argv)
 #elif HAVE_VENTANA
 	int TEMP_MUL = 10;
 	FILE *fp = fopen("/sys/bus/i2c/devices/0-0029/temp0_input", "rb");
+
 #else
 	int TEMP_MUL = 1000;
 #ifdef HAVE_X86
 	FILE *fp = fopen("/sys/devices/platform/i2c-1/1-0048/temp1_input", "rb");
 	if (!fp) {
 		TEMP_MUL = 100;
-		fp = fopen("/sys/class/hwmon/hwmon0/device/temp1_max", "rb");
+		fp = fopen("/sys/class/hwmon/hwmon0/temp1_max", "rb");
 		if (fp) {	// some heuristic to detect unit 
 			char temp[32];
 			fscanf(fp, "%s", &temp[0]);
 			fclose(fp);
-			if (strlen(temp) > 4)
-				TEMP_MUL = 1000;
-			if (strlen(temp) > 5)
-				TEMP_MUL = 10000;
+			int l = strlen(temp);
+			int i;
+			if (l > 2) {
+				TEMP_MUL = 1;
+				for (i = 0; i < (l - 2); i++)
+					TEMP_MUL *= 10;
+			} else
+				TEMP_MUL = 1;
 		}
-		fp = fopen("/sys/class/hwmon/hwmon0/device/temp1_input", "rb");
+		fp = fopen("/sys/class/hwmon/hwmon0/temp1_input", "rb");
 	}
 #else
 	FILE *fp = fopen("/sys/devices/platform/i2c-0/0-0048/temp1_input", "rb");
 #endif
 #endif
 
-	if (fp == NULL) {
-		websWrite(wp, "%s", live_translate("status_router.notavail"));	// no 
-		// i2c 
-		// lm75 
-		// found
-		return;
+	if (fp != NULL) {
+		int temp;
+		fscanf(fp, "%d", &temp);
+		fclose(fp);
+		int high = temp / TEMP_MUL;
+		int low;
+		if (TEMP_MUL > 10)
+			low = (temp - (high * TEMP_MUL)) / (TEMP_MUL / 10);
+		else
+			low = 0;
+		websWrite(wp, "%d.%d &#176;C", high, low);	// no i2c lm75 found
 	}
-	int temp;
-	fscanf(fp, "%d", &temp);
-	fclose(fp);
-	int high = temp / TEMP_MUL;
-	int low = (temp - (high * TEMP_MUL)) / (TEMP_MUL / 10);
 
-	websWrite(wp, "%d.%d &#176;C", high, low);	// no i2c lm75 found
+	FILE *fp2 = NULL;
+#ifdef HAVE_ATH10K
+	int c = getdevicecount();
+	int i, found = 0;
+	for (i = 0; i < c; i++) {
+		char path[64];
+		sprintf(path, "/sys/class/ieee80211/phy%d/device/hwmon/hwmon0/temp1_input", i);
+		fp2 = fopen(path, "rb");
+		if (fp2 != NULL) {
+			int temp;
+			fscanf(fp2, "%d", &temp);
+			fclose(fp2);
+			if ((i == 0 && fp) || found) {
+				websWrite(wp, " / ");
+			}
+			found = 1;
+			websWrite(wp, "ath%d %d &#176;C", i, temp / 1000);
+		}
+	}
+#endif
+	if (fp == NULL && fp2 == NULL)
+		websWrite(wp, "%s", live_translate("status_router.notavail"));	// no 
+
 #endif
 }
 
@@ -2380,36 +2563,37 @@ void ej_show_voltage(webs_t wp, int argc, char_t ** argv)
 static void showencstatus(webs_t wp, char *prefix)
 {
 	char akm[64];
-
+	char *enc = NULL;
 	sprintf(akm, "%s_akm", prefix);
 	websWrite(wp, "<div class=\"setting\">\n");
 	websWrite(wp, "<div class=\"label\"><script type=\"text/javascript\">Capture(share.encrypt)</script>&nbsp;-&nbsp;<script type=\"text/javascript\">Capture(share.intrface)</script>&nbsp;%s</div>\n", prefix);
 	websWrite(wp, "<script type=\"text/javascript\">");
-	if (nvram_match(akm, "disabled")) {
-		websWrite(wp, "Capture(share.disabled)");
-		websWrite(wp, "</script>");
-	} else {
+	if (nvram_match(akm, "psk"))
+		enc = "WPA Personal";
+	if (nvram_match(akm, "wpa"))
+		enc = "WPA Enterprise";
+	if (nvram_match(akm, "psk2"))
+		enc = "WPA2 Personal";
+	if (nvram_match(akm, "wpa2"))
+		enc = "WPA2 Enterprise";
+	if (nvram_match(akm, "psk psk2"))
+		enc = "WPA2 Personal Mixed";
+	if (nvram_match(akm, "wpa wpa2"))
+		enc = "WPA Enterprise Mixed";
+	if (nvram_match(akm, "radius"))
+		enc = "RADIUS";
+	if (nvram_match(akm, "wep"))
+		enc = "WEP";
+	if (nvram_match(akm, "8021X"))
+		enc = "802.1x";
+	if (enc) {
 		websWrite(wp, "Capture(share.enabled)");
 		websWrite(wp, "</script>,&nbsp;");
+		websWrite(wp, enc);
+	} else {
+		websWrite(wp, "Capture(share.disabled)");
+		websWrite(wp, "</script>");
 
-		if (nvram_match(akm, "psk"))
-			websWrite(wp, "WPA Personal");
-		if (nvram_match(akm, "wpa"))
-			websWrite(wp, "WPA Enterprise");
-		if (nvram_match(akm, "psk2"))
-			websWrite(wp, "WPA2 Personal");
-		if (nvram_match(akm, "wpa2"))
-			websWrite(wp, "WPA2 Enterprise");
-		if (nvram_match(akm, "psk psk2"))
-			websWrite(wp, "WPA2 Personal Mixed");
-		if (nvram_match(akm, "wpa wpa2"))
-			websWrite(wp, "WPA Enterprise Mixed");
-		if (nvram_match(akm, "radius"))
-			websWrite(wp, "RADIUS");
-		if (nvram_match(akm, "wep"))
-			websWrite(wp, "WEP");
-		if (nvram_match(akm, "8021X"))
-			websWrite(wp, "802.1x");
 	}
 
 	websWrite(wp, "\n</div>\n");
@@ -2450,10 +2634,11 @@ void ej_get_txpower(webs_t wp, int argc, char_t ** argv)
 #ifdef HAVE_80211AC		//broadcom
 		if (txpower == 1496) {
 			websWrite(wp, "Auto");
-		} else {
+		} else
+#endif
+		{
 			websWrite(wp, "%d mW", txpower);
 		}
-#endif
 #endif
 #endif
 	}
@@ -2464,7 +2649,9 @@ void ej_getencryptionstatus(webs_t wp, int argc, char_t ** argv)
 	char *mode = nvram_safe_get("wifi_display");
 
 	showencstatus(wp, mode);
-} void ej_getwirelessstatus(webs_t wp, int argc, char_t ** argv)
+}
+
+void ej_getwirelessstatus(webs_t wp, int argc, char_t ** argv)
 {
 	char var[32];
 	char m[32];
@@ -2560,43 +2747,54 @@ void ej_getwirelessnetmode(webs_t wp, int argc, char_t ** argv)
 		websWrite(wp, "Capture(wl_basic.n5)");
 	if (nvram_match(mode, "ac-only"))
 		websWrite(wp, "Capture(wl_basic.ac)");
+	if (nvram_match(mode, "acn-mixed"))
+		websWrite(wp, "Capture(wl_basic.acn)");
 	websWrite(wp, "</script>&nbsp;\n");
 }
 
 void ej_show_openvpn_status(webs_t wp, int argc, char_t ** argv)
 {
 	websWrite(wp, "<fieldset>\n<legend><script type=\"text/javascript\">Capture(share.state)</script></legend>\n");
+	char *buffer = malloc(4096);
+	int len;
 
 	system2("/etc/openvpnstate.sh > /tmp/.temp");
 	FILE *in = fopen("/tmp/.temp", "r");
 
-	while (!feof(in)) {
-		int b = getc(in);
-
-		if (b != EOF)
-			wfputc(b, wp);
+	while ((len = fread(buffer, 1, 4095, in)) == 4095) {
+		buffer[len] = 0;
+		wfputs(buffer, wp);
 	}
+	if (len) {
+		buffer[len] = 0;
+		wfputs(buffer, wp);
+	}
+
 	fclose(in);
 	websWrite(wp, "</fieldset><br />");
 	websWrite(wp, "<fieldset>\n<legend><script type=\"text/javascript\">Capture(share.statu)</script></legend>\n");
 	system2("/etc/openvpnstatus.sh > /tmp/.temp");
 	in = fopen("/tmp/.temp", "r");
-	while (!feof(in)) {
-		int b = getc(in);
-
-		if (b != EOF)
-			wfputc(b, wp);
+	while ((len = fread(buffer, 1, 4095, in)) == 4095) {
+		buffer[len] = 0;
+		wfputs(buffer, wp);
+	}
+	if (len) {
+		buffer[len] = 0;
+		wfputs(buffer, wp);
 	}
 	fclose(in);
 	websWrite(wp, "</fieldset><br />");
 	websWrite(wp, "<fieldset>\n<legend><script type=\"text/javascript\">Capture(log.legend)</script></legend>\n");
 	system2("/etc/openvpnlog.sh > /tmp/.temp");
 	in = fopen("/tmp/.temp", "r");
-	while (!feof(in)) {
-		int b = getc(in);
-
-		if (b != EOF)
-			wfputc(b, wp);
+	while ((len = fread(buffer, 1, 4095, in)) == 4095) {
+		buffer[len] = 0;
+		wfputs(buffer, wp);
+	}
+	if (len) {
+		buffer[len] = 0;
+		wfputs(buffer, wp);
 	}
 	fclose(in);
 	websWrite(wp, "</fieldset><br />");
@@ -2658,9 +2856,9 @@ void ej_radio_on(webs_t wp, int argc, char_t ** argv)
 void ej_get_radio_state(webs_t wp, int argc, char_t ** argv)
 {
 	int radiooff = -1;
-
+	char *wifi = nvram_safe_get("wifi_display");
 #ifdef HAVE_MADWIFI
-	char *ifname = nvram_safe_get("wifi_display");
+	char *ifname = wifi;
 
 	if (strlen(ifname) > 0) {
 		int state = get_radiostate(ifname);
@@ -2682,7 +2880,7 @@ void ej_get_radio_state(webs_t wp, int argc, char_t ** argv)
 	}
 #elif HAVE_RT2880
 
-	int state = get_radiostate(nvram_safe_get("wifi_display"));
+	int state = get_radiostate(wifi);
 
 	switch (state) {
 	case 1:
@@ -2697,8 +2895,24 @@ void ej_get_radio_state(webs_t wp, int argc, char_t ** argv)
 		break;
 	}
 #else
+#ifdef HAVE_QTN
+	if (!strcmp(wifi, "wl1")) {
+		char status[16];
+		if (!rpc_qtn_ready()) {
+			websWrite(wp, "%s", live_translate("share.unknown"));
+			return;
+		}
+		qcsapi_interface_get_status("wifi0", status);
+		if (!strcmp(status, "Up"))
+			websWrite(wp, "%s", live_translate("wl_basic.radio_on"));
+		else
+			websWrite(wp, "%s", live_translate("wl_basic.radio_off"));
+		return;
+	}
+#endif
+
 	char name[32];
-	sprintf(name, "%s_ifname", nvram_safe_get("wifi_display"));
+	sprintf(name, "%s_ifname", wifi);
 
 	char *ifname = nvram_safe_get(name);
 
@@ -2896,7 +3110,6 @@ int tf_webWriteESC(webs_t wp, const char *value)
 		buf[n] = 0;
 		r += wfputs(buf, wp);
 	}
-	wfflush(wp);
 	return r;
 }
 
@@ -2937,7 +3150,6 @@ int tf_webWriteJS(webs_t wp, const char *s)
 		buf[n] = 0;
 		r += wfputs(buf, wp);
 	}
-	wfflush(wp);
 	return r;
 }
 
@@ -2988,7 +3200,7 @@ void ej_show_upgrade_options(webs_t wp, int argc, char_t ** argv)
 	show_onlineupdates(wp, argc, argv);
 #endif
 #endif
-} extern char *request_url;
+}
 
 void ej_getsetuppage(webs_t wp, int argc, char_t ** argv)
 {

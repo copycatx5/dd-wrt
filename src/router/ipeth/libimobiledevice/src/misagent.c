@@ -27,7 +27,7 @@
 
 #include "misagent.h"
 #include "property_list_service.h"
-#include "debug.h"
+#include "common/debug.h"
 
 /**
  * Convert a property_list_service_error_t value to a misagent_error_t
@@ -40,19 +40,19 @@
  */
 static misagent_error_t misagent_error(property_list_service_error_t err)
 {
-       switch (err) {
-                case PROPERTY_LIST_SERVICE_E_SUCCESS:
-                        return MISAGENT_E_SUCCESS;
-                case PROPERTY_LIST_SERVICE_E_INVALID_ARG:
-                        return MISAGENT_E_INVALID_ARG;
-                case PROPERTY_LIST_SERVICE_E_PLIST_ERROR:
-                        return MISAGENT_E_PLIST_ERROR;
-                case PROPERTY_LIST_SERVICE_E_MUX_ERROR:
-                        return MISAGENT_E_CONN_FAILED;
-                default:
-                        break;
-        }
-        return MISAGENT_E_UNKNOWN_ERROR;
+	switch (err) {
+		case PROPERTY_LIST_SERVICE_E_SUCCESS:
+			return MISAGENT_E_SUCCESS;
+		case PROPERTY_LIST_SERVICE_E_INVALID_ARG:
+			return MISAGENT_E_INVALID_ARG;
+		case PROPERTY_LIST_SERVICE_E_PLIST_ERROR:
+			return MISAGENT_E_PLIST_ERROR;
+		case PROPERTY_LIST_SERVICE_E_MUX_ERROR:
+			return MISAGENT_E_CONN_FAILED;
+		default:
+			break;
+	}
+	return MISAGENT_E_UNKNOWN_ERROR;
 }
 
 /**
@@ -87,18 +87,7 @@ static misagent_error_t misagent_check_result(plist_t response, int* status_code
 	}
 }
 
-/**
- * Connects to the misagent service on the specified device.
- *
- * @param device The device to connect to.
- * @param service The service descriptor returned by lockdownd_start_service.
- * @param client Pointer that will point to a newly allocated
- *     misagent_client_t upon successful return.
- *
- * @return MISAGENT_E_SUCCESS on success, MISAGENT_E_INVALID_ARG when
- *     client is NULL, or an MISAGENT_E_* error code otherwise.
- */
-misagent_error_t misagent_client_new(idevice_t device, lockdownd_service_descriptor_t service, misagent_client_t *client)
+LIBIMOBILEDEVICE_API misagent_error_t misagent_client_new(idevice_t device, lockdownd_service_descriptor_t service, misagent_client_t *client)
 {
 	property_list_service_client_t plistclient = NULL;
 	misagent_error_t err = misagent_error(property_list_service_client_new(device, service, &plistclient));
@@ -114,16 +103,14 @@ misagent_error_t misagent_client_new(idevice_t device, lockdownd_service_descrip
 	return MISAGENT_E_SUCCESS;
 }
 
-/**
- * Disconnects an misagent client from the device and frees up the
- * misagent client data.
- *
- * @param client The misagent client to disconnect and free.
- *
- * @return MISAGENT_E_SUCCESS on success, MISAGENT_E_INVALID_ARG when
- *     client is NULL, or an MISAGENT_E_* error code otherwise.
- */
-misagent_error_t misagent_client_free(misagent_client_t client)
+LIBIMOBILEDEVICE_API misagent_error_t misagent_client_start_service(idevice_t device, misagent_client_t * client, const char* label)
+{
+	misagent_error_t err = MISAGENT_E_UNKNOWN_ERROR;
+	service_client_factory_start_service(device, MISAGENT_SERVICE_NAME, (void**)client, label, SERVICE_CONSTRUCTOR(misagent_client_new), &err);
+	return err;
+}
+
+LIBIMOBILEDEVICE_API misagent_error_t misagent_client_free(misagent_client_t client)
 {
 	if (!client)
 		return MISAGENT_E_INVALID_ARG;
@@ -138,36 +125,26 @@ misagent_error_t misagent_client_free(misagent_client_t client)
 	return err;
 }
 
-/**
- * Installs the given provisioning profile. Only works with valid profiles.
- *
- * @param client The connected misagent to use for installation
- * @param profile The valid provisioning profile to install. This has to be
- *    passed as a PLIST_DATA, otherwise the function will fail.
- *
- * @return MISAGENT_E_SUCCESS on success, MISAGENT_E_INVALID_ARG when
- *     client is invalid, or an MISAGENT_E_* error code otherwise.
- */
-misagent_error_t misagent_install(misagent_client_t client, plist_t profile)
+LIBIMOBILEDEVICE_API misagent_error_t misagent_install(misagent_client_t client, plist_t profile)
 {
 	if (!client || !client->parent || !profile || (plist_get_node_type(profile) != PLIST_DATA))
-                return MISAGENT_E_INVALID_ARG;
+		return MISAGENT_E_INVALID_ARG;
 
 	client->last_error = MISAGENT_E_UNKNOWN_ERROR;
 
 	plist_t dict = plist_new_dict();
-	plist_dict_insert_item(dict, "MessageType", plist_new_string("Install"));
-	plist_dict_insert_item(dict, "Profile", plist_copy(profile));
-	plist_dict_insert_item(dict, "ProfileType", plist_new_string("Provisioning"));
+	plist_dict_set_item(dict, "MessageType", plist_new_string("Install"));
+	plist_dict_set_item(dict, "Profile", plist_copy(profile));
+	plist_dict_set_item(dict, "ProfileType", plist_new_string("Provisioning"));
 
 	misagent_error_t res = misagent_error(property_list_service_send_xml_plist(client->parent, dict));
 	plist_free(dict);
 	dict = NULL;
 
-        if (res != MISAGENT_E_SUCCESS) {
-                debug_info("could not send plist, error %d", res);
+	if (res != MISAGENT_E_SUCCESS) {
+		debug_info("could not send plist, error %d", res);
 		return res;
-        }
+	}
 
 	res = misagent_error(property_list_service_receive_plist(client->parent, &dict));
 	if (res != MISAGENT_E_SUCCESS) {
@@ -185,39 +162,25 @@ misagent_error_t misagent_install(misagent_client_t client, plist_t profile)
 	return res;
 }
 
-/**
- * Retrieves an array of all installed provisioning profiles.
- *
- * @param client The connected misagent to use.
- * @param profiles Pointer to a plist_t that will be set to a PLIST_ARRAY
- *    if the function is successful.
- *
- * @return MISAGENT_E_SUCCESS on success, MISAGENT_E_INVALID_ARG when
- *     client is invalid, or an MISAGENT_E_* error code otherwise.
- *
- * @note If no provisioning profiles are installed on the device, this function
- *     still returns MISAGENT_E_SUCCESS and profiles will just point to an
- *     empty array.
- */
-misagent_error_t misagent_copy(misagent_client_t client, plist_t* profiles)
+LIBIMOBILEDEVICE_API misagent_error_t misagent_copy(misagent_client_t client, plist_t* profiles)
 {
 	if (!client || !client->parent || !profiles)
-                return MISAGENT_E_INVALID_ARG;
+		return MISAGENT_E_INVALID_ARG;
 
 	client->last_error = MISAGENT_E_UNKNOWN_ERROR;
 
 	plist_t dict = plist_new_dict();
-	plist_dict_insert_item(dict, "MessageType", plist_new_string("Copy"));
-	plist_dict_insert_item(dict, "ProfileType", plist_new_string("Provisioning"));
+	plist_dict_set_item(dict, "MessageType", plist_new_string("Copy"));
+	plist_dict_set_item(dict, "ProfileType", plist_new_string("Provisioning"));
 
 	misagent_error_t res = misagent_error(property_list_service_send_xml_plist(client->parent, dict));
 	plist_free(dict);
 	dict = NULL;
 
-        if (res != MISAGENT_E_SUCCESS) {
-                debug_info("could not send plist, error %d", res);
+	if (res != MISAGENT_E_SUCCESS) {
+		debug_info("could not send plist, error %d", res);
 		return res;
-        }
+	}
 
 	res = misagent_error(property_list_service_receive_plist(client->parent, &dict));
 	if (res != MISAGENT_E_SUCCESS) {
@@ -239,37 +202,26 @@ misagent_error_t misagent_copy(misagent_client_t client, plist_t* profiles)
 
 }
 
-/**
- * Removes a given provisioning profile.
- *
- * @param client The connected misagent to use.
- * @param profileID Identifier of the provisioning profile to remove.
- *    This is a UUID that can be obtained from the provisioning profile data.
- * @see misagent_copy
- *
- * @return MISAGENT_E_SUCCESS on success, MISAGENT_E_INVALID_ARG when
- *     client is invalid, or an MISAGENT_E_* error code otherwise.
- */
-misagent_error_t misagent_remove(misagent_client_t client, const char* profileID)
+LIBIMOBILEDEVICE_API misagent_error_t misagent_remove(misagent_client_t client, const char* profileID)
 {
 	if (!client || !client->parent || !profileID)
-                return MISAGENT_E_INVALID_ARG;
+		return MISAGENT_E_INVALID_ARG;
 
 	client->last_error = MISAGENT_E_UNKNOWN_ERROR;
 
 	plist_t dict = plist_new_dict();
-	plist_dict_insert_item(dict, "MessageType", plist_new_string("Remove"));
-	plist_dict_insert_item(dict, "ProfileID", plist_new_string(profileID));
-	plist_dict_insert_item(dict, "ProfileType", plist_new_string("Provisioning"));
+	plist_dict_set_item(dict, "MessageType", plist_new_string("Remove"));
+	plist_dict_set_item(dict, "ProfileID", plist_new_string(profileID));
+	plist_dict_set_item(dict, "ProfileType", plist_new_string("Provisioning"));
 
 	misagent_error_t res = misagent_error(property_list_service_send_xml_plist(client->parent, dict));
 	plist_free(dict);
 	dict = NULL;
 
-        if (res != MISAGENT_E_SUCCESS) {
-                debug_info("could not send plist, error %d", res);
+	if (res != MISAGENT_E_SUCCESS) {
+		debug_info("could not send plist, error %d", res);
 		return res;
-        }
+	}
 
 	res = misagent_error(property_list_service_receive_plist(client->parent, &dict));
 	if (res != MISAGENT_E_SUCCESS) {
@@ -287,14 +239,7 @@ misagent_error_t misagent_remove(misagent_client_t client, const char* profileID
 	return res;
 }
 
-/**
- * Retrieves the status code from the last operation.
- *
- * @param client The misagent to use.
- *
- * @return -1 if client is invalid, or the status code from the last operation
- */
-int misagent_get_status_code(misagent_client_t client)
+LIBIMOBILEDEVICE_API int misagent_get_status_code(misagent_client_t client)
 {
 	if (!client) {
 		return -1;

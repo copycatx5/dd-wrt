@@ -85,7 +85,7 @@ static const char *myname;
 static void
 usage(void)
 {
-	(void) printf(stderr, "Usage:\n\t%s [-i index] [clientname]\n",
+	(void) fprintf(stderr, "Usage:\n\t%s [-i index] [clientname]\n",
 	    myname);
 	exit(1);
 }

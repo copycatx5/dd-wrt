@@ -128,6 +128,7 @@ extern void softirq_init(void);
 char __initdata boot_command_line[COMMAND_LINE_SIZE];
 /* Untouched saved command line (eg. for /proc) */
 char *saved_command_line;
+EXPORT_SYMBOL(saved_command_line);
 /* Command line for parameter parsing */
 static char *static_command_line;
 
@@ -605,6 +606,10 @@ asmlinkage void __init start_kernel(void)
 #ifdef CONFIG_X86
 	if (efi_enabled(EFI_RUNTIME_SERVICES))
 		efi_enter_virtual_mode();
+#endif
+#ifdef CONFIG_X86_ESPFIX64
+	/* Should be run before the first non-init thread is created */
+	init_espfix_bsp();
 #endif
 	thread_info_cache_init();
 	cred_init();

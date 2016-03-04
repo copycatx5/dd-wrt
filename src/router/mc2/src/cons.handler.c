@@ -1,7 +1,7 @@
 /*
    Client interface for General purpose Linux console save/restore server
 
-   Copyright (C) 1994-2014
+   Copyright (C) 1994-2015
    Free Software Foundation, Inc.
 
    This file is part of the Midnight Commander.
@@ -30,7 +30,6 @@
 #include <sys/wait.h>
 #include <signal.h>
 #include <stdio.h>
-#include <fcntl.h>
 #include <sys/types.h>
 #ifdef __FreeBSD__
 #include <sys/consio.h>

@@ -115,7 +115,7 @@ void start_sysinit(void)
 		strncpy(ifr.ifr_name, "eth0", IFNAMSIZ);
 		ioctl(s, SIOCGIFHWADDR, &ifr);
 		char macbase[32];
-		sprintf(macbase, "%s", ether_etoa((unsigned char *)ifr.ifr_hwaddr.sa_data, eabuf));
+		sprintf(macbase, "%s", ether_etoa((char *)ifr.ifr_hwaddr.sa_data, eabuf));
 		close(s);
 		MAC_ADD(macbase);
 		int i;
@@ -190,8 +190,8 @@ void start_sysinit(void)
 
 		strncpy(ifr.ifr_name, "eth0", IFNAMSIZ);
 		ioctl(s, SIOCGIFHWADDR, &ifr);
-		nvram_set("et0macaddr_safe", ether_etoa((unsigned char *)ifr.ifr_hwaddr.sa_data, eabuf));
-		nvram_set("et0macaddr", ether_etoa((unsigned char *)ifr.ifr_hwaddr.sa_data, eabuf));
+		nvram_set("et0macaddr_safe", ether_etoa((char *)ifr.ifr_hwaddr.sa_data, eabuf));
+		nvram_set("et0macaddr", ether_etoa((char *)ifr.ifr_hwaddr.sa_data, eabuf));
 		close(s);
 	}
 #ifndef HAVE_WDR4900
@@ -225,11 +225,11 @@ void start_sysinit(void)
 		fclose(in);
 	}
 #elif !defined(HAVE_UNIWIP)
-	system("swconfig dev switch0 set reset 1");
-	system("swconfig dev switch0 set enable_vlan 1");
-	system("swconfig dev switch0 vlan 1 set ports \"0t 2 3 4 5\"");
-	system("swconfig dev switch0 vlan 2 set ports \"0t 1\"");
-	system("swconfig dev switch0 set apply");
+	eval("swconfig", "dev", "switch0", "set", "reset", "1");
+	eval("swconfig", "dev", "switch0", "set", "enable_vlan", "1");
+	eval("swconfig", "dev", "switch0", "vlan", "1", "set", "ports", "0t 2 3 4 5");
+	eval("swconfig", "dev", "switch0", "vlan", "2", "set", "ports", "0t 1");
+	eval("swconfig", "dev", "switch0", "set", "apply");
 
 	eval("ifconfig", "eth0", "up");
 	eval("vconfig", "set_name_type", "VLAN_PLUS_VID_NO_PAD");

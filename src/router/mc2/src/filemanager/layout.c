@@ -1,7 +1,7 @@
 /*
    Panel layout module for the Midnight Commander
 
-   Copyright (C) 1995-2014
+   Copyright (C) 1995-2015
    Free Software Foundation, Inc.
 
    Written by:
@@ -704,7 +704,7 @@ setup_panels (void)
     check_split (&panels_layout);
     start_y = menubar_visible;
 
-    /* The column computing is defered until panel_do_cols */
+    /* The column computing is deferred until panel_do_cols */
     if (panels_layout.horizontal_split)
     {
         widget_set_size (panels[0].widget, start_y, 0, panels_layout.top_panel_size, 0);
@@ -1020,7 +1020,10 @@ set_display_type (int num, panel_view_mode_t type)
         else
             file_name = "";
 
-        mcview_load ((struct mcview_struct *) new_widget, 0, file_name, 0);
+        mcview_load ((struct WView *) new_widget, 0, file_name, 0, 0, 0);
+        break;
+
+    default:
         break;
     }
 

@@ -49,7 +49,7 @@ Dictionary::Dictionary(plist_t node, Node* parent) : Structure(parent)
     free(it);
 }
 
-Dictionary::Dictionary(PList::Dictionary& d) : Structure()
+Dictionary::Dictionary(const PList::Dictionary& d) : Structure()
 {
     for (Dictionary::iterator it = _map.begin(); it != _map.end(); it++)
     {
@@ -115,7 +115,7 @@ Dictionary::~Dictionary()
     _map.clear();
 }
 
-Node* Dictionary::Clone()
+Node* Dictionary::Clone() const
 {
     return new Dictionary(*this);
 }
@@ -140,18 +140,28 @@ Dictionary::iterator Dictionary::Find(const std::string& key)
     return _map.find(key);
 }
 
-Dictionary::iterator Dictionary::Insert(const std::string& key, Node* node)
+Dictionary::iterator Dictionary::Set(const std::string& key, const Node* node)
 {
     if (node)
     {
         Node* clone = node->Clone();
         UpdateNodeParent(clone);
-        plist_dict_insert_item(_node, key.c_str(), clone->GetPlist());
+        plist_dict_set_item(_node, key.c_str(), clone->GetPlist());
         delete _map[key];
         _map[key] = clone;
         return _map.find(key);
     }
-    return iterator(NULL);
+    return iterator(this->_map.end());
+}
+
+Dictionary::iterator Dictionary::Set(const std::string& key, const Node& node)
+{
+    return Set(key, &node);
+}
+
+Dictionary::iterator Dictionary::Insert(const std::string& key, Node* node)
+{
+    return this->Set(key, node);
 }
 
 void Dictionary::Remove(Node* node)

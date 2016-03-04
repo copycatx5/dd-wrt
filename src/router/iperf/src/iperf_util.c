@@ -1,17 +1,35 @@
 /*
- * Copyright (c) 2009-2011, The Regents of the University of California,
- * through Lawrence Berkeley National Laboratory (subject to receipt of any
- * required approvals from the U.S. Dept. of Energy).  All rights reserved.
+ * iperf, Copyright (c) 2014, The Regents of the University of
+ * California, through Lawrence Berkeley National Laboratory (subject
+ * to receipt of any required approvals from the U.S. Dept. of
+ * Energy).  All rights reserved.
  *
- * This code is distributed under a BSD style license, see the LICENSE file
- * for complete information.
+ * If you have questions about your rights to use or distribute this
+ * software, please contact Berkeley Lab's Technology Transfer
+ * Department at TTD@lbl.gov.
+ *
+ * NOTICE.  This software is owned by the U.S. Department of Energy.
+ * As such, the U.S. Government has been granted for itself and others
+ * acting on its behalf a paid-up, nonexclusive, irrevocable,
+ * worldwide license in the Software to reproduce, prepare derivative
+ * works, and perform publicly and display publicly.  Beginning five
+ * (5) years after the date permission to assert copyright is obtained
+ * from the U.S. Department of Energy, and subject to any subsequent
+ * five (5) year renewals, the U.S. Government is granted for itself
+ * and others acting on its behalf a paid-up, nonexclusive,
+ * irrevocable, worldwide license in the Software to reproduce,
+ * prepare derivative works, distribute copies to the public, perform
+ * publicly and display publicly, and to permit others to do so.
+ *
+ * This code is distributed under a BSD style license, see the LICENSE
+ * file for complete information.
  */
-
 /* iperf_util.c
  *
  * Iperf utility functions
  *
  */
+#include "iperf_config.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -22,10 +40,10 @@
 #include <sys/types.h>
 #include <sys/time.h>
 #include <sys/resource.h>
+#include <sys/utsname.h>
 #include <time.h>
 #include <errno.h>
 
-#include "config.h"
 #include "cjson.h"
 
 /* make_cookie
@@ -193,20 +211,87 @@ cpu_util(double pcpu[3])
     pcpu[2] = (systemdiff / timediff) * 100;
 }
 
-char*
+const char *
 get_system_info(void)
-    {
-    FILE* fp;
-    static char buf[1000];
+{
+    static char buf[1024];
+    struct utsname  uts;
 
-    fp = popen("uname -a", "r");
-    if (fp == NULL)
-	return NULL;
-    fgets(buf, sizeof(buf), fp);
-    pclose(fp);
+    memset(buf, 0, 1024);
+    uname(&uts);
+
+    snprintf(buf, sizeof(buf), "%s %s %s %s %s", uts.sysname, uts.nodename, 
+	     uts.release, uts.version, uts.machine);
+
     return buf;
+}
+
+
+const char *
+get_optional_features(void)
+{
+    static char features[1024];
+    unsigned int numfeatures = 0;
+
+    snprintf(features, sizeof(features), "Optional features available: ");
+
+#if defined(HAVE_CPU_AFFINITY)
+    if (numfeatures > 0) {
+	strncat(features, ", ", 
+		sizeof(features) - strlen(features) - 1);
+    }
+    strncat(features, "CPU affinity setting", 
+	sizeof(features) - strlen(features) - 1);
+    numfeatures++;
+#endif /* HAVE_CPU_AFFINITY */
+    
+#if defined(HAVE_FLOWLABEL)
+    if (numfeatures > 0) {
+	strncat(features, ", ", 
+		sizeof(features) - strlen(features) - 1);
+    }
+    strncat(features, "IPv6 flow label", 
+	sizeof(features) - strlen(features) - 1);
+    numfeatures++;
+#endif /* HAVE_FLOWLABEL */
+    
+#if defined(HAVE_SCTP)
+    if (numfeatures > 0) {
+	strncat(features, ", ", 
+		sizeof(features) - strlen(features) - 1);
+    }
+    strncat(features, "SCTP", 
+	sizeof(features) - strlen(features) - 1);
+    numfeatures++;
+#endif /* HAVE_SCTP */
+    
+#if defined(HAVE_TCP_CONGESTION)
+    if (numfeatures > 0) {
+	strncat(features, ", ", 
+		sizeof(features) - strlen(features) - 1);
+    }
+    strncat(features, "TCP congestion algorithm setting", 
+	sizeof(features) - strlen(features) - 1);
+    numfeatures++;
+#endif /* HAVE_TCP_CONGESTION */
+    
+#if defined(HAVE_SENDFILE)
+    if (numfeatures > 0) {
+	strncat(features, ", ",
+		sizeof(features) - strlen(features) - 1);
+    }
+    strncat(features, "sendfile / zerocopy",
+	sizeof(features) - strlen(features) - 1);
+    numfeatures++;
+#endif /* HAVE_SENDFILE */
+
+    if (numfeatures == 0) {
+	strncat(features, "None", 
+		sizeof(features) - strlen(features) - 1);
     }
 
+    return features;
+}
 
 /* Helper routine for building cJSON objects in a printf-like manner.
 **

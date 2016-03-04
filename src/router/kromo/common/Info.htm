@@ -15,7 +15,7 @@ function setWirelessTable() {
 		cell.innerHTML = "- " + share.none + " -";
 		return;
 	}
-	for(var i = 0; i < val.length; i = i + 9) {
+	for(var i = 0; i < val.length; i = i + 10) {
 		var row = table.insertRow(-1);
 		
 		var mac = val[i];
@@ -44,7 +44,8 @@ function setWirelessTable() {
 		row.insertCell(-1).innerHTML = val[i + 5];		
 		row.insertCell(-1).innerHTML = val[i + 6];		
 		row.insertCell(-1).innerHTML = val[i + 7];		
-		setMeterBar(row.insertCell(-1), (val[i + 8] == "0" ? 0 : parseInt(val[i + 8]) * 0.1), "");
+		row.insertCell(-1).innerHTML = val[i + 8];		
+		setMeterBar(row.insertCell(-1), (val[i + 9] == "0" ? 0 : parseInt(val[i + 9]) * 0.1), "");
 	}
 }
 
@@ -144,7 +145,6 @@ function setMemoryValues(val) {
 	setElementContent("mem_cached", memCached.toFixed(1) + " MB / " + memUsed.toFixed(1) + " MB");
 	setElementContent("mem_active", memActive.toFixed(1) + " MB / " + memUsed.toFixed(1) + " MB");
 	setElementContent("mem_inactive", memInactive.toFixed(1) + " MB / " + memUsed.toFixed(1) + " MB");
-<% nvim("show_hidden","1","/"); %><% nvim("show_hidden","1","/"); %>	setElementContent("mem_hidden", "32 MB / 32 MB");
 }
 
 var update;
@@ -152,8 +152,10 @@ var update;
 addEvent(window, "load", function() {
 	setPacketInfo("<% wl_packet_get(); %>");
 	setMemoryValues("<% dumpmeminfo(); %>");
-<% ifndef("HASWIFI", "/"); %><% ifndef("HASWIFI", "/"); %>	setWirelessTable(<% active_wireless(1); %>);
-<% ifndef("HASWIFI", "/"); %><% ifndef("HASWIFI", "/"); %>	setWDSTable(<% active_wds(1); %>);
+<% ifndef("HASWIFI", "/"); %><% ifndef("HASWIFI", "*"); %>	
+	setWirelessTable(<% active_wireless(1); %>);
+	setWDSTable(<% active_wds(1); %>);
+<% ifndef("HASWIFI", "*"); %><% ifndef("HASWIFI", "/"); %>
 	setDHCPTable(<% dumpleases(1); %>);
 	setElementVisible("dhcp", "<% nvg("lan_proto"); %>" == "dhcp");
 
@@ -268,7 +270,7 @@ function refresh(F)
 									</div>
 									<% ifndef("HASWIFI", "-->"); %>
 									<div class="setting">
-										<div class="label">WAN IP</div>
+										<div class="label">WAN IPv4</div>
 										<span id="wan_ipaddr"><% nvram_status_get("wan_ipaddr"); %></span>&nbsp;
 									</div>
 									<div class="setting">
@@ -328,10 +330,12 @@ function refresh(F)
 							<div class="col2r">
 								<fieldset>
 									<legend><% tran("info.srv"); %></legend>
-									<div class="setting">
+									<% get_service_state(); %>
+							<!--		<div class="setting">
 										<div class="label"><% tran("service.dhcp_legend2"); %></div>
 										<% nvm("lan_proto", "dhcp", "<script type="text/javascript">Capture(share.enabled)</script>"); %><% nvm("lan_proto", "static", "<script type="text/javascript">Capture(share.disabled)</script>"); %>&nbsp;
 									</div>
+							-->
 									<div class="setting">
 										<div class="label">WRT-radauth</div>
 									<% nvim("wl0_mode", "ap", "<script type="text/javascript">Capture(wl_basic.ap)</script><!--"); %><% nvm("wl0_radauth","0","<script type="text/javascript">Capture(share.disabled)</script>"); %><% nvm("wl0_radauth","1","<script type="text/javascript">Capture(share.enabled)</script>"); %><% nvim("wl0_mode", "ap", "-->"); %>&nbsp;
@@ -396,12 +400,6 @@ function refresh(F)
 										<div class="label"><% tran("status_router.mem_inactive"); %></div>
 										<span id="mem_inactive"></span>&nbsp;
 									</div>
-	<% nvim("show_hidden","1","<!--"); %>
-									<div class="setting">
-										<div class="label"><% tran("status_router.mem_hidden"); %></div>
-										<span id="mem_hidden"></span>&nbsp;
-									</div>
-	<% nvim("show_hidden","1","-->"); %>
 								</fieldset><br />
 								
 								<fieldset>
@@ -490,10 +488,11 @@ function refresh(F)
 								<table class="table center" cellspacing="5" id="wireless_table" summary="wireless clients table">
 									<tr>
 										<th width="16%"><% tran("share.mac"); %></th>
-										<th width="10%"><% tran("share.intrface"); %></th>
+										<th width="8%"><% tran("share.intrface"); %></th>
 										<th width="10%"><% tran("status_router.sys_up"); %></th>
 										<th width="8%"><% tran("share.txrate"); %></th>
 										<th width="8%"><% tran("share.rxrate"); %></th>
+										<th width="10%">Info</th>
 										<th width="8%"><% tran("share.signal"); %></th>
 										<th width="8%"><% tran("share.noise"); %></th>
 										<th width="8%">SNR</th>

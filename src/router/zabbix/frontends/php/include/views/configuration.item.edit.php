@@ -1,7 +1,7 @@
 <?php
 /*
 ** Zabbix
-** Copyright (C) 2001-2013 Zabbix SIA
+** Copyright (C) 2001-2015 Zabbix SIA
 **
 ** This program is free software; you can redistribute it and/or modify
 ** it under the terms of the GNU General Public License as published by
@@ -57,24 +57,9 @@ if (!empty($this->data['templates'])) {
 	}
 }
 
-if (!$this->data['is_discovery_rule']) {
-	// append host to form list
-	if (empty($this->data['parent_discoveryid'])) {
-		$itemForm->addVar('form_hostid', $this->data['hostid']);
-		$itemFormList->addRow(_('Host'), array(
-			new CTextBox('hostname', $this->data['hostname'], ZBX_TEXTBOX_STANDARD_SIZE, true),
-			empty($this->data['itemid'])
-				? new CButton('btn_host', _('Select'),
-					'return PopUp("popup.php?srctbl=hosts_and_templates&srcfld1=name&srcfld2=hostid'.
-						'&dstfrm='.$itemForm->getName().'&dstfld1=hostname&dstfld2=form_hostid'.
-						'&noempty=1&submitParent=1", 450, 450);',
-					'formlist'
-				)
-				: null
-		));
-	}
-}
-$itemFormList->addRow(_('Name'), new CTextBox('name', $this->data['name'], ZBX_TEXTBOX_STANDARD_SIZE, $this->data['limited']));
+$nameTextBox = new CTextBox('name', $this->data['name'], ZBX_TEXTBOX_STANDARD_SIZE, $this->data['limited']);
+$nameTextBox->attr('autofocus', 'autofocus');
+$itemFormList->addRow(_('Name'), $nameTextBox);
 
 // append type to form list
 if ($this->data['limited']) {
@@ -94,7 +79,7 @@ $itemFormList->addRow(_('Key'), array(
 	new CTextBox('key', $this->data['key'], ZBX_TEXTBOX_STANDARD_SIZE, $this->data['limited']),
 	!$this->data['limited'] && !$this->data['is_discovery_rule']
 		? new CButton('keyButton', _('Select'),
-			'return PopUp("popup.php?srctbl=help_items&srcfld1=key_'.
+			'return PopUp("popup.php?srctbl=help_items&srcfld1=key'.
 				'&dstfrm='.$itemForm->getName().'&dstfld1=key&itemtype="+jQuery("#type option:selected").val());',
 			'formlist')
 		: null
@@ -135,11 +120,15 @@ $itemFormList->addRow(_('SNMP OID'),
 	new CTextBox('snmp_oid', $this->data['snmp_oid'], ZBX_TEXTBOX_STANDARD_SIZE, $this->data['limited']),
 	false, 'row_snmp_oid'
 );
+$itemFormList->addRow(_('Context name'),
+	new CTextBox('snmpv3_contextname', $this->data['snmpv3_contextname'], ZBX_TEXTBOX_STANDARD_SIZE),
+	false, 'row_snmpv3_contextname'
+);
 $itemFormList->addRow(_('SNMP community'),
 	new CTextBox('snmp_community', $this->data['snmp_community'], ZBX_TEXTBOX_STANDARD_SIZE, 'no', 64),
 	false, 'row_snmp_community'
 );
-$itemFormList->addRow(_('SNMPv3 security name'),
+$itemFormList->addRow(_('Security name'),
 	new CTextBox('snmpv3_securityname', $this->data['snmpv3_securityname'], ZBX_TEXTBOX_STANDARD_SIZE, 'no', 64),
 	false, 'row_snmpv3_securityname'
 );
@@ -149,12 +138,32 @@ $securityLevelComboBox = new CComboBox('snmpv3_securitylevel', $this->data['snmp
 $securityLevelComboBox->addItem(ITEM_SNMPV3_SECURITYLEVEL_NOAUTHNOPRIV, 'noAuthNoPriv');
 $securityLevelComboBox->addItem(ITEM_SNMPV3_SECURITYLEVEL_AUTHNOPRIV, 'authNoPriv');
 $securityLevelComboBox->addItem(ITEM_SNMPV3_SECURITYLEVEL_AUTHPRIV, 'authPriv');
-$itemFormList->addRow(_('SNMPv3 security level'), $securityLevelComboBox, false, 'row_snmpv3_securitylevel');
-$itemFormList->addRow(_('SNMPv3 auth passphrase'),
+$itemFormList->addRow(_('Security level'), $securityLevelComboBox, false, 'row_snmpv3_securitylevel');
+$authProtocolRadioButton = array(
+	new CRadioButton('snmpv3_authprotocol', ITEM_AUTHPROTOCOL_MD5, null, 'snmpv3_authprotocol_'.ITEM_AUTHPROTOCOL_MD5, $this->data['snmpv3_authprotocol'] == ITEM_AUTHPROTOCOL_MD5),
+	new CLabel(_('MD5'), 'snmpv3_authprotocol_'.ITEM_AUTHPROTOCOL_MD5),
+	new CRadioButton('snmpv3_authprotocol', ITEM_AUTHPROTOCOL_SHA, null, 'snmpv3_authprotocol_'.ITEM_AUTHPROTOCOL_SHA, $this->data['snmpv3_authprotocol'] == ITEM_AUTHPROTOCOL_SHA),
+	new CLabel(_('SHA'), 'snmpv3_authprotocol_'.ITEM_AUTHPROTOCOL_SHA)
+);
+$itemFormList->addRow(_('Authentication protocol'),
+	new CDiv($authProtocolRadioButton, 'jqueryinputset'),
+	false, 'row_snmpv3_authprotocol'
+);
+$itemFormList->addRow(_('Authentication passphrase'),
 	new CTextBox('snmpv3_authpassphrase', $this->data['snmpv3_authpassphrase'], ZBX_TEXTBOX_STANDARD_SIZE, 'no', 64),
 	false, 'row_snmpv3_authpassphrase'
 );
-$itemFormList->addRow(_('SNMPv3 priv passphrase'),
+$privProtocolRadioButton = array(
+	new CRadioButton('snmpv3_privprotocol', ITEM_PRIVPROTOCOL_DES, null, 'snmpv3_privprotocol_'.ITEM_PRIVPROTOCOL_DES, $this->data['snmpv3_privprotocol'] == ITEM_PRIVPROTOCOL_DES),
+	new CLabel(_('DES'), 'snmpv3_privprotocol_'.ITEM_PRIVPROTOCOL_DES),
+	new CRadioButton('snmpv3_privprotocol', ITEM_PRIVPROTOCOL_AES, null, 'snmpv3_privprotocol_'.ITEM_PRIVPROTOCOL_AES, $this->data['snmpv3_privprotocol'] == ITEM_PRIVPROTOCOL_AES),
+	new CLabel(_('AES'), 'snmpv3_privprotocol_'.ITEM_PRIVPROTOCOL_AES)
+);
+$itemFormList->addRow(_('Privacy protocol'),
+	new CDiv($privProtocolRadioButton, 'jqueryinputset'),
+	false, 'row_snmpv3_privprotocol'
+);
+$itemFormList->addRow(_('Privacy passphrase'),
 	new CTextBox('snmpv3_privpassphrase', $this->data['snmpv3_privpassphrase'], ZBX_TEXTBOX_STANDARD_SIZE, 'no', 64),
 	false, 'row_snmpv3_privpassphrase'
 );
@@ -187,11 +196,9 @@ $itemFormList->addRow(_('Executed script'),
 	new CTextArea('params_es', $this->data['params'], array('rows' => ZBX_TEXTAREA_STANDARD_ROWS, 'width' => ZBX_TEXTAREA_STANDARD_WIDTH)),
 	false, 'label_executed_script'
 );
-$itemFormList->addRow(_('Additional parameters'),
+$itemFormList->addRow(_('SQL query'),
 	new CTextArea('params_ap',
-		!empty($this->data['params'])
-			? $this->data['params']
-			: 'DSN=<database source name>'."\n".'user=<user name>'."\n".'password=<password>'."\n".'sql=<query>',
+		$this->data['params'],
 		array('rows' => ZBX_TEXTAREA_STANDARD_ROWS, 'width' => ZBX_TEXTAREA_STANDARD_WIDTH)
 	),
 	false,
@@ -241,7 +248,6 @@ if (!$this->data['is_discovery_rule']) {
 
 		$multiplierCheckBox = new CCheckBox('multiplier', $this->data['multiplier'] == 1 ? 'yes':'no');
 		$multiplierCheckBox->setAttribute('disabled', 'disabled');
-		$multiplierCheckBox->setAttribute('style', 'vertical-align: middle;');
 		$multiplier[] = $multiplierCheckBox;
 
 		$multiplier[] = SPACE;
@@ -253,7 +259,6 @@ if (!$this->data['is_discovery_rule']) {
 		$multiplierCheckBox = new CCheckBox('multiplier', $this->data['multiplier'] == 1 ? 'yes': 'no',
 			'var editbx = document.getElementById(\'formula\'); if (editbx) { editbx.disabled = !this.checked; }', 1
 		);
-		$multiplierCheckBox->setAttribute('style', 'vertical-align: middle;');
 		$multiplier[] = $multiplierCheckBox;
 		$multiplier[] = SPACE;
 		$formulaTextBox = new CTextBox('formula', $this->data['formula'], ZBX_TEXTBOX_SMALL_SIZE);
@@ -298,23 +303,24 @@ $itemFormList->addRow(_('Flexible intervals'),
 );
 
 // append new flexible interval to form list
-$itemFormList->addRow(
-	_('New flexible interval'),
-	array(
-		_('Interval (in sec)'),
-		SPACE,
-		new CNumericBox('new_delay_flex[delay]', $this->data['new_delay_flex']['delay'], 5),
-		SPACE,
-		_('Period'),
-		SPACE,
-		new CTextBox('new_delay_flex[period]', $this->data['new_delay_flex']['period'], 20),
-		SPACE,
-		new CSubmit('add_delay_flex', _('Add'), null, 'formlist')
-	),
-	$this->data['maxReached'],
-	'row_new_delay_flex',
-	'new'
-);
+$newFlexInt = new CSpan(array(
+	_('Interval (in sec)'),
+	SPACE,
+	new CNumericBox('new_delay_flex[delay]', $this->data['new_delay_flex']['delay'], 5, 'no', false, false),
+	SPACE,
+	_('Period'),
+	SPACE,
+	new CTextBox('new_delay_flex[period]', $this->data['new_delay_flex']['period'], 20),
+	SPACE,
+	new CButton('add_delay_flex', _('Add'), null, 'formlist')
+));
+$newFlexInt->setAttribute('id', 'row-new-delay-flex-fields');
+
+$maxFlexMsg = new CSpan(_('Maximum number of flexible intervals added'), 'red');
+$maxFlexMsg->setAttribute('id', 'row-new-delay-flex-max-reached');
+$maxFlexMsg->setAttribute('style', 'display: none;');
+
+$itemFormList->addRow(_('New flexible interval'), array($newFlexInt, $maxFlexMsg), false, 'row_new_delay_flex', 'new');
 
 if ($this->data['is_discovery_rule']) {
 	$itemFormList->addRow(_('Keep lost resources period (in days)'), new CTextBox('lifetime', $this->data['lifetime'], ZBX_TEXTBOX_SMALL_SIZE, false, 64));
@@ -347,9 +353,49 @@ if ($this->data['is_discovery_rule']) {
 		false, 'row_trapper_hosts');
 }
 else {
-	// append keep history to form list
-	$itemFormList->addRow(_('Keep history (in days)'), new CNumericBox('history', $this->data['history'], 8));
-	$itemFormList->addRow(_('Keep trends (in days)'), new CNumericBox('trends', $this->data['trends'], 8), false, 'row_trends');
+	$dataConfig = select_config();
+	$keepHistory = array();
+	$keepHistory[] =  new CNumericBox('history', $this->data['history'], 8);
+	if ($dataConfig['hk_history_global'] && !$data['parent_discoveryid'] && !$data['is_template']) {
+		$keepHistory[] = SPACE;
+		if (CWebUser::getType() == USER_TYPE_SUPER_ADMIN) {
+			$keepHistory[] = new CSpan(_x('Overridden by', 'item_form'));
+			$keepHistory[] = SPACE;
+			$link = new CLink(_x('global housekeeping settings', 'item_form'), 'adm.housekeeper.php');
+			$link->setAttribute('target', '_blank');
+			$keepHistory[] =  $link;
+			$keepHistory[] = SPACE;
+			$keepHistory[] = new CSpan('('._n('%1$s day', '%1$s days', $dataConfig['hk_history']).')');
+		}
+		else {
+			$keepHistory[] = new CSpan(_('Overriden by global housekeeping settings').
+				'('._n('%1$s day', '%1$s days', $dataConfig['hk_history']).')'
+			);
+		}
+	}
+	$itemFormList->addRow(_('History storage period (in days)'), $keepHistory);
+
+	$keepTrend = array();
+	$keepTrend[] =  new CNumericBox('trends', $this->data['trends'], 8);
+	if ($dataConfig['hk_trends_global'] && !$data['parent_discoveryid'] && !$data['is_template']) {
+		$keepTrend[] = SPACE;
+		if (CWebUser::getType() == USER_TYPE_SUPER_ADMIN) {
+			$keepTrend[] = new CSpan(_x('Overridden by', 'item_form'));
+			$keepTrend[] = SPACE;
+			$link = new CLink(_x('global housekeeping settings', 'item_form'), 'adm.housekeeper.php');
+			$link->setAttribute('target', '_blank');
+			$keepTrend[] =  $link;
+			$keepTrend[] = SPACE;
+			$keepTrend[] = new CSpan('('._n('%1$s day', '%1$s days', $dataConfig['hk_trends']).')');
+		}
+		else {
+			$keepTrend[] = new CSpan(_('Overriden by global housekeeping settings').
+				'('._n('%1$s day', '%1$s days', $dataConfig['hk_trends']).')'
+			);
+		}
+	}
+
+	$itemFormList->addRow(_('Trend storage period (in days)'), $keepTrend, false, 'row_trends');
 	$itemFormList->addRow(_('Log time format'),
 		new CTextBox('logtimefmt', $this->data['logtimefmt'], ZBX_TEXTBOX_SMALL_SIZE, $this->data['limited'], 64),
 		false, 'row_logtimefmt'
@@ -380,7 +426,10 @@ else {
 		$valuemapComboBox = new CComboBox('valuemapid', $this->data['valuemapid']);
 		$valuemapComboBox->addItem(0, _('As is'));
 		foreach ($this->data['valuemaps'] as $valuemap) {
-			$valuemapComboBox->addItem($valuemap['valuemapid'], get_node_name_by_elid($valuemap['valuemapid'], null, ': ').$valuemap['name']);
+			$valuemapComboBox->addItem(
+				$valuemap['valuemapid'],
+				get_node_name_by_elid($valuemap['valuemapid'], null, NAME_DELIMITER).CHtml::encode($valuemap['name'])
+			);
 		}
 	}
 	$link = new CLink(_('show value mappings'), 'adm.valuemapping.php');
@@ -397,7 +446,7 @@ else {
 	$applicationComboBox = new CListBox('applications[]', $this->data['applications'], 6);
 	$applicationComboBox->addItem(0, '-'._('None').'-');
 	foreach ($this->data['db_applications'] as $application) {
-		$applicationComboBox->addItem($application['applicationid'], $application['name']);
+		$applicationComboBox->addItem($application['applicationid'], CHtml::encode($application['name']));
 	}
 	$itemFormList->addRow(_('Applications'), $applicationComboBox);
 
@@ -434,16 +483,8 @@ $description->addStyle('margin-top: 5px;');
 $itemFormList->addRow(_('Description'), $description);
 
 // status
-if (isset($this->data['is_item_prototype'])) {
-	$enabledCheckBox = new CCheckBox('status', !$this->data['status'], null, ITEM_STATUS_ACTIVE);
-	$enabledCheckBox->addStyle('vertical-align: middle;');
-	$itemFormList->addRow(_('Enabled'), $enabledCheckBox);
-}
-else {
-	$statusComboBox = new CComboBox('status', $this->data['status']);
-	$statusComboBox->addItems(item_status2str());
-	$itemFormList->addRow(_('Status'), $statusComboBox);
-}
+$enabledCheckBox = new CCheckBox('status', !$this->data['status'], null, ITEM_STATUS_ACTIVE);
+$itemFormList->addRow(_('Enabled'), $enabledCheckBox);
 
 // append tabs to form
 $itemTab = new CTabView();
@@ -463,18 +504,19 @@ if (!empty($this->data['itemid'])) {
 	if (!$this->data['limited']) {
 		if ($this->data['is_discovery_rule']) {
 			array_push($buttons, new CButtonDelete(_('Delete discovery rule?'),
-				url_params(array('form', 'groupid', 'itemid', 'parent_discoveryid')))
+				url_params(array('form', 'groupid', 'itemid', 'parent_discoveryid', 'hostid')))
 			);
 		}
 		else {
-			array_push($buttons, new CButtonDelete(_('Delete item?'),
-				url_params(array('form', 'groupid', 'itemid', 'parent_discoveryid')))
+			$buttons[] = new CButtonDelete(
+				$this->data['parent_discoveryid'] ? _('Delete item prototype?') : _('Delete item?'),
+				url_params(array('form', 'groupid', 'itemid', 'parent_discoveryid', 'hostid'))
 			);
 		}
 	}
 }
 array_push($buttons, new CButtonCancel(url_param('groupid').url_param('parent_discoveryid').url_param('hostid')));
-$itemForm->addItem(makeFormFooter(array(new CSubmit('save', _('Save'))), $buttons));
+$itemForm->addItem(makeFormFooter(new CSubmit('save', _('Save')), $buttons));
 $itemWidget->addItem($itemForm);
 
 /*
@@ -522,6 +564,10 @@ if (!empty($this->data['interfaces'])) {
 	zbx_subarray_push($this->data['typeVisibility'], ITEM_TYPE_SNMPTRAP, 'interface_row');
 	zbx_subarray_push($this->data['typeVisibility'], ITEM_TYPE_SNMPTRAP, 'interfaceid');
 }
+zbx_subarray_push($this->data['typeVisibility'], ITEM_TYPE_SIMPLE, 'row_username');
+zbx_subarray_push($this->data['typeVisibility'], ITEM_TYPE_SIMPLE, 'username');
+zbx_subarray_push($this->data['typeVisibility'], ITEM_TYPE_SIMPLE, 'row_password');
+zbx_subarray_push($this->data['typeVisibility'], ITEM_TYPE_SIMPLE, 'password');
 zbx_subarray_push($this->data['typeVisibility'], ITEM_TYPE_SNMPV1, 'snmp_oid');
 zbx_subarray_push($this->data['typeVisibility'], ITEM_TYPE_SNMPV2C, 'snmp_oid');
 zbx_subarray_push($this->data['typeVisibility'], ITEM_TYPE_SNMPV3, 'snmp_oid');
@@ -532,6 +578,8 @@ zbx_subarray_push($this->data['typeVisibility'], ITEM_TYPE_SNMPV1, 'snmp_communi
 zbx_subarray_push($this->data['typeVisibility'], ITEM_TYPE_SNMPV2C, 'snmp_community');
 zbx_subarray_push($this->data['typeVisibility'], ITEM_TYPE_SNMPV1, 'row_snmp_community');
 zbx_subarray_push($this->data['typeVisibility'], ITEM_TYPE_SNMPV2C, 'row_snmp_community');
+zbx_subarray_push($this->data['typeVisibility'], ITEM_TYPE_SNMPV3, 'snmpv3_contextname');
+zbx_subarray_push($this->data['typeVisibility'], ITEM_TYPE_SNMPV3, 'row_snmpv3_contextname');
 zbx_subarray_push($this->data['typeVisibility'], ITEM_TYPE_SNMPV3, 'snmpv3_securityname');
 zbx_subarray_push($this->data['typeVisibility'], ITEM_TYPE_SNMPV3, 'row_snmpv3_securityname');
 zbx_subarray_push($this->data['typeVisibility'], ITEM_TYPE_SNMPV3, 'snmpv3_securitylevel');
@@ -550,12 +598,16 @@ zbx_subarray_push($this->data['typeVisibility'], ITEM_TYPE_SSH, 'username');
 zbx_subarray_push($this->data['typeVisibility'], ITEM_TYPE_SSH, 'row_username');
 zbx_subarray_push($this->data['typeVisibility'], ITEM_TYPE_TELNET, 'username');
 zbx_subarray_push($this->data['typeVisibility'], ITEM_TYPE_TELNET, 'row_username');
+zbx_subarray_push($this->data['typeVisibility'], ITEM_TYPE_DB_MONITOR, 'username');
+zbx_subarray_push($this->data['typeVisibility'], ITEM_TYPE_DB_MONITOR, 'row_username');
 zbx_subarray_push($this->data['typeVisibility'], ITEM_TYPE_JMX, 'username');
 zbx_subarray_push($this->data['typeVisibility'], ITEM_TYPE_JMX, 'row_username');
 zbx_subarray_push($this->data['typeVisibility'], ITEM_TYPE_SSH, 'password');
 zbx_subarray_push($this->data['typeVisibility'], ITEM_TYPE_SSH, 'row_password');
 zbx_subarray_push($this->data['typeVisibility'], ITEM_TYPE_TELNET, 'password');
 zbx_subarray_push($this->data['typeVisibility'], ITEM_TYPE_TELNET, 'row_password');
+zbx_subarray_push($this->data['typeVisibility'], ITEM_TYPE_DB_MONITOR, 'password');
+zbx_subarray_push($this->data['typeVisibility'], ITEM_TYPE_DB_MONITOR, 'row_password');
 zbx_subarray_push($this->data['typeVisibility'], ITEM_TYPE_JMX, 'password');
 zbx_subarray_push($this->data['typeVisibility'], ITEM_TYPE_JMX, 'row_password');
 zbx_subarray_push($this->data['typeVisibility'], ITEM_TYPE_SSH, 'label_executed_script');
@@ -576,10 +628,6 @@ foreach ($this->data['types'] as $type => $label) {
 	switch ($type) {
 		case ITEM_TYPE_DB_MONITOR:
 			zbx_subarray_push($this->data['typeVisibility'], $type, array('id' => 'key', 'defaultValue' => ZBX_DEFAULT_KEY_DB_MONITOR));
-			zbx_subarray_push($this->data['typeVisibility'], $type, array(
-				'id' => 'params_dbmonitor',
-				'defaultValue' => 'DSN=<database source name>\nuser=<user name>\npassword=<password>\nsql=<query>'
-			));
 			break;
 		case ITEM_TYPE_SSH:
 			zbx_subarray_push($this->data['typeVisibility'], $type, array('id' => 'key', 'defaultValue' => ZBX_DEFAULT_KEY_SSH));
@@ -638,6 +686,9 @@ if (!$this->data['is_discovery_rule']) {
 	zbx_subarray_push($this->data['valueTypeVisibility'], ITEM_VALUE_TYPE_LOG, 'logtimefmt');
 	zbx_subarray_push($this->data['valueTypeVisibility'], ITEM_VALUE_TYPE_LOG, 'row_logtimefmt');
 	zbx_subarray_push($this->data['valueTypeVisibility'], ITEM_VALUE_TYPE_FLOAT, 'valuemapid');
+	zbx_subarray_push($this->data['valueTypeVisibility'], ITEM_VALUE_TYPE_STR, 'valuemapid');
+	zbx_subarray_push($this->data['valueTypeVisibility'], ITEM_VALUE_TYPE_STR, 'row_valuemap');
+	zbx_subarray_push($this->data['valueTypeVisibility'], ITEM_VALUE_TYPE_STR, 'valuemap_name');
 	zbx_subarray_push($this->data['valueTypeVisibility'], ITEM_VALUE_TYPE_FLOAT, 'row_valuemap');
 	zbx_subarray_push($this->data['valueTypeVisibility'], ITEM_VALUE_TYPE_FLOAT, 'valuemap_name');
 	zbx_subarray_push($this->data['valueTypeVisibility'], ITEM_VALUE_TYPE_UINT64, 'valuemapid');
@@ -656,12 +707,18 @@ if (!$this->data['is_discovery_rule']) {
 }
 
 $this->data['securityLevelVisibility'] = array();
+zbx_subarray_push($this->data['securityLevelVisibility'], ITEM_SNMPV3_SECURITYLEVEL_AUTHNOPRIV, 'snmpv3_authprotocol');
+zbx_subarray_push($this->data['securityLevelVisibility'], ITEM_SNMPV3_SECURITYLEVEL_AUTHNOPRIV, 'row_snmpv3_authprotocol');
 zbx_subarray_push($this->data['securityLevelVisibility'], ITEM_SNMPV3_SECURITYLEVEL_AUTHNOPRIV, 'snmpv3_authpassphrase');
 zbx_subarray_push($this->data['securityLevelVisibility'], ITEM_SNMPV3_SECURITYLEVEL_AUTHNOPRIV, 'row_snmpv3_authpassphrase');
-zbx_subarray_push($this->data['securityLevelVisibility'], ITEM_SNMPV3_SECURITYLEVEL_AUTHPRIV, 'snmpv3_privpassphrase');
-zbx_subarray_push($this->data['securityLevelVisibility'], ITEM_SNMPV3_SECURITYLEVEL_AUTHPRIV, 'row_snmpv3_privpassphrase');
+zbx_subarray_push($this->data['securityLevelVisibility'], ITEM_SNMPV3_SECURITYLEVEL_AUTHPRIV, 'snmpv3_authprotocol');
+zbx_subarray_push($this->data['securityLevelVisibility'], ITEM_SNMPV3_SECURITYLEVEL_AUTHPRIV, 'row_snmpv3_authprotocol');
 zbx_subarray_push($this->data['securityLevelVisibility'], ITEM_SNMPV3_SECURITYLEVEL_AUTHPRIV, 'snmpv3_authpassphrase');
 zbx_subarray_push($this->data['securityLevelVisibility'], ITEM_SNMPV3_SECURITYLEVEL_AUTHPRIV, 'row_snmpv3_authpassphrase');
+zbx_subarray_push($this->data['securityLevelVisibility'], ITEM_SNMPV3_SECURITYLEVEL_AUTHPRIV, 'snmpv3_privprotocol');
+zbx_subarray_push($this->data['securityLevelVisibility'], ITEM_SNMPV3_SECURITYLEVEL_AUTHPRIV, 'row_snmpv3_privprotocol');
+zbx_subarray_push($this->data['securityLevelVisibility'], ITEM_SNMPV3_SECURITYLEVEL_AUTHPRIV, 'snmpv3_privpassphrase');
+zbx_subarray_push($this->data['securityLevelVisibility'], ITEM_SNMPV3_SECURITYLEVEL_AUTHPRIV, 'row_snmpv3_privpassphrase');
 
 $this->data['authTypeVisibility'] = array();
 zbx_subarray_push($this->data['authTypeVisibility'], ITEM_AUTHTYPE_PUBLICKEY, 'publickey');
@@ -692,4 +749,5 @@ if (!$this->data['is_discovery_rule']) {
 }
 
 require_once dirname(__FILE__).'/js/configuration.item.edit.js.php';
+
 return $itemWidget;

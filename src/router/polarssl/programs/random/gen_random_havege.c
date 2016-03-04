@@ -23,7 +23,11 @@
  *  51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  */
 
+#if !defined(POLARSSL_CONFIG_FILE)
 #include "polarssl/config.h"
+#else
+#include POLARSSL_CONFIG_FILE
+#endif
 
 #include "polarssl/havege.h"
 
@@ -44,7 +48,7 @@ int main( int argc, char *argv[] )
 {
     FILE *f;
     time_t t;
-    int i, k;
+    int i, k, ret = 0;
     havege_state hs;
     unsigned char buf[1024];
 
@@ -69,8 +73,9 @@ int main( int argc, char *argv[] )
         if( havege_random( &hs, buf, sizeof( buf ) ) != 0 )
         {
             printf( "Failed to get random from source.\n" );
-            fclose( f );
-            return( 1 );
+
+            ret = 1;
+            goto exit;
         }
 
         fwrite( buf, sizeof( buf ), 1, f );
@@ -85,7 +90,9 @@ int main( int argc, char *argv[] )
 
     printf(" \n ");
 
+exit:
+    havege_free( &hs );
     fclose( f );
-    return( 0 );
+    return( ret );
 }
 #endif /* POLARSSL_HAVEGE_C */

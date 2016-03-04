@@ -22,21 +22,9 @@
 #include <stdlib.h>
 #include "file_relay.h"
 #include "property_list_service.h"
-#include "debug.h"
+#include "common/debug.h"
 
-/**
- * Connects to the file_relay service on the specified device.
- *
- * @param device The device to connect to.
- * @param service The service descriptor returned by lockdownd_start_service.
- * @param client Reference that will point to a newly allocated
- *     file_relay_client_t upon successful return.
- *
- * @return FILE_RELAY_E_SUCCESS on success,
- *     FILE_RELAY_E_INVALID_ARG when one of the parameters is invalid,
- *     or FILE_RELAY_E_MUX_ERROR when the connection failed.
- */
-file_relay_error_t file_relay_client_new(idevice_t device, lockdownd_service_descriptor_t service, file_relay_client_t *client)
+LIBIMOBILEDEVICE_API file_relay_error_t file_relay_client_new(idevice_t device, lockdownd_service_descriptor_t service, file_relay_client_t *client)
 {
 	if (!device || !service || service->port == 0 || !client || *client) {
 		return FILE_RELAY_E_INVALID_ARG;
@@ -56,18 +44,14 @@ file_relay_error_t file_relay_client_new(idevice_t device, lockdownd_service_des
 	return FILE_RELAY_E_SUCCESS;
 }
 
-/**
- * Disconnects a file_relay client from the device and frees up the file_relay
- * client data.
- *
- * @param client The file_relay client to disconnect and free.
- *
- * @return FILE_RELAY_E_SUCCESS on success,
- *     FILE_RELAY_E_INVALID_ARG when one of client or client->parent
- *     is invalid, or FILE_RELAY_E_UNKNOWN_ERROR when the was an error
- *     freeing the parent property_list_service client.
- */
-file_relay_error_t file_relay_client_free(file_relay_client_t client)
+LIBIMOBILEDEVICE_API file_relay_error_t file_relay_client_start_service(idevice_t device, file_relay_client_t * client, const char* label)
+{
+	file_relay_error_t err = FILE_RELAY_E_UNKNOWN_ERROR;
+	service_client_factory_start_service(device, FILE_RELAY_SERVICE_NAME, (void**)client, label, SERVICE_CONSTRUCTOR(file_relay_client_new), &err);
+	return err;
+}
+
+LIBIMOBILEDEVICE_API file_relay_error_t file_relay_client_free(file_relay_client_t client)
 {
 	if (!client)
 		return FILE_RELAY_E_INVALID_ARG;
@@ -78,37 +62,7 @@ file_relay_error_t file_relay_client_free(file_relay_client_t client)
 	return FILE_RELAY_E_SUCCESS;
 }
 
-/**
- * Request data for the given sources.
- *
- * @param client The connected file_relay client.
- * @param sources A NULL-terminated list of sources to retrieve.
- *     Valid sources are:
- *     - AppleSupport
- *     - Network
- *     - VPN
- *     - WiFi
- *     - UserDatabases
- *     - CrashReporter
- *     - tmp
- *     - SystemConfiguration
- * @param connection The connection that has to be used for receiving the 
- *     data using idevice_connection_receive(). The connection will be closed
- *     automatically by the device, but use file_relay_client_free() to clean
- *     up properly.
- *
- * @note WARNING: Don't call this function without reading the data afterwards.
- *     A directory mobile_file_relay.XXXX used for creating the archive will
- *     remain in the /tmp directory otherwise.
- *
- * @return FILE_RELAY_E_SUCCESS on succes, FILE_RELAY_E_INVALID_ARG when one or
- *     more parameters are invalid, FILE_RELAY_E_MUX_ERROR if a communication
- *     error occurs, FILE_RELAY_E_PLIST_ERROR when the received result is NULL
- *     or is not a valid plist, FILE_RELAY_E_INVALID_SOURCE if one or more
- *     sources are invalid, FILE_RELAY_E_STAGING_EMPTY if no data is available
- *     for the given sources, or FILE_RELAY_E_UNKNOWN_ERROR otherwise.
- */
-file_relay_error_t file_relay_request_sources(file_relay_client_t client, const char **sources, idevice_connection_t *connection)
+LIBIMOBILEDEVICE_API file_relay_error_t file_relay_request_sources_timeout(file_relay_client_t client, const char **sources, idevice_connection_t *connection, unsigned int timeout)
 {
 	if (!client || !client->parent || !sources || !sources[0]) {
 		return FILE_RELAY_E_INVALID_ARG;
@@ -123,7 +77,7 @@ file_relay_error_t file_relay_request_sources(file_relay_client_t client, const 
 		i++;
 	}	
 	plist_t dict = plist_new_dict();
-	plist_dict_insert_item(dict, "Sources", array);
+	plist_dict_set_item(dict, "Sources", array);
 
 	if (property_list_service_send_xml_plist(client->parent, dict) != PROPERTY_LIST_SERVICE_E_SUCCESS) {
 		debug_info("ERROR: Could not send request to device!");
@@ -133,7 +87,7 @@ file_relay_error_t file_relay_request_sources(file_relay_client_t client, const 
 	plist_free(dict);
 
 	dict = NULL;
-	if (property_list_service_receive_plist_with_timeout(client->parent, &dict, 60000) != PROPERTY_LIST_SERVICE_E_SUCCESS) {
+	if (property_list_service_receive_plist_with_timeout(client->parent, &dict, timeout) != PROPERTY_LIST_SERVICE_E_SUCCESS) {
 		debug_info("ERROR: Could not receive answer from device!");
 		err = FILE_RELAY_E_MUX_ERROR;
 		goto leave;
@@ -156,6 +110,9 @@ file_relay_error_t file_relay_request_sources(file_relay_client_t client, const 
 			} else if (!strcmp(errmsg, "StagingEmpty")) {
 				debug_info("ERROR: StagingEmpty - No data available!");
 				err = FILE_RELAY_E_STAGING_EMPTY;
+			} else if (!strcmp(errmsg, "PermissionDenied")) {
+				debug_info("ERROR: Permission denied.");
+				err = FILE_RELAY_E_PERMISSION_DENIED;
 			} else {
 				debug_info("ERROR: Unknown error '%s'", errmsg);
 			}
@@ -195,4 +152,9 @@ leave:
 		plist_free(dict);
 	}
 	return err;
+}
+
+LIBIMOBILEDEVICE_API file_relay_error_t file_relay_request_sources(file_relay_client_t client, const char **sources, idevice_connection_t *connection)
+{
+	return file_relay_request_sources_timeout(client, sources, connection, 60000);
 }

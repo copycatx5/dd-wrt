@@ -70,7 +70,7 @@ void ej_dump_route_table(webs_t wp, int argc, char_t ** argv)
 			while (line[ifl] != ' ' && line[ifl] != '\t' && line[ifl] != '\0')
 				ifl++;
 			line[ifl] = 0;	/* interface */
-			if (sscanf(line + ifl + 1, "%lx%lx%X%d%d%d%lx", &dest, &gw, &flgs, &ref, &use, &metric, &netmask) != 7) {
+			if (sscanf(line + ifl + 1, "%x%x%X%d%d%d%x", &dest, &gw, &flgs, &ref, &use, &metric, &netmask) != 7) {
 				break;
 			}
 			debug = 0;
@@ -78,8 +78,8 @@ void ej_dump_route_table(webs_t wp, int argc, char_t ** argv)
 			gw_ip.s_addr = gw;
 			netmask_ip.s_addr = netmask;
 			char client[32];
-			strcpy(sdest, (dest_ip.s_addr == 0 ? "0.0.0.0" : inet_ntop(AF_INET, &dest_ip, client, 16)));	// default
-			strcpy(sgw, (gw_ip.s_addr == 0 ? "0.0.0.0" : inet_ntop(AF_INET, &gw_ip, client, 16)));	// *
+			strcpy(sdest, (dest_ip.s_addr == 0 ? "default" : inet_ntop(AF_INET, &dest_ip, client, 16)));	// default
+			strcpy(sgw, (gw_ip.s_addr == 0 ? "*" : inet_ntop(AF_INET, &gw_ip, client, 16)));	// *
 
 			/*
 			 * not 0x0001 route usable 
@@ -135,7 +135,7 @@ void ej_dump_route_table(webs_t wp, int argc, char_t ** argv)
 				flags[fidx++] = 'M';
 			flags[fidx] = 0;
 
-			websWrite(wp, "%s%c'%s','%s','%s','%s','%d','%s'\n", debug ? "//" : "", blank ? ' ' : ',', sdest, inet_ntop(AF_INET, &netmask_ip, client, 16), sgw, flags, metric, ifname);
+			websWrite(wp, "%s%c'%s','%s','%s','%s','%d','%s'\n", debug ? "//" : "", blank ? ' ' : ',', sdest, inet_ntop(AF_INET, &netmask_ip, client, 16), sgw, flags, metric, getNetworkLabel(ifname));
 
 			if (debug && blank)
 				blank = 1;

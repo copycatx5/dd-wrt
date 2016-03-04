@@ -1,6 +1,6 @@
 /*
  * ProFTPD - FTP server daemon
- * Copyright (c) 2009-2011 The ProFTPD Project team
+ * Copyright (c) 2009-2012 The ProFTPD Project team
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -21,7 +21,7 @@
  * distribute the resulting executable, without including the source code for
  * OpenSSL in the source distribution.
  *
- * $Id: cmd.c,v 1.8.2.1 2011/11/16 20:00:58 castaglia Exp $
+ * $Id: cmd.c,v 1.12 2012-12-28 17:40:36 castaglia Exp $
  */
 
 #include "conf.h"
@@ -106,7 +106,40 @@ static struct cmd_entry cmd_ids[] = {
   { C_PBSZ,	4 },	/* PR_CMD_PBSZ_ID (54) */
   { C_PROT,	4 },	/* PR_CMD_PROT_ID (55) */
   { C_MFF,	3 },	/* PR_CMD_MFF_ID (56) */
-  { C_MFMT,	4 },	/* PR_CMD_PROT_ID (57) */
+  { C_MFMT,	4 },	/* PR_CMD_MFMT_ID (57) */
+  { C_HOST,	4 },	/* PR_CMD_HOST_ID (58) */
+
+  { NULL,	0 }
+};
+
+/* Due to potential XSS issues (see Bug#4143), we want to explicitly
+ * check for commands from other text-based protocols (e.g. HTTP and SMTP);
+ * if we see these, we want to close the connection with extreme prejudice.
+ */
+
+static struct cmd_entry http_ids[] = {
+  { " ",	1 },    /* Index 0 is intentionally filled with a sentinel */
+  { "CONNECT",	7 },
+  { "DELETE",	6 },
+  { "GET",	3 },
+  { "HEAD",	4 },
+  { "OPTIONS",	7 },
+  { "PATCH",	5 },
+  { "POST",	4 },
+  { "PUT",	3 },
+
+  { NULL,	0 }
+};
+
+static struct cmd_entry smtp_ids[] = {
+  { " ",	1 },    /* Index 0 is intentionally filled with a sentinel */
+  { "DATA",	4 },
+  { "EHLO",	4 },
+  { "HELO",	4 },
+  { "MAIL",	4 },
+  { "RCPT",	4 },
+  { "RSET",	4 },
+  { "VRFY",	4 },
 
   { NULL,	0 }
 };
@@ -195,6 +228,19 @@ int pr_cmd_cmp(cmd_rec *cmd, int cmd_id) {
   }
 
   return cmd->cmd_id < cmd_id ? -1 : 1;
+}
+
+int pr_cmd_set_name(cmd_rec *cmd, const char *cmd_name) {
+  if (cmd == NULL ||
+      cmd_name == NULL) {
+    errno = EINVAL;
+    return -1;
+  }
+
+  cmd->argv[0] = (char *) cmd_name;
+  cmd->cmd_id = pr_cmd_get_id(cmd->argv[0]);
+
+  return 0;
 }
 
 int pr_cmd_strcmp(cmd_rec *cmd, const char *cmd_name) {
@@ -325,4 +371,59 @@ int pr_cmd_get_id(const char *cmd_name) {
 
   errno = ENOENT;
   return -1;
+}
+
+static int is_known_cmd(struct cmd_entry *known_cmds, const char *cmd_name,
+    size_t cmd_namelen) {
+  register unsigned int i;
+  int known = FALSE;
+
+  for (i = 0; known_cmds[i].cmd_name != NULL; i++) {
+    if (cmd_namelen == known_cmds[i].cmd_namelen) {
+      if (strncmp(cmd_name, known_cmds[i].cmd_name, cmd_namelen + 1) == 0) {
+        known = TRUE;
+        break;
+      }
+    }
+  }
+
+  return known;
+}
+
+int pr_cmd_is_http(cmd_rec *cmd) {
+  const char *cmd_name;
+  size_t cmd_namelen;
+
+  if (cmd == NULL) {
+    errno = EINVAL;
+    return -1;
+  }
+
+  cmd_name = cmd->argv[0];
+  if (cmd_name == NULL) {
+    errno = EINVAL;
+    return -1;
+  }
+
+  cmd_namelen = strlen(cmd_name);
+  return is_known_cmd(http_ids, cmd_name, cmd_namelen);
+}
+
+int pr_cmd_is_smtp(cmd_rec *cmd) {
+  const char *cmd_name;
+  size_t cmd_namelen;
+
+  if (cmd == NULL) {
+    errno = EINVAL;
+    return -1;
+  }
+
+  cmd_name = cmd->argv[0];
+  if (cmd_name == NULL) {
+    errno = EINVAL;
+    return -1;
+  }
+
+  cmd_namelen = strlen(cmd_name);
+  return is_known_cmd(smtp_ids, cmd_name, cmd_namelen);
 }

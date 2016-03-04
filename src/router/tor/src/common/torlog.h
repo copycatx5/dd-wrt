@@ -1,7 +1,7 @@
 /* Copyright (c) 2001, Matej Pfajfar.
  * Copyright (c) 2001-2004, Roger Dingledine.
  * Copyright (c) 2004-2006, Roger Dingledine, Nick Mathewson.
- * Copyright (c) 2007-2013, The Tor Project, Inc. */
+ * Copyright (c) 2007-2015, The Tor Project, Inc. */
 /* See LICENSE for licensing information */
 
 /**
@@ -13,6 +13,7 @@
 #ifndef TOR_TORLOG_H
 
 #include "compat.h"
+#include "testsupport.h"
 
 #ifdef HAVE_SYSLOG_H
 #include <syslog.h>
@@ -96,12 +97,17 @@
 #define LD_HEARTBEAT (1u<<20)
 /** Abstract channel_t code */
 #define LD_CHANNEL   (1u<<21)
+/** Scheduler */
+#define LD_SCHED     (1u<<22)
 /** Number of logging domains in the code. */
-#define N_LOGGING_DOMAINS 22
+#define N_LOGGING_DOMAINS 23
 
 /** This log message is not safe to send to a callback-based logger
  * immediately.  Used as a flag, not a log domain. */
 #define LD_NOCB (1u<<31)
+/** This log message should not include a function name, even if it otherwise
+ * would. Used as a flag, not a log domain. */
+#define LD_NOFUNCNAME (1u<<30)
 
 /** Mask of zero or more log domains, OR'd together. */
 typedef uint32_t log_domain_mask_t;
@@ -114,16 +120,10 @@ typedef struct log_severity_list_t {
   log_domain_mask_t masks[LOG_DEBUG-LOG_ERR+1];
 } log_severity_list_t;
 
-#ifdef LOG_PRIVATE
-/** Given a severity, yields an index into log_severity_list_t.masks to use
- * for that severity. */
-#define SEVERITY_MASK_IDX(sev) ((sev) - LOG_ERR)
-#endif
-
 /** Callback type used for add_callback_log. */
 typedef void (*log_callback)(int severity, uint32_t domain, const char *msg);
 
-void init_logging(void);
+void init_logging(int disable_startup_queue);
 int parse_log_level(const char *level);
 const char *log_level_to_string(int level);
 int parse_log_severity_config(const char **cfg,
@@ -132,7 +132,8 @@ void set_log_severity_config(int minSeverity, int maxSeverity,
                              log_severity_list_t *severity_out);
 void add_stream_log(const log_severity_list_t *severity, const char *name,
                     int fd);
-int add_file_log(const log_severity_list_t *severity, const char *filename);
+int add_file_log(const log_severity_list_t *severity, const char *filename,
+                 const int truncate);
 #ifdef HAVE_SYSLOG_H
 int add_syslog_log(const log_severity_list_t *severity);
 #endif
@@ -148,13 +149,21 @@ void mark_logs_temp(void);
 void change_callback_log_severity(int loglevelMin, int loglevelMax,
                                   log_callback cb);
 void flush_pending_log_callbacks(void);
+void flush_log_messages_from_startup(void);
 void log_set_application_name(const char *name);
 void set_log_time_granularity(int granularity_msec);
+void truncate_logs(void);
 
 void tor_log(int severity, log_domain_mask_t domain, const char *format, ...)
   CHECK_PRINTF(3,4);
 
-#if defined(__GNUC__) || defined(RUNNING_DOXYGEN)
+void tor_log_err_sigsafe(const char *m, ...);
+int tor_log_get_sigsafe_err_fds(const int **out);
+void tor_log_update_sigsafe_err_fds(void);
+
+struct smartlist_t;
+void tor_log_get_logfile_names(struct smartlist_t *out);
+
 extern int log_global_min_severity_;
 
 void log_fn_(int severity, log_domain_mask_t domain,
@@ -165,6 +174,12 @@ void log_fn_ratelim_(struct ratelim_t *ratelim, int severity,
                      log_domain_mask_t domain, const char *funcname,
                      const char *format, ...)
   CHECK_PRINTF(5,6);
+
+#if defined(__GNUC__)
+
+/* These are the GCC varidaic macros, so that older versions of GCC don't
+ * break. */
+
 /** Log a message at level <b>severity</b>, using a pretty-printed version
  * of the current function name. */
 #define log_fn(severity, domain, args...)               \
@@ -190,42 +205,38 @@ void log_fn_ratelim_(struct ratelim_t *ratelim, int severity,
 
 #else /* ! defined(__GNUC__) */
 
-void log_fn_(int severity, log_domain_mask_t domain, const char *format, ...);
-struct ratelim_t;
-void log_fn_ratelim_(struct ratelim_t *ratelim, int severity,
-             log_domain_mask_t domain, const char *format, ...);
-void log_debug_(log_domain_mask_t domain, const char *format, ...);
-void log_info_(log_domain_mask_t domain, const char *format, ...);
-void log_notice_(log_domain_mask_t domain, const char *format, ...);
-void log_warn_(log_domain_mask_t domain, const char *format, ...);
-void log_err_(log_domain_mask_t domain, const char *format, ...);
+/* Here are the c99 variadic macros, to work with non-GCC compilers */
 
-#if defined(_MSC_VER) && _MSC_VER < 1300
-/* MSVC 6 and earlier don't have __func__, or even __LINE__. */
-#define log_fn log_fn_
-#define log_fn_ratelim log_fn_ratelim_
-#define log_debug log_debug_
-#define log_info log_info_
-#define log_notice log_notice_
-#define log_warn log_warn_
-#define log_err log_err_
-#else
-/* We don't have GCC's varargs macros, so use a global variable to pass the
- * function name to log_fn */
-extern const char *log_fn_function_name_;
-/* We abuse the comma operator here, since we can't use the standard
- * do {...} while (0) trick to wrap this macro, since the macro can't take
- * arguments. */
-#define log_fn (log_fn_function_name_=__func__),log_fn_
-#define log_fn_ratelim (log_fn_function_name_=__func__),log_fn_ratelim_
-#define log_debug (log_fn_function_name_=__func__),log_debug_
-#define log_info (log_fn_function_name_=__func__),log_info_
-#define log_notice (log_fn_function_name_=__func__),log_notice_
-#define log_warn (log_fn_function_name_=__func__),log_warn_
-#define log_err (log_fn_function_name_=__func__),log_err_
+#define log_debug(domain, args, ...)                                        \
+  STMT_BEGIN                                                                \
+    if (PREDICT_UNLIKELY(log_global_min_severity_ == LOG_DEBUG))            \
+      log_fn_(LOG_DEBUG, domain, __FUNCTION__, args, ##__VA_ARGS__); \
+  STMT_END
+#define log_info(domain, args,...)                                      \
+  log_fn_(LOG_INFO, domain, __FUNCTION__, args, ##__VA_ARGS__)
+#define log_notice(domain, args,...)                                    \
+  log_fn_(LOG_NOTICE, domain, __FUNCTION__, args, ##__VA_ARGS__)
+#define log_warn(domain, args,...)                                      \
+  log_fn_(LOG_WARN, domain, __FUNCTION__, args, ##__VA_ARGS__)
+#define log_err(domain, args,...)                                       \
+  log_fn_(LOG_ERR, domain, __FUNCTION__, args, ##__VA_ARGS__)
+/** Log a message at level <b>severity</b>, using a pretty-printed version
+ * of the current function name. */
+#define log_fn(severity, domain, args,...)                              \
+  log_fn_(severity, domain, __FUNCTION__, args, ##__VA_ARGS__)
+/** As log_fn, but use <b>ratelim</b> (an instance of ratelim_t) to control
+ * the frequency at which messages can appear.
+ */
+#define log_fn_ratelim(ratelim, severity, domain, args,...)      \
+  log_fn_ratelim_(ratelim, severity, domain, __FUNCTION__, \
+                  args, ##__VA_ARGS__)
 #endif
 
-#endif /* !GNUC */
+#ifdef LOG_PRIVATE
+MOCK_DECL(STATIC void, logv, (int severity, log_domain_mask_t domain,
+    const char *funcname, const char *suffix, const char *format,
+    va_list ap) CHECK_PRINTF(5,0));
+#endif
 
 # define TOR_TORLOG_H
 #endif

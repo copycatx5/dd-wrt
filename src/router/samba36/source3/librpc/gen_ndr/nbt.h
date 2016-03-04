@@ -108,7 +108,7 @@ struct nbt_name {
 	const char * name;
 	const char * scope;
 	enum nbt_name_type type;
-}/* [nopull,public,nopush] */;
+}/* [nopull,nopush,public] */;
 
 enum nbt_qclass
 #ifndef USE_UINT_ENUMS
@@ -226,7 +226,7 @@ union nbt_rdata {
 	struct nbt_rdata_netbios netbios;/* [case(NBT_QTYPE_NETBIOS)] */
 	struct nbt_rdata_status status;/* [case(NBT_QTYPE_STATUS)] */
 	struct nbt_rdata_data data;/* [default] */
-}/* [nodiscriminant,public] */;
+}/* [public,nodiscriminant] */;
 
 struct nbt_res_rec {
 	struct nbt_name name;
@@ -234,7 +234,7 @@ struct nbt_res_rec {
 	enum nbt_qclass rr_class;
 	uint32_t ttl;
 	union nbt_rdata rdata;/* [switch_is(rr_type)] */
-}/* [nopush,flag(LIBNDR_PRINT_ARRAY_HEX)] */;
+}/* [flag(LIBNDR_PRINT_ARRAY_HEX),nopush] */;
 
 struct nbt_name_packet {
 	uint16_t name_trn_id;
@@ -393,7 +393,7 @@ struct nbt_dgram_packet {
 	const char * src_addr;
 	uint16_t src_port;
 	union dgram_data data;/* [switch_is(msg_type)] */
-}/* [public,flag(LIBNDR_FLAG_NOALIGN|LIBNDR_FLAG_BIGENDIAN|LIBNDR_PRINT_ARRAY_HEX)] */;
+}/* [flag(LIBNDR_FLAG_NOALIGN|LIBNDR_FLAG_BIGENDIAN|LIBNDR_PRINT_ARRAY_HEX),public] */;
 
 struct nbt_sockaddr {
 	uint32_t sockaddr_family;
@@ -495,7 +495,7 @@ struct NETLOGON_SAM_LOGON_RESPONSE_NT40 {
 	uint32_t nt_version;
 	uint16_t lmnt_token;
 	uint16_t lm20_token;
-}/* [public,flag(LIBNDR_FLAG_NOALIGN)] */;
+}/* [flag(LIBNDR_FLAG_NOALIGN),public] */;
 
 struct NETLOGON_SAM_LOGON_RESPONSE {
 	enum netlogon_command command;
@@ -533,7 +533,7 @@ struct NETLOGON_SAM_LOGON_RESPONSE_EX {
 	uint32_t nt_version;
 	uint16_t lmnt_token;
 	uint16_t lm20_token;
-}/* [public,flag(LIBNDR_FLAG_NOALIGN)] */;
+}/* [flag(LIBNDR_FLAG_NOALIGN),public] */;
 
 struct nbt_netlogon_query_for_pdc {
 	const char * computer_name;/* [flag(LIBNDR_FLAG_STR_ASCII|LIBNDR_FLAG_STR_NULLTERM)] */
@@ -581,7 +581,7 @@ struct NETLOGON_DB_CHANGE {
 	uint32_t db_count;
 	struct nbt_db_change_info *dbchange;
 	uint32_t sid_size;/* [value(ndr_size_dom_sid0(&sid,ndr->flags))] */
-	struct dom_sid0 sid;/* [subcontext_size(sid_size),subcontext(0)] */
+	struct dom_sid0 sid;/* [subcontext(0),subcontext_size(sid_size)] */
 	uint32_t message_format_version;
 	uint32_t message_token;
 };

@@ -140,6 +140,7 @@ all: build_date clean_target $(obj-y) $(LINUXDIR)/.config kernel
 build_date:
 	echo "#define BUILD_DATE \"$(shell date +%D)\"" > ../../opt/build.h 
 
+include kernel-features.mk
 
 kernel:
 	# Also build kernel
@@ -152,11 +153,7 @@ else
 	cp $(LINUXDIR)/.config_lite $(LINUXDIR)/.config
 endif
 endif
-ifeq ($(CONFIG_EOP_TUNNEL),y)
-	echo CONFIG_NET_ETHERIP=m >> $(LINUXDIR)/.config
-else
-	echo "# CONFIG_NET_ETHERIP is not set" >> $(LINUXDIR)/.config
-endif
+	$(kernelfeatures)
 	$(MAKE) -C $(LINUXDIR) oldconfig	
 
 	if ! grep -q "CONFIG_EMBEDDED_RAMDISK=y" $(LINUXDIR)/.config ; then \
@@ -176,7 +173,7 @@ realclean: $(obj-clean)
 	-rm -f $(ARCH)-uclibc/*
 
 	
-clean: rc-clean httpd-clean services-clean shared-clean libutils-clean madwifi-clean madwifi_mimo-clean busybox-clean dnsmasq-clean iptables-clean pppd-clean
+clean: rc-clean httpd-clean services-clean shared-clean libutils-clean madwifi-clean madwifi_mimo-clean busybox-clean dnsmasq-clean iptables-clean pppd-clean  iproute2-clean
 	rm -f .config.old .config.cmd
 	#umount $(TARGETDIR)
 	rm -rf $(INSTALLDIR)
@@ -248,7 +245,12 @@ endif
         # Make sure mksquashfs-2.0 is used
 	cd $(TARGETDIR)  &&  find . -iname "CVS" | xargs rm -rf
 	cd $(TARGETDIR)  &&  find . -iname ".svn" | xargs rm -rf
-#	./busybox/examples/depmod.pl -F $(LINUXDIR)/System.map -b $(ARCH)-uclibc/target/lib/modules
+	-find $(TARGETDIR)/lib/modules/$(KERNELRELEASE)/kernel -name *.ko -exec mv {} $(TARGETDIR)/lib/modules/$(KERNELRELEASE) \;
+	-find $(TARGETDIR)/lib/modules/$(KERNELRELEASE)/net -name *.ko -exec mv {} $(TARGETDIR)/lib/modules/$(KERNELRELEASE) \;
+	rm -rf $(TARGETDIR)/lib/modules/$(KERNELRELEASE)/kernel
+	rm -rf $(TARGETDIR)/lib/modules/$(KERNELRELEASE)/net
+	#e2fsck -y -f $(ARCH)-uclibc/root.fs
+	./busybox/examples/depmod.pl -F $(LINUXDIR)/System.map -b $(ARCH)-uclibc/target/lib/modules
 #	tar --directory=$(TARGETDIR) --remove-files -cvvjf $(TARGETDIR)/etc/local.tar.bz2 usr/local
 	rm -rf $(TARGETDIR)/usr/local
 	rm -f $(TARGETDIR)/bin/ipkg
@@ -274,6 +276,7 @@ endif
 endif
 #	mipsel-linux-strip $(TARGETDIR)/lib/modules/$(LINUXVER)/*.ko		
 	-./strip_libs.sh $(ARCH)
+	$(TOP)/../../tools/removewhitespace.sh $(TOP)/../../tools $(TARGETDIR)/etc/config
 #	$(LINUXDIR)/scripts/squashfs/mksquashfs-lzma $(ARCH)-uclibc/target $(ARCH)-uclibc/root.fs -noappend -root-owned -le -b 1048576 -nopad
 ifneq ($(CONFIG_WP54G),y)
 ifneq ($(CONFIG_NP28G),y)

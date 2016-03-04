@@ -44,7 +44,7 @@
 
 void start_stabridge(void)
 {
-
+	char tmp[256];
 #ifdef HAVE_RELAYD
 	if (getWET()) {
 		char label[32], debug[32], debug_string[32];
@@ -58,9 +58,9 @@ void start_stabridge(void)
 		}
 		if (nvram_match(label, "0")) {
 			sprintf(label, "%s_relayd_gw_ipaddr", getWET());
-			sysprintf("relayd -I %s -I %s -G %s -L %s -D -B%s &", getBridge(getWET()), getWET(), nvram_safe_get(label), nvram_safe_get("lan_ipaddr"), debug_string);
+			sysprintf("relayd -I %s -I %s -G %s -L %s -D -B%s &", getBridge(getWET(), tmp), getWET(), nvram_safe_get(label), nvram_safe_get("lan_ipaddr"), debug_string);
 		} else {
-			sysprintf("relayd -I %s -I %s -L %s -D -B%s &", getBridge(getWET()), getWET(), nvram_safe_get("lan_ipaddr"), debug_string);
+			sysprintf("relayd -I %s -I %s -L %s -D -B%s &", getBridge(getWET(), tmp), getWET(), nvram_safe_get("lan_ipaddr"), debug_string);
 		}
 	}
 #else
@@ -70,13 +70,7 @@ void start_stabridge(void)
 		writeproc("/proc/sys/net/bridge/bridge-nf-call-arptables", "1");
 		writeproc("/proc/sys/net/bridge/bridge-nf-call-ip6tables", "1");
 		writeproc("/proc/sys/net/bridge/bridge-nf-call-iptables", "1");
-		insmod("ebtables");
-		insmod("ebtables");
-		insmod("ebtable_filter");
-		insmod("ebtable_nat");
-		insmod("ebtable_broute");
-		insmod("ebt_arpnat");
-		insmod("ebt_broute");
+		insmod("ebtables ebtables ebtable_filter ebtable_nat ebtable_broute ebt_arpnat ebt_broute");
 		eval("ebtables", "-t", "nat", "-A", "PREROUTING", "--in-interface", getWET(), "-j", "arpnat", "--arpnat-target", "ACCEPT");
 		eval("ebtables", "-t", "nat", "-A", "POSTROUTING", "--out-interface", getWET(), "-j", "arpnat", "--arpnat-target", "ACCEPT");
 		eval("ebtables", "-t", "broute", "-A", "BROUTING", "--protocol", "0x888e", "--in-interface", getWET(), "-j", "DROP");
@@ -100,12 +94,7 @@ void stop_stabridge(void)
 	// remove the modules (..if rules are in?).
 	eval("ebtables", "-t", "broute", "-F");
 	eval("ebtables", "-t", "nat", "-F");
-	rmmod("ebt_broute");
-	rmmod("ebt_arpnat");
-	rmmod("ebtable_broute");
-	rmmod("ebtable_nat");
-	rmmod("ebtable_filter");
-	rmmod("ebtables");
+	rmmod("ebt_broute ebt_arpnat ebtable_broute ebtable_nat ebtable_filter ebtables");
 	// don't let packages pass to iptables without ebtables loaded
 	writeproc("/proc/sys/net/bridge/bridge-nf-call-arptables", "0");
 	writeproc("/proc/sys/net/bridge/bridge-nf-call-ip6tables", "0");

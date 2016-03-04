@@ -1075,7 +1075,7 @@ cprintf("set mssid flags %s\n",name);
 			WL_BSSIOVAR_SET(name, "ssid", bsscfg->idx, &ssid, sizeof(ssid));
 		}
 	}
-#define MBSS_UC_IDX_MASK		(4 - 1)
+#define MBSS_UC_IDX_MASK		(max_no_vifs - 1)
 
 cprintf("set local addr %s\n",name);
 	if (!ure_enab) {
@@ -1085,7 +1085,7 @@ cprintf("set local addr %s\n",name);
 		char newmac[32];
 		memcpy(newmac,vif_addr,sizeof(vif_addr));
 		/* construct and set other wlX.Y_hwaddr */
-		for (i = 1; i < 4; i++) {
+		for (i = 1; i < bclist->count; i++) {
 			snprintf(tmp, sizeof(tmp), "wl%d.%d_hwaddr", unit, i);
 			addr = nvram_safe_get(tmp);
 				if (mbsscap)
@@ -1095,7 +1095,7 @@ cprintf("set local addr %s\n",name);
 				                          eaddr));
 		}
 		/* The addresses are available in NVRAM, so set them */
-		for (i = 1; i < 4; i++) {
+		for (i = 1; i < bclist->count; i++) {
 				snprintf(tmp, sizeof(tmp), "wl%d.%d_hwaddr",
 				         unit, i);
 				ether_atoe(nvram_safe_get(tmp), eaddr);
@@ -1743,7 +1743,12 @@ cprintf("set n prot mode %s\n",name);
 
 		val_ptr = (uint32*)(buf + buflen);
 		buflen += sizeof(override);
-		memcpy(val_ptr, &override, sizeof(override));
+		int i;
+		unsigned char *src = &override;
+		unsigned char *dst = val_ptr;
+		for (i=0;i<sizeof(override);i++)
+			dst[i]=src[i];
+//		memcpy(val_ptr, &override, sizeof(override));
 		WL_IOCTL(name, WLC_SET_VAR, buf, sizeof(buf));
 		WL_IOCTL(name, WLC_SET_PROTECTION_CONTROL, &control, sizeof(control));
 	}
@@ -2207,7 +2212,7 @@ cprintf("set antdiv mode %s\n",name);
 		        nvram_default_match(strcat_r(bclist->bsscfgs[i].prefix, "auth_mode", tmp),
 		                    "radius","disabled");
 
-		if (((ap || apsta) && !nas_will_run) || sta || wet) {
+		if (((ap || apsta) && !nas_will_run) || sta || (wet && !apsta)) {
 			for (ii = 0; ii < MAX_BSS_UP_RETRIES; ii++) {
 				if (wl_ap_build) {
 					WL_IOVAR_SET(name, "bss", &setbuf, sizeof(setbuf));

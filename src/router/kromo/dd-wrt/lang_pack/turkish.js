@@ -1,4 +1,4 @@
-//////////////////////////////////////////////////////////////////////////////////////////////
+﻿//////////////////////////////////////////////////////////////////////////////////////////////
 //		Turkish reference translation file - DD-WRT V24 SP2       Sep/2012 by Buffalo //
 //////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -101,12 +101,12 @@ share.manual="Manuel";
 share.port="Port";
 share.ssid="SSID";
 share.channel="Kanal";
-share.rssi="Rssi";
+share.rssi="RSSI";
 share.signal="Sinyal";
 share.noise="Gürültü";
-share.beacon="sinyal";
+share.beacon="Sinyal";
 share.openn="Aç";
-share.dtim="dtim";
+share.dtim="DTIM";
 share.rates="Hız";
 share.rate="Hız";
 share.txrate="TX Hızı";
@@ -1429,7 +1429,7 @@ service.samba3_pass1=" Şifre1";
 service.samba3_usr2="Kullanıcı2";
 service.samba3_pass2=" Şifre2";
 service.samba3_pubacl="Salt okunur";
-service.samba3_advanced="Gelişmiş"
+service.samba3_advanced="Gelişmiş";
 service.samba3_custom="Özel Yapılandırmayı Kullan";
 service.samba3_shares="Paylaşımlar";
 service.samba3_share_path="Yol";

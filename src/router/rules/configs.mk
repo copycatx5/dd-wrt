@@ -1,3 +1,4 @@
+obj-$(CONFIG_OMCPROXY) += omcproxy
 obj-$(CONFIG_NVRAM) += nvram
 obj-$(CONFIG_WIRELESS_TOOLS) += wireless-tools
 obj-$(CONFIG_SHARED) += libutils
@@ -17,7 +18,7 @@ obj-$(CONFIG_GLIBC) += lib.$(ARCH)$(ARCHEXT)
 obj-$(CONFIG_UCLIBC) += lib.$(ARCH)$(ARCHEXT)
 obj-$(CONFIG_BRIDGE) += bridge
 obj-$(CONFIG_RFLOW) += libpcap rflow
-obj-$(CONFIG_DROPBEAR_SSHD) += zlib dropbear
+obj-$(CONFIG_DROPBEAR_SSHD) += dropbear
 obj-$(CONFIG_DHCPFORWARD) += dhcpforwarder
 obj-$(CONFIG_BUSYBOX) += busybox
 #obj-$(CONFIG_TELNET) += telnetd
@@ -27,7 +28,7 @@ obj-$(CONFIG_IPTABLES) += iptables
 obj-$(CONFIG_LIBIPT) += iptables
 obj-$(CONFIG_IPSEC) += ipsec
 obj-$(CONFIG_LIBPCAP) += libpcap
-obj-$(CONFIG_WIVIZ) += wiviz2
+obj-$(CONFIG_WIVIZ) += libpcap wiviz2
 obj-$(CONFIG_TCPDUMP) += tcpdump
 obj-$(CONFIG_KISMETDRONE) += kismet-devel
 obj-$(CONFIG_NETSTATNAT) += netstatnat
@@ -37,6 +38,7 @@ obj-$(CONFIG_HOSTAPD) += hostapd
 obj-$(CONFIG_NETCONF) += netconf
 obj-$(CONFIG_NTP) += ntpclient
 obj-$(CONFIG_HTPDATE) += htpdate
+obj-$(CONFIG_IPVS) += libnltiny ipvsadm
 obj-$(CONFIG_PPP) += ppp
 # AhMan March 19 2005
 obj-$(CONFIG_PPPOE) += pppoe
@@ -54,6 +56,7 @@ obj-$(CONFIG_ETC) += etc
 #obj-$(CONFIG_VLAN) += vlan
 obj-$(CONFIG_IPROUTE2) += iproute2
 obj-$(CONFIG_EBTABLES) += ebtables
+obj-$(CONFIG_SSTP) += libevent sstp-client
 obj-$(CONFIG_PPTPD) += pptpd
 obj-$(CONFIG_PIPSEC) += pipsec
 obj-$(CONFIG_FROTTLE) += frottle
@@ -83,15 +86,16 @@ obj-$(CONFIG_OTHERS) += others
 obj-$(CONFIG_EOU) += eou
 obj-$(CONFIG_OPENSER) += openser
 obj-$(CONFIG_MILKFISH) += milkfish
-obj-$(CONFIG_MC) += glib20 mc
+obj-$(CONFIG_MC) += glib20 unrar mc
 obj-$(CONFIG_NOCAT) += nocat
 obj-$(CONFIG_RTPPROXY) += rtpproxy
-obj-$(CONFIG_ZABBIX) += zabbix
+obj-$(CONFIG_ZABBIX) += glib20 zabbix
 obj-$(CONFIG_SAMBA) += samba
 obj-$(CONFIG_SAMBA3) += samba3
 obj-$(CONFIG_SAMBA3) += jansson
 obj-$(CONFIG_MINIDLNA) += jansson
 obj-$(CONFIG_NTFS3G) += ntfs-3g
+obj-$(CONFIG_SPEEDTEST_CLI) += curl speedtest-cli
 obj-$(CONFIG_RADAUTH) += radauth
 ifneq ($(CONFIG_FONERA),y)
 ifneq ($(CONFIG_XSCALE),y)
@@ -124,11 +128,10 @@ endif
 endif
 obj-$(CONFIG_UTILS) += utils
 obj-$(CONFIG_MTR) += mtr
-
-
-
 obj-$(CONFIG_PCIUTILS) += pciutils
 obj-$(CONFIG_E2FSPROGS) += e2fsprogs
+obj-$(CONFIG_XFSPROGS) += util-linux xfsprogs 
+obj-$(CONFIG_BTRFSPROGS) += util-linux btrfsprogs
 obj-$(CONFIG_HTTPREDIRECT) += http-redirect
 obj-$(CONFIG_SMTPREDIRECT) += smtp-redirect
 obj-$(CONFIG_SPUTNIK_APD) += sputnik
@@ -142,10 +145,10 @@ obj-$(CONFIG_SCHEDULER) += scheduler
 obj-$(CONFIG_SYSLOG) += syslog
 obj-$(CONFIG_TELNET) += telnet
 obj-$(CONFIG_WDSWATCHDOG) += wdswatchdog
-obj-$(CONFIG_IPV6) += ipv6
+obj-$(CONFIG_IPV6) += ipv6 dhcpv6
 obj-$(CONFIG_CONNTRACK) += conntrack
 obj-$(CONFIG_RADIOOFF) += radiooff
-obj-$(CONFIG_PHP) += libgd libpng libxml2 libmcrypt php5
+obj-$(CONFIG_PHP) += zlib libgd libpng libxml2 libmcrypt curl php5
 obj-$(CONFIG_NCURSES) += ncurses
 obj-$(CONFIG_IFTOP) += iftop
 obj-$(CONFIG_IPTRAF) += iptraf
@@ -164,6 +167,7 @@ obj-$(CONFIG_NTPD) += ntpd
 obj-$(CONFIG_GPSD) += gpsd
 obj-$(CONFIG_PHP5) += php5
 obj-$(CONFIG_FREERADIUS) += freeradius
+obj-$(CONFIG_FREERADIUS3) += talloc freeradius3
 #obj-$(CONFIG_EAD) += ead
 
 obj-$(CONFIG_SCDP) += scdp
@@ -177,7 +181,7 @@ obj-$(CONFIG_PCMCIA) += nvtlstatus
 obj-$(CONFIG_PCMCIA) += setserial
 obj-$(CONFIG_COMGT) += comgt
 obj-$(CONFIG_MEDIASERVER) += mediaserver
-obj-$(CONFIG_QUAGGA) += quagga
+obj-$(CONFIG_QUAGGA) += zlib quagga
 obj-$(CONFIG_VPNC) += vpnc
 obj-$(CONFIG_STUCK) += stuck_beacon
 obj-$(CONFIG_GPSI) += gpsi
@@ -191,15 +195,16 @@ obj-$(CONFIG_P910ND) += p910nd
 obj-$(CONFIG_HOSTAPD2) += hostapd2
 obj-$(CONFIG_WPA_SUPPLICANT2) += wpa_supplicant2
 obj-$(CONFIG_MIITOOL) += net-tools
-obj-$(CONFIG_TOR) += openssl libevent miniupnpc tor
+obj-$(CONFIG_TOR) += zlib openssl libevent miniupnpc tor
 obj-$(CONFIG_RSTP) += rstp
 obj-$(CONFIG_OPENLLDP) += openlldp
 obj-$(CONFIG_WGETS) += wgets
 obj-$(CONFIG_USB) += usb disktype
-obj-$(CONFIG_ASTERISK) += asterisk
+obj-$(CONFIG_USB_ADVANCED) += sdparm
+obj-$(CONFIG_ASTERISK) += zlib util-linux jansson asterisk
 obj-$(CONFIG_ZAPTEL) += zaptel
 obj-$(CONFIG_WAVESAT) += wavesat
-obj-$(CONFIG_RT2860APD) += rt2860apd
+obj-$(CONFIG_RT2860APD) += rt2860apd apsta_client
 obj-$(CONFIG_POUND) += pound
 obj-$(CONFIG_VNCREPEATER) += vncrepeater
 obj-$(CONFIG_SWCONFIG) += libnltiny swconfig
@@ -230,6 +235,9 @@ obj-$(CONFIG_VENTANA) += gsp_updater
 obj-$(CONFIG_POLARSSL) += polarssl
 #obj-$(CONFIG_UHTTPD) += cyassl uhttpd pcre lighttpd
 obj-$(CONFIG_MSTP) += mstp
+obj-$(CONFIG_PYTHON) += zlib libffi python
+obj-$(CONFIG_NMAP) += nmap
+obj-$(CONFIG_ARPALERT) += arpalert
 obj-$(CONFIG_IPETH) += ipeth
 obj-$(CONFIG_IAS) += dns_responder
 obj-$(CONFIG_MINIDLNA) += minidlna
@@ -241,14 +249,18 @@ obj-$(CONFIG_NEXTMEDIAEXTRA) += nextmediaextra
 obj-$(CONFIG_LIBQMI) += glib20 libqmi
 obj-$(CONFIG_UQMI) += json-c libubox uqmi
 obj-$(CONFIG_MTDUTILS) += mtd-utils
+obj-$(CONFIG_UBIUTILS) += ubi-utils
 obj-$(CONFIG_STRONGSWAN) += gmp strongswan sqlite
-obj-$(CONFIG_PRIVOXY) += privoxy
+obj-$(CONFIG_PRIVOXY) += zlib pcre privoxy
 obj-$(CONFIG_VENTANA) += kobs-ng
 obj-$(CONFIG_WEBSERVER) += glib20 libxml2 libmcrypt lighttpd curl php5 
 obj-$(CONFIG_TRANSMISSION) += libevent curl transmission
+obj-$(CONFIG_CLOUD4WI) += curl
 obj-$(CONFIG_UNIWIP) += uniwip_gpio
 obj-$(CONFIG_MACTELNET) += mactelnet
 obj-$(CONFIG_FIRMWARES) += firmwares
+obj-$(CONFIG_SERVICEGATE) += servicegate
+obj-$(CONFIG_UNBOUND) += unbound
 
 obj-$(CONFIG_MTDUTILS) += mtd-utils
 #obj-$(CONFIG_OPROFILE) += oprofile
@@ -281,17 +293,15 @@ configs-checkout:
 
 configs-update:
 #	svn commit -m "faster hand optimized mksquashfs-lzma tool" $(LINUXDIR)
+	rm -rf $(LINUXDIR)/../linux-4.0
+	rm -rf $(LINUXDIR)/../linux-4.1
 	svn update $(LINUXDIR)
 	svn update $(LINUXDIR)/../linux-3.2
-	rm -rf $(LINUXDIR)/../linux-3.9
-	rm -rf $(LINUXDIR)/../linux-3.11
 	svn update $(LINUXDIR)/../linux-3.5
-	svn update $(LINUXDIR)/../linux-3.9
 	svn update $(LINUXDIR)/../linux-3.10
-	svn update $(LINUXDIR)/../linux-3.11
-	svn update $(LINUXDIR)/../linux-3.12
-	svn update $(LINUXDIR)/../linux-3.13
-	svn update $(LINUXDIR)/../linux-3.14
+	svn update $(LINUXDIR)/../linux-3.18
+	svn update $(LINUXDIR)/../linux-4.0
+	svn update $(LINUXDIR)/../linux-4.1
 	svn update $(TOP)/private
 	$(TOP)/private/symlinks.sh $(TOP) $(LINUXDIR)
 

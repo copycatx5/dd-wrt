@@ -1,6 +1,6 @@
 /*
 ** Zabbix
-** Copyright (C) 2001-2013 Zabbix SIA
+** Copyright (C) 2001-2015 Zabbix SIA
 **
 ** This program is free software; you can redistribute it and/or modify
 ** it under the terms of the GNU General Public License as published by
@@ -20,7 +20,6 @@
 package com.zabbix.gateway;
 
 import java.util.HashMap;
-import java.util.Vector;
 
 import javax.management.MBeanAttributeInfo;
 import javax.management.MBeanInfo;
@@ -29,7 +28,6 @@ import javax.management.ObjectName;
 import javax.management.openmbean.CompositeData;
 import javax.management.openmbean.TabularDataSupport;
 import javax.management.remote.JMXConnector;
-import javax.management.remote.JMXConnectorFactory;
 import javax.management.remote.JMXServiceURL;
 
 import org.json.*;
@@ -88,8 +86,7 @@ class JMXItemChecker extends ItemChecker
 				env.put(JMXConnector.CREDENTIALS, new String[] {username, password});
 			}
 
-			logger.debug("connecting to JMX agent at {}", url);
-			jmxc = JMXConnectorFactory.connect(url, env);
+			jmxc = ZabbixJMXConnectorFactory.connect(url, env);
 			mbsc = jmxc.getMBeanServerConnection();
 
 			for (String key : keys)
@@ -124,16 +121,13 @@ class JMXItemChecker extends ItemChecker
 			String attributeName = item.getArgument(2);
 			String realAttributeName;
 			String fieldNames = "";
-			int sep;
 
-			//
 			// Attribute name and composite data field names are separated by dots. On the other hand the
 			// name may contain a dot too. In this case user needs to escape it with a backslash. Also the
 			// backslash symbols in the name must be escaped. So a real separator is unescaped dot and
 			// separatorIndex() is used to locate it.
-			//
 
-			sep = HelperFunctionChest.separatorIndex(attributeName);
+			int sep = HelperFunctionChest.separatorIndex(attributeName);
 
 			if (-1 != sep)
 			{
@@ -190,7 +184,7 @@ class JMXItemChecker extends ItemChecker
 
 			JSONObject mapping = new JSONObject();
 			mapping.put(ItemChecker.JSON_TAG_DATA, counters);
-			return mapping.toString(2);
+			return mapping.toString();
 		}
 		else
 			throw new ZabbixException("key ID '%s' is not supported", item.getKeyId());
@@ -208,7 +202,7 @@ class JMXItemChecker extends ItemChecker
 			if (isPrimitiveAttributeType(dataObject.getClass()))
 				return dataObject.toString();
 			else
-				throw new ZabbixException("data object type is not primitive: %s" + dataObject.getClass());
+				throw new ZabbixException("data object type is not primitive: %s", dataObject.getClass());
 		}
 
 		if (dataObject instanceof CompositeData)
@@ -276,7 +270,9 @@ class JMXItemChecker extends ItemChecker
 
 	private boolean isPrimitiveAttributeType(Class<?> clazz)
 	{
-		Class<?>[] clazzez = {Boolean.class, Byte.class, Short.class, Integer.class, Long.class, Float.class, Double.class, String.class};
+		Class<?>[] clazzez = {Boolean.class, Character.class, Byte.class, Short.class, Integer.class, Long.class,
+			Float.class, Double.class, String.class, java.math.BigDecimal.class, java.math.BigInteger.class,
+			java.util.Date.class, javax.management.ObjectName.class};
 
 		return HelperFunctionChest.arrayContains(clazzez, clazz);
 	}

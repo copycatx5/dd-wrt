@@ -1,3 +1,4 @@
+
 /*
  * xHCI host controller driver
  *
@@ -29,8 +30,23 @@
 #include <linux/usb/hcd.h>
 
 /* Code sharing between pci-quirks and xhci hcd */
-#include	"xhci-ext-caps.h"
+#include "xhci-ext-caps.h"
 #include "pci-quirks.h"
+
+#if defined (CONFIG_USB_MT7621_XHCI_PLATFORM)
+#define XHC_IRQ (22 + 8)
+#define XHC_IO_START 0x1E1C0000
+#define XHC_IO_LENGTH 0x10000
+/* mtk scheduler bitmasks */
+#define BPKTS(p)	((p) & 0x3f)
+#define BCSCOUNT(p)	(((p) & 0x7) << 8)
+#define BBM(p)		((p) << 11)
+#define BOFFSET(p)	((p) & 0x3fff)
+#define BREPEAT(p)	(((p) & 0x7fff) << 16)
+#endif
+
+
+
 
 /* xHCI PCI Configuration Registers */
 #define XHCI_SBRN_OFFSET	(0x60)
@@ -88,9 +104,10 @@ struct xhci_cap_regs {
 #define HCS_IST(p)		(((p) >> 0) & 0xf)
 /* bits 4:7, max number of Event Ring segments */
 #define HCS_ERST_MAX(p)		(((p) >> 4) & 0xf)
+/* bits 21:25 Hi 5 bits of Scratchpad buffers SW must allocate for the HW */
 /* bit 26 Scratchpad restore - for save/restore HW state - not used yet */
-/* bits 27:31 number of Scratchpad buffers SW must allocate for the HW */
-#define HCS_MAX_SCRATCHPAD(p)   (((p) >> 27) & 0x1f)
+/* bits 27:31 Lo 5 bits of Scratchpad buffers SW must allocate for the HW */
+#define HCS_MAX_SCRATCHPAD(p)   ((((p) >> 16) & 0x3e0) | (((p) >> 27) & 0x1f))
 
 /* HCSPARAMS3 - hcs_params3 - bitmasks */
 /* bits 0:7, Max U1 to U0 latency for the roothub ports */
@@ -278,6 +295,7 @@ struct xhci_op_regs {
 #define XDEV_U0		(0x0 << 5)
 #define XDEV_U2		(0x2 << 5)
 #define XDEV_U3		(0x3 << 5)
+#define XDEV_INACTIVE	(0x6 << 5)
 #define XDEV_RESUME	(0xf << 5)
 /* true: port has power (see HCC_PPC) */
 #define PORT_POWER	(1 << 9)
@@ -1235,11 +1253,7 @@ union xhci_trb {
  * since the command ring is 64-byte aligned.
  * It must also be greater than 16.
  */
-#ifdef CONFIG_BCM47XX
 #define TRBS_PER_SEGMENT	256
-#else
-#define TRBS_PER_SEGMENT	64
-#endif
 /* Allow two commands + a link TRB, along with any reserved command TRBs */
 #define MAX_RSVD_CMD_TRBS	(TRBS_PER_SEGMENT - 3)
 #define TRB_SEGMENT_SIZE	(TRBS_PER_SEGMENT*16)
@@ -1262,6 +1276,8 @@ struct xhci_td {
 	struct xhci_segment	*start_seg;
 	union xhci_trb		*first_trb;
 	union xhci_trb		*last_trb;
+	/* actual_length of the URB has already been set */
+	bool			urb_length_set;
 };
 
 /* xHCI command default timeout value */
@@ -1540,8 +1556,12 @@ struct xhci_hcd {
 	/* Compliance Mode Recovery Data */
 	struct timer_list	comp_mode_recovery_timer;
 	u32			port_status_u0;
+#ifdef CONFIG_USB_MT7621_XHCI_PLATFORM
+#define COMP_MODE_RCVRY_MSECS 5000
+#else
 /* Compliance Mode Timer Triggered every 2 seconds */
 #define COMP_MODE_RCVRY_MSECS 2000
+#endif
 };
 
 /* convert between an HCD pointer and the corresponding EHCI_HCD */
@@ -1707,7 +1727,7 @@ void xhci_urb_free_priv(struct xhci_hcd *xhci, struct urb_priv *urb_priv);
 void xhci_free_command(struct xhci_hcd *xhci,
 		struct xhci_command *command);
 
-#ifdef CONFIG_PCI
+#if defined (CONFIG_PCI) && !defined (CONFIG_USB_MT7621_XHCI_PLATFORM)
 /* xHCI PCI glue */
 int xhci_register_pci(void);
 void xhci_unregister_pci(void);

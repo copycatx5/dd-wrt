@@ -39,7 +39,7 @@
  * AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING
  * OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  *
- * $Id: pppd.h,v 1.88 2004/11/13 12:02:22 paulus Exp $
+ * $Id: pppd.h,v 1.96 2008/06/23 11:47:18 paulus Exp $
  */
 
 /*
@@ -66,6 +66,9 @@
 #define const
 #define volatile
 #endif
+
+#undef __P
+#define __P(args) args
 
 #ifdef INET6
 #include "eui64.h"
@@ -115,19 +118,19 @@ typedef struct {
 #define OPT_VALUE	0xff	/* mask for presupplied value */
 #define OPT_HEX		0x100	/* int option is in hex */
 #define OPT_NOARG	0x200	/* option doesn't take argument */
-#define OPT_OR		0x400	/* OR in argument to value */
-#define OPT_INC		0x800	/* increment value */
+#define OPT_OR		0x400	/* for u32, OR in argument to value */
+#define OPT_INC		0x400	/* for o_int, increment value */
 #define OPT_A2OR	0x800	/* for o_bool, OR arg to *(u_char *)addr2 */
 #define OPT_PRIV	0x1000	/* privileged option */
 #define OPT_STATIC	0x2000	/* string option goes into static array */
+#define OPT_NOINCR	0x2000	/* for o_int, value mustn't be increased */
 #define OPT_LLIMIT	0x4000	/* check value against lower limit */
 #define OPT_ULIMIT	0x8000	/* check value against upper limit */
 #define OPT_LIMITS	(OPT_LLIMIT|OPT_ULIMIT)
 #define OPT_ZEROOK	0x10000	/* 0 value is OK even if not within limits */
 #define OPT_HIDE	0x10000	/* for o_string, print value as ?????? */
-#define OPT_A2LIST	0x10000 /* for o_special, keep list of values */
-#define OPT_A2CLRB	0x10000 /* o_bool, clr val bits in *(u_char *)addr2 */
-#define OPT_NOINCR	0x20000	/* value mustn't be increased */
+#define OPT_A2LIST	0x20000 /* for o_special, keep list of values */
+#define OPT_A2CLRB	0x20000 /* o_bool, clr val bits in *(u_char *)addr2 */
 #define OPT_ZEROINF	0x40000	/* with OPT_NOINCR, 0 == infinity */
 #define OPT_PRIO	0x80000	/* process option priorities for this option */
 #define OPT_PRIOSUB	0x100000 /* subsidiary member of priority group */
@@ -139,7 +142,7 @@ typedef struct {
 #define OPT_INITONLY	0x4000000 /* option can only be set in init phase */
 #define OPT_DEVEQUIV	0x8000000 /* equiv to device name */
 #define OPT_DEVNAM	(OPT_INITONLY | OPT_DEVEQUIV)
-#define OPT_A2PRINTER	0x10000000 /* *addr2 is a fn for printing option */
+#define OPT_A2PRINTER	0x10000000 /* *addr2 printer_func to print option */
 #define OPT_A2STRVAL	0x20000000 /* *addr2 points to current string value */
 #define OPT_NOPRINT	0x40000000 /* don't print this option at all */
 
@@ -199,6 +202,7 @@ struct epdisc {
 #define EPD_PHONENUM	5
 
 typedef void (*notify_func) __P((void *, int));
+typedef void (*printer_func) __P((void *, char *, ...));
 
 struct notifier {
     struct notifier *next;
@@ -235,7 +239,9 @@ extern unsigned	link_connect_time; /* time the link was up for */
 extern int	using_pty;	/* using pty as device (notty or pty opt.) */
 extern int	log_to_fd;	/* logging to this fd as well as syslog */
 extern bool	log_default;	/* log_to_fd is default (stdout) */
+#ifdef NEED_PRINTF
 extern char	*no_ppp_msg;	/* message to print if ppp not in kernel */
+#endif
 extern volatile int status;	/* exit status for pppd */
 extern bool	devnam_fixed;	/* can no longer change devnam */
 extern int	unsuccess;	/* # unsuccessful connection attempts */
@@ -257,8 +263,10 @@ extern struct notifier *pidchange;   /* for notifications of pid changing */
 extern struct notifier *phasechange; /* for notifications of phase changes */
 extern struct notifier *exitnotify;  /* for notification that we're exiting */
 extern struct notifier *sigreceived; /* notification of received signal */
-extern struct notifier *ip_up_notifier; /* IPCP has come up */
-extern struct notifier *ip_down_notifier; /* IPCP has gone down */
+extern struct notifier *ip_up_notifier;     /* IPCP has come up */
+extern struct notifier *ip_down_notifier;   /* IPCP has gone down */
+extern struct notifier *ipv6_up_notifier;   /* IPV6CP has come up */
+extern struct notifier *ipv6_down_notifier; /* IPV6CP has gone down */
 extern struct notifier *auth_up_notifier; /* peer has authenticated */
 extern struct notifier *link_down_notifier; /* link has gone down */
 extern struct notifier *fork_notifier;	/* we are a new child process */
@@ -276,12 +284,14 @@ extern int	kdebugflag;	/* Tell kernel to print debug messages */
 extern int	default_device;	/* Using /dev/tty or equivalent */
 extern char	devnam[MAXPATHLEN];	/* Device name */
 extern int	crtscts;	/* Use hardware flow control */
+extern int	stop_bits;	/* Number of serial port stop bits */
 extern bool	modem;		/* Use modem control lines */
 extern int	inspeed;	/* Input/Output speed requested */
 extern u_int32_t netmask;	/* IP netmask to set on interface */
 extern bool	lockflag;	/* Create lock file to lock the serial dev */
 extern bool	nodetach;	/* Don't detach from controlling tty */
 extern bool	updetach;	/* Detach from controlling tty when link up */
+extern bool	master_detach;	/* Detach when multilink master without link */
 extern char	*initializer;	/* Script to initialize physical link */
 extern char	*connect_script; /* Script to establish physical link */
 extern char	*disconnect_script; /* Script to disestablish physical link */
@@ -293,6 +303,7 @@ extern char	passwd[MAXSECRETLEN];	/* Password for PAP or CHAP */
 extern bool	auth_required;	/* Peer is required to authenticate */
 extern bool	persist;	/* Reopen link after it goes down */
 extern bool	uselogin;	/* Use /etc/passwd for checking PAP */
+extern bool	session_mgmt;	/* Do session management (login records) */
 extern char	our_name[MAXNAMELEN];/* Our name for authentication purposes */
 extern char	remote_name[MAXNAMELEN]; /* Peer's name for authentication */
 extern bool	explicit_remote;/* remote_name specified with remotename opt */
@@ -328,6 +339,10 @@ extern int	child_wait;	/* # seconds to wait for children at end */
 extern bool	ms_ignore_domain; /* Ignore any MS domain prefix */
 #endif
 
+#ifdef HAVE_AQOS
+extern int bandwidthup;
+extern int bandwidthdown;
+#endif
 #ifdef MAXOCTETS
 extern unsigned int maxoctets;	     /* Maximum octetes per session (in bytes) */
 extern int       maxoctets_dir;      /* Direction :
@@ -414,8 +429,7 @@ struct protent {
     /* Close the protocol */
     void (*close) __P((int unit, char *reason));
     /* Print a packet in readable form */
-    int  (*printpkt) __P((u_char *pkt, int len,
-			  void (*printer) __P((void *, char *, ...)),
+    int  (*printpkt) __P((u_char *pkt, int len, printer_func printer,
 			  void *arg));
     /* Process a received data packet */
     void (*datainput) __P((int unit, u_char *pkt, int len));
@@ -469,25 +483,40 @@ struct channel {
 extern struct channel *the_channel;
 
 /*
+ * This structure contains environment variables that are set or unset
+ * by the user.
+ */
+struct userenv {
+	struct userenv *ue_next;
+	char *ue_value;		/* value (set only) */
+	bool ue_isset;		/* 1 for set, 0 for unset */
+	bool ue_priv;		/* from privileged source */
+	const char *ue_source;	/* source name */
+	char ue_name[1];	/* variable name */
+};
+
+extern struct userenv *userenv_list;
+
+/*
  * Prototypes.
  */
 
 /* Procedures exported from main.c. */
 void set_ifunit __P((int));	/* set stuff that depends on ifunit */
 void detach __P((void));	/* Detach from controlling tty */
-void pppd_die __P((int));		/* Cleanup and exit */
+void die __P((int));		/* Cleanup and exit */
 void quit __P((void));		/* like die(1) */
 void novm __P((char *));	/* Say we ran out of memory, and die */
 void timeout __P((void (*func)(void *), void *arg, int s, int us));
 				/* Call func(arg) after s.us seconds */
 void untimeout __P((void (*func)(void *), void *arg));
 				/* Cancel call to func(arg) */
-void record_child __P((int, char *, void (*) (void *), void *));
+void record_child __P((int, char *, void (*) (void *), void *, int));
 pid_t safe_fork __P((int, int, int));	/* Fork & close stuff in child */
 int  device_script __P((char *cmd, int in, int out, int dont_wait));
 				/* Run `cmd' with given stdin and stdout */
 pid_t run_program __P((char *prog, char **args, int must_exist,
-		       void (*done)(void *), void *arg));
+		       void (*done)(void *), void *arg, int wait));
 				/* Run program prog with args in child */
 void reopen_log __P((void));	/* (re)open the connection to syslog */
 void print_link_stats __P((void)); /* Print stats, if available */
@@ -501,6 +530,7 @@ void remove_notifier __P((struct notifier **, notify_func, void *));
 void notify __P((struct notifier *, int));
 int  ppp_send_config __P((int, int, u_int32_t, int, int));
 int  ppp_recv_config __P((int, int, u_int32_t, int, int));
+const char *protocol_name __P((int));
 void remove_pidfiles __P((void));
 void lock_db __P((void));
 void unlock_db __P((void));
@@ -511,26 +541,37 @@ void tty_init __P((void));
 /* Procedures exported from utils.c. */
 void log_packet __P((u_char *, int, char *, int));
 				/* Format a packet and log it with syslog */
-void print_string __P((char *, int,  void (*) (void *, char *, ...),
-		void *));	/* Format a string for output */
+void print_string __P((char *, int,  printer_func, void *));
+				/* Format a string for output */
 int slprintf __P((char *, int, char *, ...));		/* sprintf++ */
 int vslprintf __P((char *, int, char *, va_list));	/* vsprintf++ */
 size_t strlcpy __P((char *, const char *, size_t));	/* safe strcpy */
 size_t strlcat __P((char *, const char *, size_t));	/* safe strncpy */
+
+#ifndef NEED_PRINTF
+#define option_error(fmt,args...) do { } while(0)
+
+
+#define notice(fmt,...)do { } while(0)
+#define info(fmt,...) do { } while(0)
+#define dbglog(fmt,...) do { } while(0)
+#define warn(fmt,...) do { } while(0)
+#define error(fmt,...) { ++error_count; }
+#define fatal(fmt,...) { die(1); }
+#else
+
+void option_error __P((char *fmt, ...));
+
 void dbglog __P((char *, ...));	/* log a debug message */
 void info __P((char *, ...));	/* log an informational message */
 void notice __P((char *, ...));	/* log a notice-level message */
 
+void warn __P((char *, ...));	/* log a warning message */
+void error __P((char *, ...));	/* log an error message */
+void fatal __P((char *, ...));	/* log an error message and die(1) */
+#endif
 
-#define warn(a,...)
-#define error(a,...)
-#define fatal(a,...)
-
-//void warn __P((char *, ...));	/* log a warning message */
-//void error __P((char *, ...));	/* log an error message */
-//void fatal __P((char *, ...));	/* log an error message and die(1) */
-
-void init_pr_log __P((char *, int));	/* initialize for using pr_log */
+void init_pr_log __P((const char *, int)); /* initialize for using pr_log */
 void pr_log __P((void *, char *, ...));	/* printer fn, output to syslog */
 void end_pr_log __P((void));	/* finish up after using pr_log */
 void dump_packet __P((const char *, u_char *, int));
@@ -622,7 +663,7 @@ void wait_input __P((struct timeval *));
 				/* Wait for input, with timeout */
 void add_fd __P((int));		/* Add fd to set to wait for */
 void remove_fd __P((int));	/* Remove fd from set to wait for */
-int  pppd_read_packet __P((u_char *)); /* Read PPP packet */
+int  read_packet __P((u_char *)); /* Read PPP packet */
 int  get_loop_output __P((void)); /* Read pkts from loopback */
 void tty_send_config __P((int, u_int32_t, int, int));
 				/* Configure i/f transmit parameters */
@@ -652,6 +693,9 @@ int  sifaddr __P((int, u_int32_t, u_int32_t, u_int32_t));
 int  cifaddr __P((int, u_int32_t, u_int32_t));
 				/* Reset i/f IP addresses */
 #ifdef INET6
+int  ether_to_eui64(eui64_t *p_eui64);	/* convert eth0 hw address to EUI64 */
+int  sif6up __P((int));		/* Configure i/f up for IPv6 */
+int  sif6down __P((int));	/* Configure i/f down for IPv6 */
 int  sif6addr __P((int, eui64_t, eui64_t));
 				/* Configure IPv6 addresses for i/f */
 int  cif6addr __P((int, eui64_t, eui64_t));
@@ -697,9 +741,8 @@ int  options_from_list __P((struct wordlist *, int privileged));
 				/* Parse options from a wordlist */
 int  getword __P((FILE *f, char *word, int *newlinep, char *filename));
 				/* Read a word from a file */
-#define option_error(fmt, args...)
 
-//void option_error __P((char *fmt, ...));
+
 				/* Print an error message about an option */
 int int_option __P((char *, int *));
 				/* Simplified number_option for decimal ints */
@@ -707,7 +750,7 @@ void add_options __P((option_t *)); /* Add extra options */
 void check_options __P((void));	/* check values after all options parsed */
 int  override_value __P((const char *, int, const char *));
 				/* override value if permitted by priority */
-void print_options __P((void (*) __P((void *, char *, ...)), void *));
+void print_options __P((printer_func, void *));
 				/* print out values of all options */
 
 int parse_dotted_ip __P((char *, u_int32_t *));
@@ -728,9 +771,12 @@ extern int (*allowed_address_hook) __P((u_int32_t addr));
 extern void (*ip_up_hook) __P((void));
 extern void (*ip_down_hook) __P((void));
 extern void (*ip_choose_hook) __P((u_int32_t *));
+extern void (*ipv6_up_hook) __P((void));
+extern void (*ipv6_down_hook) __P((void));
 
 extern int (*chap_check_hook) __P((void));
 extern int (*chap_passwd_hook) __P((char *user, char *passwd));
+extern void (*multilink_join_hook) __P((void));
 
 /* Let a plugin snoop sent and received packets.  Useful for L2TP */
 extern void (*snoop_recv_hook) __P((unsigned char *p, int len));

@@ -8,7 +8,7 @@
    created and destroyed.  This is required for the future vfs layer,
    it will be possible to have tree views over virtual file systems.
 
-   Copyright (C) 1999-2014
+   Copyright (C) 1999-2015
    Free Software Foundation, Inc.
 
    Written by:
@@ -150,9 +150,9 @@ pathcmp (const vfs_path_t * p1_vpath, const vfs_path_t * p2_vpath)
         ret_val = -1;
     else if (*p2 == '\0')
         ret_val = 1;
-    else if (*p1 == PATH_SEP)
+    else if (IS_PATH_SEP (*p1))
         ret_val = -1;
-    else if (*p2 == PATH_SEP)
+    else if (IS_PATH_SEP (*p2))
         ret_val = 1;
     else
         ret_val = (*p1 - *p2);
@@ -191,6 +191,8 @@ decode (char *buffer)
             break;
         case '\\':
             *q = '\\';
+            break;
+        default:
             break;
         }
     }
@@ -258,7 +260,7 @@ tree_store_load_from (char *name)
             scanned = buffer[0] == '1';
 
             lc_name = decode (buffer + 2);
-            if (lc_name[0] != PATH_SEP)
+            if (!IS_PATH_SEP (lc_name[0]))
             {
                 /* Clear-text decompression */
                 char *s = strtok (lc_name, " ");
@@ -451,7 +453,7 @@ tree_store_add_entry (const vfs_path_t * name)
         const char *new_name;
 
         new_name = vfs_path_get_last_path_str (new->name);
-        new->subname = strrchr (new_name, '/');
+        new->subname = strrchr (new_name, PATH_SEP);
         if (new->subname == NULL)
             new->subname = new_name;
         else
@@ -539,23 +541,24 @@ remove_entry (tree_entry * entry)
 static void
 process_special_dirs (GList ** special_dirs, const char *file)
 {
-    gchar **buffers, **start_buff;
+    gchar **start_buff;
     mc_config_t *cfg;
-    gsize buffers_len;
 
     cfg = mc_config_init (file, TRUE);
     if (cfg == NULL)
         return;
 
-    start_buff = buffers = mc_config_get_string_list (cfg, "Special dirs", "list", &buffers_len);
-    if (buffers != NULL)
+    start_buff = mc_config_get_string_list (cfg, "Special dirs", "list", NULL);
+    if (start_buff != NULL)
     {
-        while (*buffers != NULL)
+        gchar **buffers;
+
+        for (buffers = start_buff; *buffers != NULL; buffers++)
         {
             *special_dirs = g_list_prepend (*special_dirs, *buffers);
             *buffers = NULL;
-            buffers++;
         }
+
         g_strfreev (start_buff);
     }
     mc_config_deinit (cfg);
@@ -702,7 +705,7 @@ tree_store_remove_entry (const vfs_path_t * name_vpath)
         const char *name_vpath_str;
 
         name_vpath_str = vfs_path_as_str (name_vpath);
-        is_root = (name_vpath_str[0] == PATH_SEP && name_vpath_str[1] == '\0');
+        is_root = (IS_PATH_SEP (name_vpath_str[0]) && name_vpath_str[1] == '\0');
         if (is_root)
             return;
     }
@@ -721,7 +724,7 @@ tree_store_remove_entry (const vfs_path_t * name_vpath)
         const char *cname;
 
         cname = vfs_path_as_str (current->name);
-        ok = (cname[len] == '\0' || cname[len] == PATH_SEP);
+        ok = (cname[len] == '\0' || IS_PATH_SEP (cname[len]));
         if (!ok)
             break;
 
@@ -755,7 +758,7 @@ tree_store_mark_checked (const char *subname)
         return;
 
     cname = vfs_path_as_str (ts.check_name);
-    if (cname[0] == PATH_SEP && cname[1] == '\0')
+    if (IS_PATH_SEP (cname[0]) && cname[1] == '\0')
         name = vfs_path_build_filename (PATH_SEP_STR, subname, NULL);
     else
         name = vfs_path_append_new (ts.check_name, subname, NULL);
@@ -787,7 +790,7 @@ tree_store_mark_checked (const char *subname)
             gboolean ok;
 
             cname = vfs_path_as_str (current->name);
-            ok = (cname[len] == '\0' || cname[len] == PATH_SEP || len == 1);
+            ok = (cname[len] == '\0' || IS_PATH_SEP (cname[len]) || len == 1);
             if (!ok)
                 break;
 
@@ -845,7 +848,7 @@ tree_store_start_check (const vfs_path_t * vpath)
         const char *cname;
 
         cname = vfs_path_as_str (current->name);
-        ok = (cname[len] == '\0' || cname[len] == PATH_SEP || len == 1);
+        ok = (cname[len] == '\0' || IS_PATH_SEP (cname[len]) || len == 1);
         if (!ok)
             break;
 
@@ -882,7 +885,7 @@ tree_store_end_check (void)
         const char *cname;
 
         cname = vfs_path_as_str (current->name);
-        ok = (cname[len] == '\0' || cname[len] == PATH_SEP || len == 1);
+        ok = (cname[len] == '\0' || IS_PATH_SEP (cname[len]) || len == 1);
         if (!ok)
             break;
 
@@ -893,8 +896,7 @@ tree_store_end_check (void)
     }
 
     /* get the stuff in the scan order */
-    ts.add_queue_vpath = g_list_reverse (ts.add_queue_vpath);
-    the_queue = ts.add_queue_vpath;
+    the_queue = g_list_reverse (ts.add_queue_vpath);
     ts.add_queue_vpath = NULL;
     vfs_path_free (ts.check_name);
     ts.check_name = NULL;

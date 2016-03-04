@@ -1,26 +1,19 @@
 <script type="text/x-jquery-tmpl" id="mappingRow">
-
 	<tr>
 		<td>
-			<input class="input" type="text" name="mappings[#{mappingNum}][value]" value="#{value}" size="20" maxlength="64"
-					title="<?php echo CHtml::encode(_('Only whole numbers')); ?>" pattern="-?[0-9]+"
-					placeholder="<<?php echo CHtml::encode(_('whole number')); ?>>">
+			<input class="input text " type="text" name="mappings[#{mappingNum}][value]" value="#{value}" size="20" maxlength="64">
 		</td>
 		<td>&rArr;</td>
 		<td>
-			<input class="input" type="text" name="mappings[#{mappingNum}][newvalue]" value="#{newvalue}" size="30" maxlength="64">
+			<input class="input text" type="text" name="mappings[#{mappingNum}][newvalue]" value="#{newvalue}" size="30" maxlength="64">
 		</td>
 		<td>
-			<input class="input link_menu removeMapping" type="button" value="<?php echo CHtml::encode(_('Remove')); ?>">
+			<input class="input link_menu removeMapping" type="button" value="<?php echo Chtml::encode(_('Remove')); ?>">
 		</td>
 	</tr>
-
 </script>
-
-
 <script type="text/javascript">
 	var mappingsManager = (function() {
-
 		var tpl = new Template(jQuery('#mappingRow').html()),
 			mappingsCount = 0,
 			nextMappingNum = 0;
@@ -30,8 +23,11 @@
 			jQuery(tpl.evaluate(mapping)).insertBefore('#mappingsTable tr:last-child');
 
 			if (mapping.mappingid !== void(0)) {
-				jQuery('#mappingsTable tr:last-child').prev().find('td').first()
-						.append('<input type="hidden" name="mappings[' + mapping.mappingNum + '][mappingid]" value="' + mapping.mappingid + '">');
+				jQuery('#mappingsTable tr:last-child')
+					.prev()
+					.find('td')
+					.first()
+					.append('<input type="hidden" name="mappings[' + mapping.mappingNum + '][mappingid]" value="' + mapping.mappingid + '">');
 			}
 
 			mappingsCount++;
@@ -40,10 +36,10 @@
 
 		function toggleSaveButton() {
 			if (mappingsCount === 0) {
-				jQuery('#save').prop('disabled', true).button('refresh');
+				jQuery('#save').button('disable');
 			}
 			else if (mappingsCount === 1) {
-				jQuery('#save').prop('disabled', false).button('refresh');
+				jQuery('#save').button('enable');
 			}
 		}
 
@@ -65,14 +61,12 @@
 				mappingsCount--;
 				toggleSaveButton();
 			}
-		}
+		};
 	}());
 
 	jQuery(document).ready(function() {
-		'use strict';
-
+		jQuery('#save').button();
 		jQuery('#addMapping').click(mappingsManager.addNew);
 		jQuery('#mappingsTable tbody').on('click', 'input.removeMapping', mappingsManager.remove);
 	});
-
 </script>

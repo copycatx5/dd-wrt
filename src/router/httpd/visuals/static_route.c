@@ -32,14 +32,14 @@
 
 #include <broadcom.h>
 
-static char word[256];
 void ej_show_routeif(webs_t wp, int argc, char_t ** argv)
 {
 	int which;
+	char word[256];
 	char *next = NULL, *page = NULL;
 	char *ipaddr = NULL, *netmask = NULL, *gateway = NULL, *metric = NULL, *ifname = NULL;
-	static char ifnamecopy[32];
-	static char bufferif[512];
+	char ifnamecopy[32];
+	char bufferif[512];
 
 	page = websGetVar(wp, "route_page", NULL);
 	if (!page)
@@ -83,7 +83,7 @@ void ej_show_routeif(webs_t wp, int argc, char_t ** argv)
 			continue;
 		if (nvram_match("wan_ifname", word))
 			continue;
-		websWrite(wp, "<option value=\"%s\" %s >%s</option>\n", word, strcmp(word, ifnamecopy) == 0 ? "selected=\"selected\"" : "", word);
+		websWrite(wp, "<option value=\"%s\" %s >%s</option>\n", word, strcmp(word, ifnamecopy) == 0 ? "selected=\"selected\"" : "", getNetworkLabel(word));
 	}
 }
 
@@ -97,6 +97,7 @@ void ej_static_route_setting(webs_t wp, int argc, char_t ** argv)
 {
 	char *arg;
 	int which, count;
+	char word[256];
 	char *next, *page;
 	char name[50] = "", *ipaddr, *netmask, *gateway, *metric, *ifname;
 	int temp;

@@ -1,6 +1,6 @@
 /*
 ** Zabbix
-** Copyright (C) 2001-2013 Zabbix SIA
+** Copyright (C) 2001-2015 Zabbix SIA
 **
 ** This program is free software; you can redistribute it and/or modify
 ** it under the terms of the GNU General Public License as published by
@@ -25,10 +25,15 @@
 #include "proxy.h"
 #include "snmptrapper.h"
 #include "zbxserver.h"
+#include "zbxregexp.h"
 
 static int	trap_fd = -1;
 static int	trap_lastsize;
 static ino_t	trap_ino = 0;
+static char	*buffer = NULL;
+static int	offset = 0;
+static int	force = 0;
+static int	overflow_warning = 0;
 
 static void	DBget_lastsize()
 {
@@ -73,20 +78,22 @@ static void	DBupdate_lastsize()
  ******************************************************************************/
 static int	process_trap_for_interface(zbx_uint64_t interfaceid, char *trap, zbx_timespec_t *ts)
 {
-	DC_ITEM		*items = NULL;
-	char		cmd[MAX_STRING_LEN], params[MAX_STRING_LEN], regex[MAX_STRING_LEN], error[ITEM_ERROR_LEN_MAX];
-	size_t		num, i;
-	int		ret = FAIL, fb = -1, *lastclocks = NULL, *errcodes = NULL, timestamp;
-	zbx_uint64_t	*itemids = NULL;
-	unsigned char	*statuses = NULL;
-	AGENT_RESULT	*results = NULL;
-	ZBX_REGEXP	*regexps = NULL;
-	int		regexps_alloc = 0, regexps_num = 0;
+	DC_ITEM			*items = NULL;
+	char			cmd[MAX_STRING_LEN], params[MAX_STRING_LEN], regex[MAX_STRING_LEN],
+				error[ITEM_ERROR_LEN_MAX];
+	size_t			num, i;
+	int			ret = FAIL, fb = -1, *lastclocks = NULL, *errcodes = NULL;
+	zbx_uint64_t		*itemids = NULL;
+	unsigned char		*states = NULL;
+	AGENT_RESULT		*results = NULL;
+	zbx_vector_ptr_t	regexps;
+
+	zbx_vector_ptr_create(&regexps);
 
 	num = DCconfig_get_snmp_items_by_interfaceid(interfaceid, &items);
 
 	itemids = zbx_malloc(itemids, sizeof(zbx_uint64_t) * num);
-	statuses = zbx_malloc(statuses, sizeof(unsigned char) * num);
+	states = zbx_malloc(states, sizeof(unsigned char) * num);
 	lastclocks = zbx_malloc(lastclocks, sizeof(int) * num);
 	errcodes = zbx_malloc(errcodes, sizeof(int) * num);
 	results = zbx_malloc(results, sizeof(AGENT_RESULT) * num);
@@ -111,7 +118,7 @@ static int	process_trap_for_interface(zbx_uint64_t interfaceid, char *trap, zbx_
 			continue;
 		}
 
-		if (0 == parse_command(items[i].key, cmd, sizeof(cmd), params, sizeof(params)))
+		if (ZBX_COMMAND_ERROR == parse_command(items[i].key, cmd, sizeof(cmd), params, sizeof(params)))
 			continue;
 
 		if (0 != strcmp(cmd, "snmptrap"))
@@ -124,31 +131,9 @@ static int	process_trap_for_interface(zbx_uint64_t interfaceid, char *trap, zbx_
 			continue;
 
 		if ('@' == *regex)
-		{
-			DB_RESULT	result;
-			DB_ROW		row;
-			char		*regex_esc;
+			DCget_expressions_by_name(&regexps, regex + 1);
 
-			regexps_num = 0;
-
-			regex_esc = DBdyn_escape_string(regex + 1);
-			result = DBselect("select e.expression,e.expression_type,e.exp_delimiter,e.case_sensitive"
-					" from regexps r,expressions e"
-					" where r.regexpid=e.regexpid"
-						" and r.name='%s'" DB_NODE,
-					regex_esc, DBnode_local("r.regexpid"));
-			zbx_free(regex_esc);
-
-			while (NULL != (row = DBfetch(result)))
-			{
-				add_regexp_ex(&regexps, &regexps_alloc, &regexps_num,
-						regex + 1, row[0], atoi(row[1]), row[2][0], atoi(row[3]));
-			}
-			DBfree_result(result);
-		}
-
-
-		if (SUCCEED != regexp_match_ex(regexps, regexps_num, trap, regex, ZBX_CASE_SENSITIVE))
+		if (SUCCEED != regexp_match_ex(&regexps, trap, regex, ZBX_CASE_SENSITIVE))
 			continue;
 
 		if (SUCCEED == set_result_type(&results[i], items[i].value_type, items[i].data_type, trap))
@@ -157,9 +142,6 @@ static int	process_trap_for_interface(zbx_uint64_t interfaceid, char *trap, zbx_
 			errcodes[i] = NOTSUPPORTED;
 		ret = SUCCEED;
 	}
-
-	clean_regexps_ex(regexps, &regexps_num);
-	zbx_free(regexps);
 
 	if (FAIL == ret && -1 != fb)
 	{
@@ -175,26 +157,27 @@ static int	process_trap_for_interface(zbx_uint64_t interfaceid, char *trap, zbx_
 		switch (errcodes[i])
 		{
 			case SUCCEED:
-				timestamp = 0;
-
 				if (ITEM_VALUE_TYPE_LOG == items[i].value_type)
-					calc_timestamp(trap, &timestamp, items[i].logtimefmt);
+				{
+					calc_timestamp(results[i].logs[0]->value, &results[i].logs[0]->timestamp,
+							items[i].logtimefmt);
+				}
 
-				items[i].status = ITEM_STATUS_ACTIVE;
+				items[i].state = ITEM_STATE_NORMAL;
 				dc_add_history(items[i].itemid, items[i].value_type, items[i].flags, &results[i],
-						ts, items[i].status, NULL, timestamp, NULL, 0, 0, 0, 0);
+						ts, items[i].state, NULL);
 
 				itemids[i] = items[i].itemid;
-				statuses[i] = items[i].status;
+				states[i] = items[i].state;
 				lastclocks[i] = ts->sec;
 				break;
 			case NOTSUPPORTED:
-				items[i].status = ITEM_STATUS_NOTSUPPORTED;
+				items[i].state = ITEM_STATE_NOTSUPPORTED;
 				dc_add_history(items[i].itemid, items[i].value_type, items[i].flags, NULL,
-						ts, items[i].status, results[i].msg, 0, NULL, 0, 0, 0, 0);
+						ts, items[i].state, results[i].msg);
 
 				itemids[i] = items[i].itemid;
-				statuses[i] = items[i].status;
+				states[i] = items[i].state;
 				lastclocks[i] = ts->sec;
 				break;
 		}
@@ -205,15 +188,20 @@ static int	process_trap_for_interface(zbx_uint64_t interfaceid, char *trap, zbx_
 
 	zbx_free(results);
 
-	DCrequeue_items(itemids, statuses, lastclocks, errcodes, num);
+	DCrequeue_items(itemids, states, lastclocks, NULL, NULL, errcodes, num);
 
 	zbx_free(errcodes);
 	zbx_free(lastclocks);
-	zbx_free(statuses);
+	zbx_free(states);
 	zbx_free(itemids);
 
 	DCconfig_clean_items(items, NULL, num);
 	zbx_free(items);
+
+	zbx_regexp_clean_expressions(&regexps);
+	zbx_vector_ptr_destroy(&regexps);
+
+	dc_flush_history();
 
 	return ret;
 }
@@ -250,7 +238,7 @@ static void	process_trap(const char *addr, char *begin, char *end)
 	}
 
 	if (FAIL == ret && 1 == *(unsigned char *)DCconfig_get_config_data(&i, CONFIG_SNMPTRAP_LOGGING))
-		zabbix_log(LOG_LEVEL_WARNING, "unmatched trap received from [%s]: %s", addr, trap);
+		zabbix_log(LOG_LEVEL_WARNING, "unmatched trap received from \"%s\": %s", addr, trap);
 
 	zbx_free(interfaceids);
 	zbx_free(trap);
@@ -265,21 +253,28 @@ static void	process_trap(const char *addr, char *begin, char *end)
  * Author: Rudolfs Kreicbergs                                                 *
  *                                                                            *
  ******************************************************************************/
-static void	parse_traps(char *buffer)
+static void	parse_traps(int flag)
 {
-	char	*c, *line, *begin = NULL, *end = NULL, *addr = NULL;
+	char	*c, *line, *begin = NULL, *end = NULL, *addr = NULL, *pzbegin, *pzaddr, *pzdate;
 
 	c = line = buffer;
 
-	for (; '\0' != *c; c++)
+	while ('\0' != *c)
 	{
 		if ('\n' == *c)
-			line = c + 1;
+		{
+			line = ++c;
+			continue;
+		}
 
 		if (0 != strncmp(c, "ZBXTRAP", 7))
+		{
+			c++;
 			continue;
+		}
 
-		*c = '\0';
+		pzbegin = c;
+
 		c += 7;	/* c now points to the delimiter between "ZBXTRAP" and address */
 
 		while ('\0' != *c && NULL != strchr(ZBX_WHITESPACE, *c))
@@ -291,6 +286,9 @@ static void	parse_traps(char *buffer)
 		if (NULL != begin)
 		{
 			*(line - 1) = '\0';
+			*pzdate = '\0';
+			*pzaddr = '\0';
+
 			process_trap(addr, begin, end);
 			end = NULL;
 		}
@@ -298,27 +296,62 @@ static void	parse_traps(char *buffer)
 		/* parse the current trap */
 		begin = line;
 		addr = c;
+		pzdate = pzbegin;
 
 		while ('\0' != *c && NULL == strchr(ZBX_WHITESPACE, *c))
 			c++;
 
-		if ('\0' == c)
-		{
-			zabbix_log(LOG_LEVEL_WARNING, "invalid trap found [%s...]", begin);
-			begin = NULL;
-			c = addr;
-			continue;
-		}
+		pzaddr = c;
 
-		*c++ = '\0';
-		end = c;	/* the rest of the trap */
+		end = c + 1;	/* the rest of the trap */
 	}
 
-	/* process the last trap */
-	if (NULL != end)
-		process_trap(addr, begin, end);
-	else if (NULL == addr)	/* no trap was found */
-		zabbix_log(LOG_LEVEL_WARNING, "invalid trap found [%s]", buffer);
+	if (0 == flag)
+	{
+		if (NULL == begin)
+			offset = c - buffer;
+		else
+			offset = c - begin;
+
+		if (offset == MAX_BUFFER_LEN - 1)
+		{
+			if (NULL != end)
+			{
+				zabbix_log(LOG_LEVEL_WARNING, "SNMP trapper buffer is full,"
+						" trap data might be truncated");
+				parse_traps(1);
+			}
+			else
+				zabbix_log(LOG_LEVEL_WARNING, "failed to find trap in SNMP trapper file");
+
+			offset = 0;
+			*buffer = '\0';
+		}
+		else
+		{
+			if (NULL != begin && begin != buffer)
+				memmove(buffer, begin, offset + 1);
+		}
+	}
+	else
+	{
+		if (NULL != end)
+		{
+			*(line - 1) = '\0';
+			*pzdate = '\0';
+			*pzaddr = '\0';
+
+			process_trap(addr, begin, end);
+			offset = 0;
+			*buffer = '\0';
+		}
+		else
+		{
+			zabbix_log(LOG_LEVEL_WARNING, "invalid trap data found \"%s\"", buffer);
+			offset = 0;
+			*buffer = '\0';
+		}
+	}
 }
 
 /******************************************************************************
@@ -330,42 +363,43 @@ static void	parse_traps(char *buffer)
  * Author: Rudolfs Kreicbergs                                                 *
  *                                                                            *
  ******************************************************************************/
-static void	read_traps()
+static int	read_traps()
 {
 	const char	*__function_name = "read_traps";
-	int		nbytes;
-	char		buffer[MAX_BUFFER_LEN];
+	int		nbytes = 0;
 
 	zabbix_log(LOG_LEVEL_DEBUG, "In %s() lastsize:%d", __function_name, trap_lastsize);
 
-	*buffer = '\0';
-
 	if ((off_t)-1 == lseek(trap_fd, (off_t)trap_lastsize, SEEK_SET))
 	{
-		zabbix_log(LOG_LEVEL_WARNING, "cannot set position to [%d] for [%s]: %s",
-				trap_lastsize, CONFIG_SNMPTRAP_FILE, zbx_strerror(errno));
+		zabbix_log(LOG_LEVEL_WARNING, "cannot set position to %d for \"%s\": %s", trap_lastsize,
+				CONFIG_SNMPTRAP_FILE, zbx_strerror(errno));
 		goto exit;
 	}
 
-	if (-1 == (nbytes = read(trap_fd, buffer, sizeof(buffer) - 1)))
+	if (-1 == (nbytes = read(trap_fd, buffer + offset, MAX_BUFFER_LEN - offset - 1)))
 	{
-		zabbix_log(LOG_LEVEL_WARNING, "cannot read from [%s]: %s",
-				CONFIG_SNMPTRAP_FILE, zbx_strerror(errno));
+		zabbix_log(LOG_LEVEL_WARNING, "cannot read from SNMP trapper file \"%s\": %s", CONFIG_SNMPTRAP_FILE,
+				zbx_strerror(errno));
 		goto exit;
 	}
 
 	if (0 < nbytes)
 	{
-		buffer[nbytes] = '\0';
-		zbx_rtrim(buffer + MAX(nbytes - 3, 0), " \r\n");
+		if (INT_MAX < (zbx_uint64_t)trap_lastsize + nbytes)
+		{
+			nbytes = 0;
+			goto exit;
+		}
 
+		buffer[nbytes + offset] = '\0';
 		trap_lastsize += nbytes;
 		DBupdate_lastsize();
-
-		parse_traps(buffer);
+		parse_traps(0);
 	}
 exit:
 	zabbix_log(LOG_LEVEL_DEBUG, "End of %s()", __function_name);
+	return nbytes;
 }
 
 /******************************************************************************
@@ -402,21 +436,41 @@ static void	close_trap_file()
  ******************************************************************************/
 static int	open_trap_file()
 {
-	struct stat	file_buf;
+	zbx_stat_t	file_buf;
+
+	if (0 != zbx_stat(CONFIG_SNMPTRAP_FILE, &file_buf))
+	{
+		zabbix_log(LOG_LEVEL_CRIT, "cannot stat SNMP trapper file \"%s\": %s", CONFIG_SNMPTRAP_FILE,
+				zbx_strerror(errno));
+		goto out;
+	}
+
+	if (INT_MAX < file_buf.st_size)
+	{
+		if (0 == overflow_warning)
+		{
+			zabbix_log(LOG_LEVEL_CRIT, "cannot process SNMP trapper file \"%s\":"
+					" file size exceeds the maximum supported size of 2 GB",
+					CONFIG_SNMPTRAP_FILE);
+			overflow_warning = 1;
+		}
+		goto out;
+	}
+
+	overflow_warning = 0;
 
 	if (-1 == (trap_fd = open(CONFIG_SNMPTRAP_FILE, O_RDONLY)))
 	{
 		if (ENOENT != errno)	/* file exists but cannot be opened */
-			zabbix_log(LOG_LEVEL_CRIT, "cannot open [%s]: %s", CONFIG_SNMPTRAP_FILE, zbx_strerror(errno));
+		{
+			zabbix_log(LOG_LEVEL_CRIT, "cannot open SNMP trapper file \"%s\": %s", CONFIG_SNMPTRAP_FILE,
+					zbx_strerror(errno));
+		}
+		goto out;
 	}
-	else if (FAIL == stat(CONFIG_SNMPTRAP_FILE, &file_buf))
-	{
-		zabbix_log(LOG_LEVEL_CRIT, "cannot stat [%s]: %s", CONFIG_SNMPTRAP_FILE, zbx_strerror(errno));
-		close_trap_file();
-	}
-	else
-		trap_ino = file_buf.st_ino;	/* a new file was opened */
 
+	trap_ino = file_buf.st_ino;	/* a new file was opened */
+out:
 	return trap_fd;
 }
 
@@ -435,34 +489,61 @@ static int	open_trap_file()
  ******************************************************************************/
 static int	get_latest_data()
 {
-	struct stat	file_buf;
+	zbx_stat_t	file_buf;
 
 	if (-1 != trap_fd)	/* a trap file is already open */
 	{
-		if (0 != stat(CONFIG_SNMPTRAP_FILE, &file_buf))
+		if (0 != zbx_stat(CONFIG_SNMPTRAP_FILE, &file_buf))
 		{
 			/* file might have been renamed or deleted, process the current file */
 
 			if (ENOENT != errno)
 			{
-				zabbix_log(LOG_LEVEL_CRIT, "cannot stat [%s]: %s",
+				zabbix_log(LOG_LEVEL_CRIT, "cannot stat SNMP trapper file \"%s\": %s",
 						CONFIG_SNMPTRAP_FILE, zbx_strerror(errno));
 			}
-			read_traps();
+
+			while (0 < read_traps())
+				;
+
+			if (0 != offset)
+				parse_traps(1);
+
+			close_trap_file();
+		}
+		else if (INT_MAX < file_buf.st_size)
+		{
 			close_trap_file();
 		}
 		else if (file_buf.st_ino != trap_ino || file_buf.st_size < trap_lastsize)
 		{
 			/* file has been rotated, process the current file */
 
-			read_traps();
+			while (0 < read_traps())
+				;
+
+			if (0 != offset)
+				parse_traps(1);
+
 			close_trap_file();
 		}
 		else if (file_buf.st_size == trap_lastsize)
 		{
+			if (1 == force)
+			{
+				parse_traps(1);
+				force = 0;
+			}
+			else if (0 != offset && 0 == force)
+			{
+				force = 1;
+			}
+
 			return FAIL;	/* no new traps */
 		}
 	}
+
+	force = 0;
 
 	if (-1 == trap_fd && -1 == open_trap_file())
 		return FAIL;
@@ -479,9 +560,10 @@ static int	get_latest_data()
  * Author: Rudolfs Kreicbergs                                                 *
  *                                                                            *
  ******************************************************************************/
-void	main_snmptrapper_loop()
+void	main_snmptrapper_loop(void)
 {
 	const char	*__function_name = "main_snmptrapper_loop";
+	double		sec;
 
 	zabbix_log(LOG_LEVEL_DEBUG, "In %s() trapfile:'%s'", __function_name, CONFIG_SNMPTRAP_FILE);
 
@@ -491,15 +573,25 @@ void	main_snmptrapper_loop()
 
 	DBget_lastsize();
 
+	buffer = zbx_malloc(buffer, MAX_BUFFER_LEN);
+	*buffer = '\0';
+
 	for (;;)
 	{
 		zbx_setproctitle("%s [processing data]", get_process_type_string(process_type));
 
+		sec = zbx_time();
 		while (SUCCEED == get_latest_data())
 			read_traps();
+		sec = zbx_time() - sec;
+
+		zbx_setproctitle("%s [processed data in " ZBX_FS_DBL " sec, idle 1 sec]",
+				get_process_type_string(process_type), sec);
 
 		zbx_sleep_loop(1);
 	}
+
+	zbx_free(buffer);
 
 	if (-1 != trap_fd)
 		close(trap_fd);

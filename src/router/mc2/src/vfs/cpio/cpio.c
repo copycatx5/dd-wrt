@@ -1,7 +1,7 @@
 /*
    Virtual File System: GNU Tar file system.
 
-   Copyright (C) 2000-2014
+   Copyright (C) 2000-2015
    Free Software Foundation, Inc.
 
    Written by:
@@ -33,7 +33,6 @@
 #include <config.h>
 
 #include <errno.h>
-#include <fcntl.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 
@@ -206,8 +205,7 @@ cpio_free_archive (struct vfs_class *me, struct vfs_s_super *super)
     arch->fd = -1;
     g_slist_free_full (arch->deferred, g_free);
     arch->deferred = NULL;
-    g_free (super->data);
-    super->data = NULL;
+    MC_PTR_FREE (super->data);
 }
 
 /* --------------------------------------------------------------------------------------------- */
@@ -250,8 +248,7 @@ cpio_open_cpio_file (struct vfs_class *me, struct vfs_s_super *super, const vfs_
         {
             message (D_ERROR, MSG_ERROR, _("Cannot open cpio archive\n%s"), s);
             g_free (s);
-            g_free (super->name);
-            super->name = NULL;
+            MC_PTR_FREE (super->name);
             return -1;
         }
         g_free (s);
@@ -423,7 +420,7 @@ cpio_create_entry (struct vfs_class *me, struct vfs_s_super *super, struct stat 
     }
 
     /* remove trailing slashes */
-    for (tn = name + strlen (name) - 1; tn >= name && *tn == PATH_SEP; tn--)
+    for (tn = name + strlen (name) - 1; tn >= name && IS_PATH_SEP (*tn); tn--)
         *tn = '\0';
 
     tn = strrchr (name, PATH_SEP);
@@ -752,6 +749,8 @@ cpio_open_archive (struct vfs_s_super *super, const vfs_path_t * vpath,
         case STATUS_OK:
             continue;
         case STATUS_TRAIL:
+            break;
+        default:
             break;
         }
         break;

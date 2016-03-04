@@ -673,9 +673,11 @@ eap_state *esp;
 	if (esp->es_server.ea_maxrequests > 0 &&
 	    esp->es_server.ea_requests >= esp->es_server.ea_maxrequests) {
 		if (esp->es_server.ea_responses > 0)
+		{
 			error("EAP: too many Requests sent");
-		else
+		}else{
 			error("EAP: no response to Requests");
+		}
 		eap_send_failure(esp);
 		return;
 	}
@@ -1448,7 +1450,7 @@ int len;
 		MD5_Init(&mdContext);
 		typenum = id;
 		MD5_Update(&mdContext, &typenum, 1);
-		MD5_Update(&mdContext, secret, secret_len);
+		MD5_Update(&mdContext, (u_char *)secret, secret_len);
 		BZERO(secret, sizeof (secret));
 		MD5_Update(&mdContext, inp, vallen);
 		MD5_Final(hash, &mdContext);
@@ -1873,7 +1875,7 @@ int len;
 		}
 		MD5_Init(&mdContext);
 		MD5_Update(&mdContext, &esp->es_server.ea_id, 1);
-		MD5_Update(&mdContext, secret, secret_len);
+		MD5_Update(&mdContext, (u_char *)secret, secret_len);
 		BZERO(secret, sizeof (secret));
 		MD5_Update(&mdContext, esp->es_challenge, esp->es_challen);
 		MD5_Final(hash, &mdContext);

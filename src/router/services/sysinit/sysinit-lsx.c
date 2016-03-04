@@ -173,8 +173,8 @@ void start_sysinit(void)
 
 		strncpy(ifr.ifr_name, "eth0", IFNAMSIZ);
 		ioctl(s, SIOCGIFHWADDR, &ifr);
-		nvram_set("et0macaddr", ether_etoa((unsigned char *)ifr.ifr_hwaddr.sa_data, eabuf));
-		nvram_set("et0macaddr_safe", ether_etoa((unsigned char *)ifr.ifr_hwaddr.sa_data, eabuf));
+		nvram_set("et0macaddr", ether_etoa((char *)ifr.ifr_hwaddr.sa_data, eabuf));
+		nvram_set("et0macaddr_safe", ether_etoa((char *)ifr.ifr_hwaddr.sa_data, eabuf));
 		close(s);
 	}
 
@@ -198,14 +198,6 @@ void start_sysinit(void)
 	usleep(1000);
 	led_control(BEEPER, LED_OFF);
 #endif
-	led_control(LED_POWER, LED_ON);
-	led_control(LED_SES, LED_OFF);
-	led_control(LED_SES2, LED_OFF);
-	led_control(LED_DIAG, LED_OFF);
-	led_control(LED_BRIDGE, LED_OFF);
-	led_control(LED_WLAN0, LED_OFF);
-	led_control(LED_WLAN1, LED_OFF);
-	led_control(LED_CONNECTED, LED_OFF);
 
 	/*
 	 * Set a sane date 

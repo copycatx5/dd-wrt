@@ -1,7 +1,7 @@
 /*
    Editor low level data handling and cursor fundamentals.
 
-   Copyright (C) 1996-2014
+   Copyright (C) 1996-2015
    Free Software Foundation, Inc.
 
    Written by:
@@ -42,7 +42,6 @@
 #include <sys/stat.h>
 #include <stdint.h>             /* UINTMAX_MAX */
 #include <stdlib.h>
-#include <fcntl.h>
 
 #include "lib/global.h"
 
@@ -90,6 +89,7 @@ int option_cursor_beyond_eol = 0;
 int option_line_state = 0;
 int option_line_state_width = 0;
 gboolean option_cursor_after_inserted_block = FALSE;
+int option_state_full_filename = 0;
 
 int option_edit_right_extreme = 0;
 int option_edit_left_extreme = 0;
@@ -141,6 +141,35 @@ static const off_t option_filesize_default_threshold = 64 * 1024 * 1024;        
 /* --------------------------------------------------------------------------------------------- */
 /*** file scope functions ************************************************************************/
 /* --------------------------------------------------------------------------------------------- */
+
+static int
+edit_load_status_update_cb (status_msg_t * sm)
+{
+    simple_status_msg_t *ssm = SIMPLE_STATUS_MSG (sm);
+    edit_buffer_read_file_status_msg_t *rsm = (edit_buffer_read_file_status_msg_t *) sm;
+    Widget *wd = WIDGET (sm->dlg);
+
+    if (verbose)
+        label_set_textv (ssm->label, _("Loading: %3d%%"),
+                         edit_buffer_calc_percent (rsm->buf, rsm->loaded));
+    else
+        label_set_text (ssm->label, _("Loading..."));
+
+    if (rsm->first)
+    {
+        int wd_width;
+        Widget *lw = WIDGET (ssm->label);
+
+        wd_width = max (wd->cols, lw->cols + 6);
+        widget_set_size (wd, wd->y, wd->x, wd->lines, wd_width);
+        widget_set_size (lw, lw->y, wd->x + (wd->cols - lw->cols) / 2, lw->lines, lw->cols);
+        rsm->first = FALSE;
+    }
+
+    return status_msg_common_update (sm);
+}
+
+/* --------------------------------------------------------------------------------------------- */
 /**
  * Load file OR text into buffers.  Set cursor to the beginning of file.
  *
@@ -152,6 +181,8 @@ edit_load_file_fast (edit_buffer_t * buf, const vfs_path_t * filename_vpath)
 {
     int file;
     gboolean ret;
+    edit_buffer_read_file_status_msg_t rsm;
+    gboolean aborted;
 
     file = mc_open (filename_vpath, O_RDONLY | O_BINARY);
     if (file < 0)
@@ -165,8 +196,18 @@ edit_load_file_fast (edit_buffer_t * buf, const vfs_path_t * filename_vpath)
         return FALSE;
     }
 
-    ret = (edit_buffer_read_file (buf, file, buf->size) == buf->size);
-    if (!ret)
+    rsm.first = TRUE;
+    rsm.buf = buf;
+    rsm.loaded = 0;
+
+    status_msg_init (STATUS_MSG (&rsm), _("Load file"), 1.0, simple_status_msg_init_cb,
+                     edit_load_status_update_cb, NULL);
+
+    ret = (edit_buffer_read_file (buf, file, buf->size, &rsm, &aborted) == buf->size);
+
+    status_msg_deinit (STATUS_MSG (&rsm));
+
+    if (!ret && !aborted)
     {
         gchar *errmsg;
 
@@ -215,7 +256,7 @@ edit_get_filter (const vfs_path_t * filename_vpath)
     if (i < 0)
         return NULL;
 
-    quoted_name = name_quote (vfs_path_as_str (filename_vpath), 0);
+    quoted_name = name_quote (vfs_path_as_str (filename_vpath), FALSE);
     p = g_strdup_printf (all_filters[i].read, quoted_name);
     g_free (quoted_name);
     return p;
@@ -316,8 +357,7 @@ check_file_access (WEdit * edit, const vfs_path_t * filename_vpath, struct stat 
         errmsg = g_strdup_printf (_("File \"%s\" is too large.\nOpen it anyway?"),
                                   vfs_path_as_str (filename_vpath));
         act = edit_query_dialog2 (_("Warning"), errmsg, _("&Yes"), _("&No"));
-        g_free (errmsg);
-        errmsg = NULL;
+        MC_PTR_FREE (errmsg);
 
         if (act != 0)
             ret = FALSE;
@@ -657,7 +697,7 @@ edit_find_line (WEdit * edit, long line)
     {
         long n;
 
-        n = abs (edit->line_numbers[i] - line);
+        n = labs (edit->line_numbers[i] - line);
         if (n < m)
         {
             m = n;
@@ -954,15 +994,15 @@ edit_right_word_move_cmd (WEdit * edit)
 static void
 edit_right_char_move_cmd (WEdit * edit)
 {
-    int cw = 1;
+    int char_length = 1;
     int c;
 
 #ifdef HAVE_CHARSET
     if (edit->utf8)
     {
-        c = edit_buffer_get_utf (&edit->buffer, edit->buffer.curs1, &cw);
-        if (cw < 1)
-            cw = 1;
+        c = edit_buffer_get_utf (&edit->buffer, edit->buffer.curs1, &char_length);
+        if (char_length < 1)
+            char_length = 1;
     }
     else
 #endif
@@ -971,7 +1011,7 @@ edit_right_char_move_cmd (WEdit * edit)
     if (option_cursor_beyond_eol && c == '\n')
         edit->over_col++;
     else
-        edit_cursor_move (edit, cw);
+        edit_cursor_move (edit, char_length);
 }
 
 /* --------------------------------------------------------------------------------------------- */
@@ -979,7 +1019,7 @@ edit_right_char_move_cmd (WEdit * edit)
 static void
 edit_left_char_move_cmd (WEdit * edit)
 {
-    int cw = 1;
+    int char_length = 1;
 
     if (edit->column_highlight
         && option_cursor_beyond_eol
@@ -989,16 +1029,16 @@ edit_left_char_move_cmd (WEdit * edit)
 #ifdef HAVE_CHARSET
     if (edit->utf8)
     {
-        edit_buffer_get_prev_utf (&edit->buffer, edit->buffer.curs1, &cw);
-        if (cw < 1)
-            cw = 1;
+        edit_buffer_get_prev_utf (&edit->buffer, edit->buffer.curs1, &char_length);
+        if (char_length < 1)
+            char_length = 1;
     }
 #endif
 
     if (option_cursor_beyond_eol && edit->over_col > 0)
         edit->over_col--;
     else
-        edit_cursor_move (edit, -cw);
+        edit_cursor_move (edit, -char_length);
 }
 
 /* --------------------------------------------------------------------------------------------- */
@@ -1128,6 +1168,8 @@ edit_do_undo (WEdit * edit)
         case COLUMN_OFF:
             edit->column_highlight = 0;
             break;
+        default:
+            break;
         }
         if (ac >= 256 && ac < 512)
             edit_insert_ahead (edit, ac - 256);
@@ -1210,6 +1252,8 @@ edit_do_redo (WEdit * edit)
             break;
         case COLUMN_OFF:
             edit->column_highlight = 0;
+            break;
+        default:
             break;
         }
         if (ac >= 256 && ac < 512)
@@ -1770,7 +1814,7 @@ edit_get_write_filter (const vfs_path_t * write_name_vpath, const vfs_path_t * f
         return NULL;
 
     path_element = vfs_path_get_by_index (write_name_vpath, -1);
-    writename = name_quote (path_element->path, 0);
+    writename = name_quote (path_element->path, FALSE);
     p = g_strdup_printf (all_filters[i].write, writename);
     g_free (writename);
     return p;
@@ -1872,6 +1916,7 @@ edit_write_stream (WEdit * edit, FILE * f)
                     return i;
                 break;
             case LB_ASIS:      /* default without changes */
+            default:
                 break;
             }
         }
@@ -2150,6 +2195,7 @@ edit_clean (WEdit * edit)
     vfs_path_free (edit->dir_vpath);
     mc_search_free (edit->search);
     edit->search = NULL;
+    MC_PTR_FREE (edit->last_search_string);
 
 #ifdef HAVE_CHARSET
     if (edit->converter != str_cnv_from_term)
@@ -2541,7 +2587,7 @@ int
 edit_delete (WEdit * edit, gboolean byte_delete)
 {
     int p = 0;
-    int cw = 1;
+    int char_length = 1;
     int i;
 
     if (edit->buffer.curs2 == 0)
@@ -2551,9 +2597,9 @@ edit_delete (WEdit * edit, gboolean byte_delete)
     /* if byte_delete == TRUE then delete only one byte not multibyte char */
     if (edit->utf8 && !byte_delete)
     {
-        edit_buffer_get_utf (&edit->buffer, edit->buffer.curs1, &cw);
-        if (cw < 1)
-            cw = 1;
+        edit_buffer_get_utf (&edit->buffer, edit->buffer.curs1, &char_length);
+        if (char_length < 1)
+            char_length = 1;
     }
 #else
     (void) byte_delete;
@@ -2562,7 +2608,7 @@ edit_delete (WEdit * edit, gboolean byte_delete)
     if (edit->mark2 != edit->mark1)
         edit_push_markers (edit);
 
-    for (i = 1; i <= cw; i++)
+    for (i = 1; i <= char_length; i++)
     {
         if (edit->mark1 > edit->buffer.curs1)
         {
@@ -2603,7 +2649,7 @@ int
 edit_backspace (WEdit * edit, gboolean byte_delete)
 {
     int p = 0;
-    int cw = 1;
+    int char_length = 1;
     int i;
 
     if (edit->buffer.curs1 == 0)
@@ -2615,15 +2661,15 @@ edit_backspace (WEdit * edit, gboolean byte_delete)
 #ifdef HAVE_CHARSET
     if (edit->utf8 && !byte_delete)
     {
-        edit_buffer_get_prev_utf (&edit->buffer, edit->buffer.curs1, &cw);
-        if (cw < 1)
-            cw = 1;
+        edit_buffer_get_prev_utf (&edit->buffer, edit->buffer.curs1, &char_length);
+        if (char_length < 1)
+            char_length = 1;
     }
 #else
     (void) byte_delete;
 #endif
 
-    for (i = 1; i <= cw; i++)
+    for (i = 1; i <= char_length; i++)
     {
         if (edit->mark1 >= edit->buffer.curs1)
         {
@@ -2739,18 +2785,18 @@ edit_move_forward3 (const WEdit * edit, off_t current, long cols, off_t upto)
         if (edit->utf8)
         {
             int utf_ch;
-            int cw = 1;
+            int char_length = 1;
 
-            utf_ch = edit_buffer_get_utf (&edit->buffer, p, &cw);
+            utf_ch = edit_buffer_get_utf (&edit->buffer, p, &char_length);
             if (mc_global.utf8_display)
             {
-                if (cw > 1)
-                    col -= cw - 1;
+                if (char_length > 1)
+                    col -= char_length - 1;
                 if (g_unichar_iswide (utf_ch))
                     col++;
             }
-            else if (cw > 1 && g_unichar_isprint (utf_ch))
-                col -= cw - 1;
+            else if (char_length > 1 && g_unichar_isprint (utf_ch))
+                col -= char_length - 1;
         }
 
         c = convert_to_display_c (c);
@@ -3364,6 +3410,8 @@ edit_execute_cmd (WEdit * edit, unsigned long command, int char_for_insertion)
             edit->column_highlight = 0;
             edit_mark_cmd (edit, TRUE);
         }
+    default:
+        break;
     }
 
     switch (command)
@@ -3389,6 +3437,8 @@ edit_execute_cmd (WEdit * edit, unsigned long command, int char_for_insertion)
     case CK_MarkLeft:
     case CK_MarkRight:
         edit->force |= REDRAW_CHAR_ONLY;
+    default:
+        break;
     }
 
     /* basic cursor key commands */
@@ -3921,6 +3971,8 @@ edit_execute_cmd (WEdit * edit, unsigned long command, int char_for_insertion)
         case CK_DeleteToEnd:
             format_paragraph (edit, FALSE);
             edit->force |= REDRAW_PAGE;
+        default:
+            break;
         }
     }
 }

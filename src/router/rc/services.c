@@ -47,7 +47,7 @@
  */
 void start_tmp_ppp(int num);
 
-void del_routes(char *route)
+static void del_routes(char *route)
 {
 	char word[80], *tmp;
 	char *ipaddr, *netmask, *gateway, *metric, *ifname;
@@ -78,8 +78,9 @@ void del_routes(char *route)
 	}
 }
 
-int start_services_main(int argc, char **argv)
+static int start_services_main(int argc, char **argv)
 {
+	update_timezone();
 
 	nvram_set("qos_done", "0");
 #ifdef HAVE_GPSI
@@ -93,6 +94,9 @@ int start_services_main(int argc, char **argv)
 #endif
 #ifdef HAVE_TELNET
 	start_service_f("telnetd");
+#endif
+#ifdef HAVE_MACTELNET
+	start_service_f("mactelnetd");
 #endif
 #ifdef HAVE_FTP
 	start_service_f("ftpsrv");
@@ -121,10 +125,13 @@ int start_services_main(int argc, char **argv)
 #ifdef HAVE_TFTP
 	start_service_f("tftpd");
 #endif
-	start_service_f("httpd");
+	startstop_fdelay("httpd", 2);
 	start_service_f("udhcpd");
 #ifdef HAVE_DNSMASQ
 	start_service_f("dnsmasq");
+#endif
+#ifdef HAVE_UNBOUND
+	start_service_f("unbound");
 #endif
 #if defined(HAVE_BIRD) || defined(HAVE_QUAGGA)
 	start_service_f("zebra");
@@ -148,8 +155,10 @@ int start_services_main(int argc, char **argv)
 		start_service_f("sshd");
 #endif
 
+#ifdef HAVE_IPV6
 #ifdef HAVE_RADVD
 	start_service_f("radvd");
+#endif
 #endif
 
 #ifdef HAVE_SNMP
@@ -216,7 +225,7 @@ int start_services_main(int argc, char **argv)
 	return 0;
 }
 
-int stop_services_main(int argc, char **argv)
+static int stop_services_main(int argc, char **argv)
 {
 #ifdef HAVE_P910ND
 	stop_service_f("printer");
@@ -248,6 +257,12 @@ int stop_services_main(int argc, char **argv)
 #ifdef HAVE_UPNP
 	stop_service_f("upnp");
 #endif
+#ifdef HAVE_UNBOUND
+	stop_service_f("unbound");
+#endif
+#ifdef HAVE_DNSMASQ
+	stop_service_f("dnsmasq");
+#endif
 	stop_service_f("udhcpd");
 	startstop_f("dns_clear_resolv");
 	stop_service_f("cron");
@@ -267,6 +282,9 @@ int stop_services_main(int argc, char **argv)
 	stop_service_f("wland");
 #ifdef HAVE_TELNET
 	stop_service_f("telnetd");
+#endif
+#ifdef HAVE_MACTELNET
+	stop_service_f("mactelnetd");
 #endif
 #ifdef HAVE_CPUTEMP
 	stop_service_f("hwmon");
@@ -299,8 +317,10 @@ int stop_services_main(int argc, char **argv)
 		stop_service_f("sshd");
 #endif
 
+#ifdef HAVE_IPV6
 #ifdef HAVE_RADVD
 	stop_service_f("radvd");
+#endif
 #endif
 
 #ifdef HAVE_WIFIDOG
@@ -358,25 +378,6 @@ static void handle_dhcpd(void)
 
 static void handle_index(void)
 {
-	char *tz;
-	tz = nvram_safe_get("time_zone");	//e.g. EUROPE/BERLIN
-
-	int i;
-	int found = 0;
-	char *zone = "Europe/Berlin";
-	for (i = 0; allTimezones[i].tz_name != NULL; i++) {
-		if (!strcmp(allTimezones[i].tz_name, tz)) {
-			zone = allTimezones[i].tz_string;
-			found = 1;
-			break;
-		}
-	}
-	if (!found)
-		nvram_set("time_zone", zone);
-	FILE *fp = fopen("/tmp/TZ", "wb");
-	fprintf(fp, "%s\n", zone);
-	fclose(fp);
-
 	unlink("/tmp/ppp/log");
 
 	stop_service_force_f("wan");
@@ -404,6 +405,9 @@ static void handle_index(void)
 	stop_service_f("bonding");	//
 #endif
 	stop_service_f("lan");	//
+#ifdef HAVE_IPVS
+	stop_service_f("ipvs");	//
+#endif
 #ifdef HAVE_VLANTAGGING
 	stop_service_f("bridging");	//
 #endif
@@ -412,11 +416,14 @@ static void handle_index(void)
 	stop_running_main(0, NULL);
 
 #ifdef HAVE_VLANTAGGING
-	start_service_f("bridging");
+	start_service("bridging");
 #endif
-	start_service_force_f("lan");
+	start_service_force("lan");
+#ifdef HAVE_IPVS
+	start_service("ipvs");
+#endif
 #ifdef HAVE_BONDING
-	start_service_f("bonding");
+	start_service("bonding");
 #endif
 	start_service_force("wan_boot");
 	start_service_f("ttraff");
@@ -426,6 +433,9 @@ static void handle_index(void)
 	startstop_f("udhcpd");
 #ifdef HAVE_DNSMASQ
 	startstop_f("dnsmasq");
+#endif
+#ifdef HAVE_UNBOUND
+	startstop_f("unbound");
 #endif
 #if defined(HAVE_BIRD) || defined(HAVE_QUAGGA)
 	startstop_f("zebra");
@@ -484,25 +494,30 @@ static void handle_hotspot(void)
 #endif
 
 	stop_service_f("radio_timer");
+#ifdef HAVE_EMF
+	stop_service_f("emf");	//
+#endif
 #if !defined(HAVE_MADWIFI) && !defined(HAVE_RT2880)
 	stop_service_f("nas");
 	eval("wlconf", nvram_safe_get("wl0_ifname"), "down");
 	eval("wlconf", nvram_safe_get("wl1_ifname"), "down");
+	eval("wlconf", nvram_safe_get("wl2_ifname"), "down");
 #endif
 #ifdef HAVE_MADWIFI
 	stop_service_f("stabridge");
 #endif
 	stop_service_f("ttraff");
 	stop_service_force_f("wan");
-#ifdef HAVE_EMF
-	stop_service_f("emf");	//
-#endif
+
 #ifdef HAVE_VLANTAGGING
 	stop_service_f("bridgesif");
 	stop_service_f("vlantagging");
 #endif
 #ifdef HAVE_BONDING
 	stop_service_f("bonding");
+#endif
+#ifdef HAVE_IPVS
+	stop_service_f("ipvs");
 #endif
 	stop_service_f("lan");
 #ifdef HAVE_VLANTAGGING
@@ -526,13 +541,16 @@ static void handle_hotspot(void)
 	start_service("bridging");
 #endif
 #if !defined(HAVE_MADWIFI) && !defined(HAVE_RT2880)
-	start_service("wlconf");
+//      start_service("wlconf");
 #endif
 	start_service("lan");
+#ifdef HAVE_IPVS
+	start_service("ipvs");
+#endif
 #ifdef HAVE_BONDING
 	start_service("bonding");
 #endif
-	start_service_force_f("wan");
+	start_service_force("wan");
 	start_service_f("ttraff");
 #ifdef HAVE_MADWIFI
 	start_service_f("stabridge");
@@ -553,6 +571,9 @@ static void handle_hotspot(void)
 	startstop_f("udhcpd");
 #ifdef HAVE_DNSMASQ
 	startstop_f("dnsmasq");
+#endif
+#ifdef HAVE_UNBOUND
+	startstop_f("unbound");
 #endif
 #if defined(HAVE_BIRD) || defined(HAVE_QUAGGA)
 	start_service("zebra");
@@ -599,12 +620,21 @@ static void handle_services(void)
 #ifdef HAVE_DNSMASQ
 	startstop_f("dnsmasq");
 #endif
+#ifdef HAVE_UNBOUND
+	startstop_f("unbound");
+#endif
 	startstop_f("udhcpd");
 #ifdef HAVE_CPUTEMP
 	startstop_f("hwmon");
 #endif
+#ifdef HAVE_TOR
+	startstop_f("tor");
+#endif
 #ifdef HAVE_TELNET
 	startstop_f("telnetd");
+#endif
+#ifdef HAVE_MACTELNET
+	startstop_f("mactelnetd");
 #endif
 #ifdef HAVE_SNMP
 	startstop_f("snmp");
@@ -708,9 +738,9 @@ static void handle_management(void)
 	start_service_f("cron");
 #ifdef HAVE_IPV6
 	start_service_f("ipv6");
-#endif
 #ifdef HAVE_RADVD
 	startstop_f("radvd");
+#endif
 #endif
 #ifdef HAVE_PPTPD
 	startstop_f("pptpd");
@@ -755,6 +785,9 @@ static void handle_pppoe(void)
 	stop_service_f("bridgesif");
 	stop_service_f("vlantagging");
 #endif
+#ifdef HAVE_IPVS
+	stop_service_f("ipvs");
+#endif
 	stop_service_f("lan");
 #ifdef HAVE_BONDING
 	stop_service_f("bonding");
@@ -771,6 +804,9 @@ static void handle_pppoe(void)
 	start_service("bridging");
 #endif
 	start_service("lan");
+#ifdef HAVE_IPVS
+	start_service("ipvs");
+#endif
 #ifdef HAVE_BONDING
 	start_service("bonding");
 #endif
@@ -997,10 +1033,14 @@ static void handle_wireless(void)
 #endif
 
 	stop_service_f("radio_timer");
+#ifdef HAVE_EMF
+	stop_service_f("emf");	//
+#endif
 #if !defined(HAVE_MADWIFI) && !defined(HAVE_RT2880)
 	stop_service_f("nas");
 	eval("wlconf", nvram_safe_get("wl0_ifname"), "down");
 	eval("wlconf", nvram_safe_get("wl1_ifname"), "down");
+	eval("wlconf", nvram_safe_get("wl2_ifname"), "down");
 #endif
 #ifdef HAVE_MADWIFI
 	stop_service_f("stabridge");
@@ -1018,9 +1058,6 @@ static void handle_wireless(void)
 			stop_service_force_f("wan");
 		}
 	}
-#ifdef HAVE_EMF
-	stop_service_f("emf");	//
-#endif
 #ifdef HAVE_VLANTAGGING
 	stop_service_f("bridgesif");
 	stop_service_f("vlantagging");
@@ -1031,15 +1068,21 @@ static void handle_wireless(void)
 #ifdef HAVE_VLANTAGGING
 	stop_service_f("bridging");
 #endif
+#ifdef HAVE_IPVS
+	stop_service_f("ipvs");
+#endif
 	stop_running_main(0, NULL);
 	stop_service("lan");
 #ifdef HAVE_VLANTAGGING
 	start_service("bridging");
 #endif
 #if !defined(HAVE_MADWIFI) && !defined(HAVE_RT2880)
-	start_service("wlconf");
+//      start_service("wlconf");
 #endif
 	start_service("lan");
+#ifdef HAVE_IPVS
+	start_service("ipvs");
+#endif
 #ifdef HAVE_BONDING
 	start_service("bonding");
 #endif
@@ -1063,6 +1106,9 @@ static void handle_wireless(void)
 #ifdef HAVE_DNSMASQ
 	startstop_f("dnsmasq");
 #endif
+#ifdef HAVE_UNBOUND
+	startstop_f("unbound");
+#endif
 	if (getSTA() || getWET() || wanchanged
 #ifdef HAVE_MADWIFI
 	    || getWDSSTA()
@@ -1079,8 +1125,15 @@ static void handle_wireless(void)
 #if defined(HAVE_BIRD) || defined(HAVE_QUAGGA)
 	start_service("zebra");
 #endif
+#ifdef HAVE_IPV6
+	startstop_f("dhcp6c");
+#endif
 	//since start/stop is faster now we need to sleep, otherwise httpd is stopped/started while response is sent to client
+#ifdef HAVE_80211AC
 	startstop_fdelay("httpd", 2);	// httpd will not accept connection anymore on wan/lan ip changes changes
+#else
+	startstop_fdelay("httpd", 4);	// httpd will not accept connection anymore on wan/lan ip changes changes
+#endif
 
 }
 
@@ -1093,10 +1146,14 @@ static void handle_wireless_2(void)
 #endif
 
 	stop_service_f("radio_timer");
+#ifdef HAVE_EMF
+	stop_service_f("emf");	//
+#endif
 #if !defined(HAVE_MADWIFI) && !defined(HAVE_RT2880)
 	stop_service_f("nas");
 	eval("wlconf", nvram_safe_get("wl0_ifname"), "down");
 	eval("wlconf", nvram_safe_get("wl1_ifname"), "down");
+	eval("wlconf", nvram_safe_get("wl2_ifname"), "down");
 #endif
 #ifdef HAVE_MADWIFI
 	stop_service_f("stabridge");
@@ -1114,9 +1171,6 @@ static void handle_wireless_2(void)
 			stop_service_force_f("wan");
 		}
 	}
-#ifdef HAVE_EMF
-	stop_service_f("emf");	//
-#endif
 #ifdef HAVE_VLANTAGGING
 	stop_service_f("bridgesif");
 	stop_service_f("vlantagging");
@@ -1124,18 +1178,24 @@ static void handle_wireless_2(void)
 #ifdef HAVE_BONDING
 	stop_service_f("bonding");
 #endif
+#ifdef HAVE_IPVS
+	stop_service_f("ipvs");
+#endif
 	stop_service_f("lan");
 #ifdef HAVE_VLANTAGGING
 	stop_service_f("bridging");
 #endif
 	stop_running_main(0, NULL);
 #if !defined(HAVE_MADWIFI) && !defined(HAVE_RT2880)
-	start_service("wlconf");
+//      start_service("wlconf");
 #endif
 #ifdef HAVE_VLANTAGGING
 	start_service("bridging");
 #endif
 	start_service("lan");
+#ifdef HAVE_IPVS
+	start_service("ipvs");
+#endif
 #ifdef HAVE_BONDING
 	start_service("bonding");
 #endif
@@ -1183,6 +1243,9 @@ static void handle_wireless_2(void)
 	}
 #if defined(HAVE_BIRD) || defined(HAVE_QUAGGA)
 	start_service_f("zebra");
+#endif
+#ifdef HAVE_IPV6
+	startstop_f("dhcp6c");
 #endif
 
 }
@@ -1279,13 +1342,13 @@ static struct SERVICES services_def[] = {
 	{NULL, NULL}
 };
 
-int start_single_service_main(int argc, char **argv)
+static int start_single_service_main(int argc, char **argv)
 {
 	start_service_force("overclocking");
 	char *next;
 	char service[80];
 	char *services = nvram_safe_get("action_service");
-
+	update_timezone();
 	foreach(service, services, next) {
 #ifdef HAVE_OLED
 		char message[32];
@@ -1309,7 +1372,7 @@ int start_single_service_main(int argc, char **argv)
 	return 0;
 }
 
-int is_running(char *process_name)
+static int is_running(char *process_name)
 {
 	DIR *dir;
 	struct dirent *next;

@@ -43,6 +43,7 @@
 #include <libimobiledevice/mobilebackup.h>
 #include <libimobiledevice/notification_proxy.h>
 #include <libimobiledevice/afc.h>
+#include "common/utils.h"
 
 #define MOBILEBACKUP_SERVICE_NAME "com.apple.mobilebackup"
 #define NP_SERVICE_NAME "com.apple.mobile.notification_proxy"
@@ -65,11 +66,6 @@ enum cmd_mode {
 	CMD_BACKUP,
 	CMD_RESTORE,
 	CMD_LEAVE
-};
-
-enum plist_format_t {
-	PLIST_FORMAT_XML,
-	PLIST_FORMAT_BINARY
 };
 
 enum device_link_file_status_t {
@@ -228,62 +224,6 @@ static void notify_cb(const char *notification, void *userdata)
 	}
 }
 
-static char *str_toupper(char* str)
-{
-	char *res = strdup(str);
-	unsigned int i;
-	for (i = 0; i < strlen(res); i++) {
-		res[i] = toupper(res[i]);
-	}
-	return res;
-}
-
-static char* build_path(const char* elem, ...)
-{
-	if (!elem) return NULL;
-	va_list args;
-	int len = strlen(elem)+1;
-	va_start(args, elem);
-	char *arg = va_arg(args, char*);
-	while (arg) {
-		len += strlen(arg)+1;
-		arg = va_arg(args, char*);
-	}
-	va_end(args);
-
-	char* out = (char*)malloc(len);
-	strcpy(out, elem);
-
-	va_start(args, elem);
-	arg = va_arg(args, char*);
-	while (arg) {
-		strcat(out, "/");
-		strcat(out, arg);
-		arg = va_arg(args, char*);
-	}
-	va_end(args);
-	return out;
-}
-
-static char* format_size_for_display(uint64_t size)
-{
-	char buf[32];
-	double sz;
-	if (size >= 1000000000LL) {
-		sz = ((double)size / 1000000000.0f);
-		sprintf(buf, "%0.1f GB", sz);
-	} else if (size >= 1000000LL) {
-		sz = ((double)size / 1000000.0f);
-		sprintf(buf, "%0.1f MB", sz);
-	} else if (size >= 1000LL) {
-		sz = ((double)size / 1000.0f);
-		sprintf(buf, "%0.1f kB", sz);
-	} else {
-		sprintf(buf, "%d Bytes", (int)size);
-	}
-	return strdup(buf);
-}
-
 static plist_t mobilebackup_factory_info_plist_new(const char* udid)
 {
 	/* gather data from lockdown */
@@ -298,42 +238,42 @@ static plist_t mobilebackup_factory_info_plist_new(const char* udid)
 
 	/* set fields we understand */
 	value_node = plist_dict_get_item(root_node, "BuildVersion");
-	plist_dict_insert_item(ret, "Build Version", plist_copy(value_node));
+	plist_dict_set_item(ret, "Build Version", plist_copy(value_node));
 
 	value_node = plist_dict_get_item(root_node, "DeviceName");
-	plist_dict_insert_item(ret, "Device Name", plist_copy(value_node));
-	plist_dict_insert_item(ret, "Display Name", plist_copy(value_node));
+	plist_dict_set_item(ret, "Device Name", plist_copy(value_node));
+	plist_dict_set_item(ret, "Display Name", plist_copy(value_node));
 
 	/* FIXME: How is the GUID generated? */
-	plist_dict_insert_item(ret, "GUID", plist_new_string("---"));
+	plist_dict_set_item(ret, "GUID", plist_new_string("---"));
 
 	value_node = plist_dict_get_item(root_node, "InternationalMobileEquipmentIdentity");
 	if (value_node)
-		plist_dict_insert_item(ret, "IMEI", plist_copy(value_node));
+		plist_dict_set_item(ret, "IMEI", plist_copy(value_node));
 
-	plist_dict_insert_item(ret, "Last Backup Date", plist_new_date(time(NULL), 0));
+	plist_dict_set_item(ret, "Last Backup Date", plist_new_date(time(NULL), 0));
 
 	value_node = plist_dict_get_item(root_node, "ProductType");
-	plist_dict_insert_item(ret, "Product Type", plist_copy(value_node));
+	plist_dict_set_item(ret, "Product Type", plist_copy(value_node));
 
 	value_node = plist_dict_get_item(root_node, "ProductVersion");
-	plist_dict_insert_item(ret, "Product Version", plist_copy(value_node));
+	plist_dict_set_item(ret, "Product Version", plist_copy(value_node));
 
 	value_node = plist_dict_get_item(root_node, "SerialNumber");
-	plist_dict_insert_item(ret, "Serial Number", plist_copy(value_node));
+	plist_dict_set_item(ret, "Serial Number", plist_copy(value_node));
 
 	value_node = plist_dict_get_item(root_node, "UniqueDeviceID");
-	plist_dict_insert_item(ret, "Target Identifier", plist_new_string(udid));
+	plist_dict_set_item(ret, "Target Identifier", plist_new_string(udid));
 
 	/* uppercase */
-	udid_uppercase = str_toupper((char*)udid);
-	plist_dict_insert_item(ret, "Unique Identifier", plist_new_string(udid_uppercase));
+	udid_uppercase = string_toupper((char*)udid);
+	plist_dict_set_item(ret, "Unique Identifier", plist_new_string(udid_uppercase));
 	free(udid_uppercase);
 
 	/* FIXME: Embed files as <data> nodes */
 	plist_t files = plist_new_dict();
-	plist_dict_insert_item(ret, "iTunes Files", files);
-	plist_dict_insert_item(ret, "iTunes Version", plist_new_string("9.0.2"));
+	plist_dict_set_item(ret, "iTunes Files", files);
+	plist_dict_set_item(ret, "iTunes Version", plist_new_string("9.0.2"));
 
 	plist_free(root_node);
 
@@ -351,89 +291,6 @@ static void mobilebackup_info_update_last_backup_date(plist_t info_plist)
 	plist_set_date_val(node, time(NULL), 0);
 
 	node = NULL;
-}
-
-static void buffer_read_from_filename(const char *filename, char **buffer, uint64_t *length)
-{
-	FILE *f;
-	uint64_t size;
-
-	*length = 0;
-
-	f = fopen(filename, "rb");
-	if (!f) {
-		return;
-	}
-
-	fseek(f, 0, SEEK_END);
-	size = ftell(f);
-	rewind(f);
-
-	if (size == 0) {
-		return;
-	}
-
-	*buffer = (char*)malloc(sizeof(char)*size);
-	fread(*buffer, sizeof(char), size, f);
-	fclose(f);
-
-	*length = size;
-}
-
-static void buffer_write_to_filename(const char *filename, const char *buffer, uint64_t length)
-{
-	FILE *f;
-
-	f = fopen(filename, "ab");
-	fwrite(buffer, sizeof(char), length, f);
-	fclose(f);
-}
-
-static int plist_read_from_filename(plist_t *plist, const char *filename)
-{
-	char *buffer = NULL;
-	uint64_t length;
-
-	if (!filename)
-		return 0;
-
-	buffer_read_from_filename(filename, &buffer, &length);
-
-	if (!buffer) {
-		return 0;
-	}
-
-	if ((length > 8) && (memcmp(buffer, "bplist00", 8) == 0)) {
-		plist_from_bin(buffer, length, plist);
-	} else {
-		plist_from_xml(buffer, length, plist);
-	}
-
-	free(buffer);
-
-	return 1;
-}
-
-static int plist_write_to_filename(plist_t plist, const char *filename, enum plist_format_t format)
-{
-	char *buffer = NULL;
-	uint32_t length;
-
-	if (!plist || !filename)
-		return 0;
-
-	if (format == PLIST_FORMAT_XML)
-		plist_to_xml(plist, &buffer, &length);
-	else if (format == PLIST_FORMAT_BINARY)
-		plist_to_bin(plist, &buffer, &length);
-	else
-		return 0;
-
-	buffer_write_to_filename(filename, buffer, length);
-
-	free(buffer);
-
-	return 1;
 }
 
 static int plist_strcmp(plist_t node, const char *str)
@@ -457,7 +314,7 @@ static char *mobilebackup_build_path(const char *backup_directory, const char *n
 	strcpy(filename, name);
 	if (extension != NULL)
 		strcat(filename, extension);
-	char *path = build_path(backup_directory, filename, NULL);
+	char *path = string_build_path(backup_directory, filename, NULL);
 	free(filename);
 	return path;
 }
@@ -466,7 +323,7 @@ static void mobilebackup_write_status(const char *path, int status)
 {
 	struct stat st;
 	plist_t status_plist = plist_new_dict();
-	plist_dict_insert_item(status_plist, "Backup Success", plist_new_bool(status));
+	plist_dict_set_item(status_plist, "Backup Success", plist_new_bool(status));
 	char *file_path = mobilebackup_build_path(path, "Status", ".plist");
 
 	if (stat(file_path, &st) == 0)
@@ -822,6 +679,7 @@ static void print_usage(int argc, char **argv)
 int main(int argc, char *argv[])
 {
 	idevice_error_t ret = IDEVICE_E_UNKNOWN_ERROR;
+	lockdownd_error_t ldret = LOCKDOWN_E_UNKNOWN_ERROR;
 	int i;
 	char* udid = NULL;
 	lockdownd_service_descriptor_t service = NULL;
@@ -929,15 +787,16 @@ int main(int argc, char *argv[])
 		}
 	}
 
-	if (LOCKDOWN_E_SUCCESS != lockdownd_client_new_with_handshake(device, &client, "idevicebackup")) {
+	if (LOCKDOWN_E_SUCCESS != (ldret = lockdownd_client_new_with_handshake(device, &client, "idevicebackup"))) {
+		printf("ERROR: Could not connect to lockdownd, error code %d\n", ldret);
 		idevice_free(device);
 		return -1;
 	}
 
 	/* start notification_proxy */
 	np_client_t np = NULL;
-	ret = lockdownd_start_service(client, NP_SERVICE_NAME, &service);
-	if ((ret == LOCKDOWN_E_SUCCESS) && service && service->port) {
+	ldret = lockdownd_start_service(client, NP_SERVICE_NAME, &service);
+	if ((ldret == LOCKDOWN_E_SUCCESS) && service && service->port) {
 		np_client_new(device, service, &np);
 		np_set_notify_callback(np, notify_cb, NULL);
 		const char *noties[5] = {
@@ -957,8 +816,8 @@ int main(int argc, char *argv[])
 		/* start AFC, we need this for the lock file */
 		service->port = 0;
 		service->ssl_enabled = 0;
-		ret = lockdownd_start_service(client, "com.apple.afc", &service);
-		if ((ret == LOCKDOWN_E_SUCCESS) && service->port) {
+		ldret = lockdownd_start_service(client, "com.apple.afc", &service);
+		if ((ldret == LOCKDOWN_E_SUCCESS) && service->port) {
 			afc_client_new(device, service, &afc);
 		}
 	}
@@ -969,8 +828,8 @@ int main(int argc, char *argv[])
 	}
 
 	/* start mobilebackup service and retrieve port */
-	ret = lockdownd_start_service(client, MOBILEBACKUP_SERVICE_NAME, &service);
-	if ((ret == LOCKDOWN_E_SUCCESS) && service && service->port) {
+	ldret = lockdownd_start_service(client, MOBILEBACKUP_SERVICE_NAME, &service);
+	if ((ldret == LOCKDOWN_E_SUCCESS) && service && service->port) {
 		printf("Started \"%s\" service on port %d.\n", MOBILEBACKUP_SERVICE_NAME, service->port);
 		mobilebackup_client_new(device, service, &mobilebackup);
 
@@ -1159,7 +1018,7 @@ int main(int argc, char *argv[])
 					node = plist_dict_get_item(node_tmp, "BackupTotalSizeKey");
 					if (node) {
 						plist_get_uint_val(node, &backup_total_size);
-						format_size = format_size_for_display(backup_total_size);
+						format_size = string_format_size(backup_total_size);
 						printf("Backup data requires %s on the disk.\n", format_size);
 						free(format_size);
 					}
@@ -1189,15 +1048,15 @@ int main(int argc, char *argv[])
 					plist_get_uint_val(node, &file_size);
 					backup_real_size += file_size;
 
-					format_size = format_size_for_display(backup_real_size);
+					format_size = string_format_size(backup_real_size);
 					printf("(%s", format_size);
 					free(format_size);
 
-					format_size = format_size_for_display(backup_total_size);
+					format_size = string_format_size(backup_total_size);
 					printf("/%s): ", format_size);
 					free(format_size);
 
-					format_size = format_size_for_display(file_size);
+					format_size = string_format_size(file_size);
 					printf("Receiving file %s (%s)... \n", filename_source, format_size);
 					free(format_size);
 
@@ -1509,42 +1368,62 @@ files_out:
 						printf("Restoring file %s %d/%d (%d%%)... ", file_path, cur_file, total_files, (cur_file*100/total_files));
 
 						/* add additional device link file information keys */
-						plist_dict_insert_item(file_info, "DLFileAttributesKey", plist_copy(node));
-						plist_dict_insert_item(file_info, "DLFileSource", plist_new_string(file_info_path));
-						plist_dict_insert_item(file_info, "DLFileDest", plist_new_string("/tmp/RestoreFile.plist"));
-						plist_dict_insert_item(file_info, "DLFileIsEncrypted", plist_new_bool(is_encrypted));
-						plist_dict_insert_item(file_info, "DLFileOffsetKey", plist_new_uint(file_offset));
-						plist_dict_insert_item(file_info, "DLFileStatusKey", plist_new_uint(file_status));
+						plist_dict_set_item(file_info, "DLFileAttributesKey", plist_copy(node));
+						plist_dict_set_item(file_info, "DLFileSource", plist_new_string(file_info_path));
+						plist_dict_set_item(file_info, "DLFileDest", plist_new_string("/tmp/RestoreFile.plist"));
+						plist_dict_set_item(file_info, "DLFileIsEncrypted", plist_new_bool(is_encrypted));
+						plist_dict_set_item(file_info, "DLFileOffsetKey", plist_new_uint(file_offset));
+						plist_dict_set_item(file_info, "DLFileStatusKey", plist_new_uint(file_status));
 
 						/* read data from file */
 						free(file_info_path);
 						file_info_path = mobilebackup_build_path(backup_directory, hash, ".mddata");
-						buffer_read_from_filename(file_info_path, &buffer, &length);
+
+						/* determine file size */
+#ifdef WIN32
+						struct _stati64 fst;
+						if (_stati64(file_info_path, &fst) != 0)
+#else
+						struct stat fst;
+						if (stat(file_info_path, &fst) != 0)
+#endif
+						{
+							printf("ERROR: stat() failed for '%s': %s\n", file_info_path, strerror(errno));
+							free(file_info_path);
+							break;
+						}
+						length = fst.st_size;
+
+						FILE *f = fopen(file_info_path, "rb");
+						if (!f) {
+							printf("ERROR: could not open local file '%s': %s\n", file_info_path, strerror(errno));
+							free(file_info_path);
+							break;
+						}
 						free(file_info_path);
 
 						/* send DLSendFile messages */
 						file_offset = 0;
 						do {
-							if ((length-file_offset) <= 8192)
+							char buf[8192];
+							size_t len = fread(buf, 1, sizeof(buf), f);
+
+							if ((length-file_offset) <= sizeof(buf))
 								file_status = DEVICE_LINK_FILE_STATUS_LAST_HUNK;
 							else
 								file_status = DEVICE_LINK_FILE_STATUS_HUNK;
 							
 							plist_dict_remove_item(file_info, "DLFileOffsetKey");
-							plist_dict_insert_item(file_info, "DLFileOffsetKey", plist_new_uint(file_offset));
+							plist_dict_set_item(file_info, "DLFileOffsetKey", plist_new_uint(file_offset));
 
 							plist_dict_remove_item(file_info, "DLFileStatusKey");
-							plist_dict_insert_item(file_info, "DLFileStatusKey", plist_new_uint(file_status));
+							plist_dict_set_item(file_info, "DLFileStatusKey", plist_new_uint(file_status));
 
 							send_file_node = plist_new_array();
 
 							plist_array_append_item(send_file_node, plist_new_string("DLSendFile"));
 
-							if (file_status == DEVICE_LINK_FILE_STATUS_LAST_HUNK)
-								plist_array_append_item(send_file_node, plist_new_data(buffer+file_offset, length-file_offset));
-							else
-								plist_array_append_item(send_file_node, plist_new_data(buffer+file_offset, 8192));
-
+							plist_array_append_item(send_file_node, plist_new_data(buf, len));
 							plist_array_append_item(send_file_node, plist_copy(file_info));
 
 							err = mobilebackup_send(mobilebackup, send_file_node);
@@ -1562,7 +1441,7 @@ files_out:
 								}
 							}
 
-							file_offset += 8192;
+							file_offset += len;
 
 							if (file_status == DEVICE_LINK_FILE_STATUS_LAST_HUNK)
 								printf("DONE\n");
@@ -1615,8 +1494,8 @@ files_out:
 						tmp_node = plist_dict_get_item(node, "AppInfo");
 
 						dict = plist_new_dict();
-						plist_dict_insert_item(dict, "AppInfo", plist_copy(tmp_node));
-						plist_dict_insert_item(dict, "BackupMessageTypeKey", plist_new_string("BackupMessageRestoreApplicationSent"));
+						plist_dict_set_item(dict, "AppInfo", plist_copy(tmp_node));
+						plist_dict_set_item(dict, "BackupMessageTypeKey", plist_new_string("BackupMessageRestoreApplicationSent"));
 
 						array = plist_new_array();
 						plist_array_append_item(array, plist_new_string("DLMessageProcessMessage"));

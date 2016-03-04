@@ -8,11 +8,10 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Midnight Commander\n"
 "Report-Msgid-Bugs-To: http://www.midnight-commander.org/\n"
-"POT-Creation-Date: 2014-04-01 14:47+0300\n"
-"PO-Revision-Date: 2014-03-05 22:46+0000\n"
+"POT-Creation-Date: 2015-11-06 14:43+0300\n"
+"PO-Revision-Date: 2015-06-20 23:14+0000\n"
 "Last-Translator: Keith Bowes <zooplah@gmail.com>\n"
-"Language-Team: Esperanto (http://www.transifex.com/projects/p/mc/language/"
-"eo/)\n"
+"Language-Team: Esperanto (http://www.transifex.com/mc/mc/language/eo/)\n"
 "Language: eo\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
@@ -227,16 +226,16 @@ msgid "Backspace"
 msgstr "Retropaŝa klavo"
 
 msgid "Up arrow"
-msgstr "Supra sagoklavo"
+msgstr "Supriga sagoklavo"
 
 msgid "Down arrow"
-msgstr "Malsupra sagoklavo"
+msgstr "Malsupriga sagoklavo"
 
 msgid "Left arrow"
-msgstr "Maldekstra sagoklavo"
+msgstr "Maldekstriga sagoklavo"
 
 msgid "Right arrow"
-msgstr "Dekstra sagoklavo"
+msgstr "Dekstriga sagoklavo"
 
 msgid "Insert"
 msgstr "Enmeta klavo"
@@ -269,16 +268,16 @@ msgid "+ on keypad"
 msgstr "+ ĉe cifera klavaro"
 
 msgid "Left arrow keypad"
-msgstr "Maldekstra sagoklavo [cifera klavaro]"
+msgstr "Maldekstriga sagoklavo [cifera klavaro]"
 
 msgid "Right arrow keypad"
-msgstr "Dekstra sagoklavo [cifera klavaro]"
+msgstr "Dekstriga sagoklavo [cifera klavaro]"
 
 msgid "Up arrow keypad"
-msgstr "Supra sagoklavo [cifera klavaro]"
+msgstr "Supriga sagoklavo [cifera klavaro]"
 
 msgid "Down arrow keypad"
-msgstr "Suba sagoklavo [cifera klavaro]"
+msgstr "Malsupriga sagoklavo [cifera klavaro]"
 
 msgid "Home on keypad"
 msgstr "Hejma klavo [cifera klavaro]"
@@ -348,6 +347,9 @@ msgstr "Apostrofo"
 
 msgid "Colon"
 msgstr "Dupunkto"
+
+msgid "Semicolon"
+msgstr "Punktokomo"
 
 msgid "Exclamation mark"
 msgstr "Krisigno"
@@ -445,6 +447,31 @@ msgstr ""
 "Ekrangrando %dx%d ne estas regata.\n"
 "Kontroli la medivariablon TERM.\n"
 
+msgid "Cannot create pipe descriptor"
+msgstr "Ne eblas krei duktan priskribilon"
+
+msgid "Cannot parse command for pipe"
+msgstr "Ne eblas analizi komandon por dukto"
+
+msgid "Cannot create pipe streams"
+msgstr "Ne eblas krei duktajn fluojn"
+
+#, c-format
+msgid ""
+"Unexpected error in select() reading data from a child process:\n"
+"%s"
+msgstr ""
+"Neatendita eraro en select() leginte datumojn el ida procezo:\n"
+"%s"
+
+#, c-format
+msgid ""
+"Unexpected error in waitpid():\n"
+"%s"
+msgstr ""
+"Neatendita eraro en waitpid():\n"
+"%s"
+
 msgid "Warning"
 msgstr "Averto"
 
@@ -461,8 +488,16 @@ msgstr "Erara dum duplikati malnovan eraran dukton"
 msgid "Directory cache expired for %s"
 msgstr "Dosieruja tenejo eksvalidiĝis por %s"
 
+#, c-format
+msgid "%s: %s: %s %3d%% %<PRIuMAX> %s"
+msgstr ""
+
 msgid "bytes transferred"
 msgstr "bajtoj transigitaj"
+
+#, c-format
+msgid "%s: %s: %s %<PRIuMAX> %s"
+msgstr ""
 
 msgid "Starting linear transfer..."
 msgstr "Komencanta linian transigon..."
@@ -543,6 +578,13 @@ msgstr "Fona procezo:"
 
 msgid "Error"
 msgstr "Eraro"
+
+#, c-format
+msgid "%d: %s"
+msgstr "%d: %s"
+
+msgid "&Abort"
+msgstr "Ĉ&esigi"
 
 msgid "Displays the current version"
 msgstr "Eligi la uzatan eldonon"
@@ -637,24 +679,27 @@ msgid ""
 "   Editor:       editnormal, editbold, editmarked, editwhitespace,\n"
 "                 editlinestate, editbg, editframe, editframeactive\n"
 "                 editframedrag\n"
-"   Viewer:       viewbold, viewunderline, viewselected\n"
+"   Viewer:       viewnormal,viewbold, viewunderline, viewselected\n"
 "   Help:         helpnormal, helpitalic, helpbold, helplink, helpslink\n"
 msgstr ""
 "--colors Ŝlosilvorto={teksto},{fono},{atributo}:Ŝlosilvorto2=...\n"
-"Se {teksto}, {fono} aŭ {attr} estas ellasitaj, la aprioraj estas uzotaj\n"
+"Se {teksto}, {fono} aŭ {atributo} estas ellasitaj, la aprioraj estas uzotaj\n"
 "\n"
 " Ŝlosilvortoj:\n"
 "   Tutprograma:        errors, disabled, reverse, gauge, header\n"
 "                       input, inputmark, inputunchanged, commandlinemark\n"
 "                       bbarhotkey, bbarhotbutton, statusbar\n"
 "   Dosieradministrado: normal, selected, marked, markselect\n"
+"   Dialogujo:          dnormal, dfocus, dhotnormal, dhotfocus, "
+"errdhotnormal,\n"
+"                       errdhotfocus\n"
 "   Menuoj:             menunormal, menuhot, menusel, menuhotsel, "
 "menuinactive\n"
 "   Ŝprucmenuoj:        pmenunormal, pmenusel, pmenutitle\n"
 "   Tekstoredaktilo:    editnormal, editbold, editmarked, editwhitespace\n"
 "                       editlinestate, editbg, editframe, editframeactive\n"
 "                       editframedrag\n"
-"   Tekstolegilo:       viewbold, viewunderline, viewselected\n"
+"   Tekstolegilo:       viewnormal, viewbold, viewunderline, viewselected\n"
 "   Helpilo:            helpnormal, helpitalic, helpbold, helplink, "
 "helpslink\n"
 
@@ -669,7 +714,7 @@ msgid ""
 "   color16 to color255, or rgb000 to rgb555 and gray0 to gray23\n"
 "\n"
 "Attributes:\n"
-"   bold, underline, reverse, blink; append more with '+'\n"
+"   bold, italic, underline, reverse, blink; append more with '+'\n"
 msgstr ""
 "Ordinaraj koloroj:\n"
 "   black, gray, red, brightred, green, brightgreen, brown,\n"
@@ -679,8 +724,8 @@ msgstr ""
 "Aliaj koloroj, kiam 256 koloroj haveblas:\n"
 "   color16 ĝis color255, aŭ rgb000 ĝis rgb555 kaj gray0 ĝis gray23\n"
 "\n"
-"Attributes:\n"
-"   bold, underline, reverse, blink; almeti plian per '+'\n"
+"Attributoj:\n"
+"   bold, italic, underline, reverse, blink; almeti plian per '+'\n"
 
 msgid "Color options"
 msgstr "Kolora agordo"
@@ -719,8 +764,14 @@ msgstr "Eraro dum analizi parametrojn!"
 msgid "No arguments given to the viewer."
 msgstr "Neniuj parametroj donitaj al la legilo."
 
-msgid "Two files are required to evoke the diffviewer."
-msgstr "Du dosieroj estas bezonitaj por voki la flikaĵo-legilon."
+msgid "Two files are required to envoke the diffviewer."
+msgstr "Du dosieroj estas postulitaj por voki la flikaĵo-legilon."
+
+msgid "Background protocol error"
+msgstr "Eraro ĉe fona protokolo"
+
+msgid "Reading failed"
+msgstr "Legado malsukcesis"
 
 msgid "Background process error"
 msgstr "Eraro ĉe fona procezo"
@@ -730,12 +781,6 @@ msgstr "Nekonata eraro en ido"
 
 msgid "Child died unexpectedly"
 msgstr "Ido mortis neatendite"
-
-msgid "Background protocol error"
-msgstr "Eraro ĉe fona protokolo"
-
-msgid "Reading failed"
-msgstr "Legado malsukcesis"
 
 msgid ""
 "Background process sent us a request for more arguments\n"
@@ -904,8 +949,18 @@ msgid "< Reload Current Syntax >"
 msgstr "< Reŝargi nunan sintakson >"
 
 #, c-format
+msgid "Loading: %3d%%"
+msgstr "Ŝarganta: %3d%%"
+
+msgid "Loading..."
+msgstr "Ŝarganta..."
+
+#, c-format
 msgid "Cannot open %s for reading"
 msgstr "Ne eblas malfermi je %s por legi"
+
+msgid "Load file"
+msgstr "Ŝargi dosieron"
 
 #, c-format
 msgid "Error reading %s"
@@ -935,6 +990,14 @@ msgstr "Eraro dum legi de dukto: %s"
 msgid "Cannot open pipe for reading: %s"
 msgstr "Ne eblas malfermi dukton por legi: %s"
 
+#, c-format
+msgid "Searching %s: %3d%%"
+msgstr "Serĉanta en %s: %3d%%"
+
+#, c-format
+msgid "Searching %s"
+msgstr "Serĉanta en %s"
+
 msgid "File has hard-links. Detach before saving?"
 msgstr "Dosiero havas malmolajn ligilojn. Ĉu elmeti antaŭ ol konservi?"
 
@@ -953,9 +1016,8 @@ msgstr "Ne eblas malfermi dukton por skribi: %s"
 msgid "Cannot open file for writing: %s"
 msgstr "Ne eblas malfermi dosieron por skribi: %s"
 
-#, fuzzy
 msgid "The file you are saving does not end with a newline."
-msgstr "La dosiero, kiun vi estas konservanta, ne finiĝas per nova linio"
+msgstr "La dosiero, kiun vi estas konservanta, ne finiĝas per novlinio."
 
 msgid "C&ontinue"
 msgstr "D&aŭrigi"
@@ -983,6 +1045,9 @@ msgstr "Konservi kiel"
 
 msgid "Block is large, you may not be able to undo this action"
 msgstr "Bloko estas tra granda, do vi eble ne povos malfari tiun agon"
+
+msgid "Collect completions"
+msgstr "Kolekti kompletigojn"
 
 msgid "&Quick save"
 msgstr "&Rapida konservado"
@@ -1204,7 +1269,7 @@ msgid "A&ll"
 msgstr "Ĉ&io"
 
 msgid "&Skip"
-msgstr "&Preterpasi"
+msgstr "Preter&lasi"
 
 msgid "Confirm replace"
 msgstr "Konfirmi anstataŭigon"
@@ -1514,8 +1579,10 @@ msgstr ""
 "Afabla tekstoredaktilo\n"
 "verkita por Midnight Commander."
 
-msgid "Copyright (C) 1996-2014 the Free Software Foundation"
-msgstr "Kopirajto (C) 1996–2014 la Fondaĵo pri liberaj programoj"
+msgid "Copyright (C) 1996-2015 the Free Software Foundation"
+msgstr ""
+"Kopirajto © 1996–2015 Free Software Foundation (Fondaĵo pri liberaj "
+"programoj)"
 
 msgid "About"
 msgstr "Pri"
@@ -1543,6 +1610,78 @@ msgstr "ButtonBar|Forigi"
 
 msgid "ButtonBar|PullDn"
 msgstr "ButtonBar|Menuzono"
+
+msgid "Breton"
+msgstr "Bretona"
+
+msgid "Czech"
+msgstr "Ĉeĥa"
+
+msgid "Welsh"
+msgstr "Kimra"
+
+msgid "Danish"
+msgstr "Dana"
+
+msgid "German"
+msgstr "Germana"
+
+msgid "Greek"
+msgstr "Greka"
+
+msgid "English"
+msgstr "Angla"
+
+msgid "British English"
+msgstr "Britangla"
+
+msgid "Canadian English"
+msgstr "Kanadangla"
+
+msgid "American English"
+msgstr "Usonangla"
+
+msgid "Esperanto"
+msgstr "Esperanto"
+
+msgid "Spanish"
+msgstr "Hispana"
+
+msgid "Faroese"
+msgstr "Feroa"
+
+msgid "French"
+msgstr "Franca"
+
+msgid "Italian"
+msgstr "Itala"
+
+msgid "Dutch"
+msgstr "Nederlanda"
+
+msgid "Norwegian"
+msgstr "Norvega"
+
+msgid "Polish"
+msgstr "Pola"
+
+msgid "Portuguese"
+msgstr "Portugala"
+
+msgid "Romanian"
+msgstr "Rumana"
+
+msgid "Russian"
+msgstr "Rusa"
+
+msgid "Slovak"
+msgstr "Slovaka"
+
+msgid "Swedish"
+msgstr "Sveda"
+
+msgid "Ukrainian"
+msgstr "Ukrajna"
 
 msgid "&Add word"
 msgstr "&Aldoni vorton"
@@ -1603,7 +1742,7 @@ msgid "Set &all"
 msgstr "Fari ĉ&ion"
 
 msgid "S&kip"
-msgstr "P&reterpasi"
+msgstr "P&reterlasi"
 
 msgid "&Set"
 msgstr "&Fari"
@@ -1638,6 +1777,12 @@ msgid ""
 msgstr ""
 "Ne eblas ŝanĝi estrecon de \"%s\"\n"
 "%s"
+
+msgid "< Default >"
+msgstr "< Apriora >"
+
+msgid "Skins"
+msgstr "Etosoj"
 
 msgid "Other 8 bit"
 msgstr "Alia 8-bita"
@@ -1722,12 +1867,6 @@ msgstr "Aŭtomate konservi agor&don"
 
 msgid "Configure options"
 msgstr "Agordaĵoj"
-
-msgid "< Default >"
-msgstr "< Apriora >"
-
-msgid "Skins"
-msgstr "Etosoj"
 
 msgid "Skin:"
 msgstr "Etoso:"
@@ -1815,14 +1954,17 @@ msgstr ""
 msgid "&Full file list"
 msgstr "&Kompleta dosierlisto"
 
-msgid "&Brief file list"
-msgstr "&Mallonga dosierlisto"
+msgid "&Brief file list:"
+msgstr "&Mallonga dosierlisto:"
 
 msgid "&Long file list"
 msgstr "&Longa dosierlisto"
 
 msgid "&User defined:"
 msgstr "&Uzanto difinata:"
+
+msgid "columns"
+msgstr "kolumnojn"
 
 msgid "User &mini status"
 msgstr "Miniatura &stato de uzanto"
@@ -2060,15 +2202,6 @@ msgstr "Filtri"
 msgid "Set expression for filtering filenames"
 msgstr "Agordi esprimon por filtri dosiernomojn"
 
-msgid "&Files only"
-msgstr "Nur &dosierujoj"
-
-msgid "&Using shell patterns"
-msgstr "U&zi ŝelajn ŝablonojn"
-
-msgid "&Case sensitive"
-msgstr "&Usklecon ignori"
-
 #, c-format
 msgid "Link %s to:"
 msgstr "Ligi je %s al:"
@@ -2108,12 +2241,6 @@ msgstr "Krei novan dosierujon"
 
 msgid "Enter directory name:"
 msgstr "Enmetu dosierujan nomon:"
-
-msgid "Select"
-msgstr "Elekti"
-
-msgid "Unselect"
-msgstr "Malelekti"
 
 msgid "Extension file edit"
 msgstr "sufikso-dosiera redaktilo"
@@ -2199,6 +2326,9 @@ msgid ""
 msgstr ""
 "Enmetu aparaton (sen /dev/) por reatingi\n"
 "dosierojn: (F1 por detaloj)"
+
+msgid "Directory scanning"
+msgstr "Dosieruja skanado"
 
 msgid "Setup"
 msgstr "Agordo"
@@ -2334,9 +2464,6 @@ msgid ""
 msgstr ""
 "Ne eblas krei celan molan ligilon \"%s\"\n"
 "%s"
-
-msgid "&Abort"
-msgstr "Ĉ&esigi"
 
 msgid "Ski&p all"
 msgstr "Preter&lasi ĉion"
@@ -2621,16 +2748,9 @@ msgstr ""
 "Ne eblas movi dosierujon \"%s\" al \"%s\"\n"
 "%s"
 
-msgid "Directory scanning"
-msgstr "Dosieruja skanado"
-
 #, c-format
-msgid ""
-"%s\n"
-"Directories: %zd, total size: %s"
-msgstr ""
-"%s\n"
-"Dosierujoj: %zd, ĉioma grando: %s"
+msgid "Directories: %zd, total size: %s"
+msgstr "Dosierujoj: %zd, ĉioma grando: %s"
 
 msgid "Cannot operate on \"..\"!"
 msgstr "Ne eblas operacii je \"..\"!"
@@ -2737,6 +2857,12 @@ msgstr "Fonto"
 msgid "Target"
 msgstr "Celo"
 
+msgid "Deleting"
+msgstr "Foriganta"
+
+msgid "&Using shell patterns"
+msgstr "U&zi ŝelajn ŝablonojn"
+
 msgid "to:"
 msgstr "al:"
 
@@ -2788,7 +2914,7 @@ msgid "&Find recursively"
 msgstr "&Trovi rekursie"
 
 msgid "S&kip hidden"
-msgstr "P&reterpasi kaŝitan"
+msgstr "P&reterlasi kaŝitan"
 
 msgid "Content:"
 msgstr "Enhavo:"
@@ -2829,10 +2955,6 @@ msgid "Finished (ignored %zd directory)"
 msgid_plural "Finished (ignored %zd directories)"
 msgstr[0] "Finita (ignoris %zd dosierujo)"
 msgstr[1] "Finita (ignoris %zd dosierujojn)"
-
-#, c-format
-msgid "Searching %s"
-msgstr "Serĉanta en %s"
 
 msgid "Searching"
 msgstr "Serĉanta"
@@ -2946,7 +3068,7 @@ msgid "No node information"
 msgstr "Neniuj nodaj informoj"
 
 msgid "Free nodes:"
-msgstr "Liberaj nodoj:"
+msgstr "Liberaj nodoj: "
 
 msgid "No space information"
 msgstr "Neniuj spacaj informoj"
@@ -2956,40 +3078,40 @@ msgid "Free space: %s/%s (%d%%)"
 msgstr "Restanta spaco: %s el %s (%d%%)"
 
 #, c-format
-msgid "Type:      %s"
-msgstr "Tipo:      %s"
+msgid "Type:       %s"
+msgstr "Tipo:           %s"
 
 msgid "non-local vfs"
 msgstr "fora virtuala dosiersistemo"
 
 #, c-format
-msgid "Device:    %s"
-msgstr "Aparato:    %s"
+msgid "Device:     %s"
+msgstr "Aparato:        %s"
 
 #, c-format
 msgid "Filesystem: %s"
-msgstr "Dosiersistemo: %s"
+msgstr "Dosiersistemo:  %s"
 
 #, c-format
-msgid "Accessed:  %s"
-msgstr "Atingita:  %s"
+msgid "Accessed:   %s"
+msgstr "Atingita:       %s"
 
 #, c-format
-msgid "Modified:  %s"
-msgstr "Modifita:  %s"
+msgid "Modified:   %s"
+msgstr "Modifita:       %s"
 
 #. TRANSLATORS: Time of last status change as in stat(2) man.
 #, c-format
-msgid "Changed:   %s"
-msgstr "Ŝanĝita:   %s"
+msgid "Changed:    %s"
+msgstr "Ŝanĝita:        %s"
 
 #, c-format
 msgid "Dev. type: major %lu, minor %lu"
 msgstr "Aparata tipo: granda %lu, malgranda %lu"
 
 #, c-format
-msgid "Size:      %s"
-msgstr "Grando:      %s"
+msgid "Size:       %s"
+msgstr "Grando:         %s"
 
 #, c-format
 msgid " (%ld block)"
@@ -2998,20 +3120,20 @@ msgstr[0] " (%ld bloko)"
 msgstr[1] " (%ld blokoj)"
 
 #, c-format
-msgid "Owner:     %s/%s"
-msgstr "Estro:     %s/%s"
+msgid "Owner:      %s/%s"
+msgstr "Estro:          %s/%s"
 
 #, c-format
-msgid "Links:     %d"
-msgstr "Ligiloj:     %d"
+msgid "Links:      %d"
+msgstr "Ligiloj:        %d"
 
 #, c-format
-msgid "Mode:      %s (%04o)"
-msgstr "Permesoj:      %s (%04o)"
+msgid "Mode:       %s (%04o)"
+msgstr "Permesoj:       %s (%04o)"
 
 #, c-format
-msgid "Location:  %Xh:%Xh"
-msgstr "Loko:  %Xh:%Xh"
+msgid "Location:   %Xh:%Xh"
+msgstr "Loko:           %Xh:%Xh"
 
 msgid "&Equal split"
 msgstr "&Same granda"
@@ -3245,7 +3367,7 @@ msgid "&Left"
 msgstr "&Maldekstra"
 
 msgid "&Below"
-msgstr "S&uba"
+msgstr "Muls&upra"
 
 msgid "&Right"
 msgstr "D&ekstra"
@@ -3368,7 +3490,7 @@ msgid "SYMLINK"
 msgstr "MOLA LIGILO"
 
 msgid "SUB-DIR"
-msgstr "SUB-DOSIERUJO"
+msgstr "MALSUPREN"
 
 msgid "<readlink failed>"
 msgstr "<legi ligilon malsukcesis>"
@@ -3390,6 +3512,18 @@ msgstr "F&lankigi"
 
 msgid "Unknown tag on display format:"
 msgstr "Nekonata etikedo en elmontra formato:"
+
+msgid "&Files only"
+msgstr "Nur &dosierujoj"
+
+msgid "&Case sensitive"
+msgstr "&Usklecon ignori"
+
+msgid "Select"
+msgstr "Elekti"
+
+msgid "Unselect"
+msgstr "Malelekti"
 
 msgid "Do you really want to execute?"
 msgstr "Ĉu vi efekti volas plenumigi?"
@@ -3524,14 +3658,6 @@ msgstr "La makroo %%var havas neniun aprioraĵon"
 #, c-format
 msgid "The %%var macro has no variable"
 msgstr "La makroo %%var havas neniun variablon"
-
-#, c-format
-msgid ""
-"Cannot open file%s\n"
-"%s"
-msgstr ""
-"Ne eblas malfermi dosieron%s\n"
-"%s"
 
 #, c-format
 msgid "No suitable entries found in %s"
@@ -3785,7 +3911,7 @@ msgstr ""
 
 #, c-format
 msgid "%s contains duplicate entries! Skipping!"
-msgstr "%s enhavas duplikatajn erojn! Preterpasanta!"
+msgstr "%s enhavas duplikatajn erojn! Preterlasanta!"
 
 #, c-format
 msgid ""
@@ -4010,9 +4136,6 @@ msgstr "sftp: Ne eblas atingi la aktualan salutnomon."
 msgid "sftp: Invalid host name."
 msgstr "sftp: Nevalida retnodnomo."
 
-msgid "sftp: Invalid port value."
-msgstr "sftp: Nevalida pordnumero."
-
 #, c-format
 msgid "sftp: %s"
 msgstr "sftp: %s"
@@ -4195,14 +4318,8 @@ msgstr ""
 "Midnight Commander estas elirinta.\n"
 "Ĉu konservi modifitan dosieron?"
 
-msgid "Cannot spawn child process"
-msgstr "Ne eblas krei idan procezon"
-
-msgid "Empty output from child filter"
-msgstr "Vaka eligo el ida filtrilo"
-
-msgid "&Line number (decimal)"
-msgstr "&Linia numero (dekuma)"
+msgid "&Line number"
+msgstr "&Lininumero"
 
 msgid "Pe&rcents"
 msgstr "&Elcentoj"
@@ -4248,6 +4365,14 @@ msgstr "ButtonBar|Format"
 
 #, c-format
 msgid ""
+"Failed to read data from child stdout:\n"
+"%s"
+msgstr ""
+"Malsukcesis legi datumojn el ida ĉefeligujo:\n"
+"%s"
+
+#, c-format
+msgid ""
 "Error while closing the file:\n"
 "%s\n"
 "Data may have been written or not"
@@ -4286,9 +4411,6 @@ msgstr ""
 "Ne eblas malfermi je \"%s\" laŭ analiza reĝimo\n"
 "%s"
 
-msgid "Seeking to search result"
-msgstr "Trovanta en serĉa rezulto"
-
 msgid "Search done"
 msgstr "Serĉo finita"
 
@@ -4297,6 +4419,3 @@ msgstr "Ĉu deiri de la komenco?"
 
 msgid "Cannot fetch a local copy of /ftp://some.host/editme.txt"
 msgstr "Ne eblas atingi lokan kopion de /ftp://some.host/editme.txt"
-
-#~ msgid "&Select"
-#~ msgstr "&Elekti"

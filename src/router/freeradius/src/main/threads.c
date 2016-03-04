@@ -1,7 +1,7 @@
 /*
  * threads.c	request threading support
  *
- * Version:	$Id: 72d849fc03778864fef29e8f90323ccfa21a3b55 $
+ * Version:	$Id: f1514d177e207168e794ede0fdaeda2763497206 $
  *
  *   This program is free software; you can redistribute it and/or modify
  *   it under the terms of the GNU General Public License as published by
@@ -22,7 +22,7 @@
  */
 
 #include <freeradius-devel/ident.h>
-RCSID("$Id: 72d849fc03778864fef29e8f90323ccfa21a3b55 $")
+RCSID("$Id: f1514d177e207168e794ede0fdaeda2763497206 $")
 
 #include <freeradius-devel/radiusd.h>
 #include <freeradius-devel/rad_assert.h>
@@ -831,6 +831,12 @@ int thread_pool_init(CONF_SECTION *cs, int *spawn_flag)
 		return -1;
 	}
 
+	if (thread_pool.start_threads > thread_pool.max_threads) {
+		radlog(L_ERR, "FATAL: start_servers (%i) must be <= max_servers (%i)",
+		       thread_pool.start_threads, thread_pool.max_threads);
+		return -1;
+	}
+
 	/*
 	 *	The pool has already been initialized.  Don't spawn
 	 *	new threads, and don't forget about forked children,
@@ -1142,6 +1148,7 @@ pid_t rad_fork(void)
 	/*
 	 *	Fork & save the PID for later reaping.
 	 */
+	pthread_mutex_lock(&thread_pool.wait_mutex);
 	child_pid = fork();
 	if (child_pid > 0) {
 		int rcode;
@@ -1152,15 +1159,19 @@ pid_t rad_fork(void)
 
 		tf->pid = child_pid;
 
-		pthread_mutex_lock(&thread_pool.wait_mutex);
 		rcode = fr_hash_table_insert(thread_pool.waiters, tf);
-		pthread_mutex_unlock(&thread_pool.wait_mutex);
 
 		if (!rcode) {
 			radlog(L_ERR, "Failed to store PID, creating what will be a zombie process %d",
 			       (int) child_pid);
 			free(tf);
 		}
+	}
+	/*
+	 *	Do not unlock in child process
+	 */
+	if(child_pid != 0 ) {
+		pthread_mutex_unlock(&thread_pool.wait_mutex);
 	}
 
 	/*

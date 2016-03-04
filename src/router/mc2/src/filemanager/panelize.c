@@ -1,7 +1,7 @@
 /*
    External panelize
 
-   Copyright (C) 1995-2014
+   Copyright (C) 1995-2015
    Free Software Foundation, Inc.
 
    Written by:
@@ -179,7 +179,7 @@ init_panelize (void)
 
     l_panelize = listbox_new (y, UX + 1, 10, panelize_cols - UX * 2 - 2, FALSE, NULL);
     for (current = panelize; current != NULL; current = current->next)
-        listbox_add_item (l_panelize, LISTBOX_APPEND_AT_END, 0, current->label, current);
+        listbox_add_item (l_panelize, LISTBOX_APPEND_AT_END, 0, current->label, current, FALSE);
     listbox_select_entry (l_panelize, listbox_search_text (l_panelize, _("Other command")));
     add_widget (panelize_dlg, l_panelize);
 
@@ -340,7 +340,7 @@ do_external_panelize (char *command)
             line[strlen (line) - 1] = 0;
         if (strlen (line) < 1)
             continue;
-        if (line[0] == '.' && line[1] == PATH_SEP)
+        if (line[0] == '.' && IS_PATH_SEP (line[1]))
             name = line + 2;
         else
             name = line;
@@ -361,7 +361,7 @@ do_external_panelize (char *command)
 
     if (list->len == 0)
         dir_list_init (list);
-    else if (list->list[0].fname[0] == PATH_SEP)
+    else if (IS_PATH_SEP (list->list[0].fname[0]))
     {
         vfs_path_t *vpath_root;
         int ret;
@@ -516,9 +516,7 @@ external_panelize (void)
     /* display file info */
     tty_setcolor (SELECTED_COLOR);
 
-    dlg_run (panelize_dlg);
-
-    switch (panelize_dlg->ret_value)
+    switch (dlg_run (panelize_dlg))
     {
     case B_CANCEL:
         break;
@@ -549,6 +547,9 @@ external_panelize (void)
             return;
         }
         break;
+
+    default:
+        break;
     }
 
     panelize_done ();
@@ -560,13 +561,12 @@ void
 load_panelize (void)
 {
     char **keys;
-    gsize len;
 
-    keys = mc_config_get_keys (mc_main_config, panelize_section, &len);
+    keys = mc_config_get_keys (mc_main_config, panelize_section, NULL);
 
     add2panelize (g_strdup (_("Other command")), g_strdup (""));
 
-    if (keys == NULL || *keys == NULL)
+    if (*keys == NULL)
     {
         add2panelize (g_strdup (_("Modified git files")), g_strdup ("git ls-files --modified"));
         add2panelize (g_strdup (_("Find rejects after patching")),

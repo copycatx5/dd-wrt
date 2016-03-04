@@ -1,9 +1,6 @@
 /*
  * This file is part of nmealib.
  *
- * Copyright (c) 2008 Timur Sinitsyn
- * Copyright (c) 2011 Ferry Huberts
- *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
  * License as published by the Free Software Foundation; either
@@ -35,20 +32,25 @@
 #define NMEA_CONVSTR_BUF    64
 
 /**
- * Calculate crc control sum of a string
+ * Calculate crc control sum of a string.
+ * If the string starts with a '$' then that character is skipped as per
+ * the NMEA spec.
  *
  * @param s the string
  * @param len the length of the string
  * @return the crc
  */
 int nmea_calc_crc(const char *s, const int len) {
-	int chksum = 0;
-	int it;
+  int chksum = 0;
+  int it = 0;
 
-	for (it = 0; it < len; it++)
-		chksum ^= (int) s[it];
+  if (s[it] == '$')
+    it++;
 
-	return chksum;
+  for (; it < len; it++)
+    chksum ^= (int) s[it];
+
+  return chksum;
 }
 
 /**
@@ -170,7 +172,7 @@ int nmea_scanf(const char *s, int len, const char *format, ...) {
 			if (isdigit(*format))
 				break;
 			{
-				tok_type = NMEA_TOKS_TYPE;
+				/* No need to do 'tok_type = NMEA_TOKS_TYPE' since we'll do a fall-through */
 				if (format > beg_fmt)
 					width = nmea_atoi(beg_fmt, (int) (format - beg_fmt), 10);
 			}

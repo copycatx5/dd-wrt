@@ -27,7 +27,7 @@ Tip: Stiskem Enter na souboru .tar nebo .tar.gz si prohlédnete obsah.
 
 Tip: Existuje také manuálová stránka [mc(1)].
 
-Tip: Přejete si klávesy stejně jako v lynxu? Nastavte to v Nastavení.
+Hint: Do you want Lynx-style navigation? Set it in the Configuration dialog.
 
 Tip: Makra uvozená % pracují na příkazové řádce.
 
@@ -62,7 +62,7 @@ Tip: Smazaný text obnovíte C-y.
 
 Tip: Pokud některé klávesy nefungují, použijte menu Nastavení/Učení kláves.
 
-Hint: To look at the output of a command in the viewer, use M-!
+Tip: K zobrazení výstupu příkazu v okně použijte M-!
 
 Tip: F13 (nebo Shift-F3) vyvolá prohlížení bez zpracování obsahu souboru.
 
@@ -84,7 +84,8 @@ Tip: Při FTP spojení můžete zadat i jméno: „cd ftp://jmeno@stroj.domena.c
 
 Tip: RPM soubory si prohlédnete stiskem Enter.
 
-Hint: To mark directories on the select dialog box, append a slash.
+Tip: Pro označení adresářů v dialogovém okně výběru souborů, přidejte
+lomítko.
 
 Tip: Chcete-li použít myš pro zkopírování nebo vložení textu, stiskněte
 Shift.

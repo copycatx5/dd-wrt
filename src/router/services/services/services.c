@@ -80,7 +80,7 @@ static int alreadyInHost(char *host)
 	}
 }
 
-void addHost(char *host, char *ip)
+void addHost(char *host, char *ip, int withdomain)
 {
 	char buf[100];
 	char newhost[100];
@@ -92,7 +92,7 @@ void addHost(char *host, char *ip)
 	strcpy(newhost, host);
 	char *domain = nvram_safe_get("lan_domain");
 
-	if (domain != NULL && strlen(domain) > 0 && strcmp(host, "localhost")) {
+	if (withdomain && domain != NULL && strlen(domain) > 0 && strcmp(host, "localhost")) {
 		sprintf(newhost, "%s.%s", host, domain);
 	} else
 		sprintf(newhost, "%s", host);
@@ -183,23 +183,7 @@ void start_ipv6(void)
 	if (!nvram_invmatch("ipv6_enable", "0"))
 		return;
 
-	insmod("ipv6");
-	insmod("tunnel4");
-	insmod("ip_tunnel");
-	insmod("sit");
-	insmod("xfrm_algo");
-	insmod("esp6");
-	insmod("ah6");
-	insmod("mip6");
-	insmod("tunnel6");
-	insmod("ip6_tunnel");
-	insmod("xfrm6_mode_beet");
-	insmod("xfrm6_mode_ro");
-	insmod("xfrm6_mode_transport");
-	insmod("xfrm6_mode_tunnel");
-	insmod("xfrm6_tunnel");
-	insmod("xfrm_ipcomp");
-	insmod("ipcomp6");
+	insmod("ipv6 tunnel4 ip_tunnel sit xfrm_algo esp6 ah6 mip6 tunnel6 ip6_tunnel xfrm6_mode_beet xfrm6_mode_ro xfrm6_mode_transport xfrm6_mode_tunnel xfrm6_tunnel xfrm_ipcomp ipcomp6");
 
 	dd_syslog(LOG_INFO, "ipv6 successfully started\n");
 
@@ -217,6 +201,16 @@ void stop_3g(void)
 }
 
 #endif
+
+void start_pppmodules(void)
+{
+	insmod("zlib_inflate zlib_deflate slhc ppp_generic bsd_comp ppp_deflate ppp_async ppp_synctty ppp_mppe pppox pppoe");
+}
+
+void stop_pppmodules(void)
+{
+	rmmod("pppoe pppox ppp_mppe ppp_synctty ppp_async ppp_deflate bsd_comp ppp_generic slhc");
+}
 
 void stop_dhcpc(void)
 {

@@ -1,7 +1,7 @@
 <?php
 /*
 ** Zabbix
-** Copyright (C) 2001-2013 Zabbix SIA
+** Copyright (C) 2001-2015 Zabbix SIA
 **
 ** This program is free software; you can redistribute it and/or modify
 ** it under the terms of the GNU General Public License as published by
@@ -90,7 +90,7 @@ class CJSON {
 	 *
 	 * Constructor.
 	 *
-	 * ifthe $config param is an array, it is merged with the class
+	 * If the $config param is an array, it is merged with the class
 	 * config array and any values from the Solar.config.php file.
 	 *
 	 * The Solar.config.php values are inherited along class parent
@@ -373,8 +373,8 @@ class CJSON {
 				return '"'.$ascii.'"';
 			case 'array':
 				/*
-				 * As per JSON spec ifany array key is not an integer
-				 * we must treat the the whole array as an object. We
+				 * As per JSON spec if any array key is not an integer
+				 * we must treat the whole array as an object. We
 				 * also try to catch a sparsely populated associative
 				 * array with numeric keys here because some JS engines
 				 * will create an array with empty indexes up to
@@ -384,7 +384,7 @@ class CJSON {
 				 *
 				 * As per the ECMA and JSON specification an object may
 				 * have any string as a property. Unfortunately due to
-				 * a hole in the ECMA specification ifthe key is a
+				 * a hole in the ECMA specification if the key is an
 				 * ECMA reserved word or starts with a digit the
 				 * parameter is only accessible using ECMAScript's
 				 * bracket notation.
@@ -668,7 +668,7 @@ class CJSON {
 						elseif ($chrs{$c} == $top['delim'] && $top['what'] == self::IN_STR
 								&& ((zbx_strlen(substr($chrs, 0, $c)) - zbx_strlen(rtrim(substr($chrs, 0, $c), '\\'))) % 2 != 1)) {
 							// found a quote, we're in a string, and it's not escaped
-							// we know that it's not escaped becase there is _not_ an
+							// we know that it's not escaped because there is _not_ an
 							// odd number of backslashes at the end of the string so far
 							array_pop($stk);
 						}

@@ -27,7 +27,7 @@
     </ProjectReference>
   </ItemGroup>
   <PropertyGroup Label="Globals">
-    <ProjectGuid>{316E338C-6DC1-4D11-81C1-91F20E92AB04}</ProjectGuid>
+    <ProjectGuid>{C5DF2F0C-3EFC-E5D6-7FD2-AD599CADDB15}</ProjectGuid>
     <Keyword>Win32Proj</Keyword>
     <RootNamespace>gen_random_ctr_drbg</RootNamespace>
   </PropertyGroup>

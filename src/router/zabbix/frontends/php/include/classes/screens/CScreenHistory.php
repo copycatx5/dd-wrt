@@ -1,7 +1,7 @@
 <?php
 /*
 ** Zabbix
-** Copyright (C) 2001-2013 Zabbix SIA
+** Copyright (C) 2001-2015 Zabbix SIA
 **
 ** This program is free software; you can redistribute it and/or modify
 ** it under the terms of the GNU General Public License as published by
@@ -22,11 +22,11 @@
 class CScreenHistory extends CScreenBase {
 
 	/**
-	 * Item id
+	 * Item ids
 	 *
-	 * @var int
+	 * @var array
 	 */
-	public $itemid;
+	public $itemids;
 
 	/**
 	 * Search string
@@ -74,7 +74,7 @@ class CScreenHistory extends CScreenBase {
 	 * Init screen data.
 	 *
 	 * @param array		$options
-	 * @param int		$options['itemid']
+	 * @param array		$options['itemids']
 	 * @param string	$options['filter']
 	 * @param int		$options['filterTask']
 	 * @param int		$options['markColor']
@@ -88,7 +88,7 @@ class CScreenHistory extends CScreenBase {
 		$this->resourcetype = SCREEN_RESOURCE_HISTORY;
 
 		// mandatory
-		$this->itemid = isset($options['itemid']) ? $options['itemid'] : null;
+		$this->itemids = isset($options['itemids']) ? $options['itemids'] : null;
 		$this->filter = isset($options['filter']) ? $options['filter'] : null;
 		$this->filterTask = isset($options['filter_task']) ? $options['filter_task'] : null;
 		$this->markColor = isset($options['mark_color']) ? $options['mark_color'] : MARK_COLOR_RED;
@@ -101,12 +101,14 @@ class CScreenHistory extends CScreenBase {
 		if (empty($this->items)) {
 			$this->items = API::Item()->get(array(
 				'nodeids' => get_current_nodeid(),
-				'itemids' => $this->itemid,
+				'itemids' => $this->itemids,
 				'webitems' => true,
-				'selectHosts' => array('hostid', 'name'),
-				'output' => API_OUTPUT_EXTEND,
+				'selectHosts' => array('name'),
+				'output' => array('itemid', 'hostid', 'name', 'key_', 'value_type', 'valuemapid'),
 				'preservekeys' => true
 			));
+
+			$this->items = CMacrosResolverHelper::resolveItemNames($this->items);
 
 			$this->item = reset($this->items);
 		}
@@ -156,7 +158,7 @@ class CScreenHistory extends CScreenBase {
 				$useEventLogItem = (strpos($this->item['key_'], 'eventlog[') === 0);
 
 				if (empty($this->plaintext)) {
-					$historyTable = new CTableInfo(_('No history defined.'));
+					$historyTable = new CTableInfo(_('No values found.'));
 					$historyTable->setHeader(
 						array(
 							_('Timestamp'),
@@ -215,7 +217,7 @@ class CScreenHistory extends CScreenBase {
 						$row = array(nbsp(zbx_date2str(_('Y.M.d H:i:s'), $data['clock'])));
 
 						if ($isManyItems) {
-							$row[] = $host['name'].': '.itemName($item);
+							$row[] = $host['name'].NAME_DELIMITER.$item['name_expanded'];
 						}
 
 						if ($useLogItem) {
@@ -234,15 +236,7 @@ class CScreenHistory extends CScreenBase {
 						$row[] = new CCol($data['value'], 'pre');
 
 						$newRow = new CRow($row);
-						if (is_null($color)) {
-							$min_color = 0x98;
-							$max_color = 0xF8;
-							$int_color = ($max_color - $min_color) / count($this->itemid);
-							$int_color *= array_search($data['itemid'], array($this->itemid));
-							$int_color += $min_color;
-							$newRow->setAttribute('style', 'background-color: '.sprintf("#%X%X%X", $int_color, $int_color, $int_color));
-						}
-						elseif (!is_null($color)) {
+						if (!is_null($color)) {
 							$newRow->setAttribute('class', $color);
 						}
 
@@ -262,7 +256,7 @@ class CScreenHistory extends CScreenBase {
 			// numeric, float
 			else {
 				if (empty($this->plaintext)) {
-					$historyTable = new CTableInfo(_('No history defined.'));
+					$historyTable = new CTableInfo(_('No values found.'));
 					$historyTable->setHeader(array(_('Timestamp'), _('Value')));
 				}
 
@@ -314,7 +308,7 @@ class CScreenHistory extends CScreenBase {
 		if (!$this->plaintext && str_in_array($this->action, array('showvalues', 'showgraph'))) {
 			$graphDims = getGraphDims();
 
-			$this->timeline['starttime'] = date('YmdHis', get_min_itemclock_by_itemid($this->item['itemid']));
+			$this->timeline['starttime'] = date(TIMESTAMP_FORMAT, get_min_itemclock_by_itemid($this->item['itemid']));
 
 			$timeControlData = array(
 				'periodFixed' => CProfile::get('web.history.timelinefixed', 1),
@@ -352,7 +346,7 @@ class CScreenHistory extends CScreenBase {
 		else {
 			if ($this->mode != SCREEN_MODE_JS) {
 				$flickerfreeData = array(
-					'itemid' => $this->itemid,
+					'itemids' => $this->itemids,
 					'action' => $this->action,
 					'filter' => $this->filter,
 					'filterTask' => $this->filterTask,

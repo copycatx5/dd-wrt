@@ -22,28 +22,47 @@
 #include "ralink_soc_eth.h"
 #include "mdio_rt2880.h"
 
-#define RT3883_SYSC_REG_RSTCTRL		0x34
 #define RT3883_RSTCTRL_FE		BIT(21)
 
 static void rt3883_fe_reset(void)
 {
-	u32 t;
+	fe_reset(RT3883_RSTCTRL_FE);
+}
 
-	t = rt_sysc_r32(RT3883_SYSC_REG_RSTCTRL);
-	t |= RT3883_RSTCTRL_FE;
-	rt_sysc_w32(t , RT3883_SYSC_REG_RSTCTRL);
+static int rt3883_fwd_config(struct fe_priv *priv)
+{
+	int ret;
 
-	t &= ~RT3883_RSTCTRL_FE;
-	rt_sysc_w32(t, RT3883_SYSC_REG_RSTCTRL);
+	ret = fe_set_clock_cycle(priv);
+	if (ret)
+		return ret;
+
+	fe_fwd_config(priv);
+	fe_w32(FE_PSE_FQFC_CFG_256Q, FE_PSE_FQ_CFG);
+	fe_csum_config(priv);
+
+	return ret;
+}
+
+static void rt3883_init_data(struct fe_soc_data *data,
+		struct net_device *netdev)
+{
+	struct fe_priv *priv = netdev_priv(netdev);
+
+	priv->flags = FE_FLAG_PADDING_64B | FE_FLAG_PADDING_BUG |
+		FE_FLAG_JUMBO_FRAME;
+	netdev->hw_features = NETIF_F_SG | NETIF_F_IP_CSUM |
+		NETIF_F_RXCSUM | NETIF_F_HW_VLAN_CTAG_TX;
 }
 
 static struct fe_soc_data rt3883_data = {
 	.mac = { 0x00, 0x11, 0x22, 0x33, 0x44, 0x55 },
+	.init_data = rt3883_init_data,
 	.reset_fe = rt3883_fe_reset,
-	.min_pkt_len = 64,
-        .pdma_glo_cfg = FE_PDMA_SIZE_4DWORDS,
-	.rx_dly_int = FE_RX_DLY_INT,
-	.tx_dly_int = FE_TX_DLY_INT,
+	.fwd_config = rt3883_fwd_config,
+	.pdma_glo_cfg = FE_PDMA_SIZE_8DWORDS,
+	.rx_int = FE_RX_DONE_INT,
+	.tx_int = FE_TX_DONE_INT,
 	.checksum_bit = RX_DMA_L4VALID,
 	.mdio_read = rt2880_mdio_read,
 	.mdio_write = rt2880_mdio_write,

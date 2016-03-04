@@ -1,7 +1,7 @@
 /*
  * command.c	Command socket processing.
  *
- * Version:	$Id: e6c8b322e0266ab670b2cbbace94fcbbd79a4a09 $
+ * Version:	$Id: 7838c2a55bea2fe27d973fd73b36133fd68bd9dd $
  *
  *   This program is free software; you can redistribute it and/or modify
  *   it under the terms of the GNU General Public License as published by
@@ -576,6 +576,38 @@ static int command_show_module_flags(rad_listen_t *listener, int argc, char *arg
 	if ((mod->type & RLM_TYPE_HUP_SAFE) != 0)
 		cprintf(listener, "\treload-on-hup\n");
 
+	return 1;		/* success */
+}
+
+extern const FR_NAME_NUMBER mod_rcode_table[];
+
+
+static int command_show_module_status(rad_listen_t *listener, int argc, char *argv[])
+{
+	CONF_SECTION *cs;
+	const module_instance_t *mi;
+
+	if (argc != 1) {
+		cprintf(listener, "ERROR: No module name was given\n");
+		return 0;
+	}
+
+	cs = cf_section_find("modules");
+	if (!cs) return 0;
+
+	mi = find_module_instance(cs, argv[0], 0);
+	if (!mi) {
+		cprintf(listener, "ERROR: No such module \"%s\"\n", argv[0]);
+		return 0;
+	}
+
+	if (mi->force == FALSE) {
+		cprintf(listener, "alive\n");
+	} else {
+		cprintf(listener, "%s\n", fr_int2str(mod_rcode_table, mi->code, "<invalid>"));
+	}
+
+	
 	return 1;		/* success */
 }
 
@@ -1342,6 +1374,9 @@ static fr_command_table_t command_table_show_module[] = {
 	{ "methods", FR_READ,
 	  "show module methods <module> - show sections where <module> may be used",
 	  command_show_module_methods, NULL },
+	{ "status", FR_READ,
+	  "show module status <module> - show the module status",
+	  command_show_module_status, NULL },
 
 	{ NULL, 0, NULL, NULL, NULL }
 };
@@ -1493,7 +1528,9 @@ static int command_set_module_config(rad_listen_t *listener, int argc, char *arg
 	return 1;		/* success */
 }
 
-static int command_set_module_state(rad_listen_t *listener, int argc, char *argv[])
+extern const FR_NAME_NUMBER mod_rcode_table[];
+
+static int command_set_module_status(rad_listen_t *listener, int argc, char *argv[])
 {
 	CONF_SECTION *cs;
 	module_instance_t *mi;
@@ -1514,14 +1551,23 @@ static int command_set_module_state(rad_listen_t *listener, int argc, char *argv
 
 
 	if (strcmp(argv[1], "alive") == 0) {
-		mi->dead = FALSE;
+		mi->force = FALSE;
 
 	} else if (strcmp(argv[1], "dead") == 0) {
-		mi->dead = TRUE;
+		mi->code = RLM_MODULE_FAIL;
+		mi->force = TRUE;
 
 	} else {
-		cprintf(listener, "ERROR: Unknown status \"%s\"\n", argv[2]);
-		return 0;
+		int rcode;
+
+		rcode = fr_str2int(mod_rcode_table, argv[1], -1);
+		if (rcode < 0) {
+			cprintf(listener, "ERROR: Unknown status \"%s\"\n", argv[1]);
+			return 0;
+		}
+
+		mi->code = rcode;
+		mi->force = TRUE;
 	}
 
 	return 1;		/* success */
@@ -1822,9 +1868,9 @@ static fr_command_table_t command_table_set_module[] = {
 	  "set module config <module> variable value - set configuration for <module>",
 	  command_set_module_config, NULL },
 
-	{ "state", FR_WRITE,
-	  "set module state NAME [alive|dead] - set the module NAME to be alive or dead (always return \"fail\")",
-	  command_set_module_state, NULL },
+	{ "status", FR_WRITE,
+	  "set module status <module> [alive|...] - set the module status to be alive (operating normally), or force a particular code (ok,fail, etc.)",
+	  command_set_module_status, NULL },
 
 	{ NULL, 0, NULL, NULL, NULL }
 };
@@ -1928,8 +1974,8 @@ static int command_socket_parse(CONF_SECTION *cs, rad_listen_t *this)
 #if defined(HAVE_GETPEEREID) || defined (SO_PEERCRED)
 	if (sock->uid_name) {
 		struct passwd *pw;
-		
-		pw = getpwnam(sock->uid_name);
+
+		pw = rad_getpwnam(sock->uid_name);
 		if (!pw) {
 			radlog(L_ERR, "Failed getting uid for %s: %s",
 			       sock->uid_name, strerror(errno));
@@ -1944,7 +1990,7 @@ static int command_socket_parse(CONF_SECTION *cs, rad_listen_t *this)
 	if (sock->gid_name) {
 		struct group *gr;
 
-		gr = getgrnam(sock->gid_name);
+		gr = rad_getgrnam(sock->gid_name);
 		if (!gr) {
 			radlog(L_ERR, "Failed getting gid for %s: %s",
 			       sock->gid_name, strerror(errno));

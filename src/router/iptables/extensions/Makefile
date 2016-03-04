@@ -15,13 +15,17 @@ endif
 endif
 ifeq ($(CONFIG_OPENDPI),y)
 PF_EXT_SLIB += opendpi
-CFLAGS += -DOPENDPI_NETFILTER_MODULE -DHAVE_NTOP -D__NDPI_MAIN_INCLUDE_FILE__ -I$(TOP)/opendpi/opendpi/include -I$(TOP)/opendpi/src
+CFLAGS += -DOPENDPI_NETFILTER_MODULE -D__NDPI_MAIN_INCLUDE_FILE__ -I$(TOP)/opendpi/opendpi/include -I$(TOP)/opendpi/src
+endif
+
+ifeq ($(CONFIG_HOTPLUG2),y)
+PF_EXT_SLIB += CT
 endif
 
 #random nth ROUTE
 
 #PF_EXT_SLIB:=ah addrtype comment connlimit connmark conntrack dscp ecn esp hashlimit helper icmp iprange length limit mac mark multiport owner physdev pkttype realm rpc sctp standard state tcp tcpmss tos ttl udp unclean CLASSIFY CONNMARK DNAT DSCP ECN LOG MARK MASQUERADE MIRROR NETMAP NFQUEUE NOTRACK REDIRECT REJECT SAME SNAT TARPIT TCPMSS TOS TRACE TTL ULOG
-PF6_EXT_SLIB:= udp tcp MARK LOG mac mark length icmpv6 ipv6header limit physdev state standard
+PF6_EXT_SLIB:= udp tcp MARK LOG TCPMSS mac mark length icmpv6 ipv6header limit physdev state standard
 
 ifeq ($(DO_SELINUX), 1)
 PF_EXT_SE_SLIB:=SECMARK CONNSECMARK

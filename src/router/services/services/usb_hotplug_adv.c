@@ -21,20 +21,22 @@
 #include <string.h>
 #include <errno.h>
 #include <dirent.h>
+#include <fcntl.h>
 #include <sys/stat.h>
 #include <typedefs.h>
 #include <shutils.h>
+#include <utils.h>
 #include <bcmnvram.h>
 
-int usb_process_path(char *path, int host, char *part, char *devpath);
+static int usb_process_path(char *path, int host, char *part, char *devpath);
 static void usb_unmount(char *dev);
-int usb_add_ufd(char *link, int host, char *devpath, int mode);
+static int usb_add_ufd(char *link, int host, char *devpath, int mode);
 
 #define DUMPFILE	"/tmp/disktype.dump"
 #define PARTFILE	"/tmp/part.dump"
 #define MOUNTSTAT	"/tmp/mounting"
 
-static bool run_on_mount()
+static void run_on_mount(void)
 {
 	struct stat tmp_stat;
 	char path[128];
@@ -48,6 +50,7 @@ static bool run_on_mount()
 			system(path);
 		}
 	}
+	return;
 }
 
 /* TODO improvement: use procfs to identify pids that have openfiles on externel discs and then stop them before umount*/
@@ -125,7 +128,7 @@ void start_hotplug_usb(void)
 			for (i = 0; i <= 10; i++)
 				sleep(1);
 		} else {
-			sysprintf("touch %s ", MOUNTSTAT);
+			eval("touch", MOUNTSTAT);
 		}
 
 		if (!strcmp(action, "add")) {	//let the disc settle before we mount
@@ -140,7 +143,7 @@ void start_hotplug_usb(void)
 				sprintf(link, "/dev/scsi/host%d/bus0/target0/lun0", host);
 				if (!strcmp(action, "add")) {
 					usb_add_ufd(link, host, devpath, 0);
-					sysprintf("rm -rf %s ", MOUNTSTAT);
+					unlink(MOUNTSTAT);
 				}
 				break;
 			}
@@ -161,8 +164,17 @@ void start_hotplug_usb(void)
 }
 
 /* Optimize performance */
-#define READ_AHEAD_KB_BUF	1024
+#define READ_AHEAD_KB_BUF	"1024"
 #define READ_AHEAD_CONF	"/sys/block/%s/queue/read_ahead_kb"
+
+static void writestr(char *path, char *a)
+{
+	int fd = open(path, O_WRONLY);
+	if (fd < 0)
+		return;
+	write(fd, a, strlen(a));
+	close(fd);
+}
 
 static void optimize_block_device(char *devname)
 {
@@ -173,7 +185,7 @@ static void optimize_block_device(char *devname)
 	memset(blkdev, 0, sizeof(blkdev));
 	strncpy(blkdev, devname, 3);
 	sprintf(read_ahead_conf, READ_AHEAD_CONF, blkdev);
-	sysprintf("echo %d > %s", READ_AHEAD_KB_BUF, read_ahead_conf);
+	writestr(read_ahead_conf, READ_AHEAD_KB_BUF);
 }
 
 //Kernel 3.x
@@ -269,60 +281,26 @@ static bool usb_load_modules(char *fs)
 		insmod("fuse");
 #endif
 	if (!strcmp(fs, "ext2")) {
-		insmod("mbcache");
-		insmod("ext2");
+		insmod("mbcache ext2");
 	}
 #ifdef HAVE_USB_ADVANCED
-	if (!strcmp(fs, "ext3")) {
-		insmod("mbcache");
-		insmod("ext2");
-		insmod("jbd");
-		insmod("ext3");
-	}
-	if (!strcmp(fs, "ext4")) {
-		insmod("crc16");
-		insmod("mbcache");
-		insmod("jbd2");
-		insmod("ext4");
+	if (!strcmp(fs, "ext3") || !strcmp(fs, "ext4")) {
+		insmod("crc16 mbcache ext2 jbd jbd2 ext3 ext4");
 	}
 	if (!strcmp(fs, "btrfs")) {
-		insmod("libcrc32c");
-		insmod("lzo_compress");
-		insmod("lzo_decompress");
-		insmod("btrfs");
+		insmod("libcrc32c crc32c_generic lzo_compress lzo_decompress raid6_pq xor-neon xor btrfs");
 	}
 	if (!strcmp(fs, "hfs")) {
-		insmod("nls_base");
-		insmod("nls_cp932");
-		insmod("nls_cp936");
-		insmod("nls_cp950");
-		insmod("nls_cp437");
-		insmod("nls_iso8859-1");
-		insmod("nls_iso8859-2");
-		insmod("nls_utf8");
+		insmod("nls_base nls_cp932 nls_cp936 nls_cp950 nls_cp437 nls_iso8859-1 nls_iso8859-2 nls_utf8");
 		insmod("hfs");
 	}
 	if (!strcmp(fs, "hfsplus")) {
-		insmod("nls_base");
-		insmod("nls_cp932");
-		insmod("nls_cp936");
-		insmod("nls_cp950");
-		insmod("nls_cp437");
-		insmod("nls_iso8859-1");
-		insmod("nls_iso8859-2");
-		insmod("nls_utf8");
+		insmod("nls_base nls_cp932 nls_cp936 nls_cp950 nls_cp437 nls_iso8859-1 nls_iso8859-2 nls_utf8");
 		insmod("hfsplus");
 	}
 #endif
 	if (!strcmp(fs, "vfat")) {
-		insmod("nls_base");
-		insmod("nls_cp932");
-		insmod("nls_cp936");
-		insmod("nls_cp950");
-		insmod("nls_cp437");
-		insmod("nls_iso8859-1");
-		insmod("nls_iso8859-2");
-		insmod("nls_utf8");
+		insmod("nls_base nls_cp932 nls_cp936 nls_cp950 nls_cp437 nls_iso8859-1 nls_iso8859-2 nls_utf8");
 		insmod("fat");
 		insmod("vfat");
 		insmod("msdos");
@@ -331,8 +309,7 @@ static bool usb_load_modules(char *fs)
 		insmod("xfs");
 	}
 	if (!strcmp(fs, "udf")) {
-		insmod("crc-itu-t");
-		insmod("udf");
+		insmod("crc-itu-t udf");
 	}
 	if (!strcmp(fs, "iso9660")) {
 		insmod("isofs");
@@ -343,7 +320,7 @@ static bool usb_load_modules(char *fs)
  /* 
   *   Mount partition 
   */
-int usb_process_path(char *path, int host, char *part, char *devpath)
+static int usb_process_path(char *path, int host, char *part, char *devpath)
 {
 	int ret = ENOENT;
 	FILE *fp = NULL;
@@ -368,8 +345,6 @@ int usb_process_path(char *path, int host, char *part, char *devpath)
 		sprintf(part_file, "/tmp/disk/disc%d-%s", host, part);
 	}
 	sysprintf("/usr/sbin/disktype %s > %s", path, &part_file);
-
-	sysprintf("echo usb_process_path partfile %s  by path %s>> /tmp/hotplugs", &part_file, path);
 
 	/* determine fs */
 	fs = "";
@@ -469,15 +444,15 @@ int usb_process_path(char *path, int host, char *part, char *devpath)
 	}
 
 	if (strcmp(fs, "swap"))	//don't create dir as swap is not mounted to a dir
-		sysprintf("mkdir -p %s", mount_point);
+		eval("mkdir", "-p", mount_point);
 
 	if (host != -1) {
 		/* at the time the kernel (2.6) notifies us, the part entries are gone thus we map devicepath to mounted partitions so we can umount them later on */
 		sprintf(dev_dir, "/tmp/%s", devpath);
-		sysprintf("mkdir -p %s", dev_dir);
+		eval("mkdir", "-p", dev_dir);
 		// e.g. /mnt /tmp/devices/pci0000:00/0000:00:04.1/usb1/1-1/1-1:1.0/part1
-		sprintf(sym_link, "%s %s/%s", mount_point, dev_dir, part);
-		sysprintf("ln -s %s", sym_link);
+		sprintf(sym_link, "%s/%s", dev_dir, part);
+		eval("ln", "-s", mount_point, sym_link);
 	}
 
 	/* lets start mounting */
@@ -507,12 +482,16 @@ int usb_process_path(char *path, int host, char *part, char *devpath)
 		sysprintf("echo \"<b>%s</b> mounted to <b>%s</b><hr>\"  >> /tmp/disk/%s", path, mount_point, dev);
 	}
 
-	// now we will get a nice ordered dump of all partitions        
-	sysprintf("cat /tmp/disk/* > %s", DUMPFILE);
+	// now we will get a nice ordered dump of all partitions
+	sysprintf("cat /tmp/disk/sd*[1-6] > %s", DUMPFILE);
 
 	/* avoid out of memory problems which could lead to broken wireless, so we limit the minimum free ram everything else can be used for fs cache */
 #ifdef HAVE_80211AC
 	writeproc("/proc/sys/vm/min_free_kbytes", "16384");
+#elif HAVE_MVEBU
+	writeproc("/proc/sys/vm/min_free_kbytes", "65536");
+#elif HAVE_IPQ806X
+	writeproc("/proc/sys/vm/min_free_kbytes", "65536");
 #else
 	writeproc("/proc/sys/vm/min_free_kbytes", "4096");
 #endif
@@ -521,7 +500,7 @@ int usb_process_path(char *path, int host, char *part, char *devpath)
 //      writeproc("/proc/sys/vm/overcommit_memory","2");
 //      writeproc("/proc/sys/vm/overcommit_ratio","145");
 	//prepare for optware
-	sysprintf("mkdir -p /jffs/lib/opkg");
+	//sysprintf("mkdir -p /jffs/lib/opkg");
 
 	return ret;
 }
@@ -538,22 +517,21 @@ static void usb_unmount(char *devpath)
 
 	usb_stop_services();
 
-	system("echo 1 > /proc/sys/vm/drop_caches");	// flush fs cache
+	writeproc("/proc/sys/vm/drop_caches", "3");	// flush fs cache
 
 	//K3 code
-	sysprintf("umount %s", devpath);
+	eval("umount", devpath);
 
 	//K2.6 code
 	sprintf(dev_dir, "/tmp/%s", devpath);
 	// /tmp/devices/pci0000:00/0000:00:04.1/usb1/1-1/1-1:1.0/
 	dir = opendir(dev_dir);
 	if (dir != NULL) {
-		sysprintf("echo  Starting umount %s >> /tmp/hotplugs", devpath);
 		while ((entry = readdir(dir)) != NULL) {
 			if (strncmp(entry->d_name, ".", 1)) {	//skip . and ..
 				/* use the symlinks we created under /tmp to umount the devices partitions */
 				sprintf(sym_link, "%s/%s", dev_dir, entry->d_name);
-				sysprintf("umount %s", sym_link);
+				eval("umount", sym_link);
 			}
 		}
 	}
@@ -566,7 +544,7 @@ static void usb_unmount(char *devpath)
 /* 
 * Handle hotplugging of UFD 
 */
-int usb_add_ufd(char *link, int host, char *devpath, int mode)
+static int usb_add_ufd(char *link, int host, char *devpath, int mode)
 {
 	DIR *dir = NULL;
 
@@ -578,15 +556,12 @@ int usb_add_ufd(char *link, int host, char *devpath, int mode)
 
 	//create directory to store disktype dumps
 
-	//sysprintf("echo usb_add_ufd host %d devname %s >> /tmp/hotplugs", host, devpath);
-
 	if (mode == 1) {	//K3
 		usb_process_path(devpath, -1, NULL, NULL);	//use -1 to signal K3          
 	} else {		//K2.6
 		usb_stop_services();	//K3 will start/stop only for a drive not partition
 		dir = opendir(link);
 		if (dir != NULL) {
-			sysprintf("echo  Reading %s >> /tmp/hotplugs", link);
 			while ((entry = readdir(dir)) != NULL) {
 				sprintf(part_link, "%s/%s", link, entry->d_name);
 				if (!strncmp(entry->d_name, "disc", 4)) {
@@ -596,17 +571,11 @@ int usb_add_ufd(char *link, int host, char *devpath, int mode)
 				}
 
 				if (strncmp(entry->d_name, "disc", 4) && strncmp(entry->d_name, ".", 1)) {	//only get partitions
-					sysprintf("echo  Processing  %s >> /tmp/hotplugs", entry->d_name);
 					usb_process_path(part_link, host, entry->d_name, devpath);
-				} else {
-					//sysprintf("echo  Skipping %s >> /tmp/hotplugs", entry->d_name);
 				}
 
 			}
-			//sysprintf("echo  Done reading %s >> /tmp/hotplugs", link);
 			closedir(dir);
-		} else {
-			sysprintf("echo  Cannot read %s >> /tmp/hotplugs", link);
 		}
 		run_on_mount();
 		usb_start_services();

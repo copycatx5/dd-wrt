@@ -2,14 +2,14 @@
 -- Functions for the SSH-2 protocol.
 --
 -- @author Sven Klemm <sven@c3d2.de>
--- @copyright Same as Nmap--See http://nmap.org/book/man-legal.html
+-- @copyright Same as Nmap--See https://nmap.org/book/man-legal.html
 
-module(... or "ssh2",package.seeall)
-
-require "bin"
-require "base64"
-require "openssl"
-require "stdnse"
+local base64 = require "base64"
+local bin = require "bin"
+local nmap = require "nmap"
+local stdnse = require "stdnse"
+local openssl = stdnse.silent_require "openssl"
+_ENV = stdnse.module("ssh2", stdnse.seeall)
 
 -- table holding transport layer functions
 transport = {}
@@ -19,7 +19,7 @@ local SSH2
 
 --- Retrieve the size of the packet that is being received
 --  and checks if it is fully received
--- 
+--
 --  This function is very similar to the function generated
 --  with match.numbytes(num) function, except that this one
 --  will check for the number of bytes on-the-fly, based on
@@ -38,7 +38,8 @@ check_packet_length = function( buffer )
 end
 
 --- Receives a complete SSH packet, even if fragmented
---  this function is an abstraction layer to deal with
+--
+--  This function is an abstraction layer to deal with
 --  checking the packet size to know if there is any more
 --  data to receive.
 --
@@ -59,7 +60,7 @@ transport.pack_mpint = function( bn )
   packed = bn:tobin()
   if bytes % 8 == 0 then
     bytes = bytes + 1
-    packed = string.char(0) .. packed
+    packed = '\0' .. packed
   end
   return bin.pack( ">IA", bytes, packed )
 end
@@ -75,7 +76,7 @@ transport.build = function( payload )
 end
 
 --- Extract the payload from a received SSH-2 packet.
--- @param packet Peceived SSH-2 packet.
+-- @param packet Received SSH-2 packet.
 -- @return Payload of the SSH-2 packet.
 transport.payload = function( packet )
   local packet_length, padding_length, payload_length, payload, offset
@@ -85,7 +86,7 @@ transport.payload = function( packet )
   assert(packet_length and padding_length)
   payload_length = packet_length - padding_length - 1
   if packet_length ~= packet:len() then
-    stdnse.print_debug("SSH-2 packet doesn't match length: payload_length is %d but total length is only %d.", packet_length, packet:len())
+    stdnse.debug1("SSH-2 packet doesn't match length: payload_length is %d but total length is only %d.", packet_length, packet:len())
     return nil
   end
   offset, payload = bin.unpack( ">A" .. payload_length, packet, offset )
@@ -109,11 +110,11 @@ transport.kex_init = function( options )
   local languages = options['languages'] or ""
 
   local payload = bin.pack( ">cAaa", SSH2.SSH_MSG_KEXINIT, cookie, kex_algorithms, host_key_algorithms )
-  payload = payload .. bin.pack( ">aa", encryption_algorithms, encryption_algorithms )
-  payload = payload .. bin.pack( ">aa", mac_algorithms, mac_algorithms )
-  payload = payload .. bin.pack( ">aa", compression_algorithms, compression_algorithms )
-  payload = payload .. bin.pack( ">aa", languages, languages )
-  payload = payload .. bin.pack( ">cI", 0, 0 )
+  .. bin.pack( ">aa", encryption_algorithms, encryption_algorithms )
+  .. bin.pack( ">aa", mac_algorithms, mac_algorithms )
+  .. bin.pack( ">aa", compression_algorithms, compression_algorithms )
+  .. bin.pack( ">aa", languages, languages )
+  .. bin.pack( ">cI", 0, 0 )
 
   return payload
 end
@@ -121,7 +122,7 @@ end
 --- Parse a <code>kexinit</code> package.
 --
 -- Returns an empty table in case of an error
-transport.parse_kex_init = function( payload ) 
+transport.parse_kex_init = function( payload )
   local _, offset, msg_code, parsed, fields, fieldname
   parsed = {}
 
@@ -156,7 +157,25 @@ fetch_host_key = function( host, port, key_type )
   local status
 
   -- oakley group 2 prime taken from rfc 2409
-  local prime = "FFFFFFFFFFFFFFFFC90FDAA22168C234C4C6628B80DC1CD129024E088A67CC74020BBEA63B139B22514A08798E3404DDEF9519B3CD3A431B302B0A6DF25F14374FE1356D6D51C245E485B576625E7EC6F44C42E9A637ED6B0BFF5CB6F406B7EDEE386BFB5A899FA5AE9F24117C4B1FE649286651ECE65381FFFFFFFFFFFFFFFF"
+  local prime2 = "FFFFFFFFFFFFFFFFC90FDAA22168C234C4C6628B80DC1CD1\z
+    29024E088A67CC74020BBEA63B139B22514A08798E3404DD\z
+    EF9519B3CD3A431B302B0A6DF25F14374FE1356D6D51C245\z
+    E485B576625E7EC6F44C42E9A637ED6B0BFF5CB6F406B7ED\z
+    EE386BFB5A899FA5AE9F24117C4B1FE649286651ECE65381\z
+    FFFFFFFFFFFFFFFF"
+  -- oakley group 14 prime taken from rfc 3526
+  local prime14 = "FFFFFFFFFFFFFFFFC90FDAA22168C234C4C6628B80DC1CD1\z
+    29024E088A67CC74020BBEA63B139B22514A08798E3404DD\z
+    EF9519B3CD3A431B302B0A6DF25F14374FE1356D6D51C245\z
+    E485B576625E7EC6F44C42E9A637ED6B0BFF5CB6F406B7ED\z
+    EE386BFB5A899FA5AE9F24117C4B1FE649286651ECE45B3D\z
+    C2007CB8A163BF0598DA48361C55D39A69163FA8FD24CF5F\z
+    83655D23DCA3AD961C62F356208552BB9ED529077096966D\z
+    670C354E4ABC9804F1746C08CA18217C32905E462E36CE3B\z
+    E39E772C180E86039B2783A2EC07A28FB5C55DF06F4C52C9\z
+    DE2BCBF6955817183995497CEA956AE515D2261898FA0510\z
+    15728E5A8AACAA68FFFFFFFFFFFFFFFF"
+
 
   status = socket:connect(host, port)
   if not status then return end
@@ -167,7 +186,10 @@ fetch_host_key = function( host, port, key_type )
   status = socket:send("SSH-2.0-Nmap-SSH2-Hostkey\r\n")
   if not status then socket:close(); return end
 
-  local packet = transport.build( transport.kex_init( {host_key_algorithms=key_type} ) )
+  local packet = transport.build( transport.kex_init( {
+        host_key_algorithms=key_type,
+        kex_algorithms="diffie-hellman-group1-sha1,diffie-hellman-group14-sha1"
+    } ) )
   status = socket:send( packet )
   if not status then socket:close(); return end
 
@@ -178,7 +200,20 @@ fetch_host_key = function( host, port, key_type )
 
   if not tostring(kex_init.server_host_key_algorithms):find( key_type, 1, true ) then
     -- server does not support host key type
-    stdnse.print_debug( 2, "Hostkey type '%s' not supported by server.", key_type )
+    stdnse.debug2("Hostkey type '%s' not supported by server.", key_type )
+    return
+  end
+
+  local kex_algs = tostring(kex_init.kex_algorithms)
+  local prime, q
+  if kex_algs:find("diffie-hellman-group1-", 1, true) then
+    prime = prime2
+    q = 1024
+  elseif kex_algs:find("diffie-hellman-group14-", 1, true) then
+    prime = prime14
+    q = 2048
+  else
+    stdnse.debug2("No shared KEX methods supported by server")
     return
   end
 
@@ -186,7 +221,7 @@ fetch_host_key = function( host, port, key_type )
   -- e = g^x mod p
   g = openssl.bignum_dec2bn( "2" )
   p = openssl.bignum_hex2bn( prime )
-  x = openssl.bignum_pseudo_rand( 1024 )
+  x = openssl.bignum_pseudo_rand( q )
   e = openssl.bignum_mod_exp( g, x, p )
 
   packet = transport.build( transport.kexdh_init( e ) )
@@ -195,9 +230,11 @@ fetch_host_key = function( host, port, key_type )
 
   local kexdh_reply
   status, kexdh_reply = transport.receive_packet( socket )
+  if not status then socket:close(); return end
   kexdh_reply = transport.payload( kexdh_reply )
   -- check for proper msg code
   if kexdh_reply:byte(1) ~= SSH2.SSH_MSG_KEXDH_REPLY then
+    socket:close()
     return
   end
 
@@ -214,11 +251,21 @@ fetch_host_key = function( host, port, key_type )
     local n
     _, _, _, n = bin.unpack( ">aaa", public_host_key )
     bits = openssl.bignum_bin2bn( n ):num_bits()
+  elseif key_type == 'ecdsa-sha2-nistp256' then
+    algorithm = "ECDSA"
+    bits = "256"
+  elseif key_type == 'ecdsa-sha2-nistp384' then
+    algorithm = "ECDSA"
+    bits = "384"
+  elseif key_type == 'ecdsa-sha2-nistp521' then
+    algorithm = "ECDSA"
+    bits = "521"
   else
-    stdnse.print_debug( "Unsupported key type: %s", key_type )
+    stdnse.debug1("Unsupported key type: %s", key_type )
   end
 
-  return { key=public_host_key, key_type=key_type, fp_input=public_host_key, bits=bits,
+  socket:close()
+  return { key=base64.enc(public_host_key), key_type=key_type, fp_input=public_host_key, bits=bits,
            full_key=('%s %s'):format(key_type,base64.enc(public_host_key)),
            algorithm=algorithm, fingerprint=openssl.md5(public_host_key) }
 end
@@ -238,3 +285,5 @@ SSH2 = {
   SSH_MSG_KEXDH_REPLY = 31,
 }
 
+
+return _ENV;

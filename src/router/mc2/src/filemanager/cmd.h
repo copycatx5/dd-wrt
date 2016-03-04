@@ -20,20 +20,11 @@ typedef enum
     LINK_SYMLINK_RELATIVE
 } link_type_t;
 
-/* selection flags */
-typedef enum
-{
-    SELECT_FILES_ONLY = 1 << 0,
-    SELECT_MATCH_CASE = 1 << 1,
-    SELECT_SHELL_PATTERNS = 1 << 2
-} select_flags_t;
-
 /*** structures declarations (and typedefs of structures)*****************************************/
 
 /*** global variables defined in .c file *********************************************************/
 
 /*** declarations of public functions ************************************************************/
-
 
 #ifdef ENABLE_VFS_FTP
 void ftplink_cmd (void);
@@ -53,7 +44,8 @@ void smart_dirsize_cmd (void);
 void single_dirsize_cmd (void);
 void dirsizes_cmd (void);
 gboolean view_file_at_line (const vfs_path_t * filename_vpath, gboolean plain_view,
-                            gboolean internal, long start_line);
+                            gboolean internal, long start_line, off_t search_start,
+                            off_t search_end);
 gboolean view_file (const vfs_path_t * filename_vpath, gboolean normal, gboolean internal);
 void view_cmd (void);
 void view_file_cmd (void);
@@ -85,9 +77,6 @@ void diff_view_cmd (void);
 void panel_tree_cmd (void);
 void link_cmd (link_type_t link_type);
 void edit_symlink_cmd (void);
-void select_invert_cmd (void);
-void unselect_cmd (void);
-void select_cmd (void);
 void swap_cmd (void);
 void view_other_cmd (void);
 void quick_cd_cmd (void);

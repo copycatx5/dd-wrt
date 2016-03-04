@@ -2,7 +2,7 @@
  * ProFTPD: mod_wrap2_file -- a mod_wrap2 sub-module for supplying IP-based
  *                            access control data via file-based tables
  *
- * Copyright (c) 2002-2010 TJ Saunders
+ * Copyright (c) 2002-2014 TJ Saunders
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -22,12 +22,12 @@
  * with OpenSSL, and distribute the resulting executable, without including
  * the source code for OpenSSL in the source distribution.
  *
- * $Id: mod_wrap2_file.c,v 1.11 2011/05/23 20:56:40 castaglia Exp $
+ * $Id: mod_wrap2_file.c,v 1.14 2013-12-19 23:19:50 castaglia Exp $
  */
 
 #include "mod_wrap2.h"
 
-#define MOD_WRAP2_FILE_VERSION		"mod_wrap2_file/1.2"
+#define MOD_WRAP2_FILE_VERSION		"mod_wrap2_file/1.3"
 
 module wrap2_file_module;
 
@@ -47,7 +47,7 @@ static void filetab_parse_table(wrap2_table_t *filetab) {
 
   while (pr_fsio_getline(buf, sizeof(buf), (pr_fh_t *) filetab->tab_handle,
       &lineno) != NULL) {
-    char *res = NULL, *service = NULL;
+    char *ptr, *res = NULL, *service = NULL;
     size_t buflen = strlen(buf);
 
     if (buf[buflen-1] != '\n') {
@@ -56,8 +56,9 @@ static void filetab_parse_table(wrap2_table_t *filetab) {
       continue;
     } 
 
-    if (buf[0] == '#' || buf[strspn(buf, " \t\r\n")] == 0)
+    if (buf[0] == '#' || buf[strspn(buf, " \t\r\n")] == 0) {
       continue;
+    }
 
     buf[buflen-1] = '\0';
 
@@ -66,22 +67,21 @@ static void filetab_parse_table(wrap2_table_t *filetab) {
      * syntax will result in lack of desired results when doing the access
      * checks.
      */
-    res = strchr(buf, ':');
-    if (res == NULL) {
+    ptr = strchr(buf, ':');
+    if (ptr == NULL) {
       wrap2_log("file '%s': badly formatted list of daemon/service names at "
         "line %u", filetab->tab_name, lineno);
       continue;
     }
 
-    service = pstrndup(filetab->tab_pool, buf, (res - buf));
+    service = pstrndup(filetab->tab_pool, buf, (ptr - buf));
 
     if (filetab_service_name &&
         (strcasecmp(filetab_service_name, service) == 0 ||
-         strcasecmp("ALL", service) == 0)) {
-      char *ptr = NULL;
-
-      if (filetab_daemons_list == NULL)
+         strncasecmp("ALL", service, 4) == 0)) {
+      if (filetab_daemons_list == NULL) {
         filetab_daemons_list = make_array(filetab->tab_pool, 0, sizeof(char *));
+      }
 
       *((char **) push_array(filetab_daemons_list)) = service;
 
@@ -92,8 +92,9 @@ static void filetab_parse_table(wrap2_table_t *filetab) {
         continue;
       }
 
-      if (filetab_clients_list == NULL)
+      if (filetab_clients_list == NULL) {
         filetab_clients_list = make_array(filetab->tab_pool, 0, sizeof(char *));
+      }
 
       /* Check for another ':' delimiter.  If present, anything following that
        * delimiter is an option/shell command (as per the hosts_access(5) man
@@ -103,23 +104,43 @@ static void filetab_parse_table(wrap2_table_t *filetab) {
        * client names.  Otherwise, a comma- or space-delimited list of names
        * will be treated as a single name, and violate the principle of least
        * surprise for the site admin.
+       *
+       * NOTE: Disable support for options in the file syntax if IPv6 addresses
+       * are present, since the parsing code below is not sufficient for
+       * handling both IPv6 addresses AND options, e.g.:
+       *
+       *  proftpd: [::1] [::2]: <options>
        */
 
-      ptr = wrap2_strsplit(res, ':');    
+      ptr = strchr(res, ':');
       if (ptr != NULL) {
-        if (filetab_options_list == NULL)
-          filetab_options_list = make_array(filetab->tab_pool, 0, 
-            sizeof(char *));
+        char *clients;
+        size_t clients_len;
 
-        /* Skip redundant whitespaces */
-        while (*ptr == ' ' ||
-               *ptr == '\t') {
-          pr_signals_handle();
-          ptr++;
+        clients_len = (ptr - res);
+        clients = pstrndup(filetab->tab_pool, res, clients_len);
+
+        if (strcspn(clients, "[]") == clients_len) {
+          ptr = wrap2_strsplit(res, ':');
+
+          if (filetab_options_list == NULL) {
+            filetab_options_list = make_array(filetab->tab_pool, 0, 
+              sizeof(char *));
+          }
+
+          /* Skip redundant whitespaces */
+          while (*ptr == ' ' ||
+                 *ptr == '\t') {
+            pr_signals_handle();
+            ptr++;
+          }
+
+          *((char **) push_array(filetab_options_list)) =
+            pstrdup(filetab->tab_pool, ptr);
+
+        } else {
+          /* Ignoring options and IPv6 addresses (Bug#4090) for now. */
         }
-
-        *((char **) push_array(filetab_options_list)) =
-          pstrdup(filetab->tab_pool, ptr);
 
       } else {
         /* No options present. */
@@ -244,8 +265,26 @@ static wrap2_table_t *filetab_open_cb(pool *parent_pool, char *srcinfo) {
     path = dir_realpath(tab_pool, srcinfo);
     PRIVS_RELINQUISH
 
-    if (path)
+    if (path) {
       srcinfo = path;
+      wrap2_log("resolved tilde: path now '%s'", srcinfo);
+    }
+  }
+
+  /* If the path contains a %U variable, interpolate it. */
+  if (strstr(srcinfo, "%U") != NULL) {
+    char *orig_user;
+
+    orig_user = pr_table_get(session.notes, "mod_auth.orig-user", NULL);
+    if (orig_user != NULL) {
+      char *interp_path;
+
+      interp_path = sreplace(tab_pool, srcinfo, "%U", orig_user, NULL);
+      if (interp_path != NULL) {
+        srcinfo = interp_path;
+        wrap2_log("resolved %%U: path now '%s'", srcinfo);
+      }
+    }
   }
 
   tab = (wrap2_table_t *) pcalloc(tab_pool, sizeof(wrap2_table_t));
@@ -253,18 +292,42 @@ static wrap2_table_t *filetab_open_cb(pool *parent_pool, char *srcinfo) {
 
   /* Open the table handle */
   while ((tab->tab_handle = (void *) pr_fsio_open(srcinfo, O_RDONLY)) == NULL) {
-    if (errno == EINTR) {
+    int xerrno = errno;
+
+    if (xerrno == EINTR) {
       pr_signals_handle();
       continue;
     }
 
     destroy_pool(tab->tab_pool);
+    errno = xerrno;
     return NULL;
   }
 
   /* Stat the opened file to determine the optimal buffer size for IO. */
   memset(&st, 0, sizeof(st));
-  pr_fsio_fstat((pr_fh_t *) tab->tab_handle, &st);
+  if (pr_fsio_fstat((pr_fh_t *) tab->tab_handle, &st) < 0) {
+    int xerrno = errno;
+
+    destroy_pool(tab->tab_pool);
+    pr_fsio_close((pr_fh_t *) tab->tab_handle);
+    tab->tab_handle = NULL;
+
+    errno = xerrno;
+    return NULL;
+  }
+
+  if (S_ISDIR(st.st_mode)) {
+    int xerrno = EISDIR;
+
+    destroy_pool(tab->tab_pool);
+    pr_fsio_close((pr_fh_t *) tab->tab_handle);
+    tab->tab_handle = NULL;
+
+    errno = xerrno;
+    return NULL;
+  }
+
   ((pr_fh_t *) tab->tab_handle)->fh_iosz = st.st_blksize;
 
   tab->tab_name = pstrdup(tab->tab_pool, srcinfo);

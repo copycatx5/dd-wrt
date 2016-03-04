@@ -1,7 +1,7 @@
 /*
    User Menu implementation
 
-   Copyright (C) 1994-2014
+   Copyright (C) 1994-2015
    Free Software Foundation, Inc.
 
    Written by:
@@ -80,13 +80,13 @@ static char *menu = NULL;
 static char *
 strip_ext (char *ss)
 {
-    register char *s = ss;
+    char *s = ss;
     char *e = NULL;
     while (*s)
     {
         if (*s == '.')
             e = s;
-        if (*s == PATH_SEP && e)
+        if (IS_PATH_SEP (*s) && e != NULL)
             e = NULL;           /* '.' in *directory* name */
         s++;
     }
@@ -321,8 +321,7 @@ debug_out (char *start, char *end, int cond)
 
         }
         debug_flag = 0;
-        g_free (msg);
-        msg = NULL;
+        MC_PTR_FREE (msg);
     }
     else
     {
@@ -492,7 +491,7 @@ execute_menu_command (WEdit * edit_widget, const char *commands, gboolean show_p
                 {
                     char *tmp;
 
-                    tmp = name_quote (parameter, 0);
+                    tmp = name_quote (parameter, FALSE);
                     fputs (tmp, cmd_file);
                     g_free (tmp);
                 }
@@ -551,7 +550,7 @@ execute_menu_command (WEdit * edit_widget, const char *commands, gboolean show_p
     mc_chmod (file_name_vpath, S_IRWXU);
     if (run_view)
     {
-        mcview_viewer (vfs_path_as_str (file_name_vpath), NULL, 0);
+        mcview_viewer (vfs_path_as_str (file_name_vpath), NULL, 0, 0, 0);
         dialog_switch_process_pending ();
     }
     else
@@ -738,7 +737,7 @@ char *
 expand_format (struct WEdit *edit_widget, char c, gboolean do_quote)
 {
     WPanel *panel = NULL;
-    char *(*quote_func) (const char *, int);
+    char *(*quote_func) (const char *, gboolean);
     char *fname = NULL;
     char *result;
     char c_lc;
@@ -786,24 +785,22 @@ expand_format (struct WEdit *edit_widget, char c, gboolean do_quote)
     {
     case 'f':
     case 'p':
-        result = (*quote_func) (fname, 0);
+        result = quote_func (fname, FALSE);
         goto ret;
     case 'x':
-        result = (*quote_func) (extension (fname), 0);
+        result = quote_func (extension (fname), FALSE);
         goto ret;
     case 'd':
         {
-            char *cwd;
+            const char *cwd;
             char *qstr;
 
-            if (panel)
-                cwd = g_strdup (vfs_path_as_str (panel->cwd_vpath));
+            if (panel != NULL)
+                cwd = vfs_path_as_str (panel->cwd_vpath);
             else
                 cwd = vfs_get_current_dir ();
 
-            qstr = (*quote_func) (cwd, 0);
-
-            g_free (cwd);
+            qstr = quote_func (cwd, FALSE);
 
             result = qstr;
             goto ret;
@@ -839,14 +836,14 @@ expand_format (struct WEdit *edit_widget, char c, gboolean do_quote)
                 char *file;
 
                 file = mc_config_get_full_path (EDIT_BLOCK_FILE);
-                result = (*quote_func) (file, 0);
+                result = quote_func (file, FALSE);
                 g_free (file);
                 goto ret;
             }
 #endif
             if (c_lc == 'b')
             {
-                result = strip_ext ((*quote_func) (fname, 0));
+                result = strip_ext (quote_func (fname, FALSE));
                 goto ret;
             }
             break;
@@ -855,7 +852,7 @@ expand_format (struct WEdit *edit_widget, char c, gboolean do_quote)
 #ifdef USE_INTERNAL_EDIT
         if (edit_widget)
         {
-            result = strip_ext ((*quote_func) (fname, 0));
+            result = strip_ext (quote_func (fname, FALSE));
             goto ret;
         }
 #endif
@@ -863,14 +860,14 @@ expand_format (struct WEdit *edit_widget, char c, gboolean do_quote)
     case 'm':                  /* menu file name */
         if (menu)
         {
-            result = (*quote_func) (menu, 0);
+            result = quote_func (menu, FALSE);
             goto ret;
         }
         break;
     case 's':
         if (!panel || !panel->marked)
         {
-            result = (*quote_func) (fname, 0);
+            result = quote_func (fname, FALSE);
             goto ret;
         }
 
@@ -895,7 +892,7 @@ expand_format (struct WEdit *edit_widget, char c, gboolean do_quote)
                 {
                     char *tmp;
 
-                    tmp = (*quote_func) (panel->dir.list[i].fname, 0);
+                    tmp = quote_func (panel->dir.list[i].fname, FALSE);
                     g_string_append (block, tmp);
                     g_string_append_c (block, ' ');
                     g_free (tmp);
@@ -906,7 +903,10 @@ expand_format (struct WEdit *edit_widget, char c, gboolean do_quote)
             result = g_string_free (block, FALSE);
             goto ret;
         }                       /* sub case block */
+    default:
+        break;
     }                           /* switch */
+
     result = g_strdup ("% ");
     result[1] = c;
   ret:
@@ -946,8 +946,7 @@ user_menu_cmd (struct WEdit * edit_widget, const char *menu_file, int selected_e
         {
             message (D_ERROR, MSG_ERROR, _("Cannot open file %s\n%s"), menu,
                      unix_error_string (errno));
-            g_free (menu);
-            menu = NULL;
+            MC_PTR_FREE (menu);
             return FALSE;
         }
 
@@ -983,9 +982,8 @@ user_menu_cmd (struct WEdit * edit_widget, const char *menu_file, int selected_e
 
     if (!g_file_get_contents (menu, &data, NULL, NULL))
     {
-        message (D_ERROR, MSG_ERROR, _("Cannot open file%s\n%s"), menu, unix_error_string (errno));
-        g_free (menu);
-        menu = NULL;
+        message (D_ERROR, MSG_ERROR, _("Cannot open file %s\n%s"), menu, unix_error_string (errno));
+        MC_PTR_FREE (menu);
         return FALSE;
     }
 
@@ -1101,13 +1099,13 @@ user_menu_cmd (struct WEdit * edit_widget, const char *menu_file, int selected_e
 
             /* Create listbox */
             listbox = create_listbox_window (menu_lines, max_cols + 2, _("User menu"),
-                                             "[Menu File Edit]");
+                                             "[Edit Menu File]");
             /* insert all the items found */
             for (i = 0; i < menu_lines; i++)
             {
                 p = entries[i];
                 LISTBOX_APPEND_TEXT (listbox, (unsigned char) p[0],
-                                     extract_line (p, p + MAX_ENTRY_LEN), p);
+                                     extract_line (p, p + MAX_ENTRY_LEN), p, FALSE);
             }
             /* Select the default entry */
             listbox_select_entry (listbox->list, selected);
@@ -1124,8 +1122,7 @@ user_menu_cmd (struct WEdit * edit_widget, const char *menu_file, int selected_e
     }
 
     easy_patterns = old_patterns;
-    g_free (menu);
-    menu = NULL;
+    MC_PTR_FREE (menu);
     g_free (entries);
     g_free (data);
     return res;

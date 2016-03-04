@@ -15,13 +15,13 @@ struct tevent_req *dcerpc_eventlog6_EvtRpcRegisterRemoteSubscription_send(TALLOC
 									  struct tevent_context *ev,
 									  struct dcerpc_binding_handle *h,
 									  const char *_channelPath /* [in] [unique,range(0,MAX_RPC_CHANNEL_NAME_LENGTH),charset(UTF16)] */,
-									  const char *_query /* [in] [ref,range(1,MAX_RPC_QUERY_LENGTH),charset(UTF16)] */,
+									  const char *_query /* [in] [charset(UTF16),range(1,MAX_RPC_QUERY_LENGTH),ref] */,
 									  const char *_bookmarkXml /* [in] [unique,range(0,MAX_RPC_BOOKMARK_LENGTH),charset(UTF16)] */,
 									  uint32_t _flags /* [in]  */,
 									  struct policy_handle *_handle /* [out] [ref] */,
 									  struct policy_handle *_control /* [out] [ref] */,
 									  uint32_t *_queryChannelInfoSize /* [out] [ref] */,
-									  struct eventlog6_EvtRpcQueryChannelInfo **_queryChannelInfo /* [out] [ref,range(0,MAX_RPC_QUERY_CHANNEL_SIZE),size_is(,*queryChannelInfoSize)] */,
+									  struct eventlog6_EvtRpcQueryChannelInfo **_queryChannelInfo /* [out] [size_is(,*queryChannelInfoSize),range(0,MAX_RPC_QUERY_CHANNEL_SIZE),ref] */,
 									  struct eventlog6_RpcInfo *_error /* [out] [ref] */);
 NTSTATUS dcerpc_eventlog6_EvtRpcRegisterRemoteSubscription_recv(struct tevent_req *req,
 								TALLOC_CTX *mem_ctx,
@@ -29,13 +29,13 @@ NTSTATUS dcerpc_eventlog6_EvtRpcRegisterRemoteSubscription_recv(struct tevent_re
 NTSTATUS dcerpc_eventlog6_EvtRpcRegisterRemoteSubscription(struct dcerpc_binding_handle *h,
 							   TALLOC_CTX *mem_ctx,
 							   const char *_channelPath /* [in] [unique,range(0,MAX_RPC_CHANNEL_NAME_LENGTH),charset(UTF16)] */,
-							   const char *_query /* [in] [ref,range(1,MAX_RPC_QUERY_LENGTH),charset(UTF16)] */,
+							   const char *_query /* [in] [charset(UTF16),range(1,MAX_RPC_QUERY_LENGTH),ref] */,
 							   const char *_bookmarkXml /* [in] [unique,range(0,MAX_RPC_BOOKMARK_LENGTH),charset(UTF16)] */,
 							   uint32_t _flags /* [in]  */,
 							   struct policy_handle *_handle /* [out] [ref] */,
 							   struct policy_handle *_control /* [out] [ref] */,
 							   uint32_t *_queryChannelInfoSize /* [out] [ref] */,
-							   struct eventlog6_EvtRpcQueryChannelInfo **_queryChannelInfo /* [out] [ref,range(0,MAX_RPC_QUERY_CHANNEL_SIZE),size_is(,*queryChannelInfoSize)] */,
+							   struct eventlog6_EvtRpcQueryChannelInfo **_queryChannelInfo /* [out] [size_is(,*queryChannelInfoSize),range(0,MAX_RPC_QUERY_CHANNEL_SIZE),ref] */,
 							   struct eventlog6_RpcInfo *_error /* [out] [ref] */,
 							   WERROR *result);
 
@@ -52,10 +52,10 @@ struct tevent_req *dcerpc_eventlog6_EvtRpcRemoteSubscriptionNextAsync_send(TALLO
 									   uint32_t _numRequestedRecords /* [in]  */,
 									   uint32_t _flags /* [in]  */,
 									   uint32_t *_numActualRecords /* [out] [ref] */,
-									   uint32_t **_eventDataIndices /* [out] [ref,range(0,MAX_RPC_RECORD_COUNT),size_is(,*numActualRecords)] */,
-									   uint32_t **_eventDataSizes /* [out] [ref,range(0,MAX_RPC_RECORD_COUNT),size_is(,*numActualRecords)] */,
+									   uint32_t **_eventDataIndices /* [out] [size_is(,*numActualRecords),range(0,MAX_RPC_RECORD_COUNT),ref] */,
+									   uint32_t **_eventDataSizes /* [out] [size_is(,*numActualRecords),range(0,MAX_RPC_RECORD_COUNT),ref] */,
 									   uint32_t *_resultBufferSize /* [out] [ref] */,
-									   uint8_t **_resultBuffer /* [out] [ref,range(0,MAX_RPC_BATCH_SIZE),size_is(,*resultBufferSize)] */);
+									   uint8_t **_resultBuffer /* [out] [size_is(,*resultBufferSize),ref,range(0,MAX_RPC_BATCH_SIZE)] */);
 NTSTATUS dcerpc_eventlog6_EvtRpcRemoteSubscriptionNextAsync_recv(struct tevent_req *req,
 								 TALLOC_CTX *mem_ctx,
 								 WERROR *result);
@@ -65,10 +65,10 @@ NTSTATUS dcerpc_eventlog6_EvtRpcRemoteSubscriptionNextAsync(struct dcerpc_bindin
 							    uint32_t _numRequestedRecords /* [in]  */,
 							    uint32_t _flags /* [in]  */,
 							    uint32_t *_numActualRecords /* [out] [ref] */,
-							    uint32_t **_eventDataIndices /* [out] [ref,range(0,MAX_RPC_RECORD_COUNT),size_is(,*numActualRecords)] */,
-							    uint32_t **_eventDataSizes /* [out] [ref,range(0,MAX_RPC_RECORD_COUNT),size_is(,*numActualRecords)] */,
+							    uint32_t **_eventDataIndices /* [out] [size_is(,*numActualRecords),range(0,MAX_RPC_RECORD_COUNT),ref] */,
+							    uint32_t **_eventDataSizes /* [out] [size_is(,*numActualRecords),range(0,MAX_RPC_RECORD_COUNT),ref] */,
 							    uint32_t *_resultBufferSize /* [out] [ref] */,
-							    uint8_t **_resultBuffer /* [out] [ref,range(0,MAX_RPC_BATCH_SIZE),size_is(,*resultBufferSize)] */,
+							    uint8_t **_resultBuffer /* [out] [size_is(,*resultBufferSize),ref,range(0,MAX_RPC_BATCH_SIZE)] */,
 							    WERROR *result);
 
 struct tevent_req *dcerpc_eventlog6_EvtRpcRemoteSubscriptionNext_r_send(TALLOC_CTX *mem_ctx,
@@ -86,9 +86,9 @@ struct tevent_req *dcerpc_eventlog6_EvtRpcRemoteSubscriptionNext_send(TALLOC_CTX
 								      uint32_t _flags /* [in]  */,
 								      uint32_t *_numActualRecords /* [out] [ref] */,
 								      uint32_t **_eventDataIndices /* [out] [ref,range(0,MAX_RPC_RECORD_COUNT),size_is(,*numActualRecords)] */,
-								      uint32_t **_eventDataSizes /* [out] [ref,range(0,MAX_RPC_RECORD_COUNT),size_is(,*numActualRecords)] */,
+								      uint32_t **_eventDataSizes /* [out] [range(0,MAX_RPC_RECORD_COUNT),ref,size_is(,*numActualRecords)] */,
 								      uint32_t *_resultBufferSize /* [out] [ref] */,
-								      uint8_t **_resultBuffer /* [out] [ref,range(0,MAX_RPC_BATCH_SIZE),size_is(,*resultBufferSize)] */);
+								      uint8_t **_resultBuffer /* [out] [size_is(,*resultBufferSize),range(0,MAX_RPC_BATCH_SIZE),ref] */);
 NTSTATUS dcerpc_eventlog6_EvtRpcRemoteSubscriptionNext_recv(struct tevent_req *req,
 							    TALLOC_CTX *mem_ctx,
 							    WERROR *result);
@@ -100,9 +100,9 @@ NTSTATUS dcerpc_eventlog6_EvtRpcRemoteSubscriptionNext(struct dcerpc_binding_han
 						       uint32_t _flags /* [in]  */,
 						       uint32_t *_numActualRecords /* [out] [ref] */,
 						       uint32_t **_eventDataIndices /* [out] [ref,range(0,MAX_RPC_RECORD_COUNT),size_is(,*numActualRecords)] */,
-						       uint32_t **_eventDataSizes /* [out] [ref,range(0,MAX_RPC_RECORD_COUNT),size_is(,*numActualRecords)] */,
+						       uint32_t **_eventDataSizes /* [out] [range(0,MAX_RPC_RECORD_COUNT),ref,size_is(,*numActualRecords)] */,
 						       uint32_t *_resultBufferSize /* [out] [ref] */,
-						       uint8_t **_resultBuffer /* [out] [ref,range(0,MAX_RPC_BATCH_SIZE),size_is(,*resultBufferSize)] */,
+						       uint8_t **_resultBuffer /* [out] [size_is(,*resultBufferSize),range(0,MAX_RPC_BATCH_SIZE),ref] */,
 						       WERROR *result);
 
 struct tevent_req *dcerpc_eventlog6_EvtRpcRemoteSubscriptionWaitAsync_r_send(TALLOC_CTX *mem_ctx,
@@ -150,26 +150,26 @@ NTSTATUS dcerpc_eventlog6_EvtRpcRegisterLogQuery_r(struct dcerpc_binding_handle 
 struct tevent_req *dcerpc_eventlog6_EvtRpcRegisterLogQuery_send(TALLOC_CTX *mem_ctx,
 								struct tevent_context *ev,
 								struct dcerpc_binding_handle *h,
-								const char *_path /* [in] [unique,range(0,MAX_RPC_CHANNEL_PATH_LENGTH),charset(UTF16)] */,
-								const char *_query /* [in] [ref,range(1,MAX_RPC_QUERY_LENGTH),charset(UTF16)] */,
+								const char *_path /* [in] [charset(UTF16),range(0,MAX_RPC_CHANNEL_PATH_LENGTH),unique] */,
+								const char *_query /* [in] [charset(UTF16),range(1,MAX_RPC_QUERY_LENGTH),ref] */,
 								uint32_t _flags /* [in]  */,
 								struct policy_handle *_handle /* [out] [ref] */,
 								struct policy_handle *_opControl /* [out] [ref] */,
 								uint32_t *_queryChannelInfoSize /* [out] [ref] */,
-								struct eventlog6_EvtRpcQueryChannelInfo **_queryChannelInfo /* [out] [ref,range(0,MAX_RPC_QUERY_CHANNEL_SIZE),size_is(,*queryChannelInfoSize)] */,
+								struct eventlog6_EvtRpcQueryChannelInfo **_queryChannelInfo /* [out] [size_is(,*queryChannelInfoSize),range(0,MAX_RPC_QUERY_CHANNEL_SIZE),ref] */,
 								struct eventlog6_RpcInfo *_error /* [out] [ref] */);
 NTSTATUS dcerpc_eventlog6_EvtRpcRegisterLogQuery_recv(struct tevent_req *req,
 						      TALLOC_CTX *mem_ctx,
 						      WERROR *result);
 NTSTATUS dcerpc_eventlog6_EvtRpcRegisterLogQuery(struct dcerpc_binding_handle *h,
 						 TALLOC_CTX *mem_ctx,
-						 const char *_path /* [in] [unique,range(0,MAX_RPC_CHANNEL_PATH_LENGTH),charset(UTF16)] */,
-						 const char *_query /* [in] [ref,range(1,MAX_RPC_QUERY_LENGTH),charset(UTF16)] */,
+						 const char *_path /* [in] [charset(UTF16),range(0,MAX_RPC_CHANNEL_PATH_LENGTH),unique] */,
+						 const char *_query /* [in] [charset(UTF16),range(1,MAX_RPC_QUERY_LENGTH),ref] */,
 						 uint32_t _flags /* [in]  */,
 						 struct policy_handle *_handle /* [out] [ref] */,
 						 struct policy_handle *_opControl /* [out] [ref] */,
 						 uint32_t *_queryChannelInfoSize /* [out] [ref] */,
-						 struct eventlog6_EvtRpcQueryChannelInfo **_queryChannelInfo /* [out] [ref,range(0,MAX_RPC_QUERY_CHANNEL_SIZE),size_is(,*queryChannelInfoSize)] */,
+						 struct eventlog6_EvtRpcQueryChannelInfo **_queryChannelInfo /* [out] [size_is(,*queryChannelInfoSize),range(0,MAX_RPC_QUERY_CHANNEL_SIZE),ref] */,
 						 struct eventlog6_RpcInfo *_error /* [out] [ref] */,
 						 WERROR *result);
 
@@ -183,7 +183,7 @@ struct tevent_req *dcerpc_eventlog6_EvtRpcClearLog_send(TALLOC_CTX *mem_ctx,
 							struct tevent_context *ev,
 							struct dcerpc_binding_handle *h,
 							struct policy_handle *_control /* [in] [ref] */,
-							const char *_channelPath /* [in] [ref,range(0,MAX_RPC_CHANNEL_NAME_LENGTH),charset(UTF16)] */,
+							const char *_channelPath /* [in] [charset(UTF16),ref,range(0,MAX_RPC_CHANNEL_NAME_LENGTH)] */,
 							const char *_backupPath /* [in] [unique,range(0,MAX_RPC_FILE_PATH_LENGTH),charset(UTF16)] */,
 							uint32_t _flags /* [in]  */,
 							struct eventlog6_RpcInfo *_error /* [out] [ref] */);
@@ -193,7 +193,7 @@ NTSTATUS dcerpc_eventlog6_EvtRpcClearLog_recv(struct tevent_req *req,
 NTSTATUS dcerpc_eventlog6_EvtRpcClearLog(struct dcerpc_binding_handle *h,
 					 TALLOC_CTX *mem_ctx,
 					 struct policy_handle *_control /* [in] [ref] */,
-					 const char *_channelPath /* [in] [ref,range(0,MAX_RPC_CHANNEL_NAME_LENGTH),charset(UTF16)] */,
+					 const char *_channelPath /* [in] [charset(UTF16),ref,range(0,MAX_RPC_CHANNEL_NAME_LENGTH)] */,
 					 const char *_backupPath /* [in] [unique,range(0,MAX_RPC_FILE_PATH_LENGTH),charset(UTF16)] */,
 					 uint32_t _flags /* [in]  */,
 					 struct eventlog6_RpcInfo *_error /* [out] [ref] */,
@@ -210,7 +210,7 @@ struct tevent_req *dcerpc_eventlog6_EvtRpcExportLog_send(TALLOC_CTX *mem_ctx,
 							 struct dcerpc_binding_handle *h,
 							 struct policy_handle *_control /* [in] [ref] */,
 							 const char *_channelPath /* [in] [unique,range(0,MAX_RPC_CHANNEL_NAME_LENGTH),charset(UTF16)] */,
-							 const char *_query /* [in] [ref,range(1,MAX_RPC_QUERY_LENGTH),charset(UTF16)] */,
+							 const char *_query /* [in] [charset(UTF16),range(1,MAX_RPC_QUERY_LENGTH),ref] */,
 							 const char *_backupPath /* [in] [ref,range(1,MAX_RPC_FILE_PATH_LENGTH),charset(UTF16)] */,
 							 uint32_t _flags /* [in]  */,
 							 struct eventlog6_RpcInfo *_error /* [out] [ref] */);
@@ -221,7 +221,7 @@ NTSTATUS dcerpc_eventlog6_EvtRpcExportLog(struct dcerpc_binding_handle *h,
 					  TALLOC_CTX *mem_ctx,
 					  struct policy_handle *_control /* [in] [ref] */,
 					  const char *_channelPath /* [in] [unique,range(0,MAX_RPC_CHANNEL_NAME_LENGTH),charset(UTF16)] */,
-					  const char *_query /* [in] [ref,range(1,MAX_RPC_QUERY_LENGTH),charset(UTF16)] */,
+					  const char *_query /* [in] [charset(UTF16),range(1,MAX_RPC_QUERY_LENGTH),ref] */,
 					  const char *_backupPath /* [in] [ref,range(1,MAX_RPC_FILE_PATH_LENGTH),charset(UTF16)] */,
 					  uint32_t _flags /* [in]  */,
 					  struct eventlog6_RpcInfo *_error /* [out] [ref] */,
@@ -237,7 +237,7 @@ struct tevent_req *dcerpc_eventlog6_EvtRpcLocalizeExportLog_send(TALLOC_CTX *mem
 								 struct tevent_context *ev,
 								 struct dcerpc_binding_handle *h,
 								 struct policy_handle *_control /* [in] [ref] */,
-								 const char *_logFilePath /* [in] [ref,range(1,MAX_RPC_FILE_PATH_LENGTH),charset(UTF16)] */,
+								 const char *_logFilePath /* [in] [charset(UTF16),ref,range(1,MAX_RPC_FILE_PATH_LENGTH)] */,
 								 uint32_t _locale /* [in]  */,
 								 uint32_t _flags /* [in]  */,
 								 struct eventlog6_RpcInfo *_error /* [out] [ref] */);
@@ -247,7 +247,7 @@ NTSTATUS dcerpc_eventlog6_EvtRpcLocalizeExportLog_recv(struct tevent_req *req,
 NTSTATUS dcerpc_eventlog6_EvtRpcLocalizeExportLog(struct dcerpc_binding_handle *h,
 						  TALLOC_CTX *mem_ctx,
 						  struct policy_handle *_control /* [in] [ref] */,
-						  const char *_logFilePath /* [in] [ref,range(1,MAX_RPC_FILE_PATH_LENGTH),charset(UTF16)] */,
+						  const char *_logFilePath /* [in] [charset(UTF16),ref,range(1,MAX_RPC_FILE_PATH_LENGTH)] */,
 						  uint32_t _locale /* [in]  */,
 						  uint32_t _flags /* [in]  */,
 						  struct eventlog6_RpcInfo *_error /* [out] [ref] */,
@@ -271,7 +271,7 @@ struct tevent_req *dcerpc_eventlog6_EvtRpcMessageRender_send(TALLOC_CTX *mem_ctx
 							     uint32_t _maxSizeString /* [in]  */,
 							     uint32_t *_actualSizeString /* [out] [ref] */,
 							     uint32_t *_neededSizeString /* [out] [ref] */,
-							     uint8_t **_string /* [out] [ref,range(0,MAX_RPC_RENDERED_STRING_SIZE),size_is(,*actualSizeString)] */,
+							     uint8_t **_string /* [out] [size_is(,*actualSizeString),ref,range(0,MAX_RPC_RENDERED_STRING_SIZE)] */,
 							     struct eventlog6_RpcInfo *_error /* [out] [ref] */);
 NTSTATUS dcerpc_eventlog6_EvtRpcMessageRender_recv(struct tevent_req *req,
 						   TALLOC_CTX *mem_ctx,
@@ -287,7 +287,7 @@ NTSTATUS dcerpc_eventlog6_EvtRpcMessageRender(struct dcerpc_binding_handle *h,
 					      uint32_t _maxSizeString /* [in]  */,
 					      uint32_t *_actualSizeString /* [out] [ref] */,
 					      uint32_t *_neededSizeString /* [out] [ref] */,
-					      uint8_t **_string /* [out] [ref,range(0,MAX_RPC_RENDERED_STRING_SIZE),size_is(,*actualSizeString)] */,
+					      uint8_t **_string /* [out] [size_is(,*actualSizeString),ref,range(0,MAX_RPC_RENDERED_STRING_SIZE)] */,
 					      struct eventlog6_RpcInfo *_error /* [out] [ref] */,
 					      WERROR *result);
 
@@ -342,9 +342,9 @@ struct tevent_req *dcerpc_eventlog6_EvtRpcQueryNext_send(TALLOC_CTX *mem_ctx,
 							 uint32_t _flags /* [in]  */,
 							 uint32_t *_numActualRecords /* [out] [ref] */,
 							 uint32_t **_eventDataIndices /* [out] [ref,range(0,MAX_RPC_RECORD_COUNT),size_is(,*numActualRecords)] */,
-							 uint32_t **_eventDataSizes /* [out] [ref,range(0,MAX_RPC_RECORD_COUNT),size_is(,*numActualRecords)] */,
+							 uint32_t **_eventDataSizes /* [out] [range(0,MAX_RPC_RECORD_COUNT),ref,size_is(,*numActualRecords)] */,
 							 uint32_t *_resultBufferSize /* [out] [ref] */,
-							 uint8_t **_resultBuffer /* [out] [ref,range(0,MAX_RPC_BATCH_SIZE),size_is(,*resultBufferSize)] */);
+							 uint8_t **_resultBuffer /* [out] [size_is(,*resultBufferSize),ref,range(0,MAX_RPC_BATCH_SIZE)] */);
 NTSTATUS dcerpc_eventlog6_EvtRpcQueryNext_recv(struct tevent_req *req,
 					       TALLOC_CTX *mem_ctx,
 					       WERROR *result);
@@ -356,9 +356,9 @@ NTSTATUS dcerpc_eventlog6_EvtRpcQueryNext(struct dcerpc_binding_handle *h,
 					  uint32_t _flags /* [in]  */,
 					  uint32_t *_numActualRecords /* [out] [ref] */,
 					  uint32_t **_eventDataIndices /* [out] [ref,range(0,MAX_RPC_RECORD_COUNT),size_is(,*numActualRecords)] */,
-					  uint32_t **_eventDataSizes /* [out] [ref,range(0,MAX_RPC_RECORD_COUNT),size_is(,*numActualRecords)] */,
+					  uint32_t **_eventDataSizes /* [out] [range(0,MAX_RPC_RECORD_COUNT),ref,size_is(,*numActualRecords)] */,
 					  uint32_t *_resultBufferSize /* [out] [ref] */,
-					  uint8_t **_resultBuffer /* [out] [ref,range(0,MAX_RPC_BATCH_SIZE),size_is(,*resultBufferSize)] */,
+					  uint8_t **_resultBuffer /* [out] [size_is(,*resultBufferSize),ref,range(0,MAX_RPC_BATCH_SIZE)] */,
 					  WERROR *result);
 
 struct tevent_req *dcerpc_eventlog6_EvtRpcQuerySeek_r_send(TALLOC_CTX *mem_ctx,
@@ -372,7 +372,7 @@ struct tevent_req *dcerpc_eventlog6_EvtRpcQuerySeek_send(TALLOC_CTX *mem_ctx,
 							 struct dcerpc_binding_handle *h,
 							 struct policy_handle *_logQuery /* [in] [ref] */,
 							 uint64_t _pos /* [in]  */,
-							 const char *_bookmarkXml /* [in] [unique,range(0,MAX_RPC_BOOKMARK_LENGTH),charset(UTF16)] */,
+							 const char *_bookmarkXml /* [in] [charset(UTF16),range(0,MAX_RPC_BOOKMARK_LENGTH),unique] */,
 							 uint32_t _timeOut /* [in]  */,
 							 uint32_t _flags /* [in]  */,
 							 struct eventlog6_RpcInfo *_error /* [out] [ref] */);
@@ -383,7 +383,7 @@ NTSTATUS dcerpc_eventlog6_EvtRpcQuerySeek(struct dcerpc_binding_handle *h,
 					  TALLOC_CTX *mem_ctx,
 					  struct policy_handle *_logQuery /* [in] [ref] */,
 					  uint64_t _pos /* [in]  */,
-					  const char *_bookmarkXml /* [in] [unique,range(0,MAX_RPC_BOOKMARK_LENGTH),charset(UTF16)] */,
+					  const char *_bookmarkXml /* [in] [charset(UTF16),range(0,MAX_RPC_BOOKMARK_LENGTH),unique] */,
 					  uint32_t _timeOut /* [in]  */,
 					  uint32_t _flags /* [in]  */,
 					  struct eventlog6_RpcInfo *_error /* [out] [ref] */,
@@ -434,14 +434,14 @@ NTSTATUS dcerpc_eventlog6_EvtRpcAssertConfig_r(struct dcerpc_binding_handle *h, 
 struct tevent_req *dcerpc_eventlog6_EvtRpcAssertConfig_send(TALLOC_CTX *mem_ctx,
 							    struct tevent_context *ev,
 							    struct dcerpc_binding_handle *h,
-							    const char *_path /* [in] [ref,range(1,MAX_RPC_CHANNEL_NAME_LENGTH),charset(UTF16)] */,
+							    const char *_path /* [in] [range(1,MAX_RPC_CHANNEL_NAME_LENGTH),ref,charset(UTF16)] */,
 							    uint32_t _flags /* [in]  */);
 NTSTATUS dcerpc_eventlog6_EvtRpcAssertConfig_recv(struct tevent_req *req,
 						  TALLOC_CTX *mem_ctx,
 						  WERROR *result);
 NTSTATUS dcerpc_eventlog6_EvtRpcAssertConfig(struct dcerpc_binding_handle *h,
 					     TALLOC_CTX *mem_ctx,
-					     const char *_path /* [in] [ref,range(1,MAX_RPC_CHANNEL_NAME_LENGTH),charset(UTF16)] */,
+					     const char *_path /* [in] [range(1,MAX_RPC_CHANNEL_NAME_LENGTH),ref,charset(UTF16)] */,
 					     uint32_t _flags /* [in]  */,
 					     WERROR *result);
 
@@ -474,7 +474,7 @@ NTSTATUS dcerpc_eventlog6_EvtRpcOpenLogHandle_r(struct dcerpc_binding_handle *h,
 struct tevent_req *dcerpc_eventlog6_EvtRpcOpenLogHandle_send(TALLOC_CTX *mem_ctx,
 							     struct tevent_context *ev,
 							     struct dcerpc_binding_handle *h,
-							     const char *_channel /* [in] [ref,range(1,MAX_RPC_CHANNEL_NAME_LENGTH),charset(UTF16)] */,
+							     const char *_channel /* [in] [charset(UTF16),range(1,MAX_RPC_CHANNEL_NAME_LENGTH),ref] */,
 							     uint32_t _flags /* [in]  */,
 							     struct policy_handle *_handle /* [out] [ref] */,
 							     struct eventlog6_RpcInfo *_error /* [out] [ref] */);
@@ -483,7 +483,7 @@ NTSTATUS dcerpc_eventlog6_EvtRpcOpenLogHandle_recv(struct tevent_req *req,
 						   WERROR *result);
 NTSTATUS dcerpc_eventlog6_EvtRpcOpenLogHandle(struct dcerpc_binding_handle *h,
 					      TALLOC_CTX *mem_ctx,
-					      const char *_channel /* [in] [ref,range(1,MAX_RPC_CHANNEL_NAME_LENGTH),charset(UTF16)] */,
+					      const char *_channel /* [in] [charset(UTF16),range(1,MAX_RPC_CHANNEL_NAME_LENGTH),ref] */,
 					      uint32_t _flags /* [in]  */,
 					      struct policy_handle *_handle /* [out] [ref] */,
 					      struct eventlog6_RpcInfo *_error /* [out] [ref] */,
@@ -526,7 +526,7 @@ struct tevent_req *dcerpc_eventlog6_EvtRpcGetChannelList_send(TALLOC_CTX *mem_ct
 							      struct dcerpc_binding_handle *h,
 							      uint32_t _flags /* [in]  */,
 							      uint32_t *_numChannelPaths /* [out] [ref] */,
-							      const char ***_channelPaths /* [out] [ref,range(0,MAX_RPC_CHANNEL_COUNT),charset(UTF16),size_is(,*numChannelPaths)] */);
+							      const char ***_channelPaths /* [out] [size_is(,*numChannelPaths),ref,range(0,MAX_RPC_CHANNEL_COUNT),charset(UTF16)] */);
 NTSTATUS dcerpc_eventlog6_EvtRpcGetChannelList_recv(struct tevent_req *req,
 						    TALLOC_CTX *mem_ctx,
 						    WERROR *result);
@@ -534,7 +534,7 @@ NTSTATUS dcerpc_eventlog6_EvtRpcGetChannelList(struct dcerpc_binding_handle *h,
 					       TALLOC_CTX *mem_ctx,
 					       uint32_t _flags /* [in]  */,
 					       uint32_t *_numChannelPaths /* [out] [ref] */,
-					       const char ***_channelPaths /* [out] [ref,range(0,MAX_RPC_CHANNEL_COUNT),charset(UTF16),size_is(,*numChannelPaths)] */,
+					       const char ***_channelPaths /* [out] [size_is(,*numChannelPaths),ref,range(0,MAX_RPC_CHANNEL_COUNT),charset(UTF16)] */,
 					       WERROR *result);
 
 struct tevent_req *dcerpc_eventlog6_EvtRpcGetChannelConfig_r_send(TALLOC_CTX *mem_ctx,
@@ -546,7 +546,7 @@ NTSTATUS dcerpc_eventlog6_EvtRpcGetChannelConfig_r(struct dcerpc_binding_handle 
 struct tevent_req *dcerpc_eventlog6_EvtRpcGetChannelConfig_send(TALLOC_CTX *mem_ctx,
 								struct tevent_context *ev,
 								struct dcerpc_binding_handle *h,
-								const char *_channelPath /* [in] [ref,range(1,MAX_RPC_CHANNEL_NAME_LENGTH),charset(UTF16)] */,
+								const char *_channelPath /* [in] [charset(UTF16),ref,range(1,MAX_RPC_CHANNEL_NAME_LENGTH)] */,
 								uint32_t _flags /* [in]  */,
 								struct eventlog6_EvtRpcVariantList *_props /* [out] [ref] */);
 NTSTATUS dcerpc_eventlog6_EvtRpcGetChannelConfig_recv(struct tevent_req *req,
@@ -554,7 +554,7 @@ NTSTATUS dcerpc_eventlog6_EvtRpcGetChannelConfig_recv(struct tevent_req *req,
 						      WERROR *result);
 NTSTATUS dcerpc_eventlog6_EvtRpcGetChannelConfig(struct dcerpc_binding_handle *h,
 						 TALLOC_CTX *mem_ctx,
-						 const char *_channelPath /* [in] [ref,range(1,MAX_RPC_CHANNEL_NAME_LENGTH),charset(UTF16)] */,
+						 const char *_channelPath /* [in] [charset(UTF16),ref,range(1,MAX_RPC_CHANNEL_NAME_LENGTH)] */,
 						 uint32_t _flags /* [in]  */,
 						 struct eventlog6_EvtRpcVariantList *_props /* [out] [ref] */,
 						 WERROR *result);
@@ -594,7 +594,7 @@ struct tevent_req *dcerpc_eventlog6_EvtRpcGetPublisherList_send(TALLOC_CTX *mem_
 								struct dcerpc_binding_handle *h,
 								uint32_t _flags /* [in]  */,
 								uint32_t *_numPublisherIds /* [out] [ref] */,
-								const char ***_publisherIds /* [out] [ref,range(0,MAX_RPC_PUBLISHER_COUNT),charset(UTF16),size_is(,*numPublisherIds)] */);
+								const char ***_publisherIds /* [out] [charset(UTF16),size_is(,*numPublisherIds),range(0,MAX_RPC_PUBLISHER_COUNT),ref] */);
 NTSTATUS dcerpc_eventlog6_EvtRpcGetPublisherList_recv(struct tevent_req *req,
 						      TALLOC_CTX *mem_ctx,
 						      WERROR *result);
@@ -602,7 +602,7 @@ NTSTATUS dcerpc_eventlog6_EvtRpcGetPublisherList(struct dcerpc_binding_handle *h
 						 TALLOC_CTX *mem_ctx,
 						 uint32_t _flags /* [in]  */,
 						 uint32_t *_numPublisherIds /* [out] [ref] */,
-						 const char ***_publisherIds /* [out] [ref,range(0,MAX_RPC_PUBLISHER_COUNT),charset(UTF16),size_is(,*numPublisherIds)] */,
+						 const char ***_publisherIds /* [out] [charset(UTF16),size_is(,*numPublisherIds),range(0,MAX_RPC_PUBLISHER_COUNT),ref] */,
 						 WERROR *result);
 
 struct tevent_req *dcerpc_eventlog6_EvtRpcGetPublisherListForChannel_r_send(TALLOC_CTX *mem_ctx,
@@ -617,7 +617,7 @@ struct tevent_req *dcerpc_eventlog6_EvtRpcGetPublisherListForChannel_send(TALLOC
 									  uint16_t *_channelName /* [in] [ref] */,
 									  uint32_t _flags /* [in]  */,
 									  uint32_t *_numPublisherIds /* [out] [ref] */,
-									  const char ***_publisherIds /* [out] [ref,range(0,MAX_RPC_PUBLISHER_COUNT),charset(UTF16),size_is(,*numPublisherIds)] */);
+									  const char ***_publisherIds /* [out] [charset(UTF16),range(0,MAX_RPC_PUBLISHER_COUNT),ref,size_is(,*numPublisherIds)] */);
 NTSTATUS dcerpc_eventlog6_EvtRpcGetPublisherListForChannel_recv(struct tevent_req *req,
 								TALLOC_CTX *mem_ctx,
 								WERROR *result);
@@ -626,7 +626,7 @@ NTSTATUS dcerpc_eventlog6_EvtRpcGetPublisherListForChannel(struct dcerpc_binding
 							   uint16_t *_channelName /* [in] [ref] */,
 							   uint32_t _flags /* [in]  */,
 							   uint32_t *_numPublisherIds /* [out] [ref] */,
-							   const char ***_publisherIds /* [out] [ref,range(0,MAX_RPC_PUBLISHER_COUNT),charset(UTF16),size_is(,*numPublisherIds)] */,
+							   const char ***_publisherIds /* [out] [charset(UTF16),range(0,MAX_RPC_PUBLISHER_COUNT),ref,size_is(,*numPublisherIds)] */,
 							   WERROR *result);
 
 struct tevent_req *dcerpc_eventlog6_EvtRpcGetPublisherMetadata_r_send(TALLOC_CTX *mem_ctx,
@@ -638,7 +638,7 @@ NTSTATUS dcerpc_eventlog6_EvtRpcGetPublisherMetadata_r(struct dcerpc_binding_han
 struct tevent_req *dcerpc_eventlog6_EvtRpcGetPublisherMetadata_send(TALLOC_CTX *mem_ctx,
 								    struct tevent_context *ev,
 								    struct dcerpc_binding_handle *h,
-								    const char *_publisherId /* [in] [unique,range(0,MAX_RPC_PUBLISHER_ID_LENGTH),charset(UTF16)] */,
+								    const char *_publisherId /* [in] [range(0,MAX_RPC_PUBLISHER_ID_LENGTH),unique,charset(UTF16)] */,
 								    const char *_logFilePath /* [in] [unique,range(0,MAX_RPC_FILE_PATH_LENGTH),charset(UTF16)] */,
 								    uint32_t _locale /* [in]  */,
 								    uint32_t _flags /* [in]  */,
@@ -649,7 +649,7 @@ NTSTATUS dcerpc_eventlog6_EvtRpcGetPublisherMetadata_recv(struct tevent_req *req
 							  WERROR *result);
 NTSTATUS dcerpc_eventlog6_EvtRpcGetPublisherMetadata(struct dcerpc_binding_handle *h,
 						     TALLOC_CTX *mem_ctx,
-						     const char *_publisherId /* [in] [unique,range(0,MAX_RPC_PUBLISHER_ID_LENGTH),charset(UTF16)] */,
+						     const char *_publisherId /* [in] [range(0,MAX_RPC_PUBLISHER_ID_LENGTH),unique,charset(UTF16)] */,
 						     const char *_logFilePath /* [in] [unique,range(0,MAX_RPC_FILE_PATH_LENGTH),charset(UTF16)] */,
 						     uint32_t _locale /* [in]  */,
 						     uint32_t _flags /* [in]  */,
@@ -692,7 +692,7 @@ struct tevent_req *dcerpc_eventlog6_EvtRpcGetEventMetadataEnum_send(TALLOC_CTX *
 								    struct dcerpc_binding_handle *h,
 								    struct policy_handle *_pubMetadata /* [in] [ref] */,
 								    uint32_t _flags /* [in]  */,
-								    const char *_reservedForFilter /* [in] [unique,range(0,MAX_RPC_FILTER_LENGTH),charset(UTF16)] */,
+								    const char *_reservedForFilter /* [in] [charset(UTF16),unique,range(0,MAX_RPC_FILTER_LENGTH)] */,
 								    struct policy_handle *_eventMetaDataEnum /* [out] [ref] */);
 NTSTATUS dcerpc_eventlog6_EvtRpcGetEventMetadataEnum_recv(struct tevent_req *req,
 							  TALLOC_CTX *mem_ctx,
@@ -701,7 +701,7 @@ NTSTATUS dcerpc_eventlog6_EvtRpcGetEventMetadataEnum(struct dcerpc_binding_handl
 						     TALLOC_CTX *mem_ctx,
 						     struct policy_handle *_pubMetadata /* [in] [ref] */,
 						     uint32_t _flags /* [in]  */,
-						     const char *_reservedForFilter /* [in] [unique,range(0,MAX_RPC_FILTER_LENGTH),charset(UTF16)] */,
+						     const char *_reservedForFilter /* [in] [charset(UTF16),unique,range(0,MAX_RPC_FILTER_LENGTH)] */,
 						     struct policy_handle *_eventMetaDataEnum /* [out] [ref] */,
 						     WERROR *result);
 
@@ -740,7 +740,7 @@ NTSTATUS dcerpc_eventlog6_EvtRpcGetClassicLogDisplayName_r(struct dcerpc_binding
 struct tevent_req *dcerpc_eventlog6_EvtRpcGetClassicLogDisplayName_send(TALLOC_CTX *mem_ctx,
 									struct tevent_context *ev,
 									struct dcerpc_binding_handle *h,
-									const char *_logName /* [in] [ref,range(1,MAX_RPC_CHANNEL_NAME_LENGTH),charset(UTF16)] */,
+									const char *_logName /* [in] [charset(UTF16),range(1,MAX_RPC_CHANNEL_NAME_LENGTH),ref] */,
 									uint32_t _locale /* [in]  */,
 									uint32_t _flags /* [in]  */,
 									uint16_t **_displayName /* [out] [ref] */);
@@ -749,7 +749,7 @@ NTSTATUS dcerpc_eventlog6_EvtRpcGetClassicLogDisplayName_recv(struct tevent_req 
 							      WERROR *result);
 NTSTATUS dcerpc_eventlog6_EvtRpcGetClassicLogDisplayName(struct dcerpc_binding_handle *h,
 							 TALLOC_CTX *mem_ctx,
-							 const char *_logName /* [in] [ref,range(1,MAX_RPC_CHANNEL_NAME_LENGTH),charset(UTF16)] */,
+							 const char *_logName /* [in] [charset(UTF16),range(1,MAX_RPC_CHANNEL_NAME_LENGTH),ref] */,
 							 uint32_t _locale /* [in]  */,
 							 uint32_t _flags /* [in]  */,
 							 uint16_t **_displayName /* [out] [ref] */,

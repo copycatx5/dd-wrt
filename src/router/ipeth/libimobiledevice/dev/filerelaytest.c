@@ -18,7 +18,10 @@
  * License along with this library; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA 
  */
+#include <errno.h>
 #include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 #include <libimobiledevice/libimobiledevice.h>
 #include <libimobiledevice/lockdown.h>
 #include <libimobiledevice/file_relay.h>
@@ -29,20 +32,25 @@ int main(int argc, char **argv)
 	lockdownd_client_t client = NULL;
 	lockdownd_service_descriptor_t service = NULL;
 	file_relay_client_t frc = NULL;
+	file_relay_error_t frc_error = FILE_RELAY_E_SUCCESS;
+	idevice_connection_t dump = NULL;
+	const char **sources;
+	const char *default_sources[] = {"AppleSupport", "Network", "VPN", "WiFi", "UserDatabases", "CrashReporter", "tmp", "SystemConfiguration", NULL};
+	int i = 0;
 
 	if (idevice_new(&dev, NULL) != IDEVICE_E_SUCCESS) {
-		printf("no device connected?!\n");
+		printf("No device connected?!\n");
 		goto leave_cleanup;
 	}
 
-	printf("connecting...\n");
+	printf("Connecting...\n");
 	if (lockdownd_client_new_with_handshake(dev, &client, NULL) != LOCKDOWN_E_SUCCESS) {
-		printf("could not connect to lockdownd!\n");
+		printf("Could not connect to lockdownd!\n");
 		goto leave_cleanup;
 	}
 
-	if (lockdownd_start_service(client, "com.apple.mobile.file_relay", &service) != LOCKDOWN_E_SUCCESS) {
-		printf("could not start file_relay service!\n");
+	if (lockdownd_start_service(client, FILE_RELAY_SERVICE_NAME, &service) != LOCKDOWN_E_SUCCESS) {
+		printf("Could not start file_relay service!\n");
 		goto leave_cleanup;
 	}
 
@@ -52,7 +60,7 @@ int main(int argc, char **argv)
 	}
 
 	if (file_relay_client_new(dev, service, &frc) != FILE_RELAY_E_SUCCESS) {
-		printf("could not connect to file_relay service!\n");
+		printf("Could not connect to file_relay service!\n");
 		goto leave_cleanup;
 	}
 
@@ -61,24 +69,50 @@ int main(int argc, char **argv)
 		service = NULL;
 	}
 
-	idevice_connection_t dump = NULL;
-	const char *sources[] = {"AppleSupport", "Network", "VPN", "WiFi", "UserDatabases", "CrashReporter", "tmp", "SystemConfiguration", NULL};
+	if (argc > 1) {
+		sources = calloc(1, argc * sizeof(char *));
+		argc--;
+		argv++;
+		for (i = 0; i < argc; i++) {
+			sources[i] = argv[i];
+		}
+	}
+	else {
+		sources = default_sources;
+	}
 
-	printf("Requesting");
-	int i = 0;
+	printf("Requesting ");
+	i = 0;
 	while (sources[i]) {
 		printf(" %s", sources[i]);
 		i++;
+		if (sources[i])
+			printf(",");
 	}
 	printf("\n");
 
-	if (file_relay_request_sources(frc, sources, &dump) != FILE_RELAY_E_SUCCESS) {
-		printf("could not get sources\n");
+	frc_error = file_relay_request_sources(frc, sources, &dump);
+	if (frc_error != FILE_RELAY_E_SUCCESS) {
+		printf("Could not request sources.\n");
+		switch (frc_error) {
+			case FILE_RELAY_E_INVALID_SOURCE:
+				printf("At least one of the given sources is invalid and was rejected.\n");
+				break;
+			case FILE_RELAY_E_STAGING_EMPTY:
+				printf("Staging is empty. Perhaps there is no data for the requested sources available.\n");
+				break;
+			case FILE_RELAY_E_PERMISSION_DENIED:
+				printf("Permission denied by device. Possibly missing a signed preferences profile.\n");
+				break;
+			default:
+				printf("An unknown error occoured.\n");
+				break;
+		}
 		goto leave_cleanup;
 	}
 
 	if (!dump) {
-		printf("did not get connection!\n");
+		printf("Did not get connection!\n");
 		goto leave_cleanup;
 	}
 
@@ -86,8 +120,12 @@ int main(int argc, char **argv)
 	uint32_t len = 0;
 	char buf[4096];
 	FILE *f = fopen("dump.cpio.gz", "wb");
+	if (!f) {
+		fprintf(stderr, "dump.cpio.gz: %s\n", strerror(errno));
+		return EXIT_FAILURE;
+	}
 	setbuf(stdout, NULL);
-	printf("receiving ");
+	printf("Receiving ");
 	while (idevice_connection_receive(dump, buf, 4096, &len) == IDEVICE_E_SUCCESS) {
 		fwrite(buf, 1, len, f);
 		cnt += len;
@@ -96,7 +134,7 @@ int main(int argc, char **argv)
 	}
 	printf("\n");
 	fclose(f);
-	printf("total size received: %d\n", cnt);
+	printf("Total size received: %d\n", cnt);
 
 leave_cleanup:
 	if (frc) {

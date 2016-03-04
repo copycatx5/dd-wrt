@@ -1,6 +1,6 @@
 /*
 ** Zabbix
-** Copyright (C) 2001-2013 Zabbix SIA
+** Copyright (C) 2001-2015 Zabbix SIA
 **
 ** This program is free software; you can redistribute it and/or modify
 ** it under the terms of the GNU General Public License as published by
@@ -59,6 +59,8 @@ void __zbx_zabbix_log(int level, const char *fmt, ...);
 
 void zabbix_close_log();
 void zabbix_set_log_level(int level);
+
+int zabbix_check_log_level(int level);
 
 char *zbx_strerror(int errnum);
 char *strerror_from_system(unsigned long error);

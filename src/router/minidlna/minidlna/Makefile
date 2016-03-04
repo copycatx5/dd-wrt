@@ -15,18 +15,19 @@
 
 LDFLAGS+= -Wl,--gc-sections
 CFLAGS = -Wall $(COPTS)  -ffunction-sections -fdata-sections -D_GNU_SOURCE -D_FILE_OFFSET_BITS=64 -D__sparc__ -DHAVE_LIBAVUTIL_AVUTIL_H -DHAVE_LIBAVCODEC_AVCODEC_H -DHAVE_LIBAVFORMAT_AVFORMAT_H \
-         -I$(MINI_DLNA_PATH)/ffmpeg-2.1 \
-         -I$(MINI_DLNA_PATH)/ffmpeg-2.1/libavcodec \
-         -I$(MINI_DLNA_PATH)/ffmpeg-2.1/libavformat \
+         -I$(MINI_DLNA_PATH)/ffmpeg-2.3 \
+         -I$(MINI_DLNA_PATH)/ffmpeg-2.3/libavcodec \
+         -I$(MINI_DLNA_PATH)/ffmpeg-2.3/libavformat \
          -I$(MINI_DLNA_PATH)/sqlite-3.6.22 \
          -I$(MINI_DLNA_PATH)/libexif-0.6.19 \
          -I$(MINI_DLNA_PATH)/libid3tag-0.15.0b/include \
-		 -I$(MINI_DLNA_PATH)/libid3tag-0.15.0b/ \
+         -I$(MINI_DLNA_PATH)/libid3tag-0.15.0b/ \
          -I$(MINI_DLNA_PATH)/libogg-1.3.0/include/ \
          -I$(MINI_DLNA_PATH)/libvorbis-1.3.3/include/ \
          -I$(MINI_DLNA_PATH)/jpeg-8 \
          -I$(MINI_DLNA_PATH)/flac-1.2.1/include/ \
          -L$(MINI_DLNA_PATH)/lib \
+         -L$(TOP)/zlib/
 
 
 CC = ccache $(CROSS_COMPILE)gcc
@@ -45,7 +46,7 @@ BASEOBJS = minidlna.o upnphttp.o upnpdescgen.o upnpsoap.o \
            sql.o utils.o metadata.o scanner.o inotify.o \
            tivo_utils.o tivo_beacon.o tivo_commands.o \
            playlist.o image_utils.o albumart.o log.o \
-           tagutils/tagutils.o
+           containers.o tagutils/tagutils.o
 
 ALLOBJS = $(BASEOBJS) $(LNXOBJS)
 

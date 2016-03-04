@@ -19,6 +19,9 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
+#ifdef HAVE_CONFIG_H
+#include <config.h>
+#endif
 
 #include <stdlib.h>
 #include <stdio.h>
@@ -73,7 +76,10 @@ enum
 
 static void float_byte_convert(uint8_t * address, size_t size)
 {
-#if PLIST_BYTE_ORDER == PLIST_LITTLE_ENDIAN && !defined (__VFP_FP__)
+#if (defined(__LITTLE_ENDIAN__) \
+		&& !defined(__FLOAT_WORD_ORDER__)) \
+	|| (defined(__FLOAT_WORD_ORDER__) \
+		&& __FLOAT_WORD_ORDER__ == __ORDER_LITTLE_ENDIAN__)
     uint8_t i = 0, j = 0;
     uint8_t tmp = 0;
 
@@ -107,7 +113,7 @@ union plist_uint_ptr
 
 static void byte_convert(uint8_t * address, size_t size)
 {
-#if PLIST_BYTE_ORDER == PLIST_LITTLE_ENDIAN
+#ifdef __LITTLE_ENDIAN__
     uint8_t i = 0, j = 0;
     uint8_t tmp = 0;
 
@@ -135,7 +141,7 @@ static uint32_t uint24_from_be(union plist_uint_ptr buf)
 }
 
 #ifndef be16toh
-#if PLIST_BYTE_ORDER == PLIST_BIG_ENDIAN
+#ifdef __BIG_ENDIAN__
 #define be16toh(x) (x)
 #else
 #define be16toh(x) ((((x) & 0xFF00) >> 8) | (((x) & 0x00FF) << 8))
@@ -143,7 +149,7 @@ static uint32_t uint24_from_be(union plist_uint_ptr buf)
 #endif
 
 #ifndef be32toh
-#if PLIST_BYTE_ORDER == PLIST_BIG_ENDIAN
+#ifdef __BIG_ENDIAN__
 #define be32toh(x) (x)
 #else
 #define be32toh(x) ((((x) & 0xFF000000) >> 24) \
@@ -154,7 +160,7 @@ static uint32_t uint24_from_be(union plist_uint_ptr buf)
 #endif
 
 #ifndef be64toh
-#if PLIST_BYTE_ORDER == PLIST_BIG_ENDIAN
+#ifdef __BIG_ENDIAN__
 #define be64toh(x) (x)
 #else
 #define be64toh(x) ((((x) & 0xFF00000000000000ull) >> 56) \
@@ -209,6 +215,12 @@ static plist_t parse_uint_node(char *bnode, uint8_t size, char **next_object)
     case sizeof(uint64_t):
         memcpy(&data->intval, bnode, size);
         data->intval = UINT_TO_HOST(&data->intval, size);
+        data->length = sizeof(uint64_t);
+        break;
+    case 16:
+        memcpy(&data->intval, bnode+8, sizeof(uint64_t));
+        data->intval = UINT_TO_HOST(&data->intval, sizeof(uint64_t));
+        data->length = size;
         break;
     default:
         free(data);
@@ -217,7 +229,6 @@ static plist_t parse_uint_node(char *bnode, uint8_t size, char **next_object)
 
     *next_object = bnode + size;
     data->type = PLIST_UINT;
-    data->length = sizeof(uint64_t);
 
     return node_create(NULL, data);
 }
@@ -243,6 +254,7 @@ static plist_t parse_real_node(char *bnode, uint8_t size)
         data->realval = *(double *) buf;
         break;
     default:
+        free(buf);
         free(data);
         return NULL;
     }
@@ -283,15 +295,38 @@ static plist_t parse_string_node(char *bnode, uint64_t size)
 static char *plist_utf16_to_utf8(uint16_t *unistr, long len, long *items_read, long *items_written)
 {
 	if (!unistr || (len <= 0)) return NULL;
-	char *outbuf = (char*)malloc(3*(len+1));
+	char *outbuf = (char*)malloc(4*(len+1));
 	int p = 0;
 	int i = 0;
 
 	uint16_t wc;
+	uint32_t w;
+	int read_lead_surrogate = 0; 
 
 	while (i < len) {
 		wc = unistr[i++];
-		if (wc >= 0x800) {
+		if (wc >= 0xD800 && wc <= 0xDBFF) {
+			if (!read_lead_surrogate) {
+				read_lead_surrogate = 1;
+				w = 0x010000 + ((wc & 0x3FF) << 10);
+			} else {
+				// This is invalid, the next 16 bit char should be a trail surrogate. 
+				// Handling error by skipping.
+				read_lead_surrogate = 0;
+			}
+		} else if (wc >= 0xDC00 && wc <= 0xDFFF) {
+			if (read_lead_surrogate) {
+				read_lead_surrogate = 0;
+				w = w | (wc & 0x3FF);
+				outbuf[p++] = (char)(0xF0 + ((w >> 18) & 0x3));
+				outbuf[p++] = (char)(0x80 + ((w >> 12) & 0x3F));
+				outbuf[p++] = (char)(0x80 + ((w >> 6) & 0x3F));
+				outbuf[p++] = (char)(0x80 + (w & 0x3F));
+			} else {
+				// This is invalid.  A trail surrogate should always follow a lead surrogate.
+				// Handling error by skipping
+			}
+		} else if (wc >= 0x800) {
 			outbuf[p++] = (char)(0xE0 + ((wc >> 12) & 0xF));
 			outbuf[p++] = (char)(0x80 + ((wc >> 6) & 0x3F));
 			outbuf[p++] = (char)(0x80 + (wc & 0x3F));
@@ -567,7 +602,7 @@ static void* copy_plist_data(const void* src)
     return dstdata;
 }
 
-void plist_from_bin(const char *plist_bin, uint32_t length, plist_t * plist)
+PLIST_API void plist_from_bin(const char *plist_bin, uint32_t length, plist_t * plist)
 {
     char *trailer = NULL;
 
@@ -629,35 +664,60 @@ void plist_from_bin(const char *plist_bin, uint32_t length, plist_t * plist)
     {
 
         plist_data_t data = plist_get_data(nodeslist[i]);
+	if (!data) {
+		break;
+	}
 
         switch (data->type)
         {
         case PLIST_DICT:
             for (j = 0; j < data->length; j++)
             {
+                node_t* n = NULL;
                 str_i = j * dict_param_size;
                 str_j = (j + data->length) * dict_param_size;
 
                 index1 = UINT_TO_HOST(data->buff + str_i, dict_param_size);
                 index2 = UINT_TO_HOST(data->buff + str_j, dict_param_size);
 
-                //first one is actually a key
-                plist_get_data(nodeslist[index1])->type = PLIST_KEY;
-
+                // process key node
                 if (index1 < num_objects)
                 {
-                    if (NODE_IS_ROOT(nodeslist[index1]))
-                        node_attach(nodeslist[i], nodeslist[index1]);
-                    else
-                        node_attach(nodeslist[i], node_copy_deep(nodeslist[index1], copy_plist_data));
+                    // is node already attached?
+                    if (NODE_IS_ROOT(nodeslist[index1])) {
+                        // use original
+                        n = nodeslist[index1];
+                    } else {
+                        // use a copy, because this node is already attached elsewhere
+                        n = node_copy_deep(nodeslist[index1], copy_plist_data);
+                    }
+
+                    // enforce key type
+                    plist_get_data(n)->type = PLIST_KEY;
+
+                    // attach key node
+                    node_attach(nodeslist[i], n);
                 }
 
+                // process value node
                 if (index2 < num_objects)
                 {
-                    if (NODE_IS_ROOT(nodeslist[index2]))
-                        node_attach(nodeslist[i], nodeslist[index2]);
-                    else
-                        node_attach(nodeslist[i], node_copy_deep(nodeslist[index2], copy_plist_data));
+                    // is node already attached?
+                    if (NODE_IS_ROOT(nodeslist[index2])) {
+                        // use original
+                        n = nodeslist[index2];
+                    } else {
+                        // use a copy, because this node is already attached elsewhere
+                        n = node_copy_deep(nodeslist[index2], copy_plist_data);
+
+                        // ensure key type is never used for values, especially if we copy a key node
+                        if (plist_get_data(n)->type == PLIST_KEY) {
+                            plist_get_data(n)->type = PLIST_STRING;
+                        }
+                    }
+
+                    // attach value node
+                    node_attach(nodeslist[i], n);
                 }
             }
 
@@ -686,6 +746,15 @@ void plist_from_bin(const char *plist_bin, uint32_t length, plist_t * plist)
     }
 
     *plist = nodeslist[root_object];
+
+    // free unreferenced nodes that would otherwise leak memory
+    for (i = 0; i < num_objects; i++) {
+        if (i == root_object) continue;
+        node_t* node = (node_t*)nodeslist[i];
+        if (node && NODE_IS_ROOT(node)) {
+            plist_free(node);
+        }
+    }
     free(nodeslist);
 }
 
@@ -783,7 +852,7 @@ static void write_int(bytearray_t * bplist, uint64_t val)
     if (size == 3)
         size++;
 
-#if PLIST_BYTE_ORDER == PLIST_BIG_ENDIAN
+#ifdef __BIG_ENDIAN__
     val = val << ((sizeof(uint64_t) - size) * 8);
 #endif
 
@@ -791,6 +860,20 @@ static void write_int(bytearray_t * bplist, uint64_t val)
     buff[0] = BPLIST_UINT | Log2(size);
     memcpy(buff + 1, &val, size);
     byte_convert(buff + 1, size);
+    byte_array_append(bplist, buff, sizeof(uint8_t) + size);
+    free(buff);
+}
+
+static void write_uint(bytearray_t * bplist, uint64_t val)
+{
+    uint64_t size = 16;
+    uint8_t *buff = NULL;
+
+    buff = (uint8_t *) malloc(sizeof(uint8_t) + size);
+    buff[0] = BPLIST_UINT | 4;
+    memset(buff + 1, '\0', 8);
+    memcpy(buff + 9, &val, 8);
+    byte_convert(buff + 9, 8);
     byte_array_append(bplist, buff, sizeof(uint8_t) + size);
     free(buff);
 }
@@ -892,7 +975,7 @@ static void write_array(bytearray_t * bplist, node_t* node, hashtable_t* ref_tab
     for (i = 0, cur = node_first_child(node); cur && i < size; cur = node_next_sibling(cur), i++)
     {
         idx = *(uint64_t *) (hash_table_lookup(ref_table, cur));
-#if PLIST_BYTE_ORDER == PLIST_BIG_ENDIAN
+#ifdef __BIG_ENDIAN__
 	idx = idx << ((sizeof(uint64_t) - dict_param_size) * 8);
 #endif
         memcpy(buff + i * dict_param_size, &idx, dict_param_size);
@@ -929,14 +1012,14 @@ static void write_dict(bytearray_t * bplist, node_t* node, hashtable_t* ref_tabl
     for (i = 0, cur = node_first_child(node); cur && i < size; cur = node_next_sibling(node_next_sibling(cur)), i++)
     {
         idx1 = *(uint64_t *) (hash_table_lookup(ref_table, cur));
-#if PLIST_BYTE_ORDER == PLIST_BIG_ENDIAN
+#ifdef __BIG_ENDIAN__
 	idx1 = idx1 << ((sizeof(uint64_t) - dict_param_size) * 8);
 #endif
         memcpy(buff + i * dict_param_size, &idx1, dict_param_size);
         byte_convert(buff + i * dict_param_size, dict_param_size);
 
         idx2 = *(uint64_t *) (hash_table_lookup(ref_table, cur->next));
-#if PLIST_BYTE_ORDER == PLIST_BIG_ENDIAN
+#ifdef __BIG_ENDIAN__
 	idx2 = idx2 << ((sizeof(uint64_t) - dict_param_size) * 8);
 #endif
         memcpy(buff + (i + size) * dict_param_size, &idx2, dict_param_size);
@@ -957,7 +1040,7 @@ static void write_uid(bytearray_t * bplist, uint64_t val)
     if (size == 3)
         size++;
 
-#if PLIST_BYTE_ORDER == PLIST_BIG_ENDIAN
+#ifdef __BIG_ENDIAN__
     val = val << ((sizeof(uint64_t) - size) * 8);
 #endif
 
@@ -983,21 +1066,31 @@ static int is_ascii_string(char* s, int len)
   return ret;
 }
 
-uint16_t *plist_utf8_to_utf16(char *unistr, long size, long *items_read, long *items_written)
+static uint16_t *plist_utf8_to_utf16(char *unistr, long size, long *items_read, long *items_written)
 {
-	uint16_t *outbuf = (uint16_t*)malloc((size+1)*sizeof(uint16_t));
+	uint16_t *outbuf = (uint16_t*)malloc(((size*2)+1)*sizeof(uint16_t));
 	int p = 0;
 	int i = 0;
 
 	unsigned char c0;
 	unsigned char c1;
 	unsigned char c2;
+	unsigned char c3;
+
+	uint32_t w;
 
 	while (i < size) {
 		c0 = unistr[i];
 		c1 = (i < size-1) ? unistr[i+1] : 0;
 		c2 = (i < size-2) ? unistr[i+2] : 0;
-		if ((c0 >= 0xE0) && (i < size-2) && (c1 >= 0x80) && (c2 >= 0x80)) {
+		c3 = (i < size-3) ? unistr[i+3] : 0;
+		if ((c0 >= 0xF0) && (i < size-3) && (c1 >= 0x80) && (c2 >= 0x80) && (c3 >= 0x80)) {
+			// 4 byte sequence.  Need to generate UTF-16 surrogate pair
+			w = ((((c0 & 7) << 18) + ((c1 & 0x3F) << 12) + ((c2 & 0x3F) << 6) + (c3 & 0x3F)) & 0x0FFFFF) - 0x010000;
+			outbuf[p++] = 0xD800 + (w >> 10);
+			outbuf[p++] = 0xDC00 + (w & 0x3FF);
+			i+=4;
+		} else if ((c0 >= 0xE0) && (i < size-2) && (c1 >= 0x80) && (c2 >= 0x80)) {
 			// 3 byte sequence
 			outbuf[p++] = ((c2 & 0x3F) + ((c1 & 3) << 6)) + (((c1 >> 2) & 15) << 8) + ((c0 & 15) << 12);
 			i+=3;
@@ -1027,7 +1120,7 @@ uint16_t *plist_utf8_to_utf16(char *unistr, long size, long *items_read, long *i
 
 }
 
-void plist_to_bin(plist_t plist, char **plist_bin, uint32_t * length)
+PLIST_API void plist_to_bin(plist_t plist, char **plist_bin, uint32_t * length)
 {
     ptrarray_t* objects = NULL;
     hashtable_t* ref_table = NULL;
@@ -1048,6 +1141,8 @@ void plist_to_bin(plist_t plist, char **plist_bin, uint32_t * length)
     long items_read = 0;
     long items_written = 0;
     uint16_t *unicodestr = NULL;
+    uint64_t objects_len = 0;
+    uint64_t buff_len = 0;
 
     //check for valid input
     if (!plist || !plist_bin || *plist_bin || !length)
@@ -1065,7 +1160,8 @@ void plist_to_bin(plist_t plist, char **plist_bin, uint32_t * length)
 
     //now stream to output buffer
     offset_size = 0;			//unknown yet
-    dict_param_size = get_needed_bytes(objects->len);
+    objects_len = objects->len;
+    dict_param_size = get_needed_bytes(objects_len);
     num_objects = objects->len;
     root_object = 0;			//root is first in list
     offset_table_index = 0;		//unknown yet
@@ -1095,7 +1191,11 @@ void plist_to_bin(plist_t plist, char **plist_bin, uint32_t * length)
             break;
 
         case PLIST_UINT:
-            write_int(bplist_buff, data->intval);
+            if (data->length == 16) {
+                write_uint(bplist_buff, data->intval);
+            } else {
+                write_int(bplist_buff, data->intval);
+            }
             break;
 
         case PLIST_REAL:
@@ -1140,13 +1240,14 @@ void plist_to_bin(plist_t plist, char **plist_bin, uint32_t * length)
     hash_table_destroy(ref_table);
 
     //write offsets
-    offset_size = get_needed_bytes(bplist_buff->len);
+    buff_len = bplist_buff->len;
+    offset_size = get_needed_bytes(buff_len);
     offset_table_index = bplist_buff->len;
     for (i = 0; i < num_objects; i++)
     {
         uint8_t *offsetbuff = (uint8_t *) malloc(offset_size);
 
-#if PLIST_BYTE_ORDER == PLIST_BIG_ENDIAN
+#ifdef __BIG_ENDIAN__
 	offsets[i] = offsets[i] << ((sizeof(uint64_t) - offset_size) * 8);
 #endif
 

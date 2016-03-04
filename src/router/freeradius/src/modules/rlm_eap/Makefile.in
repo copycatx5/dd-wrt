@@ -1,5 +1,5 @@
 #
-# $Id: c0f132915ec7c86c4b25c6cc9513ab8bf48c862e $
+# $Id: 7859be696b098d72ec8b6f8bd83cde5e149b4cd2 $
 #
 
 TARGET      = @targetname@
@@ -10,7 +10,7 @@ CLIENTLIBS  = libeap/$(LIBPREFIX)freeradius-eap.la $(LIBRADIUS)
 RLM_LIBS    = libeap/$(LIBPREFIX)freeradius-eap.la $(LIBLTDL)
 RLM_INSTALL = install-subdirs
 RLM_SUBDIRS = libeap @eaptypes@
-RLM_UTILS   = radeapclient
+RLM_UTILS   = radeapclient$(EXEEXT)
 
 #
 # Not using shared libraries, add in ALL known static modules
@@ -35,10 +35,10 @@ $(LT_OBJS): $(HEADERS)
 include ../rules.mak
 
 radeapclient$(EXEEXT): radeapclient.lo $(CLIENTLIBS)
-	$(LIBTOOL) --mode=link $(CC) $(LDFLAGS) $(RLM_LDFLAGS) -o radeapclient$(EXEEXT) radeapclient.lo $(LIBRADIUS) $(CLIENTLIBS) $(LIBS)
+	$(LIBTOOL) --mode=link --tag=CC $(CC) $(LDFLAGS) $(RLM_LDFLAGS) -o radeapclient$(EXEEXT) radeapclient.lo $(LIBRADIUS) $(CLIENTLIBS) $(LIBS)
 
 radeapclient.lo: radeapclient.c $(HEADERS)
-	$(LIBTOOL) --mode=compile $(CC) $(CFLAGS) $(RLM_CFLAGS) -c radeapclient.c
+	$(LIBTOOL) --mode=compile --tag=CC $(CC) $(CFLAGS) $(RLM_CFLAGS) -c radeapclient.c
 
 install-subdirs:
 	@$(MAKE) $(MFLAGS) WHAT_TO_MAKE=install common

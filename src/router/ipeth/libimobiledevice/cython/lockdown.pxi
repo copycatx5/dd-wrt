@@ -19,6 +19,8 @@ cdef extern from "libimobiledevice/lockdown.h":
         LOCKDOWN_E_INVALID_HOST_ID = -16
         LOCKDOWN_E_INVALID_SERVICE = -17
         LOCKDOWN_E_INVALID_ACTIVATION_RECORD = -18
+        LOCKDOWN_E_PAIRING_DIALOG_PENDING = -20
+        LOCKDOWN_E_USER_DENIED_PAIRING = -21
         LOCKDOWN_E_UNKNOWN_ERROR = -256
 
     lockdownd_error_t lockdownd_client_new(idevice_t device, lockdownd_client_t *client, char *label)
@@ -67,6 +69,8 @@ cdef class LockdownError(BaseError):
             LOCKDOWN_E_INVALID_HOST_ID: "Invalid host ID",
             LOCKDOWN_E_INVALID_SERVICE: "Invalid service",
             LOCKDOWN_E_INVALID_ACTIVATION_RECORD: "Invalid activation record",
+            LOCKDOWN_E_PAIRING_DIALOG_PENDING: "Pairing dialog pending",
+            LOCKDOWN_E_USER_DENIED_PAIRING: "User denied pairing",
             LOCKDOWN_E_UNKNOWN_ERROR: "Unknown error"
         }
         BaseError.__init__(self, *args, **kwargs)
@@ -90,7 +94,7 @@ cdef class LockdownPairRecord:
             cdef bytes result = self._c_record.root_certificate
             return result
 
-cdef class LockdownServiceDescriptor:
+cdef class LockdownServiceDescriptor(Base):
     #def __cinit__(self, uint16_t port, uint8_t ssl_enabled, *args, **kwargs):
     def __dealloc__(self):
         cdef lockdownd_error_t err
@@ -221,7 +225,7 @@ cdef class LockdownClient(PropertyListService):
             char* c_session_id = NULL
             bint ssl_enabled
             bytes session_id
-        err = lockdownd_start_session(self._c_client, host_id, &c_session_id, &ssl_enabled)
+        err = lockdownd_start_session(self._c_client, host_id, &c_session_id, <int *>&ssl_enabled)
         try:
             self.handle_error(err)
 

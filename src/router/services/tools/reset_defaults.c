@@ -1,7 +1,7 @@
 /*
- * beep.c
+ * reset_defaults.c
  *
- * Copyright (C) 2008 Sebastian Gottschall <gottschall@dd-wrt.com>
+ * Copyright (C) 2008-2016 Sebastian Gottschall <gottschall@dd-wrt.com>
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -29,84 +29,31 @@
 #include <wlutils.h>
 #include <bcmnvram.h>
 
-static char *filter[] = { "lan_ifnames",
-	"lan_ifname",
-	"wan_ifnames",
-	"wan_ifname",
-	"et0macaddr",
-	"et1macaddr",
-	"il0macaddr",
-	"boardnum",
-	"boardtype",
-	"boardrev",
-	"melco_id",
-	"product_name",
-	"phyid_num",
-	"cardbus",
-	"CFEver",
-	"clkfreq",
-	"boardflags",
-	"boardflags2",
-	"sromrev",
-	"sdram_config",
-	"sdram_init",
-	"sdram_refresh",
-	"sdram_ncdl",
-	"boot_wait",
-	"wait_time",
-	"et0phyaddr",
-	"et0mdcport",
-	"vlan0ports",
-	"vlan1ports",
-	"vlan2ports",
-	"vlan0hwname",
-	"vlan1hwname",
-	"vlan2hwname",
-	"wl_use_coregpio",
-	"wl0gpio0",
-	"wl0gpio1",
-	"wl0gpio2",
-	"wl0gpio3",
-	"wl0gpio4",
-	"reset_gpio",
-	"af_hash",
-	"wan_ifname",
-	"lan_ifname",
-	"lan_ifnames",
-	"wan_ifnames",
-	"wan_default",
-	NULL
-};
-
-extern struct nvram_tuple *srouter_defaults;
-
-static int isCritical(char *name)
-{
-	int a = 0;
-
-	while (filter[a] != NULL) {
-		if (!strcmp(name, filter[a++])) {
-			return 1;
-		}
-	}
-	return 0;
-}
+extern struct nvram_param *srouter_defaults;
 
 extern void load_defaults(void);
 extern void free_defaults(void);
 
 #ifdef NVRAM_SPACE_256
 #define NVRAMSPACE NVRAM_SPACE_256
+#elif HAVE_NVRAM_128
+#define NVRAMSPACE 0x20000
+#elif HAVE_MVEBU
+#define NVRAMSPACE 0x10000
+#elif HAVE_IPQ806X
+#define NVRAMSPACE 0x10000
 #else
 #define NVRAMSPACE NVRAM_SPACE
 #endif
+
+extern int nvram_critical(char *name);
 
 void start_defaults(void)
 {
 	fprintf(stderr, "restore nvram to defaults\n");
 	char *buf = (char *)malloc(NVRAMSPACE);
 	int i;
-	struct nvram_tuple *t;
+	struct nvram_param *t;
 
 	nvram_getall(buf, NVRAMSPACE);
 	char *p = buf;
@@ -120,7 +67,7 @@ void start_defaults(void)
 				p[i] = 0;
 		char *name = p;
 
-		if (!isCritical(name))
+		if (!nvram_critical(name))
 			nvram_unset(name);
 		p += len + 1;
 	}

@@ -1,7 +1,7 @@
 /*
    Common strings utilities
 
-   Copyright (C) 2007-2014
+   Copyright (C) 2007-2015
    Free Software Foundation, Inc.
 
    Written by:
@@ -33,7 +33,19 @@
 #include "lib/global.h"
 #include "lib/strutil.h"
 
-/*names, that are used for utf-8 */
+/*** global variables ****************************************************************************/
+
+GIConv str_cnv_to_term;
+GIConv str_cnv_from_term;
+GIConv str_cnv_not_convert = INVALID_CONV;
+
+/*** file scope macro definitions ****************************************************************/
+
+/*** file scope type declarations ****************************************************************/
+
+/*** file scope variables ************************************************************************/
+
+/* names, that are used for utf-8 */
 static const char *str_utf8_encodings[] = {
     "utf-8",
     "utf8",
@@ -66,9 +78,9 @@ static char *term_encoding = NULL;
 /* function for encoding specific operations */
 static struct str_class used_class;
 
-GIConv str_cnv_to_term;
-GIConv str_cnv_from_term;
-GIConv str_cnv_not_convert = INVALID_CONV;
+/* --------------------------------------------------------------------------------------------- */
+/*** file scope functions ************************************************************************/
+/* --------------------------------------------------------------------------------------------- */
 
 /* if enc is same encoding like on terminal */
 static int
@@ -77,25 +89,7 @@ str_test_not_convert (const char *enc)
     return g_ascii_strcasecmp (enc, codeset) == 0;
 }
 
-GIConv
-str_crt_conv_to (const char *to_enc)
-{
-    return (!str_test_not_convert (to_enc)) ? g_iconv_open (to_enc, codeset) : str_cnv_not_convert;
-}
-
-GIConv
-str_crt_conv_from (const char *from_enc)
-{
-    return (!str_test_not_convert (from_enc))
-        ? g_iconv_open (codeset, from_enc) : str_cnv_not_convert;
-}
-
-void
-str_close_conv (GIConv conv)
-{
-    if (conv != str_cnv_not_convert)
-        g_iconv_close (conv);
-}
+/* --------------------------------------------------------------------------------------------- */
 
 static estr_t
 _str_convert (GIConv coder, const char *string, int size, GString * buffer)
@@ -134,16 +128,16 @@ _str_convert (GIConv coder, const char *string, int size, GString * buffer)
     while (left != 0)
     {
         gchar *tmp_buff;
-        GError *error = NULL;
+        GError *mcerror = NULL;
 
         tmp_buff = g_convert_with_iconv ((const gchar *) string,
-                                         left, coder, &bytes_read, &bytes_written, &error);
-        if (error != NULL)
+                                         left, coder, &bytes_read, &bytes_written, &mcerror);
+        if (mcerror != NULL)
         {
-            int code = error->code;
+            int code = mcerror->code;
 
-            g_error_free (error);
-            error = NULL;
+            g_error_free (mcerror);
+            mcerror = NULL;
 
             switch (code)
             {
@@ -221,11 +215,75 @@ _str_convert (GIConv coder, const char *string, int size, GString * buffer)
     return state;
 }
 
+/* --------------------------------------------------------------------------------------------- */
+
+static int
+str_test_encoding_class (const char *encoding, const char **table)
+{
+    int result = 0;
+
+    if (encoding != NULL)
+    {
+        int t;
+
+        for (t = 0; table[t] != NULL; t++)
+            if (g_ascii_strncasecmp (encoding, table[t], strlen (table[t])) == 0)
+                result++;
+    }
+
+    return result;
+}
+
+/* --------------------------------------------------------------------------------------------- */
+
+static void
+str_choose_str_functions (void)
+{
+    if (str_test_encoding_class (codeset, str_utf8_encodings))
+        used_class = str_utf8_init ();
+    else if (str_test_encoding_class (codeset, str_8bit_encodings))
+        used_class = str_8bit_init ();
+    else
+        used_class = str_ascii_init ();
+}
+
+/* --------------------------------------------------------------------------------------------- */
+/*** public functions ****************************************************************************/
+/* --------------------------------------------------------------------------------------------- */
+
+GIConv
+str_crt_conv_to (const char *to_enc)
+{
+    return (!str_test_not_convert (to_enc)) ? g_iconv_open (to_enc, codeset) : str_cnv_not_convert;
+}
+
+/* --------------------------------------------------------------------------------------------- */
+
+GIConv
+str_crt_conv_from (const char *from_enc)
+{
+    return (!str_test_not_convert (from_enc))
+        ? g_iconv_open (codeset, from_enc) : str_cnv_not_convert;
+}
+
+/* --------------------------------------------------------------------------------------------- */
+
+void
+str_close_conv (GIConv conv)
+{
+    if (conv != str_cnv_not_convert)
+        g_iconv_close (conv);
+}
+
+/* --------------------------------------------------------------------------------------------- */
+
 estr_t
 str_convert (GIConv coder, const char *string, GString * buffer)
 {
     return _str_convert (coder, string, -1, buffer);
 }
+
+/* --------------------------------------------------------------------------------------------- */
 
 estr_t
 str_nconvert (GIConv coder, const char *string, int size, GString * buffer)
@@ -233,11 +291,15 @@ str_nconvert (GIConv coder, const char *string, int size, GString * buffer)
     return _str_convert (coder, string, size, buffer);
 }
 
+/* --------------------------------------------------------------------------------------------- */
+
 gchar *
-str_conv_gerror_message (GError * error, const char *def_msg)
+str_conv_gerror_message (GError * mcerror, const char *def_msg)
 {
-    return used_class.conv_gerror_message (error, def_msg);
+    return used_class.conv_gerror_message (mcerror, def_msg);
 }
+
+/* --------------------------------------------------------------------------------------------- */
 
 estr_t
 str_vfs_convert_from (GIConv coder, const char *string, GString * buffer)
@@ -252,11 +314,15 @@ str_vfs_convert_from (GIConv coder, const char *string, GString * buffer)
     return result;
 }
 
+/* --------------------------------------------------------------------------------------------- */
+
 estr_t
 str_vfs_convert_to (GIConv coder, const char *string, int size, GString * buffer)
 {
     return used_class.vfs_convert_to (coder, string, size, buffer);
 }
+
+/* --------------------------------------------------------------------------------------------- */
 
 void
 str_printf (GString * buffer, const char *format, ...)
@@ -264,25 +330,19 @@ str_printf (GString * buffer, const char *format, ...)
     va_list ap;
     va_start (ap, format);
 
-#if GLIB_CHECK_VERSION (2, 14, 0)
     g_string_append_vprintf (buffer, format, ap);
-#else
-    {
-        gchar *tmp;
-
-        tmp = g_strdup_vprintf (format, ap);
-        g_string_append (buffer, tmp);
-        g_free (tmp);
-    }
-#endif
     va_end (ap);
 }
+
+/* --------------------------------------------------------------------------------------------- */
 
 void
 str_insert_replace_char (GString * buffer)
 {
     used_class.insert_replace_char (buffer);
 }
+
+/* --------------------------------------------------------------------------------------------- */
 
 estr_t
 str_translate_char (GIConv conv, const char *keys, size_t ch_size, char *output, size_t out_size)
@@ -302,6 +362,7 @@ str_translate_char (GIConv conv, const char *keys, size_t ch_size, char *output,
     return ESTR_SUCCESS;
 }
 
+/* --------------------------------------------------------------------------------------------- */
 
 const char *
 str_detect_termencoding (void)
@@ -318,39 +379,15 @@ str_detect_termencoding (void)
     return term_encoding;
 }
 
-static int
-str_test_encoding_class (const char *encoding, const char **table)
-{
-    int result = 0;
-
-    if (encoding != NULL)
-    {
-        int t;
-
-        for (t = 0; table[t] != NULL; t++)
-            if (g_ascii_strncasecmp (encoding, table[t], strlen (table[t])) == 0)
-                result++;
-    }
-
-    return result;
-}
-
-static void
-str_choose_str_functions (void)
-{
-    if (str_test_encoding_class (codeset, str_utf8_encodings))
-        used_class = str_utf8_init ();
-    else if (str_test_encoding_class (codeset, str_8bit_encodings))
-        used_class = str_8bit_init ();
-    else
-        used_class = str_ascii_init ();
-}
+/* --------------------------------------------------------------------------------------------- */
 
 gboolean
 str_isutf8 (const char *codeset_name)
 {
     return (str_test_encoding_class (codeset_name, str_utf8_encodings) != 0);
 }
+
+/* --------------------------------------------------------------------------------------------- */
 
 void
 str_init_strings (const char *termenc)
@@ -381,6 +418,8 @@ str_init_strings (const char *termenc)
     str_choose_str_functions ();
 }
 
+/* --------------------------------------------------------------------------------------------- */
+
 void
 str_uninit_strings (void)
 {
@@ -390,11 +429,15 @@ str_uninit_strings (void)
     g_free (codeset);
 }
 
+/* --------------------------------------------------------------------------------------------- */
+
 const char *
 str_term_form (const char *text)
 {
     return used_class.term_form (text);
 }
+
+/* --------------------------------------------------------------------------------------------- */
 
 const char *
 str_fit_to_term (const char *text, int width, align_crt_t just_mode)
@@ -402,17 +445,23 @@ str_fit_to_term (const char *text, int width, align_crt_t just_mode)
     return used_class.fit_to_term (text, width, just_mode);
 }
 
+/* --------------------------------------------------------------------------------------------- */
+
 const char *
 str_term_trim (const char *text, int width)
 {
     return used_class.term_trim (text, width);
 }
 
+/* --------------------------------------------------------------------------------------------- */
+
 const char *
 str_term_substring (const char *text, int start, int width)
 {
     return used_class.term_substring (text, start, width);
 }
+
+/* --------------------------------------------------------------------------------------------- */
 
 char *
 str_get_next_char (char *text)
@@ -422,6 +471,8 @@ str_get_next_char (char *text)
     return text;
 }
 
+/* --------------------------------------------------------------------------------------------- */
+
 const char *
 str_cget_next_char (const char *text)
 {
@@ -429,17 +480,23 @@ str_cget_next_char (const char *text)
     return text;
 }
 
+/* --------------------------------------------------------------------------------------------- */
+
 void
 str_next_char (char **text)
 {
     used_class.cnext_char ((const char **) text);
 }
 
+/* --------------------------------------------------------------------------------------------- */
+
 void
 str_cnext_char (const char **text)
 {
     used_class.cnext_char (text);
 }
+
+/* --------------------------------------------------------------------------------------------- */
 
 char *
 str_get_prev_char (char *text)
@@ -448,6 +505,8 @@ str_get_prev_char (char *text)
     return text;
 }
 
+/* --------------------------------------------------------------------------------------------- */
+
 const char *
 str_cget_prev_char (const char *text)
 {
@@ -455,17 +514,23 @@ str_cget_prev_char (const char *text)
     return text;
 }
 
+/* --------------------------------------------------------------------------------------------- */
+
 void
 str_prev_char (char **text)
 {
     used_class.cprev_char ((const char **) text);
 }
 
+/* --------------------------------------------------------------------------------------------- */
+
 void
 str_cprev_char (const char **text)
 {
     used_class.cprev_char (text);
 }
+
+/* --------------------------------------------------------------------------------------------- */
 
 char *
 str_get_next_char_safe (char *text)
@@ -474,6 +539,8 @@ str_get_next_char_safe (char *text)
     return text;
 }
 
+/* --------------------------------------------------------------------------------------------- */
+
 const char *
 str_cget_next_char_safe (const char *text)
 {
@@ -481,17 +548,23 @@ str_cget_next_char_safe (const char *text)
     return text;
 }
 
+/* --------------------------------------------------------------------------------------------- */
+
 void
 str_next_char_safe (char **text)
 {
     used_class.cnext_char_safe ((const char **) text);
 }
 
+/* --------------------------------------------------------------------------------------------- */
+
 void
 str_cnext_char_safe (const char **text)
 {
     used_class.cnext_char_safe (text);
 }
+
+/* --------------------------------------------------------------------------------------------- */
 
 char *
 str_get_prev_char_safe (char *text)
@@ -500,6 +573,8 @@ str_get_prev_char_safe (char *text)
     return text;
 }
 
+/* --------------------------------------------------------------------------------------------- */
+
 const char *
 str_cget_prev_char_safe (const char *text)
 {
@@ -507,11 +582,15 @@ str_cget_prev_char_safe (const char *text)
     return text;
 }
 
+/* --------------------------------------------------------------------------------------------- */
+
 void
 str_prev_char_safe (char **text)
 {
     used_class.cprev_char_safe ((const char **) text);
 }
+
+/* --------------------------------------------------------------------------------------------- */
 
 void
 str_cprev_char_safe (const char **text)
@@ -519,11 +598,15 @@ str_cprev_char_safe (const char **text)
     used_class.cprev_char_safe (text);
 }
 
+/* --------------------------------------------------------------------------------------------- */
+
 int
 str_next_noncomb_char (char **text)
 {
     return used_class.cnext_noncomb_char ((const char **) text);
 }
+
+/* --------------------------------------------------------------------------------------------- */
 
 int
 str_cnext_noncomb_char (const char **text)
@@ -531,11 +614,15 @@ str_cnext_noncomb_char (const char **text)
     return used_class.cnext_noncomb_char (text);
 }
 
+/* --------------------------------------------------------------------------------------------- */
+
 int
 str_prev_noncomb_char (char **text, const char *begin)
 {
     return used_class.cprev_noncomb_char ((const char **) text, begin);
 }
+
+/* --------------------------------------------------------------------------------------------- */
 
 int
 str_cprev_noncomb_char (const char **text, const char *begin)
@@ -543,11 +630,15 @@ str_cprev_noncomb_char (const char **text, const char *begin)
     return used_class.cprev_noncomb_char (text, begin);
 }
 
+/* --------------------------------------------------------------------------------------------- */
+
 int
 str_is_valid_char (const char *ch, size_t size)
 {
     return used_class.is_valid_char (ch, size);
 }
+
+/* --------------------------------------------------------------------------------------------- */
 
 int
 str_term_width1 (const char *text)
@@ -555,11 +646,15 @@ str_term_width1 (const char *text)
     return used_class.term_width1 (text);
 }
 
+/* --------------------------------------------------------------------------------------------- */
+
 int
 str_term_width2 (const char *text, size_t length)
 {
     return used_class.term_width2 (text, length);
 }
+
+/* --------------------------------------------------------------------------------------------- */
 
 int
 str_term_char_width (const char *text)
@@ -567,11 +662,15 @@ str_term_char_width (const char *text)
     return used_class.term_char_width (text);
 }
 
+/* --------------------------------------------------------------------------------------------- */
+
 int
 str_offset_to_pos (const char *text, size_t length)
 {
     return used_class.offset_to_pos (text, length);
 }
+
+/* --------------------------------------------------------------------------------------------- */
 
 int
 str_length (const char *text)
@@ -579,11 +678,15 @@ str_length (const char *text)
     return used_class.length (text);
 }
 
+/* --------------------------------------------------------------------------------------------- */
+
 int
 str_length_char (const char *text)
 {
     return str_cget_next_char_safe (text) - text;
 }
+
+/* --------------------------------------------------------------------------------------------- */
 
 int
 str_length2 (const char *text, int size)
@@ -591,11 +694,15 @@ str_length2 (const char *text, int size)
     return used_class.length2 (text, size);
 }
 
+/* --------------------------------------------------------------------------------------------- */
+
 int
 str_length_noncomb (const char *text)
 {
     return used_class.length_noncomb (text);
 }
+
+/* --------------------------------------------------------------------------------------------- */
 
 int
 str_column_to_pos (const char *text, size_t pos)
@@ -603,11 +710,15 @@ str_column_to_pos (const char *text, size_t pos)
     return used_class.column_to_pos (text, pos);
 }
 
+/* --------------------------------------------------------------------------------------------- */
+
 int
 str_isspace (const char *ch)
 {
     return used_class.char_isspace (ch);
 }
+
+/* --------------------------------------------------------------------------------------------- */
 
 int
 str_ispunct (const char *ch)
@@ -615,11 +726,15 @@ str_ispunct (const char *ch)
     return used_class.char_ispunct (ch);
 }
 
+/* --------------------------------------------------------------------------------------------- */
+
 int
 str_isalnum (const char *ch)
 {
     return used_class.char_isalnum (ch);
 }
+
+/* --------------------------------------------------------------------------------------------- */
 
 int
 str_isdigit (const char *ch)
@@ -627,11 +742,15 @@ str_isdigit (const char *ch)
     return used_class.char_isdigit (ch);
 }
 
+/* --------------------------------------------------------------------------------------------- */
+
 int
 str_toupper (const char *ch, char **out, size_t * remain)
 {
     return used_class.char_toupper (ch, out, remain);
 }
+
+/* --------------------------------------------------------------------------------------------- */
 
 int
 str_tolower (const char *ch, char **out, size_t * remain)
@@ -639,11 +758,15 @@ str_tolower (const char *ch, char **out, size_t * remain)
     return used_class.char_tolower (ch, out, remain);
 }
 
+/* --------------------------------------------------------------------------------------------- */
+
 int
 str_isprint (const char *ch)
 {
     return used_class.char_isprint (ch);
 }
+
+/* --------------------------------------------------------------------------------------------- */
 
 gboolean
 str_iscombiningmark (const char *ch)
@@ -651,11 +774,15 @@ str_iscombiningmark (const char *ch)
     return used_class.char_iscombiningmark (ch);
 }
 
+/* --------------------------------------------------------------------------------------------- */
+
 const char *
 str_trunc (const char *text, int width)
 {
     return used_class.trunc (text, width);
 }
+
+/* --------------------------------------------------------------------------------------------- */
 
 char *
 str_create_search_needle (const char *needle, int case_sen)
@@ -663,6 +790,7 @@ str_create_search_needle (const char *needle, int case_sen)
     return used_class.create_search_needle (needle, case_sen);
 }
 
+/* --------------------------------------------------------------------------------------------- */
 
 void
 str_release_search_needle (char *needle, int case_sen)
@@ -670,11 +798,15 @@ str_release_search_needle (char *needle, int case_sen)
     used_class.release_search_needle (needle, case_sen);
 }
 
+/* --------------------------------------------------------------------------------------------- */
+
 const char *
 str_search_first (const char *text, const char *search, int case_sen)
 {
     return used_class.search_first (text, search, case_sen);
 }
+
+/* --------------------------------------------------------------------------------------------- */
 
 const char *
 str_search_last (const char *text, const char *search, int case_sen)
@@ -682,11 +814,15 @@ str_search_last (const char *text, const char *search, int case_sen)
     return used_class.search_last (text, search, case_sen);
 }
 
+/* --------------------------------------------------------------------------------------------- */
+
 int
 str_is_valid_string (const char *text)
 {
     return used_class.is_valid_string (text);
 }
+
+/* --------------------------------------------------------------------------------------------- */
 
 int
 str_compare (const char *t1, const char *t2)
@@ -694,11 +830,15 @@ str_compare (const char *t1, const char *t2)
     return used_class.compare (t1, t2);
 }
 
+/* --------------------------------------------------------------------------------------------- */
+
 int
 str_ncompare (const char *t1, const char *t2)
 {
     return used_class.ncompare (t1, t2);
 }
+
+/* --------------------------------------------------------------------------------------------- */
 
 int
 str_casecmp (const char *t1, const char *t2)
@@ -706,11 +846,15 @@ str_casecmp (const char *t1, const char *t2)
     return used_class.casecmp (t1, t2);
 }
 
+/* --------------------------------------------------------------------------------------------- */
+
 int
 str_ncasecmp (const char *t1, const char *t2)
 {
     return used_class.ncasecmp (t1, t2);
 }
+
+/* --------------------------------------------------------------------------------------------- */
 
 int
 str_prefix (const char *text, const char *prefix)
@@ -718,11 +862,15 @@ str_prefix (const char *text, const char *prefix)
     return used_class.prefix (text, prefix);
 }
 
+/* --------------------------------------------------------------------------------------------- */
+
 int
 str_caseprefix (const char *text, const char *prefix)
 {
     return used_class.caseprefix (text, prefix);
 }
+
+/* --------------------------------------------------------------------------------------------- */
 
 void
 str_fix_string (char *text)
@@ -730,11 +878,15 @@ str_fix_string (char *text)
     used_class.fix_string (text);
 }
 
+/* --------------------------------------------------------------------------------------------- */
+
 char *
 str_create_key (const char *text, int case_sen)
 {
     return used_class.create_key (text, case_sen);
 }
+
+/* --------------------------------------------------------------------------------------------- */
 
 char *
 str_create_key_for_filename (const char *text, int case_sen)
@@ -742,17 +894,23 @@ str_create_key_for_filename (const char *text, int case_sen)
     return used_class.create_key_for_filename (text, case_sen);
 }
 
+/* --------------------------------------------------------------------------------------------- */
+
 int
 str_key_collate (const char *t1, const char *t2, int case_sen)
 {
     return used_class.key_collate (t1, t2, case_sen);
 }
 
+/* --------------------------------------------------------------------------------------------- */
+
 void
 str_release_key (char *key, int case_sen)
 {
     used_class.release_key (key, case_sen);
 }
+
+/* --------------------------------------------------------------------------------------------- */
 
 void
 str_msg_term_size (const char *text, int *lines, int *columns)

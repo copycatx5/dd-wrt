@@ -52,6 +52,8 @@ char *(*websGetVar) (webs_t wp, char *var, char *d);
 int (*websWrite) (webs_t wp, char *fmt, ...);
 struct wl_client_mac *wl_client_macs;
 void (*validate_cgi) (webs_t fp) = NULL;
+char *copytonv(webs_t wp, const char *fmt, ...);
+char *copymergetonv(webs_t wp, const char *fmt, ...);
 
 void initWeb(struct Webenvironment *env)
 {
@@ -617,9 +619,10 @@ void validate_password(webs_t wp, char *value, struct variable *v)
 	}
 #endif
 	if (strcmp(value, TMP_PASSWD) && valid_name(wp, value, v)) {
-		nvram_set(v->name, zencrypt(value));
+		char passout[MD5_OUT_BUFSIZE];
+		nvram_set(v->name, zencrypt(value, passout));
 
-		system2("/sbin/setpasswd");
+		eval("/sbin/setpasswd");
 	}
 }
 
@@ -742,25 +745,14 @@ void validate_portsetup(webs_t wp, char *value, struct variable *v)
 
 	getIfLists(eths, 256);
 	foreach(var, eths, next) {
+		copytonv(wp, "%s_label", var);
+		char *bridged = copytonv(wp, "%s_bridged", var);
+		copytonv(wp, "%s_multicast", var);
+		copytonv(wp, "%s_nat", var);
+		copytonv(wp, "%s_isolation", var);
+		copytonv(wp, "%s_dns_redirect", var);
+		copymergetonv(wp, "%s_dns_ipaddr", var);
 		char val[64];
-
-		sprintf(val, "%s_bridged", var);
-		char *bridged = websGetVar(wp, val, NULL);
-
-		if (bridged)
-			nvram_set(val, bridged);
-
-		sprintf(val, "%s_multicast", var);
-		char *multicast = websGetVar(wp, val, NULL);
-
-		if (multicast)
-			nvram_set(val, multicast);
-
-		sprintf(val, "%s_nat", var);
-		char *masquerade = websGetVar(wp, val, NULL);
-
-		if (masquerade)
-			nvram_set(val, masquerade);
 
 		sprintf(val, "%s_mtu", var);
 		char *mtu = websGetVar(wp, val, NULL);
@@ -777,36 +769,18 @@ void validate_portsetup(webs_t wp, char *value, struct variable *v)
 			nvram_set(val, "1000");
 
 		if (bridged && strcmp(bridged, "0") == 0) {
-			sprintf(val, "%s_ipaddr", var);
-			char ipaddr[64];
-
-			if (get_merge_ipaddr(wp, val, ipaddr))
-				nvram_set(val, ipaddr);
-			sprintf(val, "%s_netmask", var);
-			char netmask[64];
-
-			if (get_merge_ipaddr(wp, val, netmask))
-				nvram_set(val, netmask);
+			copymergetonv(wp, "%s_ipaddr", var);
+			copymergetonv(wp, "%s_netmask", var);
 #if defined(HAVE_BKM) || defined(HAVE_TMK)
 			if (1) {
-				sprintf(val, "nld_%s_enable", var);
-				char *nld_enable = websGetVar(wp, val, "0");
-				nvram_set(val, nld_enable);
-
-				sprintf(val, "nld_%s_bridge", var);
-				char *nld_bridge = websGetVar(wp, val, "");
-				nvram_set(val, nld_bridge);
+				copytonv(wp, "nld_%s_enable", var);
+				copytonv(wp, "nld_%s_bridge", var);
 			}
 #endif
 #if defined(HAVE_BATMANADV)
 			if (1) {
-				sprintf(val, "bat_%s_enable", var);
-				char *bat_enable = websGetVar(wp, val, "0");
-				nvram_set(val, bat_enable);
-
-				sprintf(val, "bat_%s_bridge", var);
-				char *bat_bridge = websGetVar(wp, val, "");
-				nvram_set(val, bat_bridge);
+				copytonv(wp, "bat_%s_enable", var);
+				copytonv(wp, "bat_%s_bridge", var);
 			}
 #endif
 		}
@@ -1731,6 +1705,7 @@ void convert_wl_gmode(char *value, char *prefix)
 		nvram_nset(value, "%s_net_mode", prefix);
 		nvram_nset("1", "%s_gmode", prefix);
 		nvram_nset("-1", "%s_nmode", prefix);
+		nvram_nset("none", "%s_nctrlsb", prefix);
 		nvram_nset("auto", "%s_afterburner", prefix);
 		nvram_nset("default", "%s_rateset", prefix);
 		nvram_nset("on", "%s_frameburst", prefix);
@@ -1746,6 +1721,7 @@ void convert_wl_gmode(char *value, char *prefix)
 	} else if (!strcmp(value, "bg-mixed")) {
 		nvram_nset(value, "%s_net_mode", prefix);
 		nvram_nset("1", "%s_gmode", prefix);
+		nvram_nset("none", "%s_nctrlsb", prefix);
 		nvram_nset("auto", "%s_afterburner", prefix);
 		nvram_nset("default", "%s_rateset", prefix);
 		nvram_nset("on", "%s_frameburst", prefix);
@@ -1759,6 +1735,7 @@ void convert_wl_gmode(char *value, char *prefix)
 	} else if (!strcmp(value, "g-only")) {
 		nvram_nset(value, "%s_net_mode", prefix);
 		nvram_nset("0", "%s_nmode", prefix);
+		nvram_nset("none", "%s_nctrlsb", prefix);
 		nvram_nset("2", "%s_gmode", prefix);
 		if (!has_mimo(prefix))
 			nvram_nset("g", "%s_phytype", prefix);
@@ -1777,6 +1754,7 @@ void convert_wl_gmode(char *value, char *prefix)
 	} else if (!strcmp(value, "b-only")) {
 		nvram_nset(value, "%s_net_mode", prefix);
 		nvram_nset("0", "%s_gmode", prefix);
+		nvram_nset("none", "%s_nctrlsb", prefix);
 		nvram_nset("0", "%s_nmode", prefix);
 		nvram_nset("off", "%s_afterburner", prefix);
 		nvram_nset("default", "%s_rateset", prefix);
@@ -1831,6 +1809,12 @@ void convert_wl_gmode(char *value, char *prefix)
 		nvram_nset("2", "%s_nmode", prefix);
 		nvram_nset("1", "%s_nreqd", prefix);
 		nvram_nset("3", "%s_bss_opmode_cap_reqd", prefix);
+		nvram_nset("1", "%s_nband", prefix);
+	} else if (!strcmp(value, "acn-mixed")) {
+		nvram_nset(value, "%s_net_mode", prefix);
+		nvram_nset("2", "%s_nmode", prefix);
+		nvram_nset("1", "%s_nreqd", prefix);
+		nvram_nset("2", "%s_bss_opmode_cap_reqd", prefix);
 		nvram_nset("1", "%s_nband", prefix);
 	}
 }
@@ -2463,9 +2447,9 @@ void validate_wds(webs_t wp, char *value, struct variable *v)
 			// quick and dirty
 #ifdef HAVE_RT2880
 			if (!strcmp(interface, "wl0"))
-				snprintf(wds_if, 31, "wds%d", (devcount++));
+				snprintf(wds_if, 31, "wds%d", (devcount++) - 1);
 			else if (!strcmp(interface, "wl1"))
-				snprintf(wds_if, 31, "wds%d", (devcount++) + 10);
+				snprintf(wds_if, 31, "wds%d", (devcount++) + 10 - 1);
 #else
 			if (!strcmp(interface, "wl0"))
 				snprintf(wds_if, 31, "wds0.%d", (devcount++));
@@ -2828,7 +2812,7 @@ void validate_filter_web(webs_t wp, char *value, struct variable *v)
 	/*
 	 * Handle Website Blocking by Keyword 
 	 */
-	for (i = 0; i < 14; i++) {
+	for (i = 0; i < 16; i++) {
 		char filter_url[] = "urlXXX";
 		char *url;
 
@@ -2979,7 +2963,10 @@ void validate_blocked_service(webs_t wp, char *value, struct variable *v)
 	char port_grp[] = "filter_port_grpXXX";
 
 	D("validate_blocked_service");
-	for (i = 0; i < BLOCKED_SERVICE_NUM; i++) {
+	char filter[32];
+	sprintf(filter, "numfilterservice%s", nvram_safe_get("filter_id"));
+	int numfilters = atoi(nvram_default_get(filter, "4"));
+	for (i = 0; i < numfilters; i++) {
 		char blocked_service[] = "blocked_serviceXXX";
 		char *service;
 

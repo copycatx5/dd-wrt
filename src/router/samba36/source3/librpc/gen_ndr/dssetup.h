@@ -42,7 +42,7 @@ struct dssetup_DsRolePrimaryDomInfoBasic {
 	enum dssetup_DsRole role;
 	uint32_t flags;
 	const char *domain;/* [unique,charset(UTF16)] */
-	const char *dns_domain;/* [unique,charset(UTF16)] */
+	const char *dns_domain;/* [charset(UTF16),unique] */
 	const char *forest;/* [unique,charset(UTF16)] */
 	struct GUID domain_guid;
 };

@@ -2212,7 +2212,7 @@ struct tevent_req *dcerpc_RemQueryInterface_send(TALLOC_CTX *mem_ctx,
 						 struct GUID *_ripid /* [in] [unique] */,
 						 uint32_t _cRefs /* [in]  */,
 						 uint16_t _cIids /* [in]  */,
-						 struct GUID *_iids /* [in] [unique,size_is(cIids)] */,
+						 struct GUID *_iids /* [in] [size_is(cIids),unique] */,
 						 struct MInterfacePointer *_ip /* [out] [unique,size_is(cIids)] */)
 {
 	struct tevent_req *req;
@@ -2328,7 +2328,7 @@ NTSTATUS dcerpc_RemQueryInterface(struct dcerpc_binding_handle *h,
 				  struct GUID *_ripid /* [in] [unique] */,
 				  uint32_t _cRefs /* [in]  */,
 				  uint16_t _cIids /* [in]  */,
-				  struct GUID *_iids /* [in] [unique,size_is(cIids)] */,
+				  struct GUID *_iids /* [in] [size_is(cIids),unique] */,
 				  struct MInterfacePointer *_ip /* [out] [unique,size_is(cIids)] */,
 				  WERROR *result)
 {
@@ -2460,7 +2460,7 @@ struct tevent_req *dcerpc_RemAddRef_send(TALLOC_CTX *mem_ctx,
 					 struct ORPCTHIS _ORPCthis /* [in]  */,
 					 uint16_t _cInterfaceRefs /* [in]  */,
 					 struct REMINTERFACEREF *_InterfaceRefs /* [in] [size_is(cInterfaceRefs)] */,
-					 WERROR *_pResults /* [out] [unique,size_is(cInterfaceRefs)] */)
+					 WERROR *_pResults /* [out] [size_is(cInterfaceRefs),unique] */)
 {
 	struct tevent_req *req;
 	struct dcerpc_RemAddRef_state *state;
@@ -2572,7 +2572,7 @@ NTSTATUS dcerpc_RemAddRef(struct dcerpc_binding_handle *h,
 			  struct ORPCTHIS _ORPCthis /* [in]  */,
 			  uint16_t _cInterfaceRefs /* [in]  */,
 			  struct REMINTERFACEREF *_InterfaceRefs /* [in] [size_is(cInterfaceRefs)] */,
-			  WERROR *_pResults /* [out] [unique,size_is(cInterfaceRefs)] */,
+			  WERROR *_pResults /* [out] [size_is(cInterfaceRefs),unique] */,
 			  WERROR *result)
 {
 	struct RemAddRef r;
@@ -2929,7 +2929,7 @@ struct tevent_req *dcerpc_GetClassObject_send(TALLOC_CTX *mem_ctx,
 					      uint32_t _context /* [in]  */,
 					      uint32_t _locale /* [in]  */,
 					      struct GUID _iid /* [in]  */,
-					      struct MInterfacePointer *_data /* [out] [ref,iid_is(iid)] */)
+					      struct MInterfacePointer *_data /* [out] [iid_is(iid),ref] */)
 {
 	struct tevent_req *req;
 	struct dcerpc_GetClassObject_state *state;
@@ -3029,7 +3029,7 @@ NTSTATUS dcerpc_GetClassObject(struct dcerpc_binding_handle *h,
 			       uint32_t _context /* [in]  */,
 			       uint32_t _locale /* [in]  */,
 			       struct GUID _iid /* [in]  */,
-			       struct MInterfacePointer *_data /* [out] [ref,iid_is(iid)] */)
+			       struct MInterfacePointer *_data /* [out] [iid_is(iid),ref] */)
 {
 	struct GetClassObject r;
 	NTSTATUS status;
@@ -4012,9 +4012,9 @@ struct tevent_req *dcerpc_RemQueryInterface2_send(TALLOC_CTX *mem_ctx,
 						  struct ORPCTHIS _ORPCthis /* [in]  */,
 						  struct GUID *_ripid /* [in] [unique] */,
 						  uint16_t _cIids /* [in]  */,
-						  struct GUID *_iids /* [in] [unique,size_is(cIids)] */,
-						  WERROR *_phr /* [out] [unique,size_is(cIids)] */,
-						  struct MInterfacePointer *_ppMIF /* [out] [unique,size_is(cIids)] */)
+						  struct GUID *_iids /* [in] [size_is(cIids),unique] */,
+						  WERROR *_phr /* [out] [size_is(cIids),unique] */,
+						  struct MInterfacePointer *_ppMIF /* [out] [size_is(cIids),unique] */)
 {
 	struct tevent_req *req;
 	struct dcerpc_RemQueryInterface2_state *state;
@@ -4135,9 +4135,9 @@ NTSTATUS dcerpc_RemQueryInterface2(struct dcerpc_binding_handle *h,
 				   struct ORPCTHIS _ORPCthis /* [in]  */,
 				   struct GUID *_ripid /* [in] [unique] */,
 				   uint16_t _cIids /* [in]  */,
-				   struct GUID *_iids /* [in] [unique,size_is(cIids)] */,
-				   WERROR *_phr /* [out] [unique,size_is(cIids)] */,
-				   struct MInterfacePointer *_ppMIF /* [out] [unique,size_is(cIids)] */,
+				   struct GUID *_iids /* [in] [size_is(cIids),unique] */,
+				   WERROR *_phr /* [out] [size_is(cIids),unique] */,
+				   struct MInterfacePointer *_ppMIF /* [out] [size_is(cIids),unique] */,
 				   WERROR *result)
 {
 	struct RemQueryInterface2 r;
@@ -6154,7 +6154,7 @@ struct tevent_req *dcerpc_Write_send(TALLOC_CTX *mem_ctx,
 				     struct dcerpc_binding_handle *h,
 				     struct ORPCTHAT *_ORPCthat /* [out] [ref] */,
 				     struct ORPCTHIS _ORPCthis /* [in]  */,
-				     uint8_t *_data /* [in] [unique,size_is(num_requested)] */,
+				     uint8_t *_data /* [in] [size_is(num_requested),unique] */,
 				     uint32_t _num_requested /* [in]  */,
 				     uint32_t *_num_written /* [out] [ref] */)
 {
@@ -6260,7 +6260,7 @@ NTSTATUS dcerpc_Write(struct dcerpc_binding_handle *h,
 		      TALLOC_CTX *mem_ctx,
 		      struct ORPCTHAT *_ORPCthat /* [out] [ref] */,
 		      struct ORPCTHIS _ORPCthis /* [in]  */,
-		      uint8_t *_data /* [in] [unique,size_is(num_requested)] */,
+		      uint8_t *_data /* [in] [size_is(num_requested),unique] */,
 		      uint32_t _num_requested /* [in]  */,
 		      uint32_t *_num_written /* [out] [ref] */,
 		      WERROR *result)

@@ -23,7 +23,11 @@
  *  51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  */
 
+#if !defined(POLARSSL_CONFIG_FILE)
 #include "polarssl/config.h"
+#else
+#include POLARSSL_CONFIG_FILE
+#endif
 
 #include "polarssl/entropy.h"
 
@@ -81,6 +85,7 @@ int main( int argc, char *argv[] )
 cleanup:
 
     fclose( f );
+    entropy_free( &entropy );
 
     return( ret );
 }

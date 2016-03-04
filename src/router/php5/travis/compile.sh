@@ -10,9 +10,12 @@ else
 	DEBUG="";
 fi
 ./buildconf --force
-./configure --quiet \
+./configure \
+--prefix=$HOME"/php-install" \
+--quiet \
 $DEBUG \
 $TS \
+--enable-fpm \
 --with-pdo-mysql=mysqlnd \
 --with-mysql=mysqlnd \
 --with-mysqli=mysqlnd \
@@ -20,7 +23,7 @@ $TS \
 --with-pdo-pgsql \
 --with-pdo-sqlite \
 --enable-intl \
---without-pear \
+--with-pear \
 --with-gd \
 --with-jpeg-dir=/usr \
 --with-png-dir=/usr \
@@ -48,4 +51,5 @@ $TS \
 --with-openssl \
 --with-gmp \
 --enable-bcmath
-make --quiet
+make -j2 --quiet
+make install

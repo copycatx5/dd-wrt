@@ -2,7 +2,7 @@
    +----------------------------------------------------------------------+
    | PHP Version 5                                                        |
    +----------------------------------------------------------------------+
-   | Copyright (c) 1997-2014 The PHP Group                                |
+   | Copyright (c) 1997-2015 The PHP Group                                |
    +----------------------------------------------------------------------+
    | This source file is subject to version 3.01 of the PHP license,      |
    | that is bundled with this package in the file LICENSE, and is        |
@@ -1733,6 +1733,7 @@ SPL_METHOD(Array, unserialize)
 	const unsigned char *p, *s;
 	php_unserialize_data_t var_hash;
 	zval *pmembers, *pflags = NULL;
+	HashTable *aht;
 	long flags;
 
 	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "s", &buf, &buf_len) == FAILURE) {
@@ -1741,6 +1742,12 @@ SPL_METHOD(Array, unserialize)
 
 	if (buf_len == 0) {
 		zend_throw_exception_ex(spl_ce_UnexpectedValueException, 0 TSRMLS_CC, "Empty serialized string cannot be empty");
+		return;
+	}
+
+	aht = spl_array_get_hash_table(intern, 0 TSRMLS_CC);
+	if (aht->nApplyCount > 0) {
+		zend_error(E_WARNING, "Modification of ArrayObject during sorting is prohibited");
 		return;
 	}
 
@@ -1755,13 +1762,12 @@ SPL_METHOD(Array, unserialize)
 
 	ALLOC_INIT_ZVAL(pflags);
 	if (!php_var_unserialize(&pflags, &p, s + buf_len, &var_hash TSRMLS_CC) || Z_TYPE_P(pflags) != IS_LONG) {
-		zval_ptr_dtor(&pflags);
 		goto outexcept;
 	}
 
+	var_push_dtor(&var_hash, &pflags);
 	--p; /* for ';' */
 	flags = Z_LVAL_P(pflags);
-	zval_ptr_dtor(&pflags);
 	/* flags needs to be verified and we also need to verify whether the next
 	 * thing we get is ';'. After that we require an 'm' or somethign else
 	 * where 'm' stands for members and anything else should be an array. If
@@ -1783,6 +1789,7 @@ SPL_METHOD(Array, unserialize)
 		if (!php_var_unserialize(&intern->array, &p, s + buf_len, &var_hash TSRMLS_CC)) {
 			goto outexcept;
 		}
+		var_push_dtor(&var_hash, &intern->array);
 	}
 	if (*p != ';') {
 		goto outexcept;
@@ -1801,6 +1808,7 @@ SPL_METHOD(Array, unserialize)
 		goto outexcept;
 	}
 
+	var_push_dtor(&var_hash, &pmembers);
 	/* copy members */
 	if (!intern->std.properties) {
 		rebuild_object_properties(&intern->std);
@@ -1811,10 +1819,16 @@ SPL_METHOD(Array, unserialize)
 	/* done reading $serialized */
 
 	PHP_VAR_UNSERIALIZE_DESTROY(var_hash);
+	if (pflags) {
+		zval_ptr_dtor(&pflags);
+	}
 	return;
 
 outexcept:
 	PHP_VAR_UNSERIALIZE_DESTROY(var_hash);
+	if (pflags) {
+		zval_ptr_dtor(&pflags);
+	}
 	zend_throw_exception_ex(spl_ce_UnexpectedValueException, 0 TSRMLS_CC, "Error at offset %ld of %d bytes", (long)((char*)p - buf), buf_len);
 	return;
 

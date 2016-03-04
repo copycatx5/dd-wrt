@@ -34,14 +34,14 @@ static int jffs = 0;
 
 void start_pptpd(void)
 {
-	int ret = 0, mss = 0;
 	char *lpTemp;
 	FILE *fp;
 
 	if (!nvram_invmatch("pptpd_enable", "0")) {
-		stop_pptpd();
 		return;
 	}
+
+	stop_pptpd();
 
 	if ((nvram_match("usb_enable", "1")
 	     && nvram_match("usb_storage", "1")
@@ -78,12 +78,9 @@ void start_pptpd(void)
 	cprintf("check if wan_wins = zero\n");
 	int nowins = 0;
 
-	if (nvram_match("wan_wins", "0.0.0.0")) {
-		nvram_set("wan_wins", "");
+	if (nvram_default_match("wan_wins", "0.0.0.0", "0.0.0.0")) {
 		nowins = 1;
 	}
-	if (strlen(nvram_safe_get("wan_wins")) == 0)
-		nowins = 1;
 
 	cprintf("write config\n");
 	fprintf(fp, "lock\n" "name *\n" "nobsdcomp\n" "nodeflate\n" "auth\n" "refuse-pap\n" "refuse-eap\n" "refuse-chap\n" "refuse-mschap\n" "require-mschap-v2\n");
@@ -210,10 +207,10 @@ void start_pptpd(void)
 	 * adjust for tunneling overhead (mtu - 40 byte IP - 108 byte tunnel
 	 * overhead) 
 	 */
-	if (nvram_match("mtu_enable", "1"))
-		mss = atoi(nvram_safe_get("wan_mtu")) - 40 - 108;
-	else
-		mss = 1500 - 40 - 108;
+//	if (nvram_match("mtu_enable", "1"))
+//		mss = atoi(nvram_safe_get("wan_mtu")) - 40 - 108;
+//	else
+//		mss = 1500 - 40 - 108;
 	char bcast[32];
 
 	strcpy(bcast, nvram_safe_get("lan_ipaddr"));
@@ -235,7 +232,7 @@ void start_pptpd(void)
 	fclose(fp);
 
 	fp = fopen("/tmp/pptpd/ip-down", "w");
-	fprintf(fp, "#!/bin/sh\n" "sed -i \"/^$PPPD_PID /d\" /tmp/pptp_connected\n" "[ -e /tmp/pptp_peer.db ] || touch /tmp/pptp_peer.db\n" "pv() { awk -v pn=\"$1\" '$1 == pn { m=1; printf \"c=%%i; s=%%i; r=%%i; m=1\", $2, $3, $4 } END { if (!m) print \"c=0; s=0; r=0;\n" "m=0\" }' /tmp/pptp_peer.db; }\n" "eval $(pv $PEERNAME)\n" "CONTIME=$(($CONNECT_TIME+$c))\n" "SENT=$(($BYTES_SENT+$s))\n" "RCVD=$(($BYTES_RCVD+$r))\n" "[ $m -eq 1 ] && sed -i \"/^$PEERNAME /d\" /tmp/pptp_peer.db\n" "echo \"$PEERNAME $CONTIME $SENT $RCVD\" >> /tmp/pptp_peer.db\n" "iptables -D INPUT -i $1 -j ACCEPT\n" "iptables -D FORWARD -i $1 -j ACCEPT\n" "iptables -t nat -D PREROUTING -i $1 -p udp -m udp --sport 9 -j DNAT --to-destination %s\n"	// rule for wake on lan over pptp tunnel
+	fprintf(fp, "#!/bin/sh\n" "sed -i \"/^$PPPD_PID /d\" /tmp/pptp_connected\n" "[ -e /tmp/pptp_peer.db ] || touch /tmp/pptp_peer.db\n" "pv() { awk -v pn=\"$1\" '$1 == pn { m=1; printf \"c=%%i; s=%%i; r=%%i; m=1\", $2, $3, $4 } END { if (!m) print \"c=0; s=0; r=0; m=0\" }' /tmp/pptp_peer.db; }\n" "eval $(pv $PEERNAME)\n" "CONTIME=$(($CONNECT_TIME+$c))\n" "SENT=$(($BYTES_SENT/1024+$s))\n" "RCVD=$(($BYTES_RCVD/1024+$r))\n" "[ $m -eq 1 ] && sed -i \"/^$PEERNAME /d\" /tmp/pptp_peer.db\n" "echo \"$PEERNAME $CONTIME $SENT $RCVD\" >> /tmp/pptp_peer.db\n" "iptables -D INPUT -i $1 -j ACCEPT\n" "iptables -D FORWARD -i $1 -j ACCEPT\n" "iptables -t nat -D PREROUTING -i $1 -p udp -m udp --sport 9 -j DNAT --to-destination %s\n"	// rule for wake on lan over pptp tunnel
 		"%s\n", bcast, nvram_get("pptpd_ipdown_script") ? nvram_get("pptpd_ipdown_script") : "");
 	if (nvram_match("pptpd_radius", "1"))
 		fprintf(fp, "tc qdisc del root dev $1\n" "tc qdisc del ingress dev $1\n");
@@ -254,8 +251,9 @@ void start_pptpd(void)
 
 	chmod("/tmp/pptpd/chap-secrets", 0600);
 
+	start_pppmodules();
 	// Execute pptpd daemon
-	ret = eval("pptpd", "-c", "/tmp/pptpd/pptpd.conf", "-o", "/tmp/pptpd/options.pptpd");
+	eval("pptpd", "-c", "/tmp/pptpd/pptpd.conf", "-o", "/tmp/pptpd/options.pptpd");
 
 	dd_syslog(LOG_INFO, "pptpd : pptp daemon successfully started\n");
 	return;

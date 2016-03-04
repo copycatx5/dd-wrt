@@ -2,6 +2,7 @@
  * installation_proxy.c
  * com.apple.mobile.installation_proxy service implementation.
  *
+ * Copyright (c) 2013 Martin Szulecki All Rights Reserved.
  * Copyright (c) 2009 Nikias Bassen, All Rights Reserved.
  *
  * This library is free software; you can redistribute it and/or
@@ -26,7 +27,7 @@
 
 #include "installation_proxy.h"
 #include "property_list_service.h"
-#include "debug.h"
+#include "common/debug.h"
 
 struct instproxy_status_data {
 	instproxy_client_t client;
@@ -42,12 +43,8 @@ struct instproxy_status_data {
  */
 static void instproxy_lock(instproxy_client_t client)
 {
-	debug_info("InstallationProxy: Locked");
-#ifdef WIN32
-	EnterCriticalSection(&client->mutex);
-#else
-	pthread_mutex_lock(&client->mutex);
-#endif
+	debug_info("Locked");
+	mutex_lock(&client->mutex);
 }
 
 /**
@@ -57,12 +54,8 @@ static void instproxy_lock(instproxy_client_t client)
  */
 static void instproxy_unlock(instproxy_client_t client)
 {
-	debug_info("InstallationProxy: Unlocked");
-#ifdef WIN32
-	LeaveCriticalSection(&client->mutex);
-#else
-	pthread_mutex_unlock(&client->mutex);
-#endif
+	debug_info("Unlocked");
+	mutex_unlock(&client->mutex);
 }
 
 /**
@@ -85,24 +78,15 @@ static instproxy_error_t instproxy_error(property_list_service_error_t err)
 			return INSTPROXY_E_PLIST_ERROR;
 		case PROPERTY_LIST_SERVICE_E_MUX_ERROR:
 			return INSTPROXY_E_CONN_FAILED;
+		case PROPERTY_LIST_SERVICE_E_RECEIVE_TIMEOUT:
+			return INSTPROXY_E_RECEIVE_TIMEOUT;
 		default:
 			break;
 	}
 	return INSTPROXY_E_UNKNOWN_ERROR;
 }
 
-/**
- * Connects to the installation_proxy service on the specified device.
- *
- * @param device The device to connect to
- * @param service The service descriptor returned by lockdownd_start_service.
- * @param client Pointer that will be set to a newly allocated
- *     instproxy_client_t upon successful return.
- *
- * @return INSTPROXY_E_SUCCESS on success, or an INSTPROXY_E_* error value
- *     when an error occured.
- */
-instproxy_error_t instproxy_client_new(idevice_t device, lockdownd_service_descriptor_t service, instproxy_client_t *client)
+LIBIMOBILEDEVICE_API instproxy_error_t instproxy_client_new(idevice_t device, lockdownd_service_descriptor_t service, instproxy_client_t *client)
 {
 	property_list_service_client_t plistclient = NULL;
 	instproxy_error_t err = instproxy_error(property_list_service_client_new(device, service, &plistclient));
@@ -112,28 +96,21 @@ instproxy_error_t instproxy_client_new(idevice_t device, lockdownd_service_descr
 
 	instproxy_client_t client_loc = (instproxy_client_t) malloc(sizeof(struct instproxy_client_private));
 	client_loc->parent = plistclient;
-#ifdef WIN32
-	InitializeCriticalSection(&client_loc->mutex);
-	client_loc->status_updater = NULL;
-#else
-	pthread_mutex_init(&client_loc->mutex, NULL);
-	client_loc->status_updater = (pthread_t)NULL;
-#endif
+	mutex_init(&client_loc->mutex);
+	client_loc->status_updater = (thread_t)NULL;
 
 	*client = client_loc;
 	return INSTPROXY_E_SUCCESS;
 }
 
-/**
- * Disconnects an installation_proxy client from the device and frees up the
- * installation_proxy client data.
- *
- * @param client The installation_proxy client to disconnect and free.
- *
- * @return INSTPROXY_E_SUCCESS on success
- *      or INSTPROXY_E_INVALID_ARG if client is NULL.
- */
-instproxy_error_t instproxy_client_free(instproxy_client_t client)
+LIBIMOBILEDEVICE_API instproxy_error_t instproxy_client_start_service(idevice_t device, instproxy_client_t * client, const char* label)
+{
+	instproxy_error_t err = INSTPROXY_E_UNKNOWN_ERROR;
+	service_client_factory_start_service(device, INSTPROXY_SERVICE_NAME, (void**)client, label, SERVICE_CONSTRUCTOR(instproxy_client_new), &err);
+	return err;
+}
+
+LIBIMOBILEDEVICE_API instproxy_error_t instproxy_client_free(instproxy_client_t client)
 {
 	if (!client)
 		return INSTPROXY_E_INVALID_ARG;
@@ -142,17 +119,9 @@ instproxy_error_t instproxy_client_free(instproxy_client_t client)
 	client->parent = NULL;
 	if (client->status_updater) {
 		debug_info("joining status_updater");
-#ifdef WIN32
-		WaitForSingleObject(client->status_updater, INFINITE);
-#else
-		pthread_join(client->status_updater, NULL);
-#endif
+		thread_join(client->status_updater);
 	}
-#ifdef WIN32
-	DeleteCriticalSection(&client->mutex);
-#else
-	pthread_mutex_destroy(&client->mutex);
-#endif
+	mutex_destroy(&client->mutex);
 	free(client);
 
 	return INSTPROXY_E_SUCCESS;
@@ -178,14 +147,14 @@ static instproxy_error_t instproxy_send_command(instproxy_client_t client, const
 
 	plist_t dict = plist_new_dict();
 	if (appid) {
-		plist_dict_insert_item(dict, "ApplicationIdentifier", plist_new_string(appid));
+		plist_dict_set_item(dict, "ApplicationIdentifier", plist_new_string(appid));
 	}
 	if (client_options && (plist_dict_get_size(client_options) > 0)) {
-		plist_dict_insert_item(dict, "ClientOptions", plist_copy(client_options));
+		plist_dict_set_item(dict, "ClientOptions", plist_copy(client_options));
 	}
-	plist_dict_insert_item(dict, "Command", plist_new_string(command));
+	plist_dict_set_item(dict, "Command", plist_new_string(command));
 	if (package_path) {
-		plist_dict_insert_item(dict, "PackagePath", plist_new_string(package_path));
+		plist_dict_set_item(dict, "PackagePath", plist_new_string(package_path));
 	}
 
 	instproxy_error_t err = instproxy_error(property_list_service_send_xml_plist(client->parent, dict));
@@ -193,21 +162,7 @@ static instproxy_error_t instproxy_send_command(instproxy_client_t client, const
 	return err;
 }
 
-/**
- * List installed applications. This function runs synchronously.
- *
- * @param client The connected installation_proxy client
- * @param client_options The client options to use, as PLIST_DICT, or NULL.
- *        Valid client options include:
- *          "ApplicationType" -> "User"
- *          "ApplicationType" -> "System"
- * @param result Pointer that will be set to a plist that will hold an array
- *        of PLIST_DICT holding information about the applications found.
- *
- * @return INSTPROXY_E_SUCCESS on success or an INSTPROXY_E_* error value if
- *     an error occured.
- */
-instproxy_error_t instproxy_browse(instproxy_client_t client, plist_t client_options, plist_t *result)
+LIBIMOBILEDEVICE_API instproxy_error_t instproxy_browse(instproxy_client_t client, plist_t client_options, plist_t *result)
 {
 	if (!client || !client->parent || !result)
 		return INSTPROXY_E_INVALID_ARG;
@@ -229,7 +184,7 @@ instproxy_error_t instproxy_browse(instproxy_client_t client, plist_t client_opt
 		browsing = 0;
 		dict = NULL;
 		res = instproxy_error(property_list_service_receive_plist(client->parent, &dict));
-		if (res != INSTPROXY_E_SUCCESS) {
+		if (res != INSTPROXY_E_SUCCESS && res != INSTPROXY_E_RECEIVE_TIMEOUT) {
 			break;
 		}
 		if (dict) {
@@ -266,6 +221,8 @@ instproxy_error_t instproxy_browse(instproxy_client_t client, plist_t client_opt
 
 	if (res == INSTPROXY_E_SUCCESS) {
 		*result = apps_array;
+	} else {
+		plist_free(apps_array);
 	}
 
 leave_unlock:
@@ -294,9 +251,9 @@ static instproxy_error_t instproxy_perform_operation(instproxy_client_t client, 
 
 	do {
 		instproxy_lock(client);
-		res = instproxy_error(property_list_service_receive_plist_with_timeout(client->parent, &dict, 30000));
+		res = instproxy_error(property_list_service_receive_plist_with_timeout(client->parent, &dict, 1000));
 		instproxy_unlock(client);
-		if (res != INSTPROXY_E_SUCCESS) {
+		if (res != INSTPROXY_E_SUCCESS && res != INSTPROXY_E_RECEIVE_TIMEOUT) {
 			debug_info("could not receive plist, error %d", res);
 			break;
 		}
@@ -373,13 +330,9 @@ static void* instproxy_status_updater(void* arg)
 	instproxy_lock(data->client);
 	debug_info("done, cleaning up.");
 	if (data->operation) {
-	    free(data->operation);
+		free(data->operation);
 	}
-#ifdef WIN32
-	data->client->status_updater = NULL;
-#else
-	data->client->status_updater = (pthread_t)NULL;
-#endif
+	data->client->status_updater = (thread_t)NULL;
 	instproxy_unlock(data->client);
 	free(data);
 
@@ -414,18 +367,9 @@ static instproxy_error_t instproxy_create_status_updater(instproxy_client_t clie
 			data->operation = strdup(operation);
 			data->user_data = user_data;
 
-#ifdef WIN32
-			client->status_updater = CreateThread(NULL, 0, (LPTHREAD_START_ROUTINE)instproxy_status_updater, data, 0, NULL);
-			if (client->status_updater != INVALID_HANDLE_VALUE) {
-				res = INSTPROXY_E_SUCCESS;
-			} else {
-				client->status_updater = NULL;
-			}
-#else
-			if (pthread_create(&client->status_updater, NULL, instproxy_status_updater, data) == 0) {
+			if (thread_create(&client->status_updater, instproxy_status_updater, data) == 0) {
 				res = INSTPROXY_E_SUCCESS;
 			}
-#endif
 		}
 	} else {
 		/* sync mode */
@@ -470,86 +414,17 @@ static instproxy_error_t instproxy_install_or_upgrade(instproxy_client_t client,
 	return instproxy_create_status_updater(client, status_cb, command, user_data);
 }
 
-/**
- * Install an application on the device.
- *
- * @param client The connected installation_proxy client
- * @param pkg_path Path of the installation package (inside the AFC jail)
- * @param client_options The client options to use, as PLIST_DICT, or NULL.
- *        Valid options include:
- *          "iTunesMetadata" -> PLIST_DATA
- *          "ApplicationSINF" -> PLIST_DATA
- *          "PackageType" -> "Developer"
- *        If PackageType -> Developer is specified, then pkg_path points to
- *        an .app directory instead of an install package.
- * @param status_cb Callback function for progress and status information. If
- *        NULL is passed, this function will run synchronously.
- * @param user_data Callback data passed to status_cb.
- *
- * @return INSTPROXY_E_SUCCESS on success or an INSTPROXY_E_* error value if
- *     an error occured.
- *
- * @note If a callback function is given (async mode), this function returns
- *     INSTPROXY_E_SUCCESS immediately if the status updater thread has been
- *     created successfully; any error occuring during the operation has to be
- *     handled inside the specified callback function.
- */
-instproxy_error_t instproxy_install(instproxy_client_t client, const char *pkg_path, plist_t client_options, instproxy_status_cb_t status_cb, void *user_data)
+LIBIMOBILEDEVICE_API instproxy_error_t instproxy_install(instproxy_client_t client, const char *pkg_path, plist_t client_options, instproxy_status_cb_t status_cb, void *user_data)
 {
 	return instproxy_install_or_upgrade(client, pkg_path, client_options, status_cb, "Install", user_data);
 }
 
-/**
- * Upgrade an application on the device. This function is nearly the same as
- * instproxy_install; the difference is that the installation progress on the
- * device is faster if the application is already installed.
- *
- * @param client The connected installation_proxy client
- * @param pkg_path Path of the installation package (inside the AFC jail)
- * @param client_options The client options to use, as PLIST_DICT, or NULL.
- *        Valid options include:
- *          "iTunesMetadata" -> PLIST_DATA
- *          "ApplicationSINF" -> PLIST_DATA
- *          "PackageType" -> "Developer"
- *        If PackageType -> Developer is specified, then pkg_path points to
- *        an .app directory instead of an install package.
- * @param status_cb Callback function for progress and status information. If
- *        NULL is passed, this function will run synchronously.
- * @param user_data Callback data passed to status_cb.
- *
- * @return INSTPROXY_E_SUCCESS on success or an INSTPROXY_E_* error value if
- *     an error occured.
- *
- * @note If a callback function is given (async mode), this function returns
- *     INSTPROXY_E_SUCCESS immediately if the status updater thread has been
- *     created successfully; any error occuring during the operation has to be
- *     handled inside the specified callback function.
- */
-instproxy_error_t instproxy_upgrade(instproxy_client_t client, const char *pkg_path, plist_t client_options, instproxy_status_cb_t status_cb, void *user_data)
+LIBIMOBILEDEVICE_API instproxy_error_t instproxy_upgrade(instproxy_client_t client, const char *pkg_path, plist_t client_options, instproxy_status_cb_t status_cb, void *user_data)
 {
 	return instproxy_install_or_upgrade(client, pkg_path, client_options, status_cb, "Upgrade", user_data);
 }
 
-/**
- * Uninstall an application from the device.
- *
- * @param client The connected installation proxy client
- * @param appid ApplicationIdentifier of the app to uninstall
- * @param client_options The client options to use, as PLIST_DICT, or NULL.
- *        Currently there are no known client options, so pass NULL here.
- * @param status_cb Callback function for progress and status information. If
- *        NULL is passed, this function will run synchronously.
- * @param user_data Callback data passed to status_cb.
- *
- * @return INSTPROXY_E_SUCCESS on success or an INSTPROXY_E_* error value if
- *     an error occured.
- *
- * @note If a callback function is given (async mode), this function returns
- *     INSTPROXY_E_SUCCESS immediately if the status updater thread has been
- *     created successfully; any error occuring during the operation has to be
- *     handled inside the specified callback function.
- */
-instproxy_error_t instproxy_uninstall(instproxy_client_t client, const char *appid, plist_t client_options, instproxy_status_cb_t status_cb, void *user_data)
+LIBIMOBILEDEVICE_API instproxy_error_t instproxy_uninstall(instproxy_client_t client, const char *appid, plist_t client_options, instproxy_status_cb_t status_cb, void *user_data)
 {
 	if (!client || !client->parent || !appid) {
 		return INSTPROXY_E_INVALID_ARG;
@@ -560,15 +435,10 @@ instproxy_error_t instproxy_uninstall(instproxy_client_t client, const char *app
 	}
 
 	instproxy_error_t res = INSTPROXY_E_UNKNOWN_ERROR;
-	plist_t dict = plist_new_dict();
-	plist_dict_insert_item(dict, "ApplicationIdentifier", plist_new_string(appid));
-	plist_dict_insert_item(dict, "Command", plist_new_string("Uninstall"));
 
 	instproxy_lock(client);
 	res = instproxy_send_command(client, "Uninstall", client_options, appid, NULL);
 	instproxy_unlock(client);
-
-	plist_free(dict);
 
 	if (res != INSTPROXY_E_SUCCESS) {
 		debug_info("could not send plist, error %d", res);
@@ -578,21 +448,7 @@ instproxy_error_t instproxy_uninstall(instproxy_client_t client, const char *app
 	return instproxy_create_status_updater(client, status_cb, "Uninstall", user_data);
 }
 
-/**
- * List archived applications. This function runs synchronously.
- *
- * @see instproxy_archive
- *
- * @param client The connected installation_proxy client
- * @param client_options The client options to use, as PLIST_DICT, or NULL.
- *        Currently there are no known client options, so pass NULL here.
- * @param result Pointer that will be set to a plist containing a PLIST_DICT
- *        holding information about the archived applications found.
- *
- * @return INSTPROXY_E_SUCCESS on success or an INSTPROXY_E_* error value if
- *     an error occured.
- */
-instproxy_error_t instproxy_lookup_archives(instproxy_client_t client, plist_t client_options, plist_t *result)
+LIBIMOBILEDEVICE_API instproxy_error_t instproxy_lookup_archives(instproxy_client_t client, plist_t client_options, plist_t *result)
 {
 	if (!client || !client->parent || !result)
 		return INSTPROXY_E_INVALID_ARG;
@@ -618,31 +474,7 @@ leave_unlock:
 	return res;
 }
 
-/**
- * Archive an application on the device.
- * This function tells the device to make an archive of the specified
- * application. This results in the device creating a ZIP archive in the
- * 'ApplicationArchives' directory and uninstalling the application.
- *
- * @param client The connected installation proxy client
- * @param appid ApplicationIdentifier of the app to archive.
- * @param client_options The client options to use, as PLIST_DICT, or NULL.
- *        Valid options include:
- *          "SkipUninstall" -> Boolean
- *          "ArchiveType" -> "ApplicationOnly" 
- * @param status_cb Callback function for progress and status information. If
- *        NULL is passed, this function will run synchronously.
- * @param user_data Callback data passed to status_cb.
- *
- * @return INSTPROXY_E_SUCCESS on success or an INSTPROXY_E_* error value if
- *     an error occured.
- *
- * @note If a callback function is given (async mode), this function returns
- *     INSTPROXY_E_SUCCESS immediately if the status updater thread has been
- *     created successfully; any error occuring during the operation has to be
- *     handled inside the specified callback function.
- */
-instproxy_error_t instproxy_archive(instproxy_client_t client, const char *appid, plist_t client_options, instproxy_status_cb_t status_cb, void *user_data)
+LIBIMOBILEDEVICE_API instproxy_error_t instproxy_archive(instproxy_client_t client, const char *appid, plist_t client_options, instproxy_status_cb_t status_cb, void *user_data)
 {
 	if (!client || !client->parent || !appid)
 		return INSTPROXY_E_INVALID_ARG;
@@ -662,28 +494,7 @@ instproxy_error_t instproxy_archive(instproxy_client_t client, const char *appid
 	return instproxy_create_status_updater(client, status_cb, "Archive", user_data);
 }
 
-/**
- * Restore a previously archived application on the device.
- * This function is the counterpart to instproxy_archive.
- * @see instproxy_archive
- *
- * @param client The connected installation proxy client
- * @param appid ApplicationIdentifier of the app to restore.
- * @param client_options The client options to use, as PLIST_DICT, or NULL.
- *        Currently there are no known client options, so pass NULL here.
- * @param status_cb Callback function for progress and status information. If
- *        NULL is passed, this function will run synchronously.
- * @param user_data Callback data passed to status_cb.
- *
- * @return INSTPROXY_E_SUCCESS on success or an INSTPROXY_E_* error value if
- *     an error occured.
- *
- * @note If a callback function is given (async mode), this function returns
- *     INSTPROXY_E_SUCCESS immediately if the status updater thread has been
- *     created successfully; any error occuring during the operation has to be
- *     handled inside the specified callback function.
- */
-instproxy_error_t instproxy_restore(instproxy_client_t client, const char *appid, plist_t client_options, instproxy_status_cb_t status_cb, void *user_data)
+LIBIMOBILEDEVICE_API instproxy_error_t instproxy_restore(instproxy_client_t client, const char *appid, plist_t client_options, instproxy_status_cb_t status_cb, void *user_data)
 {
 	if (!client || !client->parent || !appid)
 		return INSTPROXY_E_INVALID_ARG;
@@ -703,28 +514,7 @@ instproxy_error_t instproxy_restore(instproxy_client_t client, const char *appid
 	return instproxy_create_status_updater(client, status_cb, "Restore", user_data);
 }
 
-/**
- * Removes a previously archived application from the device.
- * This function removes the ZIP archive from the 'ApplicationArchives'
- * directory.
- *
- * @param client The connected installation proxy client
- * @param appid ApplicationIdentifier of the archived app to remove.
- * @param client_options The client options to use, as PLIST_DICT, or NULL.
- *        Currently there are no known client options, so passing NULL is fine.
- * @param status_cb Callback function for progress and status information. If
- *        NULL is passed, this function will run synchronously.
- * @param user_data Callback data passed to status_cb.
- *
- * @return INSTPROXY_E_SUCCESS on success or an INSTPROXY_E_* error value if
- *     an error occured.
- *
- * @note If a callback function is given (async mode), this function returns
- *     INSTPROXY_E_SUCCESS immediately if the status updater thread has been
- *     created successfully; any error occuring during the operation has to be
- *     handled inside the specified callback function.
- */
-instproxy_error_t instproxy_remove_archive(instproxy_client_t client, const char *appid, plist_t client_options, instproxy_status_cb_t status_cb, void *user_data)
+LIBIMOBILEDEVICE_API instproxy_error_t instproxy_remove_archive(instproxy_client_t client, const char *appid, plist_t client_options, instproxy_status_cb_t status_cb, void *user_data)
 {
 	if (!client || !client->parent || !appid)
 		return INSTPROXY_E_INVALID_ARG;
@@ -744,27 +534,12 @@ instproxy_error_t instproxy_remove_archive(instproxy_client_t client, const char
 	return instproxy_create_status_updater(client, status_cb, "RemoveArchive", user_data);
 }
 
-/**
- * Create a new client_options plist.
- *
- * @return A new plist_t of type PLIST_DICT. 
- */
-plist_t instproxy_client_options_new()
+LIBIMOBILEDEVICE_API plist_t instproxy_client_options_new()
 {
 	return plist_new_dict();
 }
 
-/**
- * Add one or more new key:value pairs to the given client_options.
- *
- * @param client_options The client options to modify.
- * @param ... KEY, VALUE, [KEY, VALUE], NULL
- *
- * @note The keys and values passed are expected to be strings, except for the
- *       keys "ApplicationSINF", "iTunesMetadata", "ReturnAttributes" which are
- *       expecting a plist_t node as value and "SkipUninstall" expects int.
- */
-void instproxy_client_options_add(plist_t client_options, ...)
+LIBIMOBILEDEVICE_API void instproxy_client_options_add(plist_t client_options, ...)
 {
 	if (!client_options)
 		return;
@@ -775,21 +550,21 @@ void instproxy_client_options_add(plist_t client_options, ...)
 		char *key = strdup(arg);
 		if (!strcmp(key, "SkipUninstall")) {
 			int intval = va_arg(args, int);
-			plist_dict_insert_item(client_options, key, plist_new_bool(intval));
+			plist_dict_set_item(client_options, key, plist_new_bool(intval));
 		} else if (!strcmp(key, "ApplicationSINF") || !strcmp(key, "iTunesMetadata") || !strcmp(key, "ReturnAttributes")) {
 			plist_t plistval = va_arg(args, plist_t);
 			if (!plistval) {
 				free(key);
 				break;
 			}
-			plist_dict_insert_item(client_options, key, plist_copy(plistval));
+			plist_dict_set_item(client_options, key, plist_copy(plistval));
 		} else {
 			char *strval = va_arg(args, char*);
 			if (!strval) {
 				free(key);
 				break;
 			}
-			plist_dict_insert_item(client_options, key, plist_new_string(strval));
+			plist_dict_set_item(client_options, key, plist_new_string(strval));
 		}
 		free(key);
 		arg = va_arg(args, char*);
@@ -797,15 +572,103 @@ void instproxy_client_options_add(plist_t client_options, ...)
 	va_end(args);
 }
 
-/**
- * Free client_options plist.
- *
- * @param client_options The client options plist to free. Does nothing if NULL
- *        is passed.
- */
-void instproxy_client_options_free(plist_t client_options)
+LIBIMOBILEDEVICE_API void instproxy_client_options_free(plist_t client_options)
 {
 	if (client_options) {
 		plist_free(client_options);
 	}
+}
+
+LIBIMOBILEDEVICE_API instproxy_error_t instproxy_client_get_path_for_bundle_identifier(instproxy_client_t client, const char* appid, char** path)
+{
+	if (!client || !client->parent || !appid)
+		return INSTPROXY_E_INVALID_ARG;
+
+	plist_t apps = NULL;
+
+	// create client options for any application types
+	plist_t client_opts = instproxy_client_options_new();
+	instproxy_client_options_add(client_opts, "ApplicationType", "Any", NULL);
+
+	// only return attributes we need
+	plist_t return_attributes = plist_new_array();
+	plist_array_append_item(return_attributes, plist_new_string("CFBundleIdentifier"));
+	plist_array_append_item(return_attributes, plist_new_string("CFBundleExecutable"));
+	plist_array_append_item(return_attributes, plist_new_string("Path"));
+	instproxy_client_options_add(client_opts, "ReturnAttributes", return_attributes, NULL);
+	plist_free(return_attributes);
+	return_attributes = NULL;
+
+	// query device for list of apps
+	instproxy_error_t ierr = instproxy_browse(client, client_opts, &apps);
+	instproxy_client_options_free(client_opts);
+	if (ierr != INSTPROXY_E_SUCCESS) {
+		return ierr;
+	}
+
+	plist_t app_found = NULL;
+	uint32_t i;
+	for (i = 0; i < plist_array_get_size(apps); i++) {
+		char *appid_str = NULL;
+		plist_t app_info = plist_array_get_item(apps, i);
+		plist_t idp = plist_dict_get_item(app_info, "CFBundleIdentifier");
+		if (idp) {
+			plist_get_string_val(idp, &appid_str);
+		}
+		if (appid_str && strcmp(appid, appid_str) == 0) {
+			app_found = app_info;
+		}
+		free(appid_str);
+		if (app_found) {
+			break;
+		}
+	}
+
+	if (!app_found) {
+		if (apps)
+			plist_free(apps);
+		*path = NULL;
+		return INSTPROXY_E_OP_FAILED;
+	}
+
+	char* path_str = NULL;
+	plist_t path_p = plist_dict_get_item(app_found, "Path");
+	if (path_p) {
+		plist_get_string_val(path_p, &path_str);
+	}
+
+	char* exec_str = NULL;
+	plist_t exec_p = plist_dict_get_item(app_found, "CFBundleExecutable");
+	if (exec_p) {
+		plist_get_string_val(exec_p, &exec_str);
+	}
+
+	if (!path_str) {
+		debug_info("app path not found");
+		return INSTPROXY_E_OP_FAILED;
+	}
+
+	if (!exec_str) {
+		debug_info("bundle executable not found");
+		return INSTPROXY_E_OP_FAILED;
+	}
+
+	plist_free(apps);
+
+	char* ret = (char*)malloc(strlen(path_str) + 1 + strlen(exec_str) + 1);
+	strcpy(ret, path_str);
+	strcat(ret, "/");
+	strcat(ret, exec_str);
+
+	*path = ret;
+
+	if (path_str) {
+		free(path_str);
+	}
+
+	if (exec_str) {
+		free(exec_str);
+	}
+
+	return INSTPROXY_E_SUCCESS;
 }

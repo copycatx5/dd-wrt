@@ -104,9 +104,9 @@ void start_sysinit(void)
 #ifdef HAVE_BWRG1000
 	eval("ifconfig", "eth0", "up");	// wan
 #ifdef HAVE_SWCONFIG
-	system("swconfig dev eth0 vlan 1 set ports \"0 1 2 3 5t\"");
-	system("swconfig dev eth0 vlan 2 set ports \"4 5t\"");
-	system("swconfig dev eth0 set apply");
+	eval("swconfig", "dev", "eth0", "vlan", "1", "set", "ports", "0 1 2 3 5t");
+	eval("swconfig", "dev", "eth0", "vlan", "2", "set", "ports", "4 5t");
+	eval("swconfig", "dev", "eth0", "set", "apply");
 	eval("vconfig", "set_name_type", "VLAN_PLUS_VID_NO_PAD");
 	eval("vconfig", "add", "eth0", "1");
 	eval("vconfig", "add", "eth0", "2");
@@ -118,9 +118,9 @@ void start_sysinit(void)
 #if !defined(HAVE_NS2) && !defined(HAVE_BS2) && !defined(HAVE_LC2) && !defined(HAVE_BS2HP) && !defined(HAVE_MS2) && !defined(HAVE_PICO2) && !defined(HAVE_PICO2HP)
 	eval("ifconfig", "eth0", "up");	// wan
 #ifdef HAVE_SWCONFIG
-	system("swconfig dev eth0 vlan 1 set ports \"0 1 2 3 5t\"");
-	system("swconfig dev eth0 vlan 2 set ports \"4 5t\"");
-	system("swconfig dev eth0 set apply");
+	eval("swconfig", "dev", "eth0", "vlan", "1", "set", "ports", "0 1 2 3 5t");
+	eval("swconfig", "dev", "eth0", "vlan", "2", "set", "ports", "4 5t");
+	eval("swconfig", "dev", "eth0", "set", "apply");
 	eval("vconfig", "set_name_type", "VLAN_PLUS_VID_NO_PAD");
 	eval("vconfig", "add", "eth0", "1");
 	eval("vconfig", "add", "eth0", "2");
@@ -136,11 +136,11 @@ void start_sysinit(void)
 		ioctl(s, SIOCGIFHWADDR, &ifr);
 		char macaddr[32];
 
-		strcpy(macaddr, ether_etoa((unsigned char *)ifr.ifr_hwaddr.sa_data, eabuf));
+		strcpy(macaddr, ether_etoa((char *)ifr.ifr_hwaddr.sa_data, eabuf));
 		nvram_set("et0macaddr", macaddr);
 		nvram_set("et0macaddr_safe", macaddr);
 		// MAC_ADD (macaddr);
-		ether_atoe(macaddr, (unsigned char *)ifr.ifr_hwaddr.sa_data);
+		ether_atoe(macaddr, (char *)ifr.ifr_hwaddr.sa_data);
 		strncpy(ifr.ifr_name, "vlan2", IFNAMSIZ);
 		ioctl(s, SIOCSIFHWADDR, &ifr);
 		close(s);
@@ -155,9 +155,10 @@ void start_sysinit(void)
 		ioctl(s, SIOCGIFHWADDR, &ifr);
 		char macaddr[32];
 
-		strcpy(macaddr, ether_etoa((unsigned char *)ifr.ifr_hwaddr.sa_data, eabuf));
+		strcpy(macaddr, ether_etoa((char *)ifr.ifr_hwaddr.sa_data, eabuf));
 		nvram_set("et0macaddr", macaddr);
 		nvram_set("et0macaddr_safe", macaddr);
+		nvram_set("lan_hwaddr", macaddr);
 		close(s);
 	}
 #if defined(HAVE_MS2)

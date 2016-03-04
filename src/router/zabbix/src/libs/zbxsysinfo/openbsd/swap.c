@@ -1,6 +1,6 @@
 /*
 ** Zabbix
-** Copyright (C) 2001-2013 Zabbix SIA
+** Copyright (C) 2001-2015 Zabbix SIA
 **
 ** This program is free software; you can redistribute it and/or modify
 ** it under the terms of the GNU General Public License as published by
@@ -112,47 +112,36 @@ static int	SYSTEM_SWAP_PUSED(AGENT_RESULT *result)
 	return SYSINFO_RET_OK;
 }
 
-int	SYSTEM_SWAP_SIZE(const char *cmd, const char *param, unsigned flags, AGENT_RESULT *result)
+int	SYSTEM_SWAP_SIZE(AGENT_REQUEST *request, AGENT_RESULT *result)
 {
-	const MODE_FUNCTION	fl[] =
-	{
-		{"total",	SYSTEM_SWAP_TOTAL},
-		{"free",	SYSTEM_SWAP_FREE},
-		{"used",	SYSTEM_SWAP_USED},
-		{"pfree",	SYSTEM_SWAP_PFREE},
-		{"pused",	SYSTEM_SWAP_PUSED},
-		{NULL,		0}
-	};
+	char	*swapdev, *mode;
+	int	ret = SYSINFO_RET_FAIL;
 
-	char	swapdev[MAX_STRING_LEN];
-	char	mode[MAX_STRING_LEN];
-	int	i;
-
-	if (num_param(param) > 2)
+	if (2 < request->nparam)
 		return SYSINFO_RET_FAIL;
 
-	if (0 != get_param(param, 1, swapdev, sizeof(swapdev)))
-		*swapdev = '\0';
+	swapdev = get_rparam(request, 0);
+	mode = get_rparam(request, 1);
 
 	/* default parameter */
-	if (*swapdev == '\0')
-		zbx_snprintf(swapdev, sizeof(swapdev), "all");
-
-	if (0 != strcmp(swapdev, "all"))
+	if (NULL != swapdev && '\0' != *swapdev && 0 != strcmp(swapdev, "all"))
 		return SYSINFO_RET_FAIL;
 
-	if (0 != get_param(param, 2, mode, sizeof(mode)))
-		*mode = '\0';
-
 	/* default parameter */
-	if (*mode == '\0')
-		zbx_snprintf(mode, sizeof(mode), "free");
+	if (NULL == mode || *mode == '\0' || 0 == strcmp(mode, "free"))
+		ret = SYSTEM_SWAP_FREE(result);
+	else if (0 == strcmp(mode, "used"))
+		ret = SYSTEM_SWAP_USED(result);
+	else if (0 == strcmp(mode, "total"))
+		ret = SYSTEM_SWAP_TOTAL(result);
+	else if (0 == strcmp(mode, "pfree"))
+		ret = SYSTEM_SWAP_PFREE(result);
+	else if (0 == strcmp(mode, "pused"))
+		ret = SYSTEM_SWAP_PUSED(result);
+	else
+		ret = SYSINFO_RET_FAIL;
 
-	for (i = 0; fl[i].mode != 0; i++)
-		if (0 == strncmp(mode, fl[i].mode, MAX_STRING_LEN))
-			return (fl[i].function)(result);
-
-	return SYSINFO_RET_FAIL;
+	return ret;
 }
 
 static int	get_swap_io(zbx_uint64_t *icount, zbx_uint64_t *ipages, zbx_uint64_t *ocount, zbx_uint64_t *opages)
@@ -174,45 +163,40 @@ static int	get_swap_io(zbx_uint64_t *icount, zbx_uint64_t *ipages, zbx_uint64_t 
 	/* int pgswapin;	pages swapped in */
 	/* int pgswapout;	pages swapped out */
 
-	if (icount)
+#if OpenBSD < 201311		/* swapins and swapouts are not supported starting from OpenBSD 5.4 */
+	if (NULL != icount)
 		*icount = (zbx_uint64_t)v.swapins;
-	if (ipages)
-		*ipages = (zbx_uint64_t)v.pgswapin;
-	if (ocount)
+	if (NULL != ocount)
 		*ocount = (zbx_uint64_t)v.swapouts;
-	if (opages)
+#else
+	if (NULL != icount || NULL != ocount)
+		return SYSINFO_RET_FAIL;
+#endif
+	if (NULL != ipages)
+		*ipages = (zbx_uint64_t)v.pgswapin;
+	if (NULL != opages)
 		*opages = (zbx_uint64_t)v.pgswapout;
 
 	return SYSINFO_RET_OK;
 }
 
-int	SYSTEM_SWAP_IN(const char *cmd, const char *param, unsigned flags, AGENT_RESULT *result)
+int	SYSTEM_SWAP_IN(AGENT_REQUEST *request, AGENT_RESULT *result)
 {
-	char		swapdev[MAX_STRING_LEN];
-	char		mode[MAX_STRING_LEN];
+	char		*swapdev, *mode;
 	zbx_uint64_t	value = 0;
 
-	if (num_param(param) > 2)
+	if (2 < request->nparam)
 		return SYSINFO_RET_FAIL;
 
-	if (0 != get_param(param, 1, swapdev, sizeof(swapdev)))
-		*swapdev = '\0';
+	swapdev = get_rparam(request, 0);
+	mode = get_rparam(request, 1);
 
-	/* default parameter */
-	if (*swapdev == '\0')
-		zbx_snprintf(swapdev, sizeof(swapdev), "all");
-
-	if (0 != strcmp(swapdev, "all"))
+	/* the only supported parameter */
+	if (NULL != swapdev && '\0' != *swapdev && 0 != strcmp(swapdev, "all"))
 		return SYSINFO_RET_FAIL;
 
-	if (0 != get_param(param, 2, mode, sizeof(mode)))
-		*mode = '\0';
-
 	/* default parameter */
-	if (*mode == '\0')
-		zbx_snprintf(mode, sizeof(mode), "count");
-
-	if (0 == strcmp(mode, "count"))
+	if (NULL == mode || '\0' == *mode || 0 == strcmp(mode, "count"))
 	{
 		if (SYSINFO_RET_OK != get_swap_io(&value, NULL, NULL, NULL))
 			return SYSINFO_RET_FAIL;
@@ -230,38 +214,28 @@ int	SYSTEM_SWAP_IN(const char *cmd, const char *param, unsigned flags, AGENT_RES
 	return SYSINFO_RET_OK;
 }
 
-int	SYSTEM_SWAP_OUT(const char *cmd, const char *param, unsigned flags, AGENT_RESULT *result)
+int	SYSTEM_SWAP_OUT(AGENT_REQUEST *request, AGENT_RESULT *result)
 {
-	char		swapdev[MAX_STRING_LEN];
-	char		mode[MAX_STRING_LEN];
+	char		*swapdev, *mode;
 	zbx_uint64_t	value = 0;
 
-	if (num_param(param) > 2)
+	if (2 < request->nparam)
 		return SYSINFO_RET_FAIL;
 
-	if (0 != get_param(param, 1, swapdev, sizeof(swapdev)))
-		*swapdev = '\0';
+	swapdev = get_rparam(request, 0);
+	mode = get_rparam(request, 1);
 
-	/* default parameter */
-	if (*swapdev == '\0')
-		zbx_snprintf(swapdev, sizeof(swapdev), "all");
-
-	if (0 != strcmp(swapdev, "all"))
+	/* the only supported parameter */
+	if (NULL != swapdev && '\0' != *swapdev && 0 != strcmp(swapdev, "all"))
 		return SYSINFO_RET_FAIL;
 
-	if (0 != get_param(param, 2, mode, sizeof(mode)))
-		*mode = '\0';
-
 	/* default parameter */
-	if (*mode == '\0')
-		zbx_snprintf(mode, sizeof(mode), "count");
-
-	if (0 == strcmp(mode, "count"))
+	if (NULL == mode || '\0' == *mode || 0 == strcmp(mode, "count"))
 	{
 		if (SYSINFO_RET_OK != get_swap_io(NULL, NULL, &value, NULL))
 			return SYSINFO_RET_FAIL;
 	}
-	else if (0 == strcmp(mode,"pages"))
+	else if (0 == strcmp(mode, "pages"))
 	{
 		if (SYSINFO_RET_OK != get_swap_io(NULL, NULL, NULL, &value))
 			return SYSINFO_RET_FAIL;

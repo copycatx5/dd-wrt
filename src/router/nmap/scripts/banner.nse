@@ -1,3 +1,9 @@
+local comm = require "comm"
+local nmap = require "nmap"
+local stdnse = require "stdnse"
+local table = require "table"
+local U = require "lpeg-utility"
+
 description = [[
 A simple banner grabber which connects to an open TCP port and prints out anything sent by the listening service within five seconds.
 
@@ -9,23 +15,33 @@ increase in the level of verbosity requested on the command line.
 -- @output
 -- 21/tcp open  ftp
 -- |_ banner: 220 FTP version 1.0\x0D\x0A
+-- @arg banner.ports Which ports to grab. Same syntax as -p option. Use
+--                   "common" to only grab common text-protocol banners.
+--                   Default: all ports.
+-- @arg banner.timeout How long to wait for a banner. Default: 5s
 
 
 author = "jah"
-license = "Same as Nmap--See http://nmap.org/book/man-legal.html"
+license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
 categories = {"discovery", "safe"}
 
 
 
-local nmap   = require "nmap"
-local comm   = require "comm"
-local stdnse = require "stdnse"
-
+local portarg = stdnse.get_script_args(SCRIPT_NAME .. ".ports")
+if portarg == "common" then
+  portarg = "13,17,21-23,25,129,194,587,990,992,994,6667,6697"
+end
 
 ---
 -- Script is executed for any TCP port.
 portrule = function( host, port )
-  return port.protocol == "tcp"
+  if port.protocol == "tcp" then
+    if portarg then
+      return stdnse.in_port_range(port, portarg)
+    end
+    return true
+  end
+  return false
 end
 
 
@@ -46,34 +62,29 @@ end
 -- @param port  Port Table.
 -- @return      String or nil if data was not received.
 function grab_banner(host, port)
+  -- Did the service engine already do the hard work?
+  if port.version and port.version.service_fp then
+    local response = U.get_response(port.version.service_fp, "NULL")
+    if response then
+      return response:match("^%s*(.-)%s*$");
+    end
+  end
 
   local opts = {}
-  opts.timeout = get_timeout()
-  opts.proto = port.protocol
+  opts.timeout = stdnse.parse_timespec(stdnse.get_script_args(SCRIPT_NAME .. ".timeout"))
+  opts.timeout = (opts.timeout or 5) * 1000
 
-  local status, response = comm.get_banner(host.ip, port.number, opts)
+  local status, response = comm.get_banner(host, port, opts)
 
   if not status then
     local errlvl = { ["EOF"]=3,["TIMEOUT"]=3,["ERROR"]=2 }
-    stdnse.print_debug(errlvl[response] or 1, "%s failed for %s on %s port %s. Message: %s",
-               SCRIPT_NAME, host.ip, port.protocol, port.number, response or "No Message." )
+    stdnse.debug(errlvl[response] or 1, "failed for %s on %s port %s. Message: %s", host.ip, port.protocol, port.number, response or "No Message.")
     return nil
   end
 
   return response:match("^%s*(.-)%s*$");
 
 end
-
-
-
----
--- Returns a number of milliseconds for use as a socket timeout value (defaults to 5 seconds).
---
--- @return Number of milliseconds.
-function get_timeout()
-  return 5000
-end
-
 
 
 ---

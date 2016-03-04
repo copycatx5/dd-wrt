@@ -64,7 +64,7 @@ struct atsvc_JobInfo {
 	uint32_t days_of_month;
 	uint8_t days_of_week;
 	uint8_t flags;
-	const char *command;/* [unique,charset(UTF16)] */
+	const char *command;/* [charset(UTF16),unique] */
 };
 
 struct atsvc_JobEnumInfo {
@@ -84,7 +84,7 @@ struct atsvc_enum_ctr {
 
 struct atsvc_JobAdd {
 	struct {
-		const char *servername;/* [unique,charset(UTF16)] */
+		const char *servername;/* [charset(UTF16),unique] */
 		struct atsvc_JobInfo *job_info;/* [ref] */
 	} in;
 
@@ -112,7 +112,7 @@ struct atsvc_JobDel {
 
 struct atsvc_JobEnum {
 	struct {
-		const char *servername;/* [unique,charset(UTF16)] */
+		const char *servername;/* [charset(UTF16),unique] */
 		uint32_t preferred_max_len;
 		struct atsvc_enum_ctr *ctr;/* [ref] */
 		uint32_t *resume_handle;/* [unique] */
@@ -130,7 +130,7 @@ struct atsvc_JobEnum {
 
 struct atsvc_JobGetInfo {
 	struct {
-		const char *servername;/* [unique,charset(UTF16)] */
+		const char *servername;/* [charset(UTF16),unique] */
 		uint32_t job_id;
 	} in;
 

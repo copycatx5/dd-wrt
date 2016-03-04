@@ -1,4 +1,4 @@
-#ifdef HAVE_AOSS
+#if defined(HAVE_AOSS) || defined(HAVE_WPS)
 #define VALIDSOURCE 1
 
 #ifdef WEBS
@@ -94,7 +94,7 @@ void aoss_start(webs_t wp)
 {
 	fprintf(stderr, "[AOSS] start\n");
 	if (!aoss_status()) {
-		system("startstop_f aoss");
+		eval("startstop_f", "aoss");
 		fprintf(stderr, "[AOSS] start\n");
 	}
 	return;

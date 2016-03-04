@@ -1,7 +1,7 @@
 <?php
 /*
 ** Zabbix
-** Copyright (C) 2001-2013 Zabbix SIA
+** Copyright (C) 2001-2015 Zabbix SIA
 **
 ** This program is free software; you can redistribute it and/or modify
 ** it under the terms of the GNU General Public License as published by
@@ -17,8 +17,8 @@
 ** along with this program; if not, write to the Free Software
 ** Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 **/
-?>
-<?php
+
+
 require_once dirname(__FILE__).'/include/config.inc.php';
 require_once dirname(__FILE__).'/include/triggers.inc.php';
 require_once dirname(__FILE__).'/include/forms.inc.php';
@@ -27,9 +27,8 @@ $page['title'] = _('Trigger comments');
 $page['file'] = 'tr_comments.php';
 
 require_once dirname(__FILE__).'/include/page_header.php';
-?>
-<?php
-//	VAR		TYPE	OPTIONAL FLAGS	VALIDATION	EXCEPTION
+
+// VAR	TYPE	OPTIONAL	FLAGS	VALIDATION	EXCEPTION
 $fields = array(
 	'triggerid' =>	array(T_ZBX_INT, O_MAND, P_SYS,			DB_ID,	null),
 	'comments' =>	array(T_ZBX_STR, O_OPT, null,			null,	'isset({save})'),
@@ -37,28 +36,35 @@ $fields = array(
 	'cancel' =>		array(T_ZBX_STR, O_OPT, P_SYS|P_ACT,	null,	null)
 );
 check_fields($fields);
-?>
-<?php
+
 if (!isset($_REQUEST['triggerid'])) {
 	fatal_error(_('No triggers defined.'));
 }
 
+/*
+ * Permissions
+ */
 $trigger = API::Trigger()->get(array(
 	'nodeids' => get_current_nodeid(true),
 	'triggerids' => $_REQUEST['triggerid'],
 	'output' => API_OUTPUT_EXTEND,
 	'expandDescription' => true
 ));
-$trigger = reset($trigger);
+
 if (!$trigger) {
 	access_deny();
 }
 
+$trigger = reset($trigger);
+
+/*
+ * Actions
+ */
 if (isset($_REQUEST['save'])) {
 	$result = DBexecute(
 		'UPDATE triggers'.
 		' SET comments='.zbx_dbstr($_REQUEST['comments']).
-		' WHERE triggerid='.$_REQUEST['triggerid']
+		' WHERE triggerid='.zbx_dbstr($_REQUEST['triggerid'])
 	);
 	show_messages($result, _('Comment updated'), _('Cannot update comment'));
 
@@ -75,25 +81,25 @@ elseif (isset($_REQUEST['cancel'])) {
 	exit();
 }
 
-show_table_header(_('TRIGGER COMMENTS'));
-
-// if user has no permissions to edit comments, no "save" button for him
+/*
+ * Display
+ */
 $triggerEditable = API::Trigger()->get(array(
-	'editable' => true,
 	'triggerids' => $_REQUEST['triggerid'],
-	'output' => API_OUTPUT_SHORTEN
+	'output' => array('triggerid'),
+	'editable' => true
 ));
-$triggerEditable = !empty($triggerEditable);
 
-$frmComent = new CFormTable(_('Comments').' for "'.$trigger['description'].'"');
-$frmComent->addVar('triggerid', $_REQUEST['triggerid']);
-$frmComent->addRow(_('Comments'), new CTextArea('comments', $trigger['comments'], array('rows' => 25, 'width' => ZBX_TEXTAREA_BIG_WIDTH, 'readonly' => !$triggerEditable)));
+$data = array(
+	'triggerid' => get_request('triggerid'),
+	'trigger' => $trigger,
+	'isTriggerEditable' => !empty($triggerEditable),
+	'isCommentExist' => !empty($trigger['comments'])
+);
 
-if ($triggerEditable) {
-	$frmComent->addItemToBottomRow(new CSubmit('save', _('Save')));
-}
-$frmComent->addItemToBottomRow(new CButtonCancel('&triggerid='.$_REQUEST['triggerid']));
-$frmComent->show();
+// render view
+$triggerCommentView = new CView('monitoring.triggerComment', $data);
+$triggerCommentView->render();
+$triggerCommentView->show();
 
 require_once dirname(__FILE__).'/include/page_footer.php';
-?>

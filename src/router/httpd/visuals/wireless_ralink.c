@@ -90,6 +90,15 @@ static const char *ieee80211_ntoa(const uint8_t mac[6])
 	return (i < 17 ? NULL : a);
 }
 
+/*
+		USHORT MCS:7;
+		USHORT BW:2;
+		USHORT ShortGI:1;
+		USHORT STBC:1;
+		USHORT eTxBF:1;
+		USHORT iTxBF:1;
+		USHORT MODE:3;
+*/
 typedef union _MACHTTRANSMIT_SETTING {
 	struct {
 		unsigned short MCS:7;	// MCS
@@ -113,11 +122,9 @@ typedef struct _RT_802_11_MAC_ENTRY {
 	char AvgRssi2;
 	unsigned int ConnectedTime;
 	MACHTTRANSMIT_SETTING TxRate;
-//#ifdef RTMP_RBUS_SUPPORT
 	unsigned int LastRxRate;
-	int StreamSnr[3];
-	int SoundingRespSnr[3];
-//#endif // RTMP_RBUS_SUPPORT //
+	short StreamSnr[3];
+	short SoundingRespSnr[3];
 } RT_802_11_MAC_ENTRY;
 
 		// Last RX Rate
@@ -127,7 +134,16 @@ typedef struct _RT_802_11_MAC_ENTRY {
 //                              ((lastRxRate>>8) & 0x1)? 'S': 'L',
 //                              phyMode[(lastRxRate>>14) & 0x3],
 //                              ((lastRxRate>>9) & 0x3)? ", STBC": " ");
-
+/*
+// need chipset detection. AC chipsets using the following structure
+		USHORT MCS:7;
+		USHORT BW:2;
+		USHORT ShortGI:1;
+		USHORT STBC:1;
+		USHORT eTxBF:1;
+		USHORT iTxBF:1;
+		USHORT MODE:3;
+*/
 typedef union _HTTRANSMIT_SETTING {
 	struct {
 		unsigned short MCS:7;	// MCS
@@ -306,8 +322,34 @@ int ej_active_wireless_if(webs_t wp, int argc, char_t ** argv, char *ifname, int
 				TxRxRateFor11n(&HTSetting, &rate);
 				snprintf(rx, 8, "%.1f", rate);
 
+				int ht = 0;
+				int sgi = 0;
+				int vht = 0;
+				char info[32];
+
+				if (HTSetting.field.BW)
+					ht = 1;
+				if (HTSetting.field.ShortGI)
+					sgi = 1;
+
+				if (sgi)
+					sprintf(info, "SGI");
+				if (vht)
+					sprintf(info, "VHT");
+				else
+					sprintf(info, "HT");
+
+				if (ht == 0)
+					sprintf(info, "%s20", info);
+				if (ht == 1)
+					sprintf(info, "%s40", info);
+				if (ht == 2)
+					sprintf(info, "%s80", info);
+				if (ht == 3)
+					sprintf(info, "%s160", info);
+
 				websWrite(wp,
-					  "'%s','%s','%s','%s','%s','%d','%d','%d','%d'", mac, getRADev(ifname), UPTIME(table.Entry[i].ConnectedTime), tx, rx, table.Entry[i].AvgRssi0, -95,
+					  "'%s','%s','%s','%s','%s','%s','%d','%d','%d','%d'", mac, getRADev(ifname), UPTIME(table.Entry[i].ConnectedTime), tx, rx, info, table.Entry[i].AvgRssi0, -95,
 					  (table.Entry[i].AvgRssi0 - (-95)), qual);
 			}
 		}
@@ -315,6 +357,9 @@ int ej_active_wireless_if(webs_t wp, int argc, char_t ** argv, char *ifname, int
 
 	if (sta) {
 		char mac[32];
+		if (cnt)
+			websWrite(wp, ",");
+		cnt++;
 
 		int qual = sta->rssi * 124 + 11600;
 		double rate = 1;
@@ -327,7 +372,7 @@ int ej_active_wireless_if(webs_t wp, int argc, char_t ** argv, char *ifname, int
 
 		qual /= 10;
 		strcpy(mac, ieee80211_ntoa(sta->mac));
-		websWrite(wp, "'%s','%s','N/A','%s','%s','%d','%d','%d','%d'", mac, sta->ifname, tx, rx, sta->rssi, sta->noise, (sta->rssi - (sta->noise)), qual);
+		websWrite(wp, "'%s','%s','N/A','%s','%s','N/A','%d','%d','%d','%d'", mac, sta->ifname, tx, rx, sta->rssi, sta->noise, (sta->rssi - (sta->noise)), qual);
 		free(sta);
 
 	}
@@ -335,8 +380,6 @@ int ej_active_wireless_if(webs_t wp, int argc, char_t ** argv, char *ifname, int
 	closesocket();
 	return cnt;
 }
-
-extern char *getiflist(void);
 
 void ej_active_wireless(webs_t wp, int argc, char_t ** argv)
 {
@@ -403,12 +446,56 @@ void ej_update_acktiming(webs_t wp, int argc, char_t ** argv)
 
 void ej_get_curchannel(webs_t wp, int argc, char_t ** argv)
 {
-	int channel = wifi_getchannel(getRADev(nvram_safe_get("wifi_display")));
+	char *prefix = nvram_safe_get("wifi_display");
+	int channel = wifi_getchannel(getRADev(prefix));
 
 	if (channel > 0 && channel < 1000) {
-		websWrite(wp, "%d (%d MHz)", channel, wifi_getfreq(getRADev(nvram_safe_get("wifi_display"))));
+		struct wifi_interface *interface = wifi_getfreq(getRADev(prefix));
+		if (!interface) {
+			websWrite(wp, "%s", live_translate("share.unknown"));
+			return;
+		}
+		int freq = interface->freq;
+		free(interface);
+		websWrite(wp, "%d", channel);
+		if (has_mimo(prefix)
+		    && (nvram_nmatch("n-only", "%s_net_mode", prefix)
+			|| nvram_nmatch("mixed", "%s_net_mode", prefix)
+			|| nvram_nmatch("na-only", "%s_net_mode", prefix)
+			|| nvram_nmatch("n2-only", "%s_net_mode", prefix)
+			|| nvram_nmatch("n5-only", "%s_net_mode", prefix)
+			|| nvram_nmatch("ac-only", "%s_net_mode", prefix)
+			|| nvram_nmatch("acn-mixed", "%s_net_mode", prefix)
+			|| nvram_nmatch("ng-only", "%s_net_mode", prefix))
+		    && (nvram_nmatch("ap", "%s_mode", prefix)
+			|| nvram_nmatch("wdsap", "%s_mode", prefix)
+			|| nvram_nmatch("infra", "%s_mode", prefix))) {
+
+			if (nvram_nmatch("40", "%s_nbw", prefix)) {
+				int ext_chan = 0;
+
+				if (nvram_nmatch("lower", "%s_nctrlsb", prefix) || nvram_nmatch("ll", "%s_nctrlsb", prefix) || nvram_nmatch("lu", "%s_nctrlsb", prefix))
+					ext_chan = 1;
+				if (channel <= 4)
+					ext_chan = 1;
+				if (channel >= 10)
+					ext_chan = 0;
+
+				websWrite(wp, " + %d", !ext_chan ? channel - 4 : channel + 4);
+			} else if (nvram_nmatch("80", "%s_nbw", prefix)) {
+				if (nvram_nmatch("ll", "%s_nctrlsb", prefix) || nvram_nmatch("lower", "%s_nctrlsb", prefix))
+					websWrite(wp, " + %d", channel + 6);
+				if (nvram_nmatch("lu", "%s_nctrlsb", prefix))
+					websWrite(wp, " + %d", channel + 2);
+				if (nvram_nmatch("ul", "%s_nctrlsb", prefix))
+					websWrite(wp, " + %d", channel - 2);
+				if (nvram_nmatch("uu", "%s_nctrlsb", prefix) || nvram_nmatch("upper", "%s_nctrlsb", prefix))
+					websWrite(wp, " + %d", channel - 6);
+			}
+		}
+		websWrite(wp, " (%d MHz)", freq);
+
 	} else
-		// websWrite (wp, "unknown");
 		websWrite(wp, "%s", live_translate("share.unknown"));
 	return;
 }

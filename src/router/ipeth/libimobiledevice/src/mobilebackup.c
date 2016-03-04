@@ -25,7 +25,7 @@
 
 #include "mobilebackup.h"
 #include "device_link_service.h"
-#include "debug.h"
+#include "common/debug.h"
 
 #define MBACKUP_VERSION_INT1 100
 #define MBACKUP_VERSION_INT2 0
@@ -60,19 +60,7 @@ static mobilebackup_error_t mobilebackup_error(device_link_service_error_t err)
 	return MOBILEBACKUP_E_UNKNOWN_ERROR;
 }
 
-/**
- * Connects to the mobilebackup service on the specified device.
- *
- * @param device The device to connect to.
- * @param service The service descriptor returned by lockdownd_start_service.
- * @param client Pointer that will be set to a newly allocated
- *     mobilebackup_client_t upon successful return.
- *
- * @return MOBILEBACKUP_E_SUCCESS on success, MOBILEBACKUP_E_INVALID ARG if one
- *     or more parameters are invalid, or DEVICE_LINK_SERVICE_E_BAD_VERSION if
- *     the mobilebackup version on the device is newer.
- */
-mobilebackup_error_t mobilebackup_client_new(idevice_t device, lockdownd_service_descriptor_t service, mobilebackup_client_t * client)
+LIBIMOBILEDEVICE_API mobilebackup_error_t mobilebackup_client_new(idevice_t device, lockdownd_service_descriptor_t service, mobilebackup_client_t * client)
 {
 	if (!device || !service || service->port == 0 || !client || *client)
 		return MOBILEBACKUP_E_INVALID_ARG;
@@ -99,16 +87,14 @@ mobilebackup_error_t mobilebackup_client_new(idevice_t device, lockdownd_service
 	return ret;
 }
 
-/**
- * Disconnects a mobilebackup client from the device and frees up the
- * mobilebackup client data.
- *
- * @param client The mobilebackup client to disconnect and free.
- *
- * @return MOBILEBACKUP_E_SUCCESS on success, or MOBILEBACKUP_E_INVALID_ARG
- *     if client is NULL.
- */
-mobilebackup_error_t mobilebackup_client_free(mobilebackup_client_t client)
+LIBIMOBILEDEVICE_API mobilebackup_error_t mobilebackup_client_start_service(idevice_t device, mobilebackup_client_t * client, const char* label)
+{
+	mobilebackup_error_t err = MOBILEBACKUP_E_UNKNOWN_ERROR;
+	service_client_factory_start_service(device, MOBILEBACKUP_SERVICE_NAME, (void**)client, label, SERVICE_CONSTRUCTOR(mobilebackup_client_new), &err);
+	return err;
+}
+
+LIBIMOBILEDEVICE_API mobilebackup_error_t mobilebackup_client_free(mobilebackup_client_t client)
 {
 	if (!client)
 		return MOBILEBACKUP_E_INVALID_ARG;
@@ -121,15 +107,7 @@ mobilebackup_error_t mobilebackup_client_free(mobilebackup_client_t client)
 	return err;
 }
 
-/**
- * Polls the device for mobilebackup data.
- *
- * @param client The mobilebackup client
- * @param plist A pointer to the location where the plist should be stored
- *
- * @return an error code
- */
-mobilebackup_error_t mobilebackup_receive(mobilebackup_client_t client, plist_t * plist)
+LIBIMOBILEDEVICE_API mobilebackup_error_t mobilebackup_receive(mobilebackup_client_t client, plist_t * plist)
 {
 	if (!client)
 		return MOBILEBACKUP_E_INVALID_ARG;
@@ -137,18 +115,7 @@ mobilebackup_error_t mobilebackup_receive(mobilebackup_client_t client, plist_t 
 	return ret;
 }
 
-/**
- * Sends mobilebackup data to the device
- * 
- * @note This function is low-level and should only be used if you need to send
- *        a new type of message.
- *
- * @param client The mobilebackup client
- * @param plist The location of the plist to send
- *
- * @return an error code
- */
-mobilebackup_error_t mobilebackup_send(mobilebackup_client_t client, plist_t plist)
+LIBIMOBILEDEVICE_API mobilebackup_error_t mobilebackup_send(mobilebackup_client_t client, plist_t plist)
 {
 	if (!client || !plist)
 		return MOBILEBACKUP_E_INVALID_ARG;
@@ -185,7 +152,7 @@ static mobilebackup_error_t mobilebackup_send_message(mobilebackup_client_t clie
 		} else {
 			dict = plist_new_dict();
 		}
-		plist_dict_insert_item(dict, "BackupMessageTypeKey", plist_new_string(message));
+		plist_dict_set_item(dict, "BackupMessageTypeKey", plist_new_string(message));
 
 		/* send it as DLMessageProcessMessage */
 		err = mobilebackup_error(device_link_service_send_process_message(client->parent, dict));
@@ -265,24 +232,7 @@ leave:
 	return err;
 }
 
-/**
- * Request a backup from the connected device.
- *
- * @param client The connected MobileBackup client to use.
- * @param backup_manifest The backup manifest, a plist_t of type PLIST_DICT
- *    containing the backup state of the last backup. For a first-time backup
- *    set this parameter to NULL.
- * @param base_path The base path on the device to use for the backup
- *    operation, usually "/".
- * @param proto_version A string denoting the version of the backup protocol
- *    to use. Latest known version is "1.6"
- *
- * @return MOBILEBACKUP_E_SUCCESS on success, MOBILEBACKUP_E_INVALID_ARG if
- *    one of the parameters is invalid, MOBILEBACKUP_E_PLIST_ERROR if
- *    backup_manifest is not of type PLIST_DICT, MOBILEBACKUP_E_MUX_ERROR
- *    if a communication error occurs, MOBILEBACKUP_E_REPLY_NOT_OK
- */
-mobilebackup_error_t mobilebackup_request_backup(mobilebackup_client_t client, plist_t backup_manifest, const char *base_path, const char *proto_version)
+LIBIMOBILEDEVICE_API mobilebackup_error_t mobilebackup_request_backup(mobilebackup_client_t client, plist_t backup_manifest, const char *base_path, const char *proto_version)
 {
 	if (!client || !client->parent || !base_path || !proto_version)
 		return MOBILEBACKUP_E_INVALID_ARG;
@@ -295,10 +245,10 @@ mobilebackup_error_t mobilebackup_request_backup(mobilebackup_client_t client, p
 	/* construct request plist */
 	plist_t dict = plist_new_dict();
 	if (backup_manifest)
-		plist_dict_insert_item(dict, "BackupManifestKey", plist_copy(backup_manifest));
-	plist_dict_insert_item(dict, "BackupComputerBasePathKey", plist_new_string(base_path));
-	plist_dict_insert_item(dict, "BackupMessageTypeKey", plist_new_string("BackupMessageBackupRequest"));
-	plist_dict_insert_item(dict, "BackupProtocolVersion", plist_new_string(proto_version));
+		plist_dict_set_item(dict, "BackupManifestKey", plist_copy(backup_manifest));
+	plist_dict_set_item(dict, "BackupComputerBasePathKey", plist_new_string(base_path));
+	plist_dict_set_item(dict, "BackupMessageTypeKey", plist_new_string("BackupMessageBackupRequest"));
+	plist_dict_set_item(dict, "BackupProtocolVersion", plist_new_string(proto_version));
 
 	/* send request */
 	err = mobilebackup_send_message(client, NULL, dict);
@@ -342,42 +292,12 @@ leave:
 	return err;
 }
 
-/**
- * Sends a confirmation to the device that a backup file has been received.
- *
- * @param client The connected MobileBackup client to use.
- * 
- * @return MOBILEBACKUP_E_SUCCESS on success, MOBILEBACKUP_E_INVALID_ARG if
- *    client is invalid, or MOBILEBACKUP_E_MUX_ERROR if a communication error
- *    occurs.
- */
-mobilebackup_error_t mobilebackup_send_backup_file_received(mobilebackup_client_t client)
+LIBIMOBILEDEVICE_API mobilebackup_error_t mobilebackup_send_backup_file_received(mobilebackup_client_t client)
 {
 	return mobilebackup_send_message(client, "kBackupMessageBackupFileReceived", NULL);
 }
 
-/**
- * Request that a backup should be restored to the connected device.
- *
- * @param client The connected MobileBackup client to use.
- * @param backup_manifest The backup manifest, a plist_t of type PLIST_DICT
- *    containing the backup state to be restored.
- * @param flags Flags to send with the request. Currently this is a combination
- *    of the following mobilebackup_flags_t:
- *    MB_RESTORE_NOTIFY_SPRINGBOARD - let SpringBoard show a 'Restore' screen
- *    MB_RESTORE_PRESERVE_SETTINGS - do not overwrite any settings
- *    MB_RESTORE_PRESERVE_CAMERA_ROLL - preserve the photos of the camera roll
- * @param proto_version A string denoting the version of the backup protocol
- *    to use. Latest known version is "1.6". Ideally this value should be
- *    extracted from the given manifest plist.
- *
- * @return MOBILEBACKUP_E_SUCCESS on success, MOBILEBACKUP_E_INVALID_ARG if
- *    one of the parameters is invalid, MOBILEBACKUP_E_PLIST_ERROR if
- *    backup_manifest is not of type PLIST_DICT, MOBILEBACKUP_E_MUX_ERROR
- *    if a communication error occurs, or MOBILEBACKUP_E_REPLY_NOT_OK
- *    if the device did not accept the request.
- */
-mobilebackup_error_t mobilebackup_request_restore(mobilebackup_client_t client, plist_t backup_manifest, mobilebackup_flags_t flags, const char *proto_version)
+LIBIMOBILEDEVICE_API mobilebackup_error_t mobilebackup_request_restore(mobilebackup_client_t client, plist_t backup_manifest, mobilebackup_flags_t flags, const char *proto_version)
 {
 	if (!client || !client->parent || !backup_manifest || !proto_version)
 		return MOBILEBACKUP_E_INVALID_ARG;
@@ -389,13 +309,13 @@ mobilebackup_error_t mobilebackup_request_restore(mobilebackup_client_t client, 
 
 	/* construct request plist */
 	plist_t dict = plist_new_dict();
-	plist_dict_insert_item(dict, "BackupManifestKey", plist_copy(backup_manifest));
-	plist_dict_insert_item(dict, "BackupMessageTypeKey", plist_new_string("kBackupMessageRestoreRequest"));
-	plist_dict_insert_item(dict, "BackupProtocolVersion", plist_new_string(proto_version));
+	plist_dict_set_item(dict, "BackupManifestKey", plist_copy(backup_manifest));
+	plist_dict_set_item(dict, "BackupMessageTypeKey", plist_new_string("kBackupMessageRestoreRequest"));
+	plist_dict_set_item(dict, "BackupProtocolVersion", plist_new_string(proto_version));
 	/* add flags */
-	plist_dict_insert_item(dict, "BackupNotifySpringBoard", plist_new_bool(IS_FLAG_SET(flags, MB_RESTORE_NOTIFY_SPRINGBOARD)));
-	plist_dict_insert_item(dict, "BackupPreserveSettings", plist_new_bool(IS_FLAG_SET(flags, MB_RESTORE_PRESERVE_SETTINGS)));
-	plist_dict_insert_item(dict, "BackupPreserveCameraRoll", plist_new_bool(IS_FLAG_SET(flags, MB_RESTORE_PRESERVE_CAMERA_ROLL)));
+	plist_dict_set_item(dict, "BackupNotifySpringBoard", plist_new_bool(IS_FLAG_SET(flags, MB_RESTORE_NOTIFY_SPRINGBOARD)));
+	plist_dict_set_item(dict, "BackupPreserveSettings", plist_new_bool(IS_FLAG_SET(flags, MB_RESTORE_PRESERVE_SETTINGS)));
+	plist_dict_set_item(dict, "BackupPreserveCameraRoll", plist_new_bool(IS_FLAG_SET(flags, MB_RESTORE_PRESERVE_CAMERA_ROLL)));
 
 	/* send request */
 	err = mobilebackup_send_message(client, NULL, dict);
@@ -431,64 +351,17 @@ leave:
 	return err;
 }
 
-/**
- * Receive a confirmation from the device that it successfully received
- * a restore file.
- *
- * @param client The connected MobileBackup client to use.
- * @param result Pointer to a plist_t that will be set to the received plist
- *    for further processing. The caller has to free it using plist_free().
- *    Note that it will be set to NULL if the operation itself fails due to
- *    a communication or plist error.
- *    If this parameter is NULL, it will be ignored. 
- *
- * @return MOBILEBACKUP_E_SUCCESS on success, MOBILEBACKUP_E_INVALID_ARG if
- *    client is invalid, MOBILEBACKUP_E_REPLY_NOT_OK if the expected
- *    'BackupMessageRestoreFileReceived' message could not be received,
- *    MOBILEBACKUP_E_PLIST_ERROR if the received message is not a valid backup
- *    message plist, or MOBILEBACKUP_E_MUX_ERROR if a communication error
- *    occurs.
- */
-mobilebackup_error_t mobilebackup_receive_restore_file_received(mobilebackup_client_t client, plist_t *result)
+LIBIMOBILEDEVICE_API mobilebackup_error_t mobilebackup_receive_restore_file_received(mobilebackup_client_t client, plist_t *result)
 {
 	return mobilebackup_receive_message(client, "BackupMessageRestoreFileReceived", result);
 }
 
-/**
- * Receive a confirmation from the device that it successfully received
- * application data file.
- *
- * @param client The connected MobileBackup client to use.
- * @param result Pointer to a plist_t that will be set to the received plist
- *    for further processing. The caller has to free it using plist_free().
- *    Note that it will be set to NULL if the operation itself fails due to
- *    a communication or plist error.
- *    If this parameter is NULL, it will be ignored. 
- *
- * @return MOBILEBACKUP_E_SUCCESS on success, MOBILEBACKUP_E_INVALID_ARG if
- *    client is invalid, MOBILEBACKUP_E_REPLY_NOT_OK if the expected
- *    'BackupMessageRestoreApplicationReceived' message could not be received,
- *    MOBILEBACKUP_E_PLIST_ERROR if the received message is not a valid backup
- *    message plist, or MOBILEBACKUP_E_MUX_ERROR if a communication error
- *    occurs.
- */
-mobilebackup_error_t mobilebackup_receive_restore_application_received(mobilebackup_client_t client, plist_t *result)
+LIBIMOBILEDEVICE_API mobilebackup_error_t mobilebackup_receive_restore_application_received(mobilebackup_client_t client, plist_t *result)
 {
 	return mobilebackup_receive_message(client, "BackupMessageRestoreApplicationReceived", result);
 }
 
-/**
- * Tells the device that the restore process is complete and waits for the
- * device to close the connection. After that, the device should reboot.
- *
- * @param client The connected MobileBackup client to use.
- * 
- * @return MOBILEBACKUP_E_SUCCESS on success, MOBILEBACKUP_E_INVALID_ARG if
- *    client is invalid, MOBILEBACKUP_E_PLIST_ERROR if the received disconnect
- *    message plist is invalid, or MOBILEBACKUP_E_MUX_ERROR if a communication
- *    error occurs.
- */
-mobilebackup_error_t mobilebackup_send_restore_complete(mobilebackup_client_t client)
+LIBIMOBILEDEVICE_API mobilebackup_error_t mobilebackup_send_restore_complete(mobilebackup_client_t client)
 {
 	mobilebackup_error_t err = mobilebackup_send_message(client, "BackupMessageRestoreComplete", NULL);
 	if (err != MOBILEBACKUP_E_SUCCESS) {
@@ -533,17 +406,7 @@ mobilebackup_error_t mobilebackup_send_restore_complete(mobilebackup_client_t cl
 	return err;
 }
 
-/**
- * Sends a backup error message to the device.
- *
- * @param client The connected MobileBackup client to use.
- * @param reason A string describing the reason for the error message.
- * 
- * @return MOBILEBACKUP_E_SUCCESS on success, MOBILEBACKUP_E_INVALID_ARG if
- *    one of the parameters is invalid, or MOBILEBACKUP_E_MUX_ERROR if a
- *    communication error occurs.
- */
-mobilebackup_error_t mobilebackup_send_error(mobilebackup_client_t client, const char *reason)
+LIBIMOBILEDEVICE_API mobilebackup_error_t mobilebackup_send_error(mobilebackup_client_t client, const char *reason)
 {
 	if (!client || !client->parent || !reason)
 		return MOBILEBACKUP_E_INVALID_ARG;
@@ -552,7 +415,7 @@ mobilebackup_error_t mobilebackup_send_error(mobilebackup_client_t client, const
 
 	/* construct error plist */
 	plist_t dict = plist_new_dict();
-	plist_dict_insert_item(dict, "BackupErrorReasonKey", plist_new_string(reason));
+	plist_dict_set_item(dict, "BackupErrorReasonKey", plist_new_string(reason));
 
 	err = mobilebackup_send_message(client, "BackupMessageError", dict);
 	plist_free(dict);

@@ -1,6 +1,6 @@
 /*
 ** Zabbix
-** Copyright (C) 2001-2013 Zabbix SIA
+** Copyright (C) 2001-2015 Zabbix SIA
 **
 ** This program is free software; you can redistribute it and/or modify
 ** it under the terms of the GNU General Public License as published by
@@ -20,9 +20,11 @@
 #ifndef ZABBIX_CHECKS_DB_H
 #define ZABBIX_CHECKS_DB_H
 
+#include "common.h"
+
 #include "dbcache.h"
 #include "sysinfo.h"
 
 int	get_value_db(DC_ITEM *item, AGENT_RESULT *result);
 
-#endif /* ZABBIX_CHECKS_DB_H */
+#endif

@@ -85,7 +85,7 @@
   <title>503 - Forwarding failure (Privoxy@@my-hostname@)</title>
   <meta http-equiv="Content-Style-Type" content="text/css">
   <meta http-equiv="Content-Script-Type" content="text/javascript">
-  <meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-1">
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
   <meta name="robots" content="noindex,nofollow">
   <link rel="shortcut icon" href="@default-cgi@error-favicon.ico">
   <style type="text/css">
@@ -95,12 +95,12 @@
 
 <body>
 
-  <table summary="" cellpadding="20" cellspacing="10" border="0" width="100%">
+  <table summary="" cellpadding="20" cellspacing="0" border="0" width="100%">
     <tr>
       <td class="status">
         503
       </td>
-      <td class="title" style="width: 100%">
+      <td class="title" style="width: 100%"><a id="logo" href="http://config.privoxy.org">P</a><a id="logo" href="http://config.privoxy.org">P</a>
 
 #include mod-title
 

@@ -1,7 +1,7 @@
 <?php
 /*
 ** Zabbix
-** Copyright (C) 2001-2013 Zabbix SIA
+** Copyright (C) 2001-2015 Zabbix SIA
 **
 ** This program is free software; you can redistribute it and/or modify
 ** it under the terms of the GNU General Public License as published by
@@ -131,7 +131,7 @@ class CUploadFile {
 	}
 
 	/**
-	 * Return true if file wos uploaded, maybe with errors.
+	 * Return true if file was uploaded, maybe with errors.
 	 *
 	 * @return bool
 	 */

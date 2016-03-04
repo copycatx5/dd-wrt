@@ -4,72 +4,103 @@
  *                                                                         *
  ***********************IMPORTANT NMAP LICENSE TERMS************************
  *                                                                         *
- * The Nmap Security Scanner is (C) 1996-2012 Insecure.Com LLC. Nmap is    *
+ * The Nmap Security Scanner is (C) 1996-2015 Insecure.Com LLC. Nmap is    *
  * also a registered trademark of Insecure.Com LLC.  This program is free  *
  * software; you may redistribute and/or modify it under the terms of the  *
  * GNU General Public License as published by the Free Software            *
- * Foundation; Version 2 with the clarifications and exceptions described  *
- * below.  This guarantees your right to use, modify, and redistribute     *
- * this software under certain conditions.  If you wish to embed Nmap      *
- * technology into proprietary software, we sell alternative licenses      *
- * (contact sales@insecure.com).  Dozens of software vendors already       *
- * license Nmap technology such as host discovery, port scanning, OS       *
- * detection, version detection, and the Nmap Scripting Engine.            *
+ * Foundation; Version 2 ("GPL"), BUT ONLY WITH ALL OF THE CLARIFICATIONS  *
+ * AND EXCEPTIONS DESCRIBED HEREIN.  This guarantees your right to use,    *
+ * modify, and redistribute this software under certain conditions.  If    *
+ * you wish to embed Nmap technology into proprietary software, we sell    *
+ * alternative licenses (contact sales@nmap.com).  Dozens of software      *
+ * vendors already license Nmap technology such as host discovery, port    *
+ * scanning, OS detection, version detection, and the Nmap Scripting       *
+ * Engine.                                                                 *
  *                                                                         *
- * Note that the GPL places important restrictions on "derived works", yet *
- * it does not provide a detailed definition of that term.  To avoid       *
+ * Note that the GPL places important restrictions on "derivative works",  *
+ * yet it does not provide a detailed definition of that term.  To avoid   *
  * misunderstandings, we interpret that term as broadly as copyright law   *
  * allows.  For example, we consider an application to constitute a        *
- * "derivative work" for the purpose of this license if it does any of the *
- * following:                                                              *
- * o Integrates source code from Nmap                                      *
- * o Reads or includes Nmap copyrighted data files, such as                *
- *   nmap-os-db or nmap-service-probes.                                    *
- * o Executes Nmap and parses the results (as opposed to typical shell or  *
- *   execution-menu apps, which simply display raw Nmap output and so are  *
- *   not derivative works.)                                                *
- * o Integrates/includes/aggregates Nmap into a proprietary executable     *
- *   installer, such as those produced by InstallShield.                   *
- * o Links to a library or executes a program that does any of the above   *
+ * derivative work for the purpose of this license if it does any of the   *
+ * following with any software or content covered by this license          *
+ * ("Covered Software"):                                                   *
  *                                                                         *
- * The term "Nmap" should be taken to also include any portions or derived *
- * works of Nmap, as well as other software we distribute under this       *
- * license such as Zenmap, Ncat, and Nping.  This list is not exclusive,   *
- * but is meant to clarify our interpretation of derived works with some   *
- * common examples.  Our interpretation applies only to Nmap--we don't     *
- * speak for other people's GPL works.                                     *
+ * o Integrates source code from Covered Software.                         *
  *                                                                         *
- * If you have any questions about the GPL licensing restrictions on using *
- * Nmap in non-GPL works, we would be happy to help.  As mentioned above,  *
- * we also offer alternative license to integrate Nmap into proprietary    *
- * applications and appliances.  These contracts have been sold to dozens  *
- * of software vendors, and generally include a perpetual license as well  *
- * as providing for priority support and updates.  They also fund the      *
- * continued development of Nmap.  Please email sales@insecure.com for     *
- * further information.                                                    *
+ * o Reads or includes copyrighted data files, such as Nmap's nmap-os-db   *
+ * or nmap-service-probes.                                                 *
  *                                                                         *
- * As a special exception to the GPL terms, Insecure.Com LLC grants        *
+ * o Is designed specifically to execute Covered Software and parse the    *
+ * results (as opposed to typical shell or execution-menu apps, which will *
+ * execute anything you tell them to).                                     *
+ *                                                                         *
+ * o Includes Covered Software in a proprietary executable installer.  The *
+ * installers produced by InstallShield are an example of this.  Including *
+ * Nmap with other software in compressed or archival form does not        *
+ * trigger this provision, provided appropriate open source decompression  *
+ * or de-archiving software is widely available for no charge.  For the    *
+ * purposes of this license, an installer is considered to include Covered *
+ * Software even if it actually retrieves a copy of Covered Software from  *
+ * another source during runtime (such as by downloading it from the       *
+ * Internet).                                                              *
+ *                                                                         *
+ * o Links (statically or dynamically) to a library which does any of the  *
+ * above.                                                                  *
+ *                                                                         *
+ * o Executes a helper program, module, or script to do any of the above.  *
+ *                                                                         *
+ * This list is not exclusive, but is meant to clarify our interpretation  *
+ * of derived works with some common examples.  Other people may interpret *
+ * the plain GPL differently, so we consider this a special exception to   *
+ * the GPL that we apply to Covered Software.  Works which meet any of     *
+ * these conditions must conform to all of the terms of this license,      *
+ * particularly including the GPL Section 3 requirements of providing      *
+ * source code and allowing free redistribution of the work as a whole.    *
+ *                                                                         *
+ * As another special exception to the GPL terms, Insecure.Com LLC grants  *
  * permission to link the code of this program with any version of the     *
  * OpenSSL library which is distributed under a license identical to that  *
  * listed in the included docs/licenses/OpenSSL.txt file, and distribute   *
- * linked combinations including the two. You must obey the GNU GPL in all *
- * respects for all of the code used other than OpenSSL.  If you modify    *
- * this file, you may extend this exception to your version of the file,   *
- * but you are not obligated to do so.                                     *
+ * linked combinations including the two.                                  *
  *                                                                         *
- * If you received these files with a written license agreement or         *
- * contract stating terms other than the terms above, then that            *
- * alternative license agreement takes precedence over these comments.     *
+ * Any redistribution of Covered Software, including any derived works,    *
+ * must obey and carry forward all of the terms of this license, including *
+ * obeying all GPL rules and restrictions.  For example, source code of    *
+ * the whole work must be provided and free redistribution must be         *
+ * allowed.  All GPL references to "this License", are to be treated as    *
+ * including the terms and conditions of this license text as well.        *
+ *                                                                         *
+ * Because this license imposes special exceptions to the GPL, Covered     *
+ * Work may not be combined (even as part of a larger work) with plain GPL *
+ * software.  The terms, conditions, and exceptions of this license must   *
+ * be included as well.  This license is incompatible with some other open *
+ * source licenses as well.  In some cases we can relicense portions of    *
+ * Nmap or grant special permissions to use it in other open source        *
+ * software.  Please contact fyodor@nmap.org with any such requests.       *
+ * Similarly, we don't incorporate incompatible open source software into  *
+ * Covered Software without special permission from the copyright holders. *
+ *                                                                         *
+ * If you have any questions about the licensing restrictions on using     *
+ * Nmap in other works, are happy to help.  As mentioned above, we also    *
+ * offer alternative license to integrate Nmap into proprietary            *
+ * applications and appliances.  These contracts have been sold to dozens  *
+ * of software vendors, and generally include a perpetual license as well  *
+ * as providing for priority support and updates.  They also fund the      *
+ * continued development of Nmap.  Please email sales@nmap.com for further *
+ * information.                                                            *
+ *                                                                         *
+ * If you have received a written license agreement or contract for        *
+ * Covered Software stating terms other than these, you may choose to use  *
+ * and redistribute Covered Software under those terms instead of these.   *
  *                                                                         *
  * Source is provided to this software because we believe users have a     *
  * right to know exactly what a program is going to do before they run it. *
- * This also allows you to audit the software for security holes (none     *
- * have been found so far).                                                *
+ * This also allows you to audit the software for security holes.          *
  *                                                                         *
  * Source code also allows you to port Nmap to new platforms, fix bugs,    *
  * and add new features.  You are highly encouraged to send your changes   *
- * to nmap-dev@insecure.org for possible incorporation into the main       *
- * distribution.  By sending these changes to Fyodor or one of the         *
+ * to the dev@nmap.org mailing list for possible incorporation into the    *
+ * main distribution.  By sending these changes to Fyodor or one of the    *
  * Insecure.Org development mailing lists, or checking them into the Nmap  *
  * source code repository, it is understood (unless you specify otherwise) *
  * that you are offering the Nmap Project (Insecure.Com LLC) the           *
@@ -83,10 +114,9 @@
  *                                                                         *
  * This program is distributed in the hope that it will be useful, but     *
  * WITHOUT ANY WARRANTY; without even the implied warranty of              *
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU       *
- * General Public License v2.0 for more details at                         *
- * http://www.gnu.org/licenses/gpl-2.0.html , or in the COPYING file       *
- * included with Nmap.                                                     *
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the Nmap      *
+ * license file for more details (it's in a COPYING file included with     *
+ * Nmap, and also available from https://svn.nmap.org/nmap/COPYING)        *
  *                                                                         *
  ***************************************************************************/
 
@@ -149,7 +179,7 @@ static int ssl_cert_digest(lua_State *L)
 
 /* These are the contents of the table that is pointed to by the table that has
    ssl_cert_methods_index_ref as a reference. */
-static struct luaL_reg ssl_cert_methods[] = {
+static struct luaL_Reg ssl_cert_methods[] = {
   { "digest", ssl_cert_digest },
   { NULL, NULL },
 };
@@ -173,7 +203,7 @@ static void obj_to_key(lua_State *L, const ASN1_OBJECT *obj)
     while ((n = OBJ_obj2txt(buf, size, obj, 1)) < 0 || (unsigned) n >= size) {
       size = size * 2;
       buf = (char *) lua_newuserdata(L, size);
-      memcpy(lua_touserdata(L, -1), lua_touserdata(L, -2), lua_objlen(L, -2));
+      memcpy(lua_touserdata(L, -1), lua_touserdata(L, -2), lua_rawlen(L, -2));
       lua_replace(L, -2);
     }
 
@@ -267,7 +297,7 @@ static int time_to_tm(const ASN1_TIME *t, struct tm *result)
     /* "In coming up with the worlds least efficient machine-readable time
        encoding format, the ISO nevertheless decided to forgo the encoding of
        centuries, a problem which has been kludged around by redefining the time
-       as UTCTime if the date is 2049 or ealier, and GeneralizedTime if the date
+       as UTCTime if the date is 2049 or earlier, and GeneralizedTime if the date
        is 2050 or later."
        http://www.cs.auckland.ac.nz/~pgut001/pubs/x509guide.txt */
     if (year < 50)
@@ -275,8 +305,8 @@ static int time_to_tm(const ASN1_TIME *t, struct tm *result)
     else
       result->tm_year = 1900 + year;
     p = t->data + 2;
-  } else if (t->length == 14) {
-    /* yyyymmddhhmmss */
+  } else if (t->length == 15 && t->data[t->length - 1] == 'Z') {
+    /* yyyymmddhhmmssZ */
     result->tm_year = parse_int(t->data, 4);
     if (result->tm_year < 0)
       return -1;
@@ -326,8 +356,8 @@ static void tm_to_table(lua_State *L, const struct tm *tm)
   /* Omit tm_wday and tm_yday. */
 }
 
-/* This is a helper function for x509_validity_to_table. It takes teh given
-   ASN1_TIME and covnerts it to a value on the stack, which is one of
+/* This is a helper function for x509_validity_to_table. It takes the given
+   ASN1_TIME and converts it to a value on the stack, which is one of
      nil, if the time is NULL;
      a date table, if the date can be parsed; and
      a string of the raw bytes, if the date cannot be parsed. */
@@ -344,7 +374,7 @@ static void asn1_time_to_obj(lua_State *L, const ASN1_TIME *s)
   }
 }
 
-/* This is a helper functino for x509_validity_to_table. It builds a table with
+/* This is a helper function for x509_validity_to_table. It builds a table with
    the two members "notBefore" and "notAfter", whose values are what is returned
    from asn1_time_to_obj. */
 static void x509_validity_to_table(lua_State *L, const X509 *cert)
@@ -396,13 +426,76 @@ static const char *pkey_type_to_string(int type)
   }
 }
 
+void lua_push_ecdhparams(lua_State *L, EVP_PKEY *pubkey) {
+#ifdef EC_KEY
+  EC_KEY *ec_key = EVP_PKEY_get1_EC_KEY(pubkey);
+  const EC_GROUP *group = EC_KEY_get0_group(ec_key);
+  int nid;
+  if ((nid = EC_GROUP_get_curve_name(group)) != 0) {
+    lua_newtable(L);
+    lua_newtable(L);
+    lua_pushstring(L, OBJ_nid2sn(nid));
+    lua_setfield(L, -2, "curve");
+    lua_pushstring(L, "namedcurve");
+    lua_setfield(L, -2, "ec_curve_type");
+    lua_setfield(L, -2, "curve_params");
+    lua_setfield(L, -2, "ecdhparams");
+  }
+  else {
+    /* According to RFC 5480 section 2.1.1, explicit curves must not be used with
+       X.509. This may change in the future, but for now it doesn't seem worth it
+       to add in code to extract the extra parameters. */
+    nid = EC_METHOD_get_field_type(EC_GROUP_method_of(group));
+    if (nid == NID_X9_62_prime_field) {
+      lua_newtable(L);
+      lua_newtable(L);
+      lua_pushstring(L, "explicit_prime");
+      lua_setfield(L, -2, "ec_curve_type");
+      lua_setfield(L, -2, "curve_params");
+      lua_setfield(L, -2, "ecdhparams");
+    }
+    else if (nid == NID_X9_62_characteristic_two_field) {
+      lua_newtable(L);
+      lua_newtable(L);
+      lua_pushstring(L, "explicit_char2");
+      lua_setfield(L, -2, "ec_curve_type");
+      lua_setfield(L, -2, "curve_params");
+      lua_setfield(L, -2, "ecdhparams");
+    }
+    else {
+      /* Something wierd happened. */
+    }
+  }
+  EC_KEY_free(ec_key);
+#endif
+}
+
+static int parse_ssl_cert(lua_State *L, X509 *cert);
+
+int l_parse_ssl_certificate(lua_State *L)
+{
+  X509 *cert;
+  size_t l;
+  const char *der;
+
+  der = luaL_checklstring(L, 1, &l);
+  if (der == NULL) {
+    lua_pushnil(L);
+    return 1;
+  }
+
+  cert = d2i_X509(NULL, (const unsigned char **) &der, l);
+  if (cert == NULL) {
+    lua_pushnil(L);
+    return 1;
+  }
+  return parse_ssl_cert(L, cert);
+}
+
 int l_get_ssl_certificate(lua_State *L)
 {
   SSL *ssl;
-  struct cert_userdata *udata;
   X509 *cert;
-  X509_NAME *subject, *issuer;
-  EVP_PKEY *pubkey;
 
   ssl = nse_nsock_get_ssl(L);
   cert = SSL_get_peer_certificate(ssl);
@@ -410,6 +503,15 @@ int l_get_ssl_certificate(lua_State *L)
     lua_pushnil(L);
     return 1;
   }
+  return parse_ssl_cert(L, cert);
+}
+
+static int parse_ssl_cert(lua_State *L, X509 *cert)
+{
+  struct cert_userdata *udata;
+  X509_NAME *subject, *issuer;
+  EVP_PKEY *pubkey;
+  int pkey_type;
 
   udata = (struct cert_userdata *) lua_newuserdata(L, sizeof(*udata));
   udata->cert = cert;
@@ -421,6 +523,10 @@ int l_get_ssl_certificate(lua_State *L)
     x509_name_to_table(L, subject);
     lua_setfield(L, -2, "subject");
   }
+
+  const char *sig_algo = OBJ_nid2ln(OBJ_obj2nid(cert->sig_alg->algorithm));
+  lua_pushstring(L, sig_algo);
+  lua_setfield(L, -2, "sig_algorithm");
 
   issuer = X509_get_issuer_name(cert);
   if (issuer != NULL) {
@@ -436,7 +542,11 @@ int l_get_ssl_certificate(lua_State *L)
 
   pubkey = X509_get_pubkey(cert);
   lua_newtable(L);
-  lua_pushstring(L, pkey_type_to_string(pubkey->type));
+  pkey_type = EVP_PKEY_type(pubkey->type);
+  if (pkey_type == EVP_PKEY_EC) {
+    lua_push_ecdhparams(L, pubkey);
+  }
+  lua_pushstring(L, pkey_type_to_string(pkey_type));
   lua_setfield(L, -2, "type");
   lua_pushnumber(L, EVP_PKEY_bits(pubkey));
   lua_setfield(L, -2, "bits");
@@ -460,7 +570,7 @@ int l_get_ssl_certificate(lua_State *L)
 static int l_ssl_cert_index(lua_State *L)
 {
   struct cert_userdata *udata;
-  
+
   udata = (struct cert_userdata *) luaL_checkudata(L, 1, "SSL_CERT");
   lua_rawgeti(L, LUA_REGISTRYINDEX, udata->attributes_table);
   /* The key. */
@@ -474,7 +584,7 @@ static int l_ssl_cert_index(lua_State *L)
 static int l_ssl_cert_gc(lua_State *L)
 {
   struct cert_userdata *udata;
-  
+
   udata = (struct cert_userdata *) luaL_checkudata(L, 1, "SSL_CERT");
   X509_free(udata->cert);
   luaL_unref(L, LUA_REGISTRYINDEX, udata->attributes_table);
@@ -495,7 +605,7 @@ void nse_nsock_init_ssl_cert(lua_State *L)
      global shared table of certificate functions. */
   lua_newtable(L);
   lua_newtable(L);
-  luaL_register(L, NULL, ssl_cert_methods);
+  luaL_setfuncs(L, ssl_cert_methods, 0);
   lua_setfield(L, -2, "__index");
   ssl_cert_methods_index_ref = luaL_ref(L, LUA_REGISTRYINDEX);
 }

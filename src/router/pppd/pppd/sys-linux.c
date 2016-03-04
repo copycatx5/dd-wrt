@@ -102,7 +102,7 @@
 #define MAX_ADDR_LEN 7
 #endif
 
-#if __GLIBC__ >= 2
+#if 1//__GLIBC__ >= 2
 #include <asm/types.h>		/* glibc 2 conflicts with linux/types.h */
 #include <net/if.h>
 #include <net/if_arp.h>
@@ -205,7 +205,8 @@ static char loop_name[20];
 static unsigned char inbuf[512]; /* buffer for chars read from loopback */
 
 static int	if_is_up;	/* Interface has been marked up */
-static u_int32_t default_route_gateway;	/* Gateway for default route added */
+static int	if6_is_up;	/* Interface has been marked up for IPv6, to help differentiate */
+static int	have_default_route;	/* Gateway for default route added */
 static u_int32_t proxy_arp_addr;	/* Addr for proxy arp entry added */
 static char proxy_arp_dev[16];		/* Device for proxy arp entry */
 static u_int32_t our_old_addr;		/* for detecting address changes */
@@ -239,6 +240,7 @@ static void decode_version (char *buf, int *version, int *mod, int *patch);
 static int set_kdebugflag(int level);
 static int ppp_registered(void);
 static int make_ppp_unit(void);
+static int setifstate (int u, int state);
 
 extern u_char	inpacket_buf[];	/* borrowed from main.c */
 
@@ -338,11 +340,16 @@ void sys_cleanup(void)
 	if_is_up = 0;
 	sifdown(0);
     }
+
+#ifdef INET6
+    if (if6_is_up)
+	sif6down(0);
+#endif
 /*
  * Delete any routes through the device.
  */
-    if (default_route_gateway != 0)
-	cifdefaultroute(0, 0, default_route_gateway);
+    if (have_default_route)
+	cifdefaultroute(0, 0, 0);
 
     if (has_proxy_arp)
 	cifproxyarp(0, proxy_arp_addr);
@@ -400,7 +407,9 @@ int tty_establish_ppp (int tty_fd)
  */
     if (ioctl(tty_fd, TIOCEXCL, 0) < 0) {
 	if ( ! ok_error ( errno ))
+	{
 	    warn("Couldn't make tty exclusive: %m");
+	}
     }
 /*
  * Demand mode - prime the old ppp device to relinquish the unit.
@@ -436,7 +445,9 @@ int tty_establish_ppp (int tty_fd)
 		     (kdebugflag * SC_DEBUG) & SC_LOGB);
     } else {
 	if (ioctl(tty_fd, TIOCSETD, &tty_disc) < 0 && !ok_error(errno))
+	{
 	    warn("Couldn't reset tty to normal line discipline: %m");
+	}
     }
 
     return ret_fd;
@@ -452,6 +463,13 @@ int generic_establish_ppp (int fd)
 
     if (new_style_driver) {
 	int flags;
+
+        /* if a ppp_fd is already open, close it first */
+        if(ppp_fd > 0) {
+          close(ppp_fd);
+          remove_fd(ppp_fd);
+          ppp_fd = -1;
+        }
 
 	/* Open an instance of /dev/ppp and connect the channel to it */
 	if (ioctl(fd, PPPIOCGCHAN, &chindex) == -1) {
@@ -517,7 +535,9 @@ int generic_establish_ppp (int fd)
 	if (initfdflags == -1 ||
 	    fcntl(fd, F_SETFL, initfdflags | O_NONBLOCK) == -1) {
 	    if ( ! ok_error (errno))
+	    {
 		warn("Couldn't set device to non-blocking mode: %m");
+	    }
 	}
     }
 
@@ -559,18 +579,24 @@ void tty_disestablish_ppp(int tty_fd)
  */
 	if (ioctl(tty_fd, TIOCSETD, &tty_disc) < 0) {
 	    if ( ! ok_error (errno))
+	    {
 		error("ioctl(TIOCSETD, N_TTY): %m (line %d)", __LINE__);
+	    }
 	}
 
 	if (ioctl(tty_fd, TIOCNXCL, 0) < 0) {
 	    if ( ! ok_error (errno))
+	    {
 		warn("ioctl(TIOCNXCL): %m (line %d)", __LINE__);
+	    }
 	}
 
 	/* Reset non-blocking mode on fd. */
 	if (initfdflags != -1 && fcntl(tty_fd, F_SETFL, initfdflags) < 0) {
 	    if ( ! ok_error (errno))
+	    {
 		warn("Couldn't restore device fd flags: %m");
+	    }
 	}
     }
 flushfailed:
@@ -621,11 +647,15 @@ static int make_ppp_unit()
 	}
 	ppp_dev_fd = open("/dev/ppp", O_RDWR);
 	if (ppp_dev_fd < 0)
+	 {
 		fatal("Couldn't open /dev/ppp: %m");
+	 }
 	flags = fcntl(ppp_dev_fd, F_GETFL);
 	if (flags == -1
 	    || fcntl(ppp_dev_fd, F_SETFL, flags | O_NONBLOCK) == -1)
+	    {
 		warn("Couldn't set /dev/ppp to nonblock: %m");
+	    }
 
 	ifunit = req_unit;
 	x = ioctl(ppp_dev_fd, PPPIOCNEWUNIT, &ifunit);
@@ -635,7 +665,9 @@ static int make_ppp_unit()
 		x = ioctl(ppp_dev_fd, PPPIOCNEWUNIT, &ifunit);
 	}
 	if (x < 0)
+	{
 		error("Couldn't create new ppp unit: %m");
+	}
 	return x;
 }
 
@@ -676,7 +708,7 @@ void make_new_bundle(int mrru, int mtru, int rssn, int tssn)
 
 	/* make us a ppp unit */
 	if (make_ppp_unit() < 0)
-		pppd_die(1);
+		die(1);
 
 	/* set the mrru and flags */
 	cfg_bundle(mrru, mtru, rssn, tssn);
@@ -849,6 +881,30 @@ struct speed {
 #ifdef B921600
     { 921600, B921600 },
 #endif
+#ifdef B1000000
+    { 1000000, B1000000 },
+#endif
+#ifdef B1152000
+    { 1152000, B1152000 },
+#endif
+#ifdef B1500000
+    { 1500000, B1500000 },
+#endif
+#ifdef B2000000
+    { 2000000, B2000000 },
+#endif
+#ifdef B2500000
+    { 2500000, B2500000 },
+#endif
+#ifdef B3000000
+    { 3000000, B3000000 },
+#endif
+#ifdef B3500000
+    { 3500000, B3500000 },
+#endif
+#ifdef B4000000
+    { 4000000, B4000000 },
+#endif
     { 0, 0 }
 };
 
@@ -942,6 +998,9 @@ void set_up_tty(int tty_fd, int local)
 	break;
     }
 
+    if (stop_bits >= 2)
+	tios.c_cflag |= CSTOPB;
+
     speed = translate_speed(inspeed);
     if (speed) {
 	cfsetospeed (&tios, speed);
@@ -998,7 +1057,9 @@ void restore_tty (int tty_fd)
 
 	if (tcsetattr(tty_fd, TCSAFLUSH, &inittermios) < 0) {
 	    if (! ok_error (errno))
+	    {
 		warn("tcsetattr: %m (line %d)", __LINE__);
+	    }
 	}
     }
 }
@@ -1028,9 +1089,12 @@ void output (int unit, unsigned char *p, int len)
     if (write(fd, p, len) < 0) {
 	if (errno == EWOULDBLOCK || errno == EAGAIN || errno == ENOBUFS
 	    || errno == ENXIO || errno == EIO || errno == EINTR)
+	    {
 	    warn("write: warning: %m (%d)", errno);
-	else
+	    }
+	else{
 	    error("write: %m (%d)", errno);
+	    }
     }
 }
 
@@ -1079,7 +1143,7 @@ void remove_fd(int fd)
  * read_packet - get a PPP packet from the serial device.
  */
 
-int pppd_read_packet (unsigned char *buf)
+int read_packet (unsigned char *buf)
 {
     int len, nr;
 
@@ -1129,7 +1193,7 @@ get_loop_output(void)
     int n;
 
     if (new_style_driver) {
-	while ((n = pppd_read_packet(inpacket_buf)) > 0)
+	while ((n = read_packet(inpacket_buf)) > 0)
 	    if (loop_frame(inpacket_buf, n))
 		rv = 1;
 	return rv;
@@ -1159,7 +1223,7 @@ netif_set_mtu(int unit, int mtu)
     memset (&ifr, '\0', sizeof (ifr));
     strlcpy(ifr.ifr_name, ifname, sizeof (ifr.ifr_name));
     ifr.ifr_mtu = mtu;
-
+//    info("set mtu ppp to %s (%d)\n",ifname,mtu);
     if (ifunit >= 0 && ioctl(sock_fd, SIOCSIFMTU, (caddr_t) &ifr) < 0)
 	error("ioctl(SIOCSIFMTU): %m (line %d)", __LINE__);
 }
@@ -1197,7 +1261,9 @@ void tty_send_config(int mtu, u_int32_t asyncmap, int pcomp, int accomp)
 	link_mtu = mtu;
 	if (ioctl(ppp_fd, PPPIOCSASYNCMAP, (caddr_t) &asyncmap) < 0) {
 		if (errno != EIO && errno != ENOTTY)
+		{
 			error("Couldn't set transmit async character map: %m");
+		}
 		++error_count;
 		return;
 	}
@@ -1301,9 +1367,13 @@ int set_filters(struct bpf_program *pass, struct bpf_program *active)
 	fp.filter = (struct sock_filter *) pass->bf_insns;
 	if (ioctl(ppp_dev_fd, PPPIOCSPASS, &fp) < 0) {
 		if (errno == ENOTTY)
+		{
 			warn("kernel does not support PPP filtering");
+		}
 		else
+		{
 			error("Couldn't set pass-filter in kernel: %m");
+		}
 		return 0;
 	}
 	fp.len = active->bf_len;
@@ -1589,17 +1659,21 @@ int sifdefaultroute (int unit, u_int32_t ouraddr, u_int32_t gateway)
     struct rtentry rt;
 
     if (defaultroute_exists(&rt) && strcmp(rt.rt_dev, ifname) != 0) {
-	u_int32_t old_gateway = SIN_ADDR(rt.rt_gateway);
-
-	if (old_gateway != gateway)
-	    error("not replacing existing default route to %s [%I]",
-		  rt.rt_dev, old_gateway);
+	if (rt.rt_flags & RTF_GATEWAY)
+	{
+	    error("not replacing existing default route via %I",
+		  SIN_ADDR(rt.rt_gateway));
+	}
+	else
+	{
+	    error("not replacing existing default route through %s",
+		  rt.rt_dev);
+	}
 	return 0;
     }
 
-    memset (&rt, '\0', sizeof (rt));
-    SET_SA_FAMILY (rt.rt_dst,     AF_INET);
-    SET_SA_FAMILY (rt.rt_gateway, AF_INET);
+    memset (&rt, 0, sizeof (rt));
+    SET_SA_FAMILY (rt.rt_dst, AF_INET);
 
     rt.rt_dev = ifname;
 
@@ -1608,16 +1682,14 @@ int sifdefaultroute (int unit, u_int32_t ouraddr, u_int32_t gateway)
 	SIN_ADDR(rt.rt_genmask) = 0L;
     }
 
-    SIN_ADDR(rt.rt_gateway) = gateway;
-
-    rt.rt_flags = RTF_UP | RTF_GATEWAY;
+    rt.rt_flags = RTF_UP;
     if (ioctl(sock_fd, SIOCADDRT, &rt) < 0) {
 	if ( ! ok_error ( errno ))
 	    error("default route ioctl(SIOCADDRT): %m");
 	return 0;
     }
 
-    default_route_gateway = gateway;
+    have_default_route = 1;
     return 1;
 }
 
@@ -1630,20 +1702,20 @@ int cifdefaultroute (int unit, u_int32_t ouraddr, u_int32_t gateway)
 {
     struct rtentry rt;
 
-    default_route_gateway = 0;
+    have_default_route = 0;
 
     memset (&rt, '\0', sizeof (rt));
     SET_SA_FAMILY (rt.rt_dst,     AF_INET);
     SET_SA_FAMILY (rt.rt_gateway, AF_INET);
+
+    rt.rt_dev = ifname;
 
     if (kernel_version > KVERSION(2,1,0)) {
 	SET_SA_FAMILY (rt.rt_genmask, AF_INET);
 	SIN_ADDR(rt.rt_genmask) = 0L;
     }
 
-    SIN_ADDR(rt.rt_gateway) = gateway;
-
-    rt.rt_flags = RTF_UP | RTF_GATEWAY;
+    rt.rt_flags = RTF_UP;
     if (ioctl(sock_fd, SIOCDELRT, &rt) < 0 && errno != ESRCH) {
 	if (still_ppp()) {
 	    if ( ! ok_error ( errno ))
@@ -1696,7 +1768,9 @@ int sifproxyarp (int unit, u_int32_t his_adr)
 		int fd = open(forw_path, O_WRONLY);
 		if (fd >= 0) {
 		    if (write(fd, "1", 1) != 1)
+		    {
 			error("Couldn't enable IP forwarding: %m");
+		    }
 		    close(fd);
 		}
 	    }
@@ -1725,7 +1799,9 @@ int cifproxyarp (int unit, u_int32_t his_adr)
 
 	if (ioctl(sock_fd, SIOCDARP, (caddr_t)&arpreq) < 0) {
 	    if ( ! ok_error ( errno ))
+	    {
 		warn("ioctl(SIOCDARP): %m");
+	    }
 	    return 0;
 	}
     }
@@ -1892,7 +1968,9 @@ u_int32_t GetMask (u_int32_t addr)
     ifc.ifc_req = ifs;
     if (ioctl(sock_fd, SIOCGIFCONF, &ifc) < 0) {
 	if ( ! ok_error ( errno ))
+	{
 	    warn("ioctl(SIOCGIFCONF): %m (line %d)", __LINE__);
+	}
 	return mask;
     }
 
@@ -1971,7 +2049,9 @@ ppp_registered(void)
      * So we grab a pty master/slave pair and use that.
      */
     if (!get_pty(&mfd, &local_fd, slave, 0)) {
+#ifdef NEED_PRINTF
 	no_ppp_msg = "Couldn't determine if PPP is supported (no free ptys)";
+#endif
 	return 0;
     }
 
@@ -2002,14 +2082,6 @@ int ppp_available(void)
     int    my_version, my_modification, my_patch;
     int osmaj, osmin, ospatch;
 
-    no_ppp_msg =
-	"This system lacks kernel support for PPP.  This could be because\n"
-	"the PPP kernel module could not be loaded, or because PPP was not\n"
-	"included in the kernel configuration.  If PPP was included as a\n"
-	"module, try `/sbin/modprobe -v ppp'.  If that fails, check that\n"
-	"ppp.o exists in /lib/modules/`uname -r`/net.\n"
-	"See README.linux file in the ppp distribution for more details.\n";
-
     /* get the kernel version now, since we are called before sys_init */
     uname(&utsname);
     osmaj = osmin = ospatch = 0;
@@ -2017,21 +2089,6 @@ int ppp_available(void)
     kernel_version = KVERSION(osmaj, osmin, ospatch);
 
     fd = open("/dev/ppp", O_RDWR);
-#if 0
-    if (fd < 0 && errno == ENOENT) {
-	/* try making it and see if that helps. */
-	if (mknod("/dev/ppp", S_IFCHR | S_IRUSR | S_IWUSR,
-		  makedev(108, 0)) >= 0) {
-	    fd = open("/dev/ppp", O_RDWR);
-	    if (fd >= 0)
-		info("Created /dev/ppp device node");
-	    else
-		unlink("/dev/ppp");	/* didn't work, undo the mknod */
-	} else if (errno == EEXIST) {
-	    fd = open("/dev/ppp", O_RDWR);
-	}
-    }
-#endif /* 0 */
     if (fd >= 0) {
 	new_style_driver = 1;
 
@@ -2042,16 +2099,32 @@ int ppp_available(void)
 	close(fd);
 	return 1;
     }
+
     if (kernel_version >= KVERSION(2,3,13)) {
+	error("Couldn't open the /dev/ppp device: %m");
+#ifdef NEED_PRINTF
 	if (errno == ENOENT)
 	    no_ppp_msg =
-		"pppd is unable to open the /dev/ppp device.\n"
 		"You need to create the /dev/ppp device node by\n"
 		"executing the following command as root:\n"
 		"	mknod /dev/ppp c 108 0\n";
+	else if (errno == ENODEV || errno == ENXIO)
+	    no_ppp_msg =
+		"Please load the ppp_generic kernel module.\n";
+#endif
 	return 0;
     }
 
+    /* we are running on a really really old kernel */
+#ifdef NEED_PRINTF
+    no_ppp_msg =
+	"This system lacks kernel support for PPP.  This could be because\n"
+	"the PPP kernel module could not be loaded, or because PPP was not\n"
+	"included in the kernel configuration.  If PPP was included as a\n"
+	"module, try `/sbin/modprobe -v ppp'.  If that fails, check that\n"
+	"ppp.o exists in /lib/modules/`uname -r`/net.\n"
+	"See README.linux file in the ppp distribution for more details.\n";
+#endif
 /*
  * Open a socket for doing the ioctl operations.
  */
@@ -2093,7 +2166,9 @@ int ppp_available(void)
 	if (size < 0) {
 	    error("Couldn't read driver version: %m");
 	    ok = 0;
+#ifdef NEED_PRINTF
 	    no_ppp_msg = "Sorry, couldn't verify kernel driver version\n";
+#endif
 
 	} else {
 	    decode_version(abBuffer,
@@ -2124,17 +2199,20 @@ int ppp_available(void)
 
 	    close (s);
 	    if (!ok) {
+#ifdef NEED_PRINTF
 		slprintf(route_buffer, sizeof(route_buffer),
 			 "Sorry - PPP driver version %d.%d.%d is out of date\n",
 			 driver_version, driver_modification, driver_patch);
 
 		no_ppp_msg = route_buffer;
+#endif
 	    }
 	}
     }
     return ok;
 }
 
+#ifndef HAVE_LOGWTMP
 /********************************************************************
  *
  * Update the wtmp file with the appropriate user name and tty device.
@@ -2200,7 +2278,9 @@ void logwtmp (const char *line, const char *name, const char *host)
 	flock(wtmp, LOCK_EX);
 
 	if (write (wtmp, (char *)&ut, sizeof(ut)) != sizeof(ut))
+	{
 	    warn("error writing %s: %m", _PATH_WTMP);
+	}
 
 	flock(wtmp, LOCK_UN);
 
@@ -2208,7 +2288,7 @@ void logwtmp (const char *line, const char *name, const char *host)
     }
 #endif
 }
-
+#endif /* HAVE_LOGWTMP */
 
 /********************************************************************
  *
@@ -2220,9 +2300,10 @@ int sifvjcomp (int u, int vjcomp, int cidcomp, int maxcid)
 	u_int x;
 
 	if (vjcomp) {
-		if (ioctl(ppp_dev_fd, PPPIOCSMAXCID, (caddr_t) &maxcid) < 0)
+		if (ioctl(ppp_dev_fd, PPPIOCSMAXCID, (caddr_t) &maxcid) < 0) {
 			error("Couldn't set up TCP header compression: %m");
-		vjcomp = 0;
+			vjcomp = 0;
+		}
 	}
 
 	x = (vjcomp? SC_COMP_TCP: 0) | (cidcomp? 0: SC_NO_TCP_CCID);
@@ -2238,25 +2319,12 @@ int sifvjcomp (int u, int vjcomp, int cidcomp, int maxcid)
 
 int sifup(int u)
 {
-    struct ifreq ifr;
+    int ret;
 
-    memset (&ifr, '\0', sizeof (ifr));
-    strlcpy(ifr.ifr_name, ifname, sizeof (ifr.ifr_name));
-    if (ioctl(sock_fd, SIOCGIFFLAGS, (caddr_t) &ifr) < 0) {
-	if (! ok_error (errno))
-	    error("ioctl (SIOCGIFFLAGS): %m (line %d)", __LINE__);
-	return 0;
-    }
+    if ((ret = setifstate(u, 1)))
+	if_is_up++;
 
-    ifr.ifr_flags |= (IFF_UP | IFF_POINTOPOINT);
-    if (ioctl(sock_fd, SIOCSIFFLAGS, (caddr_t) &ifr) < 0) {
-	if (! ok_error (errno))
-	    error("ioctl(SIOCSIFFLAGS): %m (line %d)", __LINE__);
-	return 0;
-    }
-    if_is_up++;
-
-    return 1;
+    return ret;
 }
 
 /********************************************************************
@@ -2267,10 +2335,58 @@ int sifup(int u)
 
 int sifdown (int u)
 {
-    struct ifreq ifr;
-
     if (if_is_up && --if_is_up > 0)
 	return 1;
+
+#ifdef INET6
+    if (if6_is_up)
+	return 1;
+#endif /* INET6 */
+
+    return setifstate(u, 0);
+}
+
+#ifdef INET6
+/********************************************************************
+ *
+ * sif6up - Config the interface up for IPv6
+ */
+
+int sif6up(int u)
+{
+    int ret;
+
+    if ((ret = setifstate(u, 1)))
+	if6_is_up = 1;
+
+    return ret;
+}
+
+/********************************************************************
+ *
+ * sif6down - Disable the IPv6CP protocol and config the interface
+ *	      down if there are no remaining protocols.
+ */
+
+int sif6down (int u)
+{
+    if6_is_up = 0;
+
+    if (if_is_up)
+	return 1;
+
+    return setifstate(u, 0);
+}
+#endif /* INET6 */
+
+/********************************************************************
+ *
+ * setifstate - Config the interface up or down
+ */
+
+static int setifstate (int u, int state)
+{
+    struct ifreq ifr;
 
     memset (&ifr, '\0', sizeof (ifr));
     strlcpy(ifr.ifr_name, ifname, sizeof (ifr.ifr_name));
@@ -2280,7 +2396,10 @@ int sifdown (int u)
 	return 0;
     }
 
-    ifr.ifr_flags &= ~IFF_UP;
+    if (state)
+	ifr.ifr_flags |= IFF_UP;
+    else
+	ifr.ifr_flags &= ~IFF_UP;
     ifr.ifr_flags |= IFF_POINTOPOINT;
     if (ioctl(sock_fd, SIOCSIFFLAGS, (caddr_t) &ifr) < 0) {
 	if (! ok_error (errno))
@@ -2326,11 +2445,13 @@ int sifaddr (int unit, u_int32_t our_adr, u_int32_t his_adr,
 /*
  *  Set the gateway address
  */
-    SIN_ADDR(ifr.ifr_dstaddr) = his_adr;
-    if (ioctl(sock_fd, SIOCSIFDSTADDR, (caddr_t) &ifr) < 0) {
-	if (! ok_error (errno))
-	    error("ioctl(SIOCSIFDSTADDR): %m (line %d)", __LINE__);
-	return (0);
+    if (his_adr != 0) {
+	SIN_ADDR(ifr.ifr_dstaddr) = his_adr;
+	if (ioctl(sock_fd, SIOCSIFDSTADDR, (caddr_t) &ifr) < 0) {
+	    if (! ok_error (errno))
+		error("ioctl(SIOCSIFDSTADDR): %m (line %d)", __LINE__);
+	    return (0);
+	}
     }
 /*
  *  Set the netmask.
@@ -2563,10 +2684,14 @@ get_pty(master_fdp, slave_fdp, slave_name, uid)
 #ifdef TIOCSPTLCK
 	    ptn = 0;
 	    if (ioctl(mfd, TIOCSPTLCK, &ptn) < 0)
+	    {
 		warn("Couldn't unlock pty slave %s: %m", pty_name);
+	    }
 #endif
 	    if ((sfd = open(pty_name, O_RDWR | O_NOCTTY)) < 0)
+	    {
 		warn("Couldn't open pty slave %s: %m", pty_name);
+	    }
 	}
     }
 #endif /* TIOCGPTN */
@@ -2603,9 +2728,13 @@ get_pty(master_fdp, slave_fdp, slave_name, uid)
 	tios.c_oflag  = 0;
 	tios.c_lflag  = 0;
 	if (tcsetattr(sfd, TCSAFLUSH, &tios) < 0)
+	{
 	    warn("couldn't set attributes on pty: %m");
+	}
     } else
+    {
 	warn("couldn't get attributes on pty: %m");
+    }
 
     return 1;
 }
@@ -2624,7 +2753,7 @@ open_ppp_loopback(void)
     if (new_style_driver) {
 	/* allocate ourselves a ppp unit */
 	if (make_ppp_unit() < 0)
-	    pppd_die(1);
+	    die(1);
 	modify_flags(ppp_dev_fd, 0, SC_LOOP_TRAFFIC);
 	set_kdebugflag(kdebugflag);
 	ppp_fd = -1;
@@ -2639,15 +2768,19 @@ open_ppp_loopback(void)
     flags = fcntl(master_fd, F_GETFL);
     if (flags == -1 ||
 	fcntl(master_fd, F_SETFL, flags | O_NONBLOCK) == -1)
+	{
 	warn("couldn't set master loopback to nonblock: %m");
-
+	}
     flags = fcntl(ppp_fd, F_GETFL);
     if (flags == -1 ||
 	fcntl(ppp_fd, F_SETFL, flags | O_NONBLOCK) == -1)
+	{
 	warn("couldn't set slave loopback to nonblock: %m");
-
+	}
     if (ioctl(ppp_fd, TIOCSETD, &ppp_disc) < 0)
+    {
 	fatal("ioctl(TIOCSETD): %m (line %d)", __LINE__);
+    }
 /*
  * Find out which interface we were given.
  */
@@ -2808,8 +2941,8 @@ sys_check_options(void)
 
     if (ipxcp_protent.enabled_flag) {
 	struct stat stat_buf;
-	if ((path = path_to_procfs("/net/ipx/interface")) == 0
-	    || (path = path_to_procfs("/net/ipx_interface")) == 0
+	if (  ((path = path_to_procfs("/net/ipx/interface")) == NULL
+	    && (path = path_to_procfs("/net/ipx_interface")) == NULL)
 	    || lstat(path, &stat_buf) < 0) {
 	    error("IPX support is not present in the kernel\n");
 	    ipxcp_protent.enabled_flag = 0;
@@ -2863,7 +2996,7 @@ ether_to_eui64(eui64_t *p_eui64)
     /*
      * And convert the EUI-48 into EUI-64, per RFC 2472 [sec 4.1]
      */
-    ptr = ifr.ifr_hwaddr.sa_data;
+    ptr = (unsigned char *) ifr.ifr_hwaddr.sa_data;
     p_eui64->e8[0] = ptr[0] | 0x02;
     p_eui64->e8[1] = ptr[1];
     p_eui64->e8[2] = ptr[2];

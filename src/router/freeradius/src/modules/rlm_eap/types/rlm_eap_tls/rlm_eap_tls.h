@@ -1,7 +1,7 @@
 /*
  * rlm_eap_tls.h
  *
- * Version:     $Id: ad6fb8952fe28b7b7610a2effb0c8e836cc8f21b $
+ * Version:     $Id: a09e618597d56f0c453cc5aa587cc47c2286ef33 $
  *
  *   This program is free software; you can redistribute it and/or modify
  *   it under the terms of the GNU General Public License as published by
@@ -25,7 +25,7 @@
 #define _RLM_EAP_TLS_H
 
 #include <freeradius-devel/ident.h>
-RCSIDH(rlm_eap_tls_h, "$Id: ad6fb8952fe28b7b7610a2effb0c8e836cc8f21b $")
+RCSIDH(rlm_eap_tls_h, "$Id: a09e618597d56f0c453cc5aa587cc47c2286ef33 $")
 
 #include "eap_tls.h"
 
@@ -51,12 +51,15 @@ typedef struct eap_tls_conf {
 	int		verify_depth;
 	int		file_type;
 	int		include_length;
+	int		disable_tlsv1_1;
+	int		disable_tlsv1_2;
 
 	/*
 	 *	Always < 4096 (due to radius limit), 0 by default = 2048
 	 */
 	int		fragment_size;
 	int		check_crl;
+	int		check_all_crl;
 	int		allow_expired_crl;
 	char		*check_cert_cn;
 	char		*cipher_list;

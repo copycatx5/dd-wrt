@@ -78,7 +78,43 @@ int ej_active_wireless_if_ath9k(webs_t wp, int argc, char_t ** argv, char *ifnam
 //              if (wc->inactive_time < it) {
 		if (cnt)
 			websWrite(wp, ",");
-		websWrite(wp, "'%s','%s','%s','%dM','%dM','%d','%d','%d','%d'", mac, wc->ifname, UPTIME(wc->uptime), wc->txrate / 10, wc->rxrate / 10, wc->signal + bias, wc->noise + bias, wc->signal - wc->noise, qual);
+
+		int ht = 0;
+		int sgi = 0;
+		int vht = 0;
+		char info[32];
+
+		if (wc->rx_is_40mhz || wc->is_40mhz)
+			ht = 1;
+		if (wc->rx_is_80mhz || wc->is_80mhz)
+			ht = 2;
+		if (wc->rx_is_160mhz || wc->is_160mhz)
+			ht = 3;
+		if (wc->rx_is_vht || wc->is_vht)
+			vht = 1;
+		if (wc->rx_is_short_gi || wc->is_short_gi)
+			sgi = 1;
+
+		if (sgi)
+			sprintf(info, "SGI");
+		if (vht)
+			sprintf(info, "VHT");
+		else
+			sprintf(info, "HT");
+
+		if (ht == 0)
+			sprintf(info, "%s20", info);
+		if (ht == 1)
+			sprintf(info, "%s40", info);
+		if (ht == 2)
+			sprintf(info, "%s80", info);
+		if (ht == 3)
+			sprintf(info, "%s160", info);
+		if (wc->ht40intol)
+			sprintf(info, "%sintol", info);	//ht40 intolerant
+
+		websWrite(wp, "'%s','%s','%s','%dM','%dM','%s','%d','%d','%d','%d'", mac, wc->ifname, UPTIME(wc->uptime), wc->txrate / 10, wc->rxrate / 10, info, wc->signal + bias, wc->noise + bias,
+			  wc->signal - wc->noise, qual);
 		cnt++;
 //              }
 	}

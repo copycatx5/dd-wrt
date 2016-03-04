@@ -4,7 +4,7 @@
  * radiusd.h	Structures, prototypes and global variables
  *		for the FreeRADIUS server.
  *
- * Version:	$Id: 904920dc235be8c07ce5ad3e34b656eebbc1ea75 $
+ * Version:	$Id: db05e25cb8a0194e11c453129f2ee235ad7e9ce5 $
  *
  *   This program is free software; you can redistribute it and/or modify
  *   it under the terms of the GNU General Public License as published by
@@ -25,7 +25,7 @@
  */
 
 #include <freeradius-devel/ident.h>
-RCSIDH(radiusd_h, "$Id: 904920dc235be8c07ce5ad3e34b656eebbc1ea75 $")
+RCSIDH(radiusd_h, "$Id: db05e25cb8a0194e11c453129f2ee235ad7e9ce5 $")
 
 #include <freeradius-devel/libradius.h>
 #include <freeradius-devel/radpaths.h>
@@ -38,6 +38,9 @@ typedef struct auth_req REQUEST;
 #ifdef HAVE_PTHREAD_H
 #include	<pthread.h>
 #endif
+
+#include <pwd.h>
+#include <grp.h>
 
 #ifndef NDEBUG
 #define REQUEST_MAGIC (0xdeadbeef)
@@ -360,6 +363,9 @@ typedef struct main_config_t {
 	int		proxy_requests;
 	int		reject_delay;
 	int		status_server;
+#ifdef ENABLE_OPENSSL_VERSION_CHECK
+	int		allow_vulnerable_openssl;
+#endif
 	int		max_request_time;
 	int		cleanup_delay;
 	int		max_requests;
@@ -381,6 +387,7 @@ typedef struct main_config_t {
 	int		post_proxy_authorize;
 #endif
 	int		debug_memory;
+	const char	*panic_action;
 } MAIN_CONFIG_T;
 
 #define DEBUG	if(debug_flag)log_debug
@@ -486,6 +493,8 @@ int		log_err (char *);
 void (*reset_signal(int signo, void (*func)(int)))(int);
 void		request_free(REQUEST **request);
 int		rad_mkdir(char *directory, int mode);
+size_t		rad_filename_escape(char *out, size_t outlen,
+				    char const *in);
 int		rad_checkfilename(const char *filename);
 void		*rad_malloc(size_t size); /* calls exit(1) on error! */
 REQUEST		*request_alloc(void);
@@ -504,6 +513,8 @@ int		rad_copy_variable(char *dst, const char *from);
 int		rad_expand_xlat(REQUEST *request, const char *cmd,
 				int max_argc, const char *argv[], int can_fail,
 				size_t argv_buflen, char *argv_buf);
+struct passwd	*rad_getpwnam(const char *name);
+struct group	*rad_getgrnam(const char *name);
 
 /* client.c */
 RADCLIENT_LIST	*clients_init(void);
@@ -530,7 +541,7 @@ int		pairlist_read(const char *file, PAIR_LIST **list, int complain);
 void		pairlist_free(PAIR_LIST **);
 
 /* version.c */
-int 		ssl_check_version(void);
+int 		ssl_check_version(int allow_vulnerable);
 const char	*ssl_version(void);
 void		version(void);
 

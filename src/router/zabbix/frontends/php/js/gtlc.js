@@ -1,6 +1,6 @@
 /*
 ** Zabbix
-** Copyright (C) 2001-2013 Zabbix SIA
+** Copyright (C) 2001-2015 Zabbix SIA
 **
 ** This program is free software; you can redistribute it and/or modify
 ** it under the terms of the GNU General Public License as published by
@@ -228,6 +228,10 @@ var timeControl = {
 				this.timeline.refreshEndtime();
 			}
 
+			// calculate new gradation
+			this.scrollbar.px2sec =
+				(this.timeline.endtime() - this.timeline.starttime()) / this.scrollbar.size.scrollline;
+
 			// scrollbar
 			this.scrollbar.setBarPosition();
 			this.scrollbar.setGhostByBar();
@@ -269,6 +273,14 @@ var timeControl = {
 			location.href = url.getUrl();
 		}
 		else {
+			// calculate new gradation
+			this.scrollbar.px2sec =
+				(this.timeline.endtime() - this.timeline.starttime()) / this.scrollbar.size.scrollline;
+
+			// scrollbar
+			this.scrollbar.setBarPosition();
+			this.scrollbar.setGhostByBar();
+
 			flickerfreeScreen.refreshAll(period, date.getZBXDate(), this.timeline.isNow());
 		}
 	},
@@ -549,8 +561,6 @@ var CScrollBar = Class.create(CDebug, {
 			return false;
 		}
 
-		deselectAll();
-
 		var period = false;
 		if (empty(left)) {
 			period = timeControl.timeline.period();
@@ -587,8 +597,6 @@ var CScrollBar = Class.create(CDebug, {
 		if (this.disabled) {
 			return false;
 		}
-
-		deselectAll();
 
 		var period = false;
 		if (typeof(right) == 'undefined') {
@@ -1086,16 +1094,6 @@ var CScrollBar = Class.create(CDebug, {
 			x: e.clientX + document.body.scrollLeft - document.body.clientLeft,
 			y: e.clientY + document.body.scrollTop - document.body.clientTop
 		};
-	},
-
-	deselectall: function() {
-		if (IE) {
-			document.selection.empty();
-		}
-		else {
-			var sel = window.getSelection();
-			sel.removeAllRanges();
-		}
 	},
 
 	//----------------------------------------------------------------
@@ -1619,11 +1617,11 @@ var sbox = Class.create(CDebug, {
 		jQuery(this.grphobj).off();
 		jQuery(this.dom_obj).off();
 
-		if (IE) {
+		if (IE8 || IE9 || IE10) {
 			jQuery(this.grphobj).mousedown(jQuery.proxy(this.mouseDown, this));
 			jQuery(this.grphobj).mousemove(jQuery.proxy(this.mouseMove, this));
-			jQuery('#flickerfreescreen_' + this.sbox_id + ' a').click(function() {
-				ZBX_SBOX[this.sbox_id].ieMouseClick();
+			jQuery(this.grphobj).click(function() {
+				ZBX_SBOX[obj.sbox_id].ieMouseClick();
 			});
 		}
 		else {
@@ -1645,7 +1643,6 @@ var sbox = Class.create(CDebug, {
 		}
 
 		this.optimizeEvent(e);
-		deselectAll();
 
 		var posxy = getPosition(this.dom_obj);
 		if (this.mouse_event.top < posxy.top || (this.mouse_event.top > (this.dom_obj.offsetHeight + posxy.top))) {
@@ -1656,7 +1653,6 @@ var sbox = Class.create(CDebug, {
 
 		if (!this.is_active) {
 			this.optimizeEvent(e);
-			deselectAll();
 			this.createBox();
 
 			this.is_active = true;
@@ -1716,7 +1712,6 @@ var sbox = Class.create(CDebug, {
 
 		if (this.is_activeIE) {
 			this.optimizeEvent(e);
-			deselectAll();
 			this.mouseUp(e);
 			this.is_activeIE = false;
 
@@ -1731,7 +1726,6 @@ var sbox = Class.create(CDebug, {
 		}
 
 		this.optimizeEvent(e);
-		deselectAll();
 
 		var posxy = getPosition(this.dom_obj);
 		if (this.mouse_event.top < posxy.top || (this.mouse_event.top > (this.dom_obj.offsetHeight + posxy.top))) {

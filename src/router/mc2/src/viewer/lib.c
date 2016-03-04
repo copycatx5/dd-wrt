@@ -2,7 +2,7 @@
    Internal file viewer for the Midnight Commander
    Common finctions (used from some other mcviewer functions)
 
-   Copyright (C) 1994-2014
+   Copyright (C) 1994-2015
    Free Software Foundation, Inc.
 
    Written by:
@@ -14,7 +14,7 @@
    Pavel Machek, 1998
    Roland Illig <roland.illig@gmx.de>, 2004, 2005
    Slava Zanko <slavazanko@google.com>, 2009, 2013
-   Andrew Borodin <aborodin@vmail.ru>, 2009, 2013
+   Andrew Borodin <aborodin@vmail.ru>, 2009, 2013, 2014
    Ilia Maslakov <il.smind@gmail.com>, 2009
 
    This file is part of the Midnight Commander.
@@ -73,9 +73,9 @@ const off_t OFFSETTYPE_MAX = ((off_t) 1 << (OFF_T_BITWIDTH - 1)) - 1;
 /* --------------------------------------------------------------------------------------------- */
 
 void
-mcview_toggle_magic_mode (mcview_t * view)
+mcview_toggle_magic_mode (WView * view)
 {
-    char *command;
+    char *filename, *command;
     dir_list *dir;
     int *dir_idx;
 
@@ -83,6 +83,7 @@ mcview_toggle_magic_mode (mcview_t * view)
     view->magic_mode = !view->magic_mode;
 
     /* reinit view */
+    filename = g_strdup (vfs_path_as_str (view->filename_vpath));
     command = g_strdup (view->command);
     dir = view->dir;
     dir_idx = view->dir_idx;
@@ -90,9 +91,10 @@ mcview_toggle_magic_mode (mcview_t * view)
     view->dir_idx = NULL;
     mcview_done (view);
     mcview_init (view);
-    mcview_load (view, command, vfs_path_as_str (view->filename_vpath), 0);
+    mcview_load (view, command, filename, 0, 0, 0);
     view->dir = dir;
     view->dir_idx = dir_idx;
+    g_free (filename);
     g_free (command);
 
     view->dpy_bbar_dirty = TRUE;
@@ -102,11 +104,10 @@ mcview_toggle_magic_mode (mcview_t * view)
 /* --------------------------------------------------------------------------------------------- */
 
 void
-mcview_toggle_wrap_mode (mcview_t * view)
+mcview_toggle_wrap_mode (WView * view)
 {
-    if (view->text_wrap_mode)
-        view->dpy_start = mcview_bol (view, view->dpy_start, 0);
     view->text_wrap_mode = !view->text_wrap_mode;
+    view->dpy_wrap_dirty = TRUE;
     view->dpy_bbar_dirty = TRUE;
     view->dirty++;
 }
@@ -114,10 +115,11 @@ mcview_toggle_wrap_mode (mcview_t * view)
 /* --------------------------------------------------------------------------------------------- */
 
 void
-mcview_toggle_nroff_mode (mcview_t * view)
+mcview_toggle_nroff_mode (WView * view)
 {
     view->text_nroff_mode = !view->text_nroff_mode;
     mcview_altered_nroff_flag = 1;
+    view->dpy_wrap_dirty = TRUE;
     view->dpy_bbar_dirty = TRUE;
     view->dirty++;
 }
@@ -125,7 +127,7 @@ mcview_toggle_nroff_mode (mcview_t * view)
 /* --------------------------------------------------------------------------------------------- */
 
 void
-mcview_toggle_hex_mode (mcview_t * view)
+mcview_toggle_hex_mode (WView * view)
 {
     view->hex_mode = !view->hex_mode;
 
@@ -142,6 +144,8 @@ mcview_toggle_hex_mode (mcview_t * view)
         widget_want_cursor (WIDGET (view), FALSE);
     }
     mcview_altered_hex_mode = 1;
+    view->dpy_paragraph_skip_lines = 0;
+    view->dpy_wrap_dirty = TRUE;
     view->dpy_bbar_dirty = TRUE;
     view->dirty++;
 }
@@ -149,7 +153,7 @@ mcview_toggle_hex_mode (mcview_t * view)
 /* --------------------------------------------------------------------------------------------- */
 
 void
-mcview_init (mcview_t * view)
+mcview_init (WView * view)
 {
     size_t i;
 
@@ -168,6 +172,10 @@ mcview_init (mcview_t * view)
     view->coord_cache = NULL;
 
     view->dpy_start = 0;
+    view->dpy_paragraph_skip_lines = 0;
+    mcview_state_machine_init (&view->dpy_state_top, 0);
+    view->dpy_wrap_dirty = FALSE;
+    view->force_max = -1;
     view->dpy_text_column = 0;
     view->dpy_end = 0;
     view->hex_cursor = 0;
@@ -197,7 +205,7 @@ mcview_init (mcview_t * view)
 /* --------------------------------------------------------------------------------------------- */
 
 void
-mcview_done (mcview_t * view)
+mcview_done (WView * view)
 {
     /* Save current file position */
     if (mcview_remember_file_position && view->filename_vpath != NULL)
@@ -222,8 +230,7 @@ mcview_done (mcview_t * view)
     view->filename_vpath = NULL;
     vfs_path_free (view->workdir_vpath);
     view->workdir_vpath = NULL;
-    g_free (view->command);
-    view->command = NULL;
+    MC_PTR_FREE (view->command);
 
     mcview_close_datasource (view);
     /* the growing buffer is freed with the datasource */
@@ -241,8 +248,7 @@ mcview_done (mcview_t * view)
 
     mc_search_free (view->search);
     view->search = NULL;
-    g_free (view->last_search_string);
-    view->last_search_string = NULL;
+    MC_PTR_FREE (view->last_search_string);
     mcview_nroff_seq_free (&view->search_nroff_seq);
     mcview_hexedit_free_change_list (view);
 
@@ -261,7 +267,7 @@ mcview_done (mcview_t * view)
 /* --------------------------------------------------------------------------------------------- */
 
 void
-mcview_set_codeset (mcview_t * view)
+mcview_set_codeset (WView * view)
 {
 #ifdef HAVE_CHARSET
     const char *cp_id = NULL;
@@ -281,6 +287,7 @@ mcview_set_codeset (mcview_t * view)
             view->converter = conv;
         }
         view->utf8 = (gboolean) str_isutf8 (cp_id);
+        view->dpy_wrap_dirty = TRUE;
     }
 #else
     (void) view;
@@ -291,7 +298,7 @@ mcview_set_codeset (mcview_t * view)
 
 #ifdef HAVE_CHARSET
 void
-mcview_select_encoding (mcview_t * view)
+mcview_select_encoding (WView * view)
 {
     if (do_select_codepage ())
         mcview_set_codeset (view);
@@ -301,17 +308,12 @@ mcview_select_encoding (mcview_t * view)
 /* --------------------------------------------------------------------------------------------- */
 
 void
-mcview_show_error (mcview_t * view, const char *msg)
+mcview_show_error (WView * view, const char *msg)
 {
-    mcview_close_datasource (view);
     if (mcview_is_in_panel (view))
-    {
         mcview_set_datasource_string (view, msg);
-    }
     else
-    {
         message (D_ERROR, MSG_ERROR, "%s", msg);
-    }
 }
 
 /* --------------------------------------------------------------------------------------------- */
@@ -320,7 +322,7 @@ mcview_show_error (mcview_t * view, const char *msg)
  */
 
 off_t
-mcview_bol (mcview_t * view, off_t current, off_t limit)
+mcview_bol (WView * view, off_t current, off_t limit)
 {
     int c;
     off_t filesize;
@@ -338,7 +340,7 @@ mcview_bol (mcview_t * view, off_t current, off_t limit)
         if (c == '\r')
             current--;
     }
-    while (current > 0 && current >= limit)
+    while (current > 0 && current > limit)
     {
         if (!mcview_get_byte (view, current - 1, &c))
             break;
@@ -355,7 +357,7 @@ mcview_bol (mcview_t * view, off_t current, off_t limit)
  */
 
 off_t
-mcview_eol (mcview_t * view, off_t current, off_t limit)
+mcview_eol (WView * view, off_t current, off_t limit)
 {
     int c, prev_ch = 0;
     off_t filesize;
@@ -388,7 +390,7 @@ mcview_eol (mcview_t * view, off_t current, off_t limit)
 char *
 mcview_get_title (const WDialog * h, size_t len)
 {
-    const mcview_t *view = (const mcview_t *) find_widget_type (h, mcview_callback);
+    const WView *view = (const WView *) find_widget_type (h, mcview_callback);
     const char *modified = view->hexedit_mode && (view->change_list != NULL) ? "(*) " : "    ";
     const char *file_label;
     const char *view_filename;
@@ -403,6 +405,38 @@ mcview_get_title (const WDialog * h, size_t len)
 
     ret_str = g_strconcat (_("View: "), modified, file_label, (char *) NULL);
     return ret_str;
+}
+
+/* --------------------------------------------------------------------------------------------- */
+
+int
+mcview_calc_percent (WView * view, off_t p)
+{
+    const screen_dimen right = view->status_area.left + view->status_area.width;
+    const screen_dimen height = view->status_area.height;
+    off_t filesize;
+    int percent;
+
+    if (height < 1 || right < 4)
+        return (-1);
+    if (mcview_may_still_grow (view))
+        return (-1);
+
+    filesize = mcview_get_filesize (view);
+    if (view->hex_mode && filesize > 0)
+    {
+        /* p can't be beyond the last char, only over that. Compensate for this. */
+        filesize--;
+    }
+
+    if (filesize == 0 || p >= filesize)
+        percent = 100;
+    else if (p > (INT_MAX / 100))
+        percent = p / (filesize / 100);
+    else
+        percent = p * 100 / filesize;
+
+    return percent;
 }
 
 /* --------------------------------------------------------------------------------------------- */

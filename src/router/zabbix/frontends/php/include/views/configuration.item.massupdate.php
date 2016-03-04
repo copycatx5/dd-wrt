@@ -1,7 +1,7 @@
 <?php
 /*
 ** Zabbix
-** Copyright (C) 2001-2013 Zabbix SIA
+** Copyright (C) 2001-2015 Zabbix SIA
 **
 ** This program is free software; you can redistribute it and/or modify
 ** it under the terms of the GNU General Public License as published by
@@ -17,8 +17,8 @@
 ** along with this program; if not, write to the Free Software
 ** Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 **/
-?>
-<?php
+
+
 $itemWidget = new CWidget();
 
 if (!empty($this->data['hostid'])) {
@@ -44,13 +44,13 @@ $itemFormList->addRow(
 	array(
 		_('Type'),
 		SPACE,
-		new CVisibilityBox('type_visible', get_request('type_visible'), 'type', _('Original'))
+		new CVisibilityBox('visible[type]', isset($this->data['visible']['type']), 'type', _('Original'))
 	),
 	$typeComboBox
 );
 
 // append hosts to form list
-if (!empty($this->data['hosts']) && !empty($this->data['hosts']['interfaces']) && !$this->data['is_multiple_hosts']) {
+if ($this->data['displayInterfaces']) {
 	$interfacesComboBox = new CComboBox('interfaceid', $this->data['interfaceid']);
 	$interfacesComboBox->addItem(new CComboItem(0, '', null, 'no'));
 
@@ -78,7 +78,7 @@ if (!empty($this->data['hosts']) && !empty($this->data['hosts']['interfaces']) &
 	$span->setAttribute('id', 'interface_not_defined');
 	$span->setAttribute('style', 'display: none;');
 
-	$interfaceVisBox = new CVisibilityBox('interface_visible', get_request('interface_visible'), 'interfaceDiv', _('Original'));
+	$interfaceVisBox = new CVisibilityBox('visible[interface]', isset($this->data['visible']['interface']), 'interfaceDiv', _('Original'));
 	$interfaceVisBox->setAttribute('data-multiple-interface-types', $this->data['multiple_interface_types']);
 	$itemFormList->addRow(
 		array(_('Host interface'), SPACE, $interfaceVisBox),
@@ -94,17 +94,27 @@ $itemFormList->addRow(
 	array(
 		_('SNMP community'),
 		SPACE,
-		new CVisibilityBox('community_visible', get_request('community_visible'), 'snmp_community', _('Original'))
+		new CVisibilityBox('visible[community]', isset($this->data['visible']['community']), 'snmp_community', _('Original'))
 	),
 	new CTextBox('snmp_community', $this->data['snmp_community'], ZBX_TEXTBOX_SMALL_SIZE)
+);
+
+// append snmpv3 contextname to form list
+$itemFormList->addRow(
+	array(
+		_('Context name'),
+		SPACE,
+		new CVisibilityBox('visible[contextname]', isset($this->data['visible']['contextname']), 'snmpv3_contextname', _('Original'))
+	),
+	new CTextBox('snmpv3_contextname', $this->data['snmpv3_contextname'], ZBX_TEXTBOX_STANDARD_SIZE)
 );
 
 // append snmpv3 securityname to form list
 $itemFormList->addRow(
 	array(
-		_('SNMPv3 security name'),
+		_('Security name'),
 		SPACE,
-		new CVisibilityBox('securityname_visible', get_request('securityname_visible'), 'snmpv3_securityname', _('Original'))
+		new CVisibilityBox('visible[securityname]', isset($this->data['visible']['securityname']), 'snmpv3_securityname', _('Original'))
 	),
 	new CTextBox('snmpv3_securityname', $this->data['snmpv3_securityname'], ZBX_TEXTBOX_STANDARD_SIZE)
 );
@@ -116,29 +126,69 @@ $securityLevelComboBox->addItem(ITEM_SNMPV3_SECURITYLEVEL_AUTHNOPRIV, 'authNoPri
 $securityLevelComboBox->addItem(ITEM_SNMPV3_SECURITYLEVEL_AUTHPRIV, 'authPriv');
 $itemFormList->addRow(
 	array(
-		_('SNMPv3 security level'),
+		_('Security level'),
 		SPACE,
-		new CVisibilityBox('securitylevel_visible', get_request('securitylevel_visible'), 'snmpv3_securitylevel', _('Original'))
+		new CVisibilityBox('visible[securitylevel]', isset($this->data['visible']['securitylevel']), 'snmpv3_securitylevel', _('Original'))
 	),
 	$securityLevelComboBox
+);
+
+// append snmpv3 authprotocol to form list
+$authProtocol = new CDiv(
+	array(
+		new CRadioButton('snmpv3_authprotocol', ITEM_AUTHPROTOCOL_MD5, null, 'snmpv3_authprotocol_'.ITEM_AUTHPROTOCOL_MD5, $this->data['snmpv3_authprotocol'] == ITEM_AUTHPROTOCOL_MD5),
+		new CLabel(_('MD5'), 'snmpv3_authprotocol_'.ITEM_AUTHPROTOCOL_MD5),
+		new CRadioButton('snmpv3_authprotocol', ITEM_AUTHPROTOCOL_SHA, null, 'snmpv3_authprotocol_'.ITEM_AUTHPROTOCOL_SHA, $this->data['snmpv3_authprotocol'] == ITEM_AUTHPROTOCOL_SHA),
+		new CLabel(_('SHA'), 'snmpv3_authprotocol_'.ITEM_AUTHPROTOCOL_SHA)
+	),
+	'jqueryinputset',
+	'authprotocol_div'
+);
+$itemFormList->addRow(
+	array(
+		_('Authentication protocol'),
+		SPACE,
+		new CVisibilityBox('visible[authprotocol]', isset($this->data['visible']['authprotocol']), 'authprotocol_div', _('Original'))
+	),
+	$authProtocol
 );
 
 // append snmpv3 authpassphrase to form list
 $itemFormList->addRow(
 	array(
-		_('SNMPv3 auth passphrase'),
+		_('Authentication passphrase'),
 		SPACE,
-		new CVisibilityBox('authpassphrase_visible', get_request('authpassphrase_visible'), 'snmpv3_authpassphrase', _('Original'))
+		new CVisibilityBox('visible[authpassphrase]', isset($this->data['visible']['authpassphrase']), 'snmpv3_authpassphrase', _('Original'))
 	),
 	new CTextBox('snmpv3_authpassphrase', $this->data['snmpv3_authpassphrase'], ZBX_TEXTBOX_STANDARD_SIZE)
+);
+
+// append snmpv3 privprotocol to form list
+$privProtocol = new CDiv(
+	array(
+		new CRadioButton('snmpv3_privprotocol', ITEM_PRIVPROTOCOL_DES, null, 'snmpv3_privprotocol_'.ITEM_PRIVPROTOCOL_DES, $this->data['snmpv3_privprotocol'] == ITEM_PRIVPROTOCOL_DES),
+		new CLabel(_('DES'), 'snmpv3_privprotocol_'.ITEM_PRIVPROTOCOL_DES),
+		new CRadioButton('snmpv3_privprotocol', ITEM_PRIVPROTOCOL_AES, null, 'snmpv3_privprotocol_'.ITEM_PRIVPROTOCOL_AES, $this->data['snmpv3_privprotocol'] == ITEM_PRIVPROTOCOL_AES),
+		new CLabel(_('AES'), 'snmpv3_privprotocol_'.ITEM_PRIVPROTOCOL_AES)
+	),
+	'jqueryinputset',
+	'privprotocol_div'
+);
+$itemFormList->addRow(
+	array(
+		_('Privacy protocol'),
+		SPACE,
+		new CVisibilityBox('visible[privprotocol]', isset($this->data['visible']['privprotocol']), 'privprotocol_div', _('Original'))
+	),
+	$privProtocol
 );
 
 // append snmpv3 privpassphrase to form list
 $itemFormList->addRow(
 	array(
-		_('SNMPv3 priv passphrase'),
+		_('Privacy passphrase'),
 		SPACE,
-		new CVisibilityBox('privpassphras_visible', get_request('privpassphras_visible'), 'snmpv3_privpassphrase', _('Original'))
+		new CVisibilityBox('visible[privpassphras]', isset($this->data['visible']['privpassphras']), 'snmpv3_privpassphrase', _('Original'))
 	),
 	new CTextBox('snmpv3_privpassphrase', $this->data['snmpv3_privpassphrase'], ZBX_TEXTBOX_STANDARD_SIZE)
 );
@@ -148,7 +198,7 @@ $itemFormList->addRow(
 	array(
 		_('Port'),
 		SPACE,
-		new CVisibilityBox('port_visible', get_request('port_visible'), 'port', _('Original'))
+		new CVisibilityBox('visible[port]', isset($this->data['visible']['port']), 'port', _('Original'))
 	),
 	new CTextBox('port', $this->data['port'], ZBX_TEXTBOX_SMALL_SIZE)
 );
@@ -164,7 +214,7 @@ $itemFormList->addRow(
 	array(
 		_('Type of information'),
 		SPACE,
-		new CVisibilityBox('value_type_visible', get_request('value_type_visible'), 'value_type', _('Original'))
+		new CVisibilityBox('visible[value_type]', isset($this->data['visible']['value_type']), 'value_type', _('Original'))
 	),
 	$valueTypeComboBox
 );
@@ -176,7 +226,7 @@ $itemFormList->addRow(
 	array(
 		_('Data type'),
 		SPACE,
-		new CVisibilityBox('data_type_visible', get_request('data_type_visible'), 'data_type', _('Original'))
+		new CVisibilityBox('visible[data_type]', isset($this->data['visible']['data_type']), 'data_type', _('Original'))
 	),
 	$dataTypeComboBox
 );
@@ -186,7 +236,7 @@ $itemFormList->addRow(
 	array(
 		_('Units'),
 		SPACE,
-		new CVisibilityBox('units_visible', get_request('units_visible'), 'units', _('Original'))
+		new CVisibilityBox('visible[units]', isset($this->data['visible']['units']), 'units', _('Original'))
 	),
 	new CTextBox('units', $this->data['units'], ZBX_TEXTBOX_STANDARD_SIZE)
 );
@@ -199,7 +249,7 @@ $itemFormList->addRow(
 	array(
 		_('Authentication method'),
 		SPACE,
-		new CVisibilityBox('authtype_visible', get_request('authtype_visible'), 'authtype', _('Original'))
+		new CVisibilityBox('visible[authtype]', isset($this->data['visible']['authtype']), 'authtype', _('Original'))
 	),
 	$authTypeComboBox
 );
@@ -209,7 +259,7 @@ $itemFormList->addRow(
 	array(
 		_('User name'),
 		SPACE,
-		new CVisibilityBox('username_visible', get_request('username_visible'), 'username', _('Original'))
+		new CVisibilityBox('visible[username]', isset($this->data['visible']['username']), 'username', _('Original'))
 	),
 	new CTextBox('username', $this->data['username'], ZBX_TEXTBOX_STANDARD_SIZE)
 );
@@ -219,7 +269,7 @@ $itemFormList->addRow(
 	array(
 		_('Public key file'),
 		SPACE,
-		new CVisibilityBox('publickey_visible', get_request('publickey_visible'), 'publickey', _('Original'))
+		new CVisibilityBox('visible[publickey]', isset($this->data['visible']['publickey']), 'publickey', _('Original'))
 	),
 	new CTextBox('publickey', $this->data['publickey'], ZBX_TEXTBOX_STANDARD_SIZE)
 );
@@ -229,7 +279,7 @@ $itemFormList->addRow(
 	array(
 		_('Private key file'),
 		SPACE,
-		new CVisibilityBox('privatekey_visible', get_request('privatekey_visible'), 'privatekey', _('Original'))
+		new CVisibilityBox('visible[privatekey]', isset($this->data['visible']['privatekey']), 'privatekey', _('Original'))
 	),
 	new CTextBox('privatekey', $this->data['privatekey'], ZBX_TEXTBOX_STANDARD_SIZE)
 );
@@ -239,7 +289,7 @@ $itemFormList->addRow(
 	array(
 		_('Password'),
 		SPACE,
-		new CVisibilityBox('password_visible', get_request('password_visible'), 'password', _('Original'))
+		new CVisibilityBox('visible[password]', isset($this->data['visible']['password']), 'password', _('Original'))
 	),
 	new CTextBox('password', $this->data['password'], ZBX_TEXTBOX_STANDARD_SIZE)
 );
@@ -249,7 +299,7 @@ $itemFormList->addRow(
 	array(
 		_('Custom multiplier').' (0 - '._('Disabled').')',
 		SPACE,
-		new CVisibilityBox('formula_visible', get_request('formula_visible'), 'formula', _('Original'))
+		new CVisibilityBox('visible[formula]', isset($this->data['visible']['formula']), 'formula', _('Original'))
 	),
 	new CTextBox('formula', $this->data['formula'], ZBX_TEXTBOX_STANDARD_SIZE)
 );
@@ -259,7 +309,7 @@ $itemFormList->addRow(
 	array(
 		_('Update interval (in sec)'),
 		SPACE,
-		new CVisibilityBox('delay_visible', get_request('delay_visible'), 'delay', _('Original'))
+		new CVisibilityBox('visible[delay]', isset($this->data['visible']['delay']), 'delay', _('Original'))
 	),
 	new CNumericBox('delay', $this->data['delay'], 5)
 );
@@ -297,40 +347,40 @@ $itemFormList->addRow(
 	array(
 		_('Flexible intervals'),
 		SPACE,
-		new CVisibilityBox('delay_flex_visible', get_request('delay_flex_visible'), array('delayFlexDiv', 'newDelayFlexDiv'), _('Original'))
+		new CVisibilityBox('visible[delay_flex]', isset($this->data['visible']['delay_flex']), array('delayFlexDiv', 'row-new-delay-flex-fields'), _('Original'))
 	),
 	new CDiv($delayFlexTable, 'objectgroup inlineblock border_dotted ui-corner-all', 'delayFlexDiv')
 );
 
 // append new delay to form list
-$itemFormList->addRow(
-	_('New flexible interval'),
-	new CDiv(
-		array(
-			_('Interval (in sec)'),
-			SPACE,
-			new CNumericBox('new_delay_flex[delay]', 50, 5),
-			SPACE,
-			_('Period'),
-			SPACE,
-			new CTextBox('new_delay_flex[period]', ZBX_DEFAULT_INTERVAL, 20),
-			SPACE,
-			new CSubmit('add_delay_flex', _('Add'), null, 'formlist')
-		),
-		null,
-		'newDelayFlexDiv'
+$newFlexInt = new CDiv(
+	array(
+		_('Interval (in sec)'),
+		SPACE,
+		new CNumericBox('new_delay_flex[delay]', 50, 5),
+		SPACE,
+		_('Period'),
+		SPACE,
+		new CTextBox('new_delay_flex[period]', ZBX_DEFAULT_INTERVAL, 20),
+		SPACE,
+		new CSubmit('add_delay_flex', _('Add'), null, 'formlist')
 	),
-	$this->data['maxReached'],
-	'row_new_delay_flex',
-	'new'
+	null,
+	'row-new-delay-flex-fields'
 );
+
+$maxFlexMsg = new CSpan(_('Maximum number of flexible intervals added'), 'red');
+$maxFlexMsg->setAttribute('id', 'row-new-delay-flex-max-reached');
+$maxFlexMsg->setAttribute('style', 'display: none;');
+
+$itemFormList->addRow(_('New flexible interval'), array($newFlexInt, $maxFlexMsg), false, 'row_new_delay_flex', 'new');
 
 // append history to form list
 $itemFormList->addRow(
 	array(
-		_('Keep history (in days)'),
+		_('History storage period (in days)'),
 		SPACE,
-		new CVisibilityBox('history_visible', get_request('history_visible'), 'history', _('Original'))
+		new CVisibilityBox('visible[history]', isset($this->data['visible']['history']), 'history', _('Original'))
 	),
 	new CNumericBox('history', $this->data['history'], 8)
 );
@@ -338,23 +388,23 @@ $itemFormList->addRow(
 // append trends to form list
 $itemFormList->addRow(
 	array(
-		_('Keep trends (in days)'),
+		_('Trend storage period (in days)'),
 		SPACE,
-		new CVisibilityBox('trends_visible', get_request('trends_visible'), 'trends', _('Original'))
+		new CVisibilityBox('visible[trends]', isset($this->data['visible']['trends']), 'trends', _('Original'))
 	),
 	new CNumericBox('trends', $this->data['trends'], 8)
 );
 
 // append status to form list
 $statusComboBox = new CComboBox('status', $this->data['status']);
-foreach (array(ITEM_STATUS_ACTIVE, ITEM_STATUS_DISABLED, ITEM_STATUS_NOTSUPPORTED) as $status) {
+foreach (array(ITEM_STATUS_ACTIVE, ITEM_STATUS_DISABLED) as $status) {
 	$statusComboBox->addItem($status, item_status2str($status));
 }
 $itemFormList->addRow(
 	array(
 		_('Status'),
 		SPACE,
-		new CVisibilityBox('status_visible', get_request('status_visible'), 'status', _('Original'))
+		new CVisibilityBox('visible[status]', isset($this->data['visible']['status']), 'status', _('Original'))
 	),
 	$statusComboBox
 );
@@ -364,7 +414,7 @@ $itemFormList->addRow(
 	array(
 		_('Log time format'),
 		SPACE,
-		new CVisibilityBox('logtimefmt_visible', get_request('logtimefmt_visible'), 'logtimefmt', _('Original'))
+		new CVisibilityBox('visible[logtimefmt]', isset($this->data['visible']['logtimefmt']), 'logtimefmt', _('Original'))
 	),
 	new CTextBox('logtimefmt', $this->data['logtimefmt'], ZBX_TEXTBOX_SMALL_SIZE)
 );
@@ -378,7 +428,7 @@ $itemFormList->addRow(
 	array(
 		_('Store value'),
 		SPACE,
-		new CVisibilityBox('delta_visible', get_request('delta_visible'), 'delta', _('Original'))
+		new CVisibilityBox('visible[delta]', isset($this->data['visible']['delta']), 'delta', _('Original'))
 	),
 	$deltaComboBox
 );
@@ -387,7 +437,7 @@ $itemFormList->addRow(
 $valueMapsComboBox = new CComboBox('valuemapid', $this->data['valuemapid']);
 $valueMapsComboBox->addItem(0, _('As is'));
 foreach ($this->data['valuemaps'] as $valuemap) {
-	$valueMapsComboBox->addItem($valuemap['valuemapid'], get_node_name_by_elid($valuemap['valuemapid'], null, ': ').$valuemap['name']);
+	$valueMapsComboBox->addItem($valuemap['valuemapid'], get_node_name_by_elid($valuemap['valuemapid'], null, NAME_DELIMITER).$valuemap['name']);
 }
 $valueMapLink = new CLink(_('show value mappings'), 'adm.valuemapping.php');
 $valueMapLink->setAttribute('target', '_blank');
@@ -396,7 +446,7 @@ $itemFormList->addRow(
 	array(
 		_('Show value'),
 		SPACE,
-		new CVisibilityBox('valuemapid_visible', get_request('valuemapid_visible'), 'valuemap', _('Original'))
+		new CVisibilityBox('visible[valuemapid]', isset($this->data['visible']['valuemapid']), 'valuemap', _('Original'))
 	),
 	new CDiv(array($valueMapsComboBox, SPACE, $valueMapLink), null, 'valuemap')
 );
@@ -406,27 +456,97 @@ $itemFormList->addRow(
 	array(
 		_('Allowed hosts'),
 		SPACE,
-		new CVisibilityBox('trapper_hosts_visible', get_request('trapper_hosts_visible'), 'trapper_hosts', _('Original'))
+		new CVisibilityBox('visible[trapper_hosts]', isset($this->data['visible']['trapper_hosts']), 'trapper_hosts', _('Original'))
 	),
 	new CTextBox('trapper_hosts', $this->data['trapper_hosts'], ZBX_TEXTBOX_STANDARD_SIZE)
 );
 
 // append applications to form list
-if (!$this->data['is_multiple_hosts']) {
-	$applicationsComboBox = new CListBox('applications[]', $this->data['applications'], 6);
-	$applicationsComboBox->addItem(0, '-'._('None').'-');
-	if (!empty($this->data['db_applications'])) {
-		foreach ($this->data['db_applications'] as $application) {
-			$applicationsComboBox->addItem($application['applicationid'], $application['name']);
+if ($this->data['displayApplications']) {
+	// replace applications
+	$appToReplace = null;
+	if (hasRequest('applications')) {
+		$getApps = API::Application()->get(array(
+			'applicationids' => getRequest('applications'),
+			'output' => array('applicationid', 'name')
+		));
+		foreach ($getApps as $getApp) {
+			$appToReplace[] = array(
+				'id' => $getApp['applicationid'],
+				'name' => $getApp['name']
+			);
 		}
 	}
+
+	$replaceApp = new CDiv(new CMultiSelect(array(
+		'name' => 'applications[]',
+		'objectName' => 'applications',
+		'objectOptions' => array('hostid' => $this->data['hostid']),
+		'data' => $appToReplace,
+		'popup' => array(
+			'parameters' => 'srctbl=applications&dstfrm='.$itemForm->getName().'&dstfld1=applications_'.
+				'&srcfld1=applicationid&multiselect=1&noempty=1&hostid='.$this->data['hostid'],
+			'width' => 450,
+			'height' => 450
+		)
+	)), null, 'replaceApp');
+
 	$itemFormList->addRow(
-		array(
-			_('Applications'),
-			SPACE,
-			new CVisibilityBox('applications_visible', get_request('applications_visible'), 'applications_', _('Original'))
-		),
-		$applicationsComboBox
+		array(_('Replace applications'), SPACE, new CVisibilityBox('visible[applications]',
+			isset($this->data['visible']['applications']), 'replaceApp', _('Original')
+		)),
+		$replaceApp
+	);
+
+	// add new or existing applications
+	$appToAdd = null;
+	if (hasRequest('new_applications')) {
+		foreach (getRequest('new_applications') as $newApplication) {
+			if (is_array($newApplication) && isset($newApplication['new'])) {
+				$appToAdd[] = array(
+					'id' => $newApplication['new'],
+					'name' => $newApplication['new'].' ('._x('new', 'new element in multiselect').')',
+					'isNew' => true
+				);
+			}
+			else {
+				$appToAddId[] = $newApplication;
+			}
+		}
+
+		if (isset($appToAddId)) {
+			$getApps = API::Application()->get(array(
+				'applicationids' => $appToAddId,
+				'output' => array('applicationid', 'name')
+			));
+			foreach ($getApps as $getApp) {
+				$appToAdd[] = array(
+					'id' => $getApp['applicationid'],
+					'name' => $getApp['name']
+				);
+			}
+		}
+	}
+
+	$newApp = new CDiv(new CMultiSelect(array(
+		'name' => 'new_applications[]',
+		'objectName' => 'applications',
+		'objectOptions' => array('hostid' => $this->data['hostid']),
+		'data' => $appToAdd,
+		'addNew' => true,
+		'popup' => array(
+			'parameters' => 'srctbl=applications&dstfrm='.$itemForm->getName().'&dstfld1=new_applications_'.
+				'&srcfld1=applicationid&multiselect=1&noempty=1&hostid='.$this->data['hostid'],
+			'width' => 450,
+			'height' => 450
+		)
+	)), null, 'newApp');
+
+	$itemFormList->addRow(
+		array(_('Add new or existing applications'), SPACE, new CVisibilityBox('visible[new_applications]',
+			isset($this->data['visible']['new_applications']), 'newApp', _('Original')
+		)),
+		$newApp
 	);
 }
 
@@ -437,11 +557,10 @@ $itemFormList->addRow(
 	array(
 		_('Description'),
 		SPACE,
-		new CVisibilityBox('description_visible', get_request('description_visible'), 'description', _('Original'))
+		new CVisibilityBox('visible[description]', isset($this->data['visible']['description']), 'description', _('Original'))
 	),
 	$descriptionTextArea
 );
-
 // append tabs to form
 $itemTab = new CTabView();
 $itemTab->addTab('itemTab', _('Mass update'), $itemFormList);
@@ -452,5 +571,5 @@ $itemForm->addItem(makeFormFooter(new CSubmit('update', _('Update')), new CButto
 $itemWidget->addItem($itemForm);
 
 require_once dirname(__FILE__).'/js/configuration.item.edit.js.php';
+
 return $itemWidget;
-?>

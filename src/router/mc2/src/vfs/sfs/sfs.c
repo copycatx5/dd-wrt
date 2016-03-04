@@ -1,7 +1,7 @@
 /*
    Single File fileSystem
 
-   Copyright 1998-2014
+   Copyright 1998-2015
    Free Software Foundation, Inc.
 
    Written by:
@@ -43,7 +43,6 @@
 #include <unistd.h>
 #include <stdio.h>
 #include <string.h>
-#include <fcntl.h>
 
 #include "lib/global.h"
 #include "lib/util.h"
@@ -157,11 +156,11 @@ sfs_vfmake (const vfs_path_t * vpath, vfs_path_t * cache_vpath)
             vfs_path_free (pname);
             return -1;
         }
-        pqname = name_quote (vfs_path_get_last_path_str (s), 0);
+        pqname = name_quote (vfs_path_get_last_path_str (s), FALSE);
         vfs_path_free (s);
     }
     else
-        pqname = name_quote (vfs_path_as_str (pname), 0);
+        pqname = name_quote (vfs_path_as_str (pname), FALSE);
 
     vfs_path_free (pname);
 
@@ -188,6 +187,8 @@ sfs_vfmake (const vfs_path_t * vpath, vfs_path_t * cache_vpath)
             case '%':
                 COPY_CHAR;
                 continue;
+            default:
+                break;
             }
             if (ptr != NULL)
             {
@@ -439,12 +440,12 @@ sfs_init (struct vfs_class *me)
             continue;
 
         for (c = key; *c; c++)
-            if ((*c == ':') || (*c == '/'))
+            if (*c == ':' || IS_PATH_SEP (*c))
             {
                 semi = c;
-                if (*c == '/')
+                if (IS_PATH_SEP (*c))
                 {
-                    *c = 0;
+                    *c = '\0';
                     flags |= F_FULLMATCH;
                 }
                 break;
@@ -505,9 +506,8 @@ sfs_done (struct vfs_class *me)
 
     for (i = 0; i < sfs_no; i++)
     {
-        g_free (sfs_prefix[i]);
-        g_free (sfs_command[i]);
-        sfs_prefix[i] = sfs_command[i] = NULL;
+        MC_PTR_FREE (sfs_prefix[i]);
+        MC_PTR_FREE (sfs_command[i]);
     }
     sfs_no = 0;
 }

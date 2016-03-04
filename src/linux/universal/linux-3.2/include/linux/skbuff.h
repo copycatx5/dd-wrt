@@ -378,7 +378,6 @@ struct sk_buff {
 
 	struct sock		*sk;
 	struct net_device	*dev;
-	struct net_device	*orig_dev;
 
 	/*
 	 * This is the control buffer. It is free to use for every
@@ -1671,6 +1670,22 @@ static inline void skb_orphan(struct sk_buff *skb)
 }
 
 /**
+ *	skb_orphan_frags - orphan the frags contained in a buffer
+ *	@skb: buffer to orphan frags from
+ *	@gfp_mask: allocation mask for replacement pages
+ *
+ *	For each frag in the SKB which needs a destructor (i.e. has an
+ *	owner) create a copy of that frag and release the original
+ *	page by calling the destructor.
+ */
+static inline int skb_orphan_frags(struct sk_buff *skb, gfp_t gfp_mask)
+{
+	if (likely(!(skb_shinfo(skb)->tx_flags & SKBTX_DEV_ZEROCOPY)))
+		return 0;
+	return skb_copy_ubufs(skb, gfp_mask);
+}
+
+/**
  *	__skb_queue_purge - empty a list
  *	@list: list to empty
  *
@@ -2070,6 +2085,9 @@ static inline void skb_postpull_rcsum(struct sk_buff *skb,
 {
 	if (skb->ip_summed == CHECKSUM_COMPLETE)
 		skb->csum = csum_sub(skb->csum, csum_partial(start, len, 0));
+	else if (skb->ip_summed == CHECKSUM_PARTIAL &&
+		 skb_checksum_start_offset(skb) < 0)
+		skb->ip_summed = CHECKSUM_NONE;
 }
 
 unsigned char *skb_pull_rcsum(struct sk_buff *skb, unsigned int len);
@@ -2615,23 +2633,6 @@ static inline bool skb_is_recycleable(const struct sk_buff *skb, int skb_size)
 		return false;
 
 	return true;
-}
-
-/**
- * skb_gso_network_seglen - Return length of individual segments of a gso packet
- *
- * @skb: GSO skb
- *
- * skb_gso_network_seglen is used to determine the real size of the
- * individual segments, including Layer3 (IP, IPv6) and L4 headers (TCP/UDP).
- *
- * The MAC/L2 header is not accounted for.
- */
-static inline unsigned int skb_gso_network_seglen(const struct sk_buff *skb)
-{
-	unsigned int hdr_len = skb_transport_header(skb) -
-			       skb_network_header(skb);
-	return hdr_len + skb_gso_transport_seglen(skb);
 }
 #endif	/* __KERNEL__ */
 #endif	/* _LINUX_SKBUFF_H */

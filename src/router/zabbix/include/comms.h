@@ -1,6 +1,6 @@
 /*
 ** Zabbix
-** Copyright (C) 2001-2013 Zabbix SIA
+** Copyright (C) 2001-2015 Zabbix SIA
 **
 ** This program is free software; you can redistribute it and/or modify
 ** it under the terms of the GNU General Public License as published by
@@ -34,7 +34,6 @@ typedef long	ssize_t;
 
 #	define ZBX_TCP_ERROR		SOCKET_ERROR
 #	define ZBX_SOCK_ERROR		INVALID_SOCKET
-#	define EAGAIN			WSAEWOULDBLOCK
 #else
 #	define ZBX_TCP_WRITE(s, b, bl)	((ssize_t)write((s), (b), (bl)))
 #	define ZBX_TCP_READ(s, b, bl)	((ssize_t)read((s), (b), (bl)))
@@ -78,7 +77,6 @@ typedef struct
 	char		*buf_dyn;
 	zbx_buf_type_t	buf_type;
 	unsigned char	accepted;
-	char		*error;
 	int		timeout;
 }
 zbx_sock_t;
@@ -123,6 +121,11 @@ ssize_t	zbx_tcp_recv_ext(zbx_sock_t *s, char **data, unsigned char flags, int ti
 char    *get_ip_by_socket(zbx_sock_t *s);
 int	zbx_tcp_check_security(zbx_sock_t *s, const char *ip_list, int allow_if_empty);
 
+int	zbx_udp_connect(zbx_sock_t *s, const char *source_ip, const char *ip, unsigned short port, int timeout);
+int	zbx_udp_send(zbx_sock_t *s, const char *data, size_t data_len, int timeout);
+int	zbx_udp_recv(zbx_sock_t *s, char **data, size_t *data_len, int timeout);
+void	zbx_udp_close(zbx_sock_t *s);
+
 #define ZBX_DEFAULT_FTP_PORT		21
 #define ZBX_DEFAULT_SSH_PORT		22
 #define ZBX_DEFAULT_TELNET_PORT		23
@@ -142,7 +145,20 @@ int	zbx_tcp_check_security(zbx_sock_t *s, const char *ip_list, int allow_if_empt
 #define ZBX_DEFAULT_AGENT_PORT_STR	"10050"
 #define ZBX_DEFAULT_SERVER_PORT_STR	"10051"
 
-int	zbx_send_response(zbx_sock_t *sock, int result, const char *info, int timeout);
-int	zbx_recv_response(zbx_sock_t *sock, char *info, int max_info_len, int timeout);
+int	zbx_send_response_ext(zbx_sock_t *sock, int result, const char *info, int protocol, int timeout);
+
+#define zbx_send_response(sock, result, info, timeout) \
+		zbx_send_response_ext(sock, result, info, ZBX_TCP_PROTOCOL, timeout)
+
+#define zbx_send_response_raw(sock, result, info, timeout) \
+		zbx_send_response_ext(sock, result, info, 0, timeout)
+
+int	zbx_recv_response(zbx_sock_t *sock, char **info, int timeout, char **error);
+
+#if defined(HAVE_IPV6)
+#define zbx_getnameinfo(sa, host, hostlen, serv, servlen, flags)						\
+	getnameinfo(sa, AF_INET == (sa)->sa_family ? sizeof(struct sockaddr_in) : sizeof(struct sockaddr_in6),	\
+		host, hostlen, serv, servlen, flags)
+#endif
 
 #endif

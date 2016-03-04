@@ -1,6 +1,6 @@
 /*
 ** Zabbix
-** Copyright (C) 2001-2013 Zabbix SIA
+** Copyright (C) 2001-2015 Zabbix SIA
 **
 ** This program is free software; you can redistribute it and/or modify
 ** it under the terms of the GNU General Public License as published by
@@ -21,1399 +21,1570 @@
 #include "dbschema.h"
 
 const ZBX_TABLE	tables[] = {
+
+#if defined(HAVE_IBM_DB2) || defined(HAVE_ORACLE)
+#	define ZBX_TYPE_SHORTTEXT_LEN	2048
+#else
+#	define ZBX_TYPE_SHORTTEXT_LEN	65535
+#endif
+
+#if defined(HAVE_IBM_DB2)
+#	define ZBX_TYPE_LONGTEXT_LEN	2048
+#	define ZBX_TYPE_TEXT_LEN	2048
+#else
+#	define ZBX_TYPE_LONGTEXT_LEN	0
+#	define ZBX_TYPE_TEXT_LEN	65535
+#endif
+
 	{"maintenances",	"maintenanceid",	ZBX_SYNC,
 		{
-		{"maintenanceid",	NULL,	NULL,	0,	ZBX_TYPE_ID,	ZBX_NOTNULL,	0},
-		{"name",	NULL,	NULL,	128,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC,	0},
-		{"maintenance_type",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
-		{"description",	NULL,	NULL,	65535,	ZBX_TYPE_TEXT,	ZBX_NOTNULL | ZBX_SYNC,	0},
-		{"active_since",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
-		{"active_till",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"maintenanceid",	NULL,	NULL,	NULL,	0,	ZBX_TYPE_ID,	ZBX_NOTNULL,	0},
+		{"name",	"",	NULL,	NULL,	128,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"maintenance_type",	"0",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"description",	"",	NULL,	NULL,	ZBX_TYPE_SHORTTEXT_LEN,	ZBX_TYPE_SHORTTEXT,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"active_since",	"0",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"active_till",	"0",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
 		{0}
-		}
+		},
+		NULL
 	},
 	{"hosts",	"hostid",	ZBX_SYNC,
 		{
-		{"hostid",	NULL,	NULL,	0,	ZBX_TYPE_ID,	ZBX_NOTNULL,	0},
-		{"proxy_hostid",	"hosts",	"hostid",	0,	ZBX_TYPE_ID,	ZBX_SYNC,	0},
-		{"host",	NULL,	NULL,	64,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC | ZBX_PROXY,	0},
-		{"status",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC | ZBX_PROXY,	0},
-		{"disable_until",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL,	0},
-		{"error",	NULL,	NULL,	128,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC,	0},
-		{"available",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
-		{"errors_from",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL,	0},
-		{"lastaccess",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
-		{"ipmi_authtype",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC | ZBX_PROXY,	0},
-		{"ipmi_privilege",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC | ZBX_PROXY,	0},
-		{"ipmi_username",	NULL,	NULL,	16,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC | ZBX_PROXY,	0},
-		{"ipmi_password",	NULL,	NULL,	20,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC | ZBX_PROXY,	0},
-		{"ipmi_disable_until",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL,	0},
-		{"ipmi_available",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
-		{"snmp_disable_until",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL,	0},
-		{"snmp_available",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
-		{"maintenanceid",	"maintenances",	"maintenanceid",	0,	ZBX_TYPE_ID,	ZBX_SYNC,	0},
-		{"maintenance_status",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
-		{"maintenance_type",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
-		{"maintenance_from",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
-		{"ipmi_errors_from",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL,	0},
-		{"snmp_errors_from",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL,	0},
-		{"ipmi_error",	NULL,	NULL,	128,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC,	0},
-		{"snmp_error",	NULL,	NULL,	128,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC,	0},
-		{"jmx_disable_until",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL,	0},
-		{"jmx_available",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
-		{"jmx_errors_from",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL,	0},
-		{"jmx_error",	NULL,	NULL,	128,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC,	0},
-		{"name",	NULL,	NULL,	64,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC | ZBX_PROXY,	0},
+		{"hostid",	NULL,	NULL,	NULL,	0,	ZBX_TYPE_ID,	ZBX_NOTNULL,	0},
+		{"proxy_hostid",	NULL,	"hosts",	"hostid",	0,	ZBX_TYPE_ID,	ZBX_SYNC,	0},
+		{"host",	"",	NULL,	NULL,	64,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC | ZBX_PROXY,	0},
+		{"status",	"0",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC | ZBX_PROXY,	0},
+		{"disable_until",	"0",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL,	0},
+		{"error",	"",	NULL,	NULL,	128,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"available",	"0",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"errors_from",	"0",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL,	0},
+		{"lastaccess",	"0",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"ipmi_authtype",	"0",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC | ZBX_PROXY,	0},
+		{"ipmi_privilege",	"2",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC | ZBX_PROXY,	0},
+		{"ipmi_username",	"",	NULL,	NULL,	16,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC | ZBX_PROXY,	0},
+		{"ipmi_password",	"",	NULL,	NULL,	20,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC | ZBX_PROXY,	0},
+		{"ipmi_disable_until",	"0",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL,	0},
+		{"ipmi_available",	"0",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"snmp_disable_until",	"0",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL,	0},
+		{"snmp_available",	"0",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"maintenanceid",	NULL,	"maintenances",	"maintenanceid",	0,	ZBX_TYPE_ID,	ZBX_SYNC,	0},
+		{"maintenance_status",	"0",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"maintenance_type",	"0",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"maintenance_from",	"0",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"ipmi_errors_from",	"0",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL,	0},
+		{"snmp_errors_from",	"0",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL,	0},
+		{"ipmi_error",	"",	NULL,	NULL,	128,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"snmp_error",	"",	NULL,	NULL,	128,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"jmx_disable_until",	"0",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL,	0},
+		{"jmx_available",	"0",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"jmx_errors_from",	"0",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL,	0},
+		{"jmx_error",	"",	NULL,	NULL,	128,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"name",	"",	NULL,	NULL,	64,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC | ZBX_PROXY,	0},
+		{"flags",	"0",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"templateid",	NULL,	"hosts",	"hostid",	0,	ZBX_TYPE_ID,	ZBX_SYNC,	ZBX_FK_CASCADE_DELETE},
 		{0}
-		}
+		},
+		NULL
 	},
 	{"groups",	"groupid",	ZBX_SYNC,
 		{
-		{"groupid",	NULL,	NULL,	0,	ZBX_TYPE_ID,	ZBX_NOTNULL,	0},
-		{"name",	NULL,	NULL,	64,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC,	0},
-		{"internal",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"groupid",	NULL,	NULL,	NULL,	0,	ZBX_TYPE_ID,	ZBX_NOTNULL,	0},
+		{"name",	"",	NULL,	NULL,	64,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"internal",	"0",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"flags",	"0",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
 		{0}
-		}
+		},
+		NULL
+	},
+	{"group_prototype",	"group_prototypeid",	ZBX_SYNC,
+		{
+		{"group_prototypeid",	NULL,	NULL,	NULL,	0,	ZBX_TYPE_ID,	ZBX_NOTNULL,	0},
+		{"hostid",	NULL,	"hosts",	"hostid",	0,	ZBX_TYPE_ID,	ZBX_NOTNULL | ZBX_SYNC,	ZBX_FK_CASCADE_DELETE},
+		{"name",	"",	NULL,	NULL,	64,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"groupid",	NULL,	"groups",	"groupid",	0,	ZBX_TYPE_ID,	ZBX_SYNC,	0},
+		{"templateid",	NULL,	"group_prototype",	"group_prototypeid",	0,	ZBX_TYPE_ID,	ZBX_SYNC,	ZBX_FK_CASCADE_DELETE},
+		{0}
+		},
+		NULL
+	},
+	{"group_discovery",	"groupid",	ZBX_SYNC,
+		{
+		{"groupid",	NULL,	"groups",	"groupid",	0,	ZBX_TYPE_ID,	ZBX_NOTNULL | ZBX_SYNC,	ZBX_FK_CASCADE_DELETE},
+		{"parent_group_prototypeid",	NULL,	"group_prototype",	"group_prototypeid",	0,	ZBX_TYPE_ID,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"name",	"",	NULL,	NULL,	64,	ZBX_TYPE_CHAR,	ZBX_NOTNULL,	0},
+		{"lastcheck",	"0",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL,	0},
+		{"ts_delete",	"0",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL,	0},
+		{0}
+		},
+		NULL
 	},
 	{"screens",	"screenid",	ZBX_SYNC,
 		{
-		{"screenid",	NULL,	NULL,	0,	ZBX_TYPE_ID,	ZBX_NOTNULL,	0},
-		{"name",	NULL,	NULL,	255,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC,	0},
-		{"hsize",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
-		{"vsize",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
-		{"templateid",	"hosts",	"hostid",	0,	ZBX_TYPE_ID,	ZBX_SYNC,	ZBX_FK_CASCADE_DELETE},
+		{"screenid",	NULL,	NULL,	NULL,	0,	ZBX_TYPE_ID,	ZBX_NOTNULL,	0},
+		{"name",	NULL,	NULL,	NULL,	255,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"hsize",	"1",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"vsize",	"1",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"templateid",	NULL,	"hosts",	"hostid",	0,	ZBX_TYPE_ID,	ZBX_SYNC,	ZBX_FK_CASCADE_DELETE},
 		{0}
-		}
+		},
+		NULL
 	},
 	{"screens_items",	"screenitemid",	ZBX_SYNC,
 		{
-		{"screenitemid",	NULL,	NULL,	0,	ZBX_TYPE_ID,	ZBX_NOTNULL,	0},
-		{"screenid",	"screens",	"screenid",	0,	ZBX_TYPE_ID,	ZBX_NOTNULL | ZBX_SYNC,	ZBX_FK_CASCADE_DELETE},
-		{"resourcetype",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
-		{"resourceid",	NULL,	NULL,	0,	ZBX_TYPE_ID,	ZBX_NOTNULL | ZBX_SYNC,	0},
-		{"width",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
-		{"height",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
-		{"x",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
-		{"y",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
-		{"colspan",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
-		{"rowspan",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
-		{"elements",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
-		{"valign",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
-		{"halign",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
-		{"style",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
-		{"url",	NULL,	NULL,	255,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC,	0},
-		{"dynamic",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
-		{"sort_triggers",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"screenitemid",	NULL,	NULL,	NULL,	0,	ZBX_TYPE_ID,	ZBX_NOTNULL,	0},
+		{"screenid",	NULL,	"screens",	"screenid",	0,	ZBX_TYPE_ID,	ZBX_NOTNULL | ZBX_SYNC,	ZBX_FK_CASCADE_DELETE},
+		{"resourcetype",	"0",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"resourceid",	"0",	NULL,	NULL,	0,	ZBX_TYPE_ID,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"width",	"320",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"height",	"200",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"x",	"0",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"y",	"0",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"colspan",	"0",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"rowspan",	"0",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"elements",	"25",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"valign",	"0",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"halign",	"0",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"style",	"0",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"url",	"",	NULL,	NULL,	255,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"dynamic",	"0",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"sort_triggers",	"0",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"application",	"",	NULL,	NULL,	255,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC,	0},
 		{0}
-		}
+		},
+		NULL
 	},
 	{"slideshows",	"slideshowid",	ZBX_SYNC,
 		{
-		{"slideshowid",	NULL,	NULL,	0,	ZBX_TYPE_ID,	ZBX_NOTNULL,	0},
-		{"name",	NULL,	NULL,	255,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC,	0},
-		{"delay",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"slideshowid",	NULL,	NULL,	NULL,	0,	ZBX_TYPE_ID,	ZBX_NOTNULL,	0},
+		{"name",	"",	NULL,	NULL,	255,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"delay",	"0",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
 		{0}
-		}
+		},
+		NULL
 	},
 	{"slides",	"slideid",	ZBX_SYNC,
 		{
-		{"slideid",	NULL,	NULL,	0,	ZBX_TYPE_ID,	ZBX_NOTNULL,	0},
-		{"slideshowid",	"slideshows",	"slideshowid",	0,	ZBX_TYPE_ID,	ZBX_NOTNULL | ZBX_SYNC,	ZBX_FK_CASCADE_DELETE},
-		{"screenid",	"screens",	"screenid",	0,	ZBX_TYPE_ID,	ZBX_NOTNULL | ZBX_SYNC,	ZBX_FK_CASCADE_DELETE},
-		{"step",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
-		{"delay",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"slideid",	NULL,	NULL,	NULL,	0,	ZBX_TYPE_ID,	ZBX_NOTNULL,	0},
+		{"slideshowid",	NULL,	"slideshows",	"slideshowid",	0,	ZBX_TYPE_ID,	ZBX_NOTNULL | ZBX_SYNC,	ZBX_FK_CASCADE_DELETE},
+		{"screenid",	NULL,	"screens",	"screenid",	0,	ZBX_TYPE_ID,	ZBX_NOTNULL | ZBX_SYNC,	ZBX_FK_CASCADE_DELETE},
+		{"step",	"0",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"delay",	"0",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
 		{0}
-		}
+		},
+		NULL
 	},
 	{"drules",	"druleid",	ZBX_SYNC,
 		{
-		{"druleid",	NULL,	NULL,	0,	ZBX_TYPE_ID,	ZBX_NOTNULL,	0},
-		{"proxy_hostid",	"hosts",	"hostid",	0,	ZBX_TYPE_ID,	ZBX_SYNC,	0},
-		{"name",	NULL,	NULL,	255,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC,	0},
-		{"iprange",	NULL,	NULL,	255,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC | ZBX_PROXY,	0},
-		{"delay",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC | ZBX_PROXY,	0},
-		{"nextcheck",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
-		{"status",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"druleid",	NULL,	NULL,	NULL,	0,	ZBX_TYPE_ID,	ZBX_NOTNULL,	0},
+		{"proxy_hostid",	NULL,	"hosts",	"hostid",	0,	ZBX_TYPE_ID,	ZBX_SYNC,	0},
+		{"name",	"",	NULL,	NULL,	255,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"iprange",	"",	NULL,	NULL,	255,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC | ZBX_PROXY,	0},
+		{"delay",	"3600",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC | ZBX_PROXY,	0},
+		{"nextcheck",	"0",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"status",	"0",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
 		{0}
-		}
+		},
+		NULL
 	},
 	{"dchecks",	"dcheckid",	ZBX_SYNC,
 		{
-		{"dcheckid",	NULL,	NULL,	0,	ZBX_TYPE_ID,	ZBX_NOTNULL,	0},
-		{"druleid",	"drules",	"druleid",	0,	ZBX_TYPE_ID,	ZBX_NOTNULL | ZBX_SYNC | ZBX_PROXY,	ZBX_FK_CASCADE_DELETE},
-		{"type",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC | ZBX_PROXY,	0},
-		{"key_",	NULL,	NULL,	255,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC | ZBX_PROXY,	0},
-		{"snmp_community",	NULL,	NULL,	255,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC | ZBX_PROXY,	0},
-		{"ports",	NULL,	NULL,	255,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC | ZBX_PROXY,	0},
-		{"snmpv3_securityname",	NULL,	NULL,	64,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC | ZBX_PROXY,	0},
-		{"snmpv3_securitylevel",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC | ZBX_PROXY,	0},
-		{"snmpv3_authpassphrase",	NULL,	NULL,	64,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC | ZBX_PROXY,	0},
-		{"snmpv3_privpassphrase",	NULL,	NULL,	64,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC | ZBX_PROXY,	0},
-		{"uniq",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC | ZBX_PROXY,	0},
+		{"dcheckid",	NULL,	NULL,	NULL,	0,	ZBX_TYPE_ID,	ZBX_NOTNULL,	0},
+		{"druleid",	NULL,	"drules",	"druleid",	0,	ZBX_TYPE_ID,	ZBX_NOTNULL | ZBX_SYNC | ZBX_PROXY,	ZBX_FK_CASCADE_DELETE},
+		{"type",	"0",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC | ZBX_PROXY,	0},
+		{"key_",	"",	NULL,	NULL,	255,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC | ZBX_PROXY,	0},
+		{"snmp_community",	"",	NULL,	NULL,	255,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC | ZBX_PROXY,	0},
+		{"ports",	"0",	NULL,	NULL,	255,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC | ZBX_PROXY,	0},
+		{"snmpv3_securityname",	"",	NULL,	NULL,	64,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC | ZBX_PROXY,	0},
+		{"snmpv3_securitylevel",	"0",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC | ZBX_PROXY,	0},
+		{"snmpv3_authpassphrase",	"",	NULL,	NULL,	64,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC | ZBX_PROXY,	0},
+		{"snmpv3_privpassphrase",	"",	NULL,	NULL,	64,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC | ZBX_PROXY,	0},
+		{"uniq",	"0",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC | ZBX_PROXY,	0},
+		{"snmpv3_authprotocol",	"0",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC | ZBX_PROXY,	0},
+		{"snmpv3_privprotocol",	"0",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC | ZBX_PROXY,	0},
+		{"snmpv3_contextname",	"",	NULL,	NULL,	255,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC | ZBX_PROXY,	0},
 		{0}
-		}
+		},
+		NULL
 	},
 	{"applications",	"applicationid",	ZBX_SYNC,
 		{
-		{"applicationid",	NULL,	NULL,	0,	ZBX_TYPE_ID,	ZBX_NOTNULL,	0},
-		{"hostid",	"hosts",	"hostid",	0,	ZBX_TYPE_ID,	ZBX_NOTNULL | ZBX_SYNC | ZBX_PROXY,	ZBX_FK_CASCADE_DELETE},
-		{"name",	NULL,	NULL,	255,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC | ZBX_PROXY,	0},
-		{"templateid",	"applications",	"applicationid",	0,	ZBX_TYPE_ID,	ZBX_SYNC,	ZBX_FK_CASCADE_DELETE},
+		{"applicationid",	NULL,	NULL,	NULL,	0,	ZBX_TYPE_ID,	ZBX_NOTNULL,	0},
+		{"hostid",	NULL,	"hosts",	"hostid",	0,	ZBX_TYPE_ID,	ZBX_NOTNULL | ZBX_SYNC,	ZBX_FK_CASCADE_DELETE},
+		{"name",	"",	NULL,	NULL,	255,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC,	0},
 		{0}
 		},
 		"hostid,name"
 	},
 	{"httptest",	"httptestid",	ZBX_SYNC,
 		{
-		{"httptestid",	NULL,	NULL,	0,	ZBX_TYPE_ID,	ZBX_NOTNULL,	0},
-		{"name",	NULL,	NULL,	64,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC | ZBX_PROXY,	0},
-		{"applicationid",	"applications",	"applicationid",	0,	ZBX_TYPE_ID,	ZBX_NOTNULL | ZBX_SYNC | ZBX_PROXY,	ZBX_FK_CASCADE_DELETE},
-		{"nextcheck",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
-		{"delay",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC | ZBX_PROXY,	0},
-		{"status",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
-		{"macros",	NULL,	NULL,	65535,	ZBX_TYPE_TEXT,	ZBX_NOTNULL | ZBX_SYNC | ZBX_PROXY,	0},
-		{"agent",	NULL,	NULL,	255,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC | ZBX_PROXY,	0},
-		{"authentication",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC | ZBX_PROXY,	0},
-		{"http_user",	NULL,	NULL,	64,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC | ZBX_PROXY,	0},
-		{"http_password",	NULL,	NULL,	64,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC | ZBX_PROXY,	0},
+		{"httptestid",	NULL,	NULL,	NULL,	0,	ZBX_TYPE_ID,	ZBX_NOTNULL,	0},
+		{"name",	"",	NULL,	NULL,	64,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC | ZBX_PROXY,	0},
+		{"applicationid",	NULL,	"applications",	"applicationid",	0,	ZBX_TYPE_ID,	ZBX_SYNC,	0},
+		{"nextcheck",	"0",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"delay",	"60",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC | ZBX_PROXY,	0},
+		{"status",	"0",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"variables",	"",	NULL,	NULL,	ZBX_TYPE_SHORTTEXT_LEN,	ZBX_TYPE_SHORTTEXT,	ZBX_NOTNULL | ZBX_SYNC | ZBX_PROXY,	0},
+		{"agent",	"",	NULL,	NULL,	255,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC | ZBX_PROXY,	0},
+		{"authentication",	"0",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC | ZBX_PROXY,	0},
+		{"http_user",	"",	NULL,	NULL,	64,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC | ZBX_PROXY,	0},
+		{"http_password",	"",	NULL,	NULL,	64,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC | ZBX_PROXY,	0},
+		{"hostid",	NULL,	"hosts",	"hostid",	0,	ZBX_TYPE_ID,	ZBX_NOTNULL | ZBX_SYNC | ZBX_PROXY,	ZBX_FK_CASCADE_DELETE},
+		{"templateid",	NULL,	"httptest",	"httptestid",	0,	ZBX_TYPE_ID,	ZBX_SYNC,	ZBX_FK_CASCADE_DELETE},
+		{"http_proxy",	"",	NULL,	NULL,	255,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC | ZBX_PROXY,	0},
+		{"retries",	"1",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC | ZBX_PROXY,	0},
 		{0}
-		}
+		},
+		"hostid,name"
 	},
 	{"httpstep",	"httpstepid",	ZBX_SYNC,
 		{
-		{"httpstepid",	NULL,	NULL,	0,	ZBX_TYPE_ID,	ZBX_NOTNULL,	0},
-		{"httptestid",	"httptest",	"httptestid",	0,	ZBX_TYPE_ID,	ZBX_NOTNULL | ZBX_SYNC | ZBX_PROXY,	ZBX_FK_CASCADE_DELETE},
-		{"name",	NULL,	NULL,	64,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC | ZBX_PROXY,	0},
-		{"no",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC | ZBX_PROXY,	0},
-		{"url",	NULL,	NULL,	255,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC | ZBX_PROXY,	0},
-		{"timeout",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC | ZBX_PROXY,	0},
-		{"posts",	NULL,	NULL,	65535,	ZBX_TYPE_TEXT,	ZBX_NOTNULL | ZBX_SYNC | ZBX_PROXY,	0},
-		{"required",	NULL,	NULL,	255,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC | ZBX_PROXY,	0},
-		{"status_codes",	NULL,	NULL,	255,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC | ZBX_PROXY,	0},
+		{"httpstepid",	NULL,	NULL,	NULL,	0,	ZBX_TYPE_ID,	ZBX_NOTNULL,	0},
+		{"httptestid",	NULL,	"httptest",	"httptestid",	0,	ZBX_TYPE_ID,	ZBX_NOTNULL | ZBX_SYNC | ZBX_PROXY,	ZBX_FK_CASCADE_DELETE},
+		{"name",	"",	NULL,	NULL,	64,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC | ZBX_PROXY,	0},
+		{"no",	"0",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC | ZBX_PROXY,	0},
+		{"url",	"",	NULL,	NULL,	255,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC | ZBX_PROXY,	0},
+		{"timeout",	"30",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC | ZBX_PROXY,	0},
+		{"posts",	"",	NULL,	NULL,	ZBX_TYPE_SHORTTEXT_LEN,	ZBX_TYPE_SHORTTEXT,	ZBX_NOTNULL | ZBX_SYNC | ZBX_PROXY,	0},
+		{"required",	"",	NULL,	NULL,	255,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC | ZBX_PROXY,	0},
+		{"status_codes",	"",	NULL,	NULL,	255,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC | ZBX_PROXY,	0},
+		{"variables",	"",	NULL,	NULL,	ZBX_TYPE_SHORTTEXT_LEN,	ZBX_TYPE_SHORTTEXT,	ZBX_NOTNULL | ZBX_SYNC | ZBX_PROXY,	0},
 		{0}
-		}
+		},
+		NULL
 	},
 	{"interface",	"interfaceid",	ZBX_SYNC,
 		{
-		{"interfaceid",	NULL,	NULL,	0,	ZBX_TYPE_ID,	ZBX_NOTNULL,	0},
-		{"hostid",	"hosts",	"hostid",	0,	ZBX_TYPE_ID,	ZBX_NOTNULL | ZBX_SYNC | ZBX_PROXY,	ZBX_FK_CASCADE_DELETE},
-		{"main",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC | ZBX_PROXY,	0},
-		{"type",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC | ZBX_PROXY,	0},
-		{"useip",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC | ZBX_PROXY,	0},
-		{"ip",	NULL,	NULL,	39,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC | ZBX_PROXY,	0},
-		{"dns",	NULL,	NULL,	64,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC | ZBX_PROXY,	0},
-		{"port",	NULL,	NULL,	64,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC | ZBX_PROXY,	0},
+		{"interfaceid",	NULL,	NULL,	NULL,	0,	ZBX_TYPE_ID,	ZBX_NOTNULL,	0},
+		{"hostid",	NULL,	"hosts",	"hostid",	0,	ZBX_TYPE_ID,	ZBX_NOTNULL | ZBX_SYNC | ZBX_PROXY,	ZBX_FK_CASCADE_DELETE},
+		{"main",	"0",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC | ZBX_PROXY,	0},
+		{"type",	"0",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC | ZBX_PROXY,	0},
+		{"useip",	"1",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC | ZBX_PROXY,	0},
+		{"ip",	"127.0.0.1",	NULL,	NULL,	64,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC | ZBX_PROXY,	0},
+		{"dns",	"",	NULL,	NULL,	64,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC | ZBX_PROXY,	0},
+		{"port",	"10050",	NULL,	NULL,	64,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC | ZBX_PROXY,	0},
 		{0}
-		}
+		},
+		NULL
 	},
 	{"valuemaps",	"valuemapid",	ZBX_SYNC,
 		{
-		{"valuemapid",	NULL,	NULL,	0,	ZBX_TYPE_ID,	ZBX_NOTNULL,	0},
-		{"name",	NULL,	NULL,	64,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"valuemapid",	NULL,	NULL,	NULL,	0,	ZBX_TYPE_ID,	ZBX_NOTNULL,	0},
+		{"name",	"",	NULL,	NULL,	64,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC,	0},
 		{0}
-		}
+		},
+		NULL
 	},
 	{"items",	"itemid",	ZBX_SYNC,
 		{
-		{"itemid",	NULL,	NULL,	0,	ZBX_TYPE_ID,	ZBX_NOTNULL,	0},
-		{"type",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC | ZBX_PROXY,	0},
-		{"snmp_community",	NULL,	NULL,	64,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC | ZBX_PROXY,	0},
-		{"snmp_oid",	NULL,	NULL,	255,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC | ZBX_PROXY,	0},
-		{"hostid",	"hosts",	"hostid",	0,	ZBX_TYPE_ID,	ZBX_NOTNULL | ZBX_SYNC | ZBX_PROXY,	ZBX_FK_CASCADE_DELETE},
-		{"name",	NULL,	NULL,	255,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC,	0},
-		{"key_",	NULL,	NULL,	255,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC | ZBX_PROXY,	0},
-		{"delay",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC | ZBX_PROXY,	0},
-		{"history",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
-		{"trends",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
-		{"lastvalue",	NULL,	NULL,	255,	ZBX_TYPE_CHAR,	0,	0},
-		{"lastclock",	NULL,	NULL,	0,	ZBX_TYPE_INT,	0,	0},
-		{"prevvalue",	NULL,	NULL,	255,	ZBX_TYPE_CHAR,	0,	0},
-		{"status",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC | ZBX_PROXY,	0},
-		{"value_type",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC | ZBX_PROXY,	0},
-		{"trapper_hosts",	NULL,	NULL,	255,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC | ZBX_PROXY,	0},
-		{"units",	NULL,	NULL,	255,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC,	0},
-		{"multiplier",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
-		{"delta",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
-		{"prevorgvalue",	NULL,	NULL,	255,	ZBX_TYPE_CHAR,	0,	0},
-		{"snmpv3_securityname",	NULL,	NULL,	64,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC | ZBX_PROXY,	0},
-		{"snmpv3_securitylevel",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC | ZBX_PROXY,	0},
-		{"snmpv3_authpassphrase",	NULL,	NULL,	64,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC | ZBX_PROXY,	0},
-		{"snmpv3_privpassphrase",	NULL,	NULL,	64,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC | ZBX_PROXY,	0},
-		{"formula",	NULL,	NULL,	255,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC | ZBX_PROXY,	0},
-		{"error",	NULL,	NULL,	128,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC,	0},
-		{"lastlogsize",	NULL,	NULL,	0,	ZBX_TYPE_UINT,	ZBX_NOTNULL,	0},
-		{"logtimefmt",	NULL,	NULL,	64,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC | ZBX_PROXY,	0},
-		{"templateid",	"items",	"itemid",	0,	ZBX_TYPE_ID,	ZBX_SYNC,	ZBX_FK_CASCADE_DELETE},
-		{"valuemapid",	"valuemaps",	"valuemapid",	0,	ZBX_TYPE_ID,	ZBX_SYNC,	0},
-		{"delay_flex",	NULL,	NULL,	255,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC | ZBX_PROXY,	0},
-		{"params",	NULL,	NULL,	65535,	ZBX_TYPE_TEXT,	ZBX_NOTNULL | ZBX_SYNC | ZBX_PROXY,	0},
-		{"ipmi_sensor",	NULL,	NULL,	128,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC | ZBX_PROXY,	0},
-		{"data_type",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC | ZBX_PROXY,	0},
-		{"authtype",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC | ZBX_PROXY,	0},
-		{"username",	NULL,	NULL,	64,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC | ZBX_PROXY,	0},
-		{"password",	NULL,	NULL,	64,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC | ZBX_PROXY,	0},
-		{"publickey",	NULL,	NULL,	64,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC | ZBX_PROXY,	0},
-		{"privatekey",	NULL,	NULL,	64,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC | ZBX_PROXY,	0},
-		{"mtime",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL,	0},
-		{"lastns",	NULL,	NULL,	0,	ZBX_TYPE_INT,	0,	0},
-		{"flags",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC | ZBX_PROXY,	0},
-		{"filter",	NULL,	NULL,	255,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC | ZBX_PROXY,	0},
-		{"interfaceid",	"interface",	"interfaceid",	0,	ZBX_TYPE_ID,	ZBX_SYNC | ZBX_PROXY,	0},
-		{"port",	NULL,	NULL,	64,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC | ZBX_PROXY,	0},
-		{"description",	NULL,	NULL,	65535,	ZBX_TYPE_TEXT,	ZBX_NOTNULL | ZBX_SYNC,	0},
-		{"inventory_link",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
-		{"lifetime",	NULL,	NULL,	64,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"itemid",	NULL,	NULL,	NULL,	0,	ZBX_TYPE_ID,	ZBX_NOTNULL,	0},
+		{"type",	"0",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC | ZBX_PROXY,	0},
+		{"snmp_community",	"",	NULL,	NULL,	64,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC | ZBX_PROXY,	0},
+		{"snmp_oid",	"",	NULL,	NULL,	255,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC | ZBX_PROXY,	0},
+		{"hostid",	NULL,	"hosts",	"hostid",	0,	ZBX_TYPE_ID,	ZBX_NOTNULL | ZBX_SYNC | ZBX_PROXY,	ZBX_FK_CASCADE_DELETE},
+		{"name",	"",	NULL,	NULL,	255,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"key_",	"",	NULL,	NULL,	255,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC | ZBX_PROXY,	0},
+		{"delay",	"0",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC | ZBX_PROXY,	0},
+		{"history",	"90",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"trends",	"365",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"status",	"0",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC | ZBX_PROXY,	0},
+		{"value_type",	"0",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC | ZBX_PROXY,	0},
+		{"trapper_hosts",	"",	NULL,	NULL,	255,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC | ZBX_PROXY,	0},
+		{"units",	"",	NULL,	NULL,	255,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"multiplier",	"0",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"delta",	"0",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"snmpv3_securityname",	"",	NULL,	NULL,	64,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC | ZBX_PROXY,	0},
+		{"snmpv3_securitylevel",	"0",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC | ZBX_PROXY,	0},
+		{"snmpv3_authpassphrase",	"",	NULL,	NULL,	64,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC | ZBX_PROXY,	0},
+		{"snmpv3_privpassphrase",	"",	NULL,	NULL,	64,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC | ZBX_PROXY,	0},
+		{"formula",	"1",	NULL,	NULL,	255,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC | ZBX_PROXY,	0},
+		{"error",	"",	NULL,	NULL,	128,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"lastlogsize",	"0",	NULL,	NULL,	0,	ZBX_TYPE_UINT,	ZBX_NOTNULL,	0},
+		{"logtimefmt",	"",	NULL,	NULL,	64,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC | ZBX_PROXY,	0},
+		{"templateid",	NULL,	"items",	"itemid",	0,	ZBX_TYPE_ID,	ZBX_SYNC,	ZBX_FK_CASCADE_DELETE},
+		{"valuemapid",	NULL,	"valuemaps",	"valuemapid",	0,	ZBX_TYPE_ID,	ZBX_SYNC,	0},
+		{"delay_flex",	"",	NULL,	NULL,	255,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC | ZBX_PROXY,	0},
+		{"params",	"",	NULL,	NULL,	ZBX_TYPE_SHORTTEXT_LEN,	ZBX_TYPE_SHORTTEXT,	ZBX_NOTNULL | ZBX_SYNC | ZBX_PROXY,	0},
+		{"ipmi_sensor",	"",	NULL,	NULL,	128,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC | ZBX_PROXY,	0},
+		{"data_type",	"0",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC | ZBX_PROXY,	0},
+		{"authtype",	"0",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC | ZBX_PROXY,	0},
+		{"username",	"",	NULL,	NULL,	64,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC | ZBX_PROXY,	0},
+		{"password",	"",	NULL,	NULL,	64,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC | ZBX_PROXY,	0},
+		{"publickey",	"",	NULL,	NULL,	64,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC | ZBX_PROXY,	0},
+		{"privatekey",	"",	NULL,	NULL,	64,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC | ZBX_PROXY,	0},
+		{"mtime",	"0",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL,	0},
+		{"flags",	"0",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC | ZBX_PROXY,	0},
+		{"filter",	"",	NULL,	NULL,	255,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC | ZBX_PROXY,	0},
+		{"interfaceid",	NULL,	"interface",	"interfaceid",	0,	ZBX_TYPE_ID,	ZBX_SYNC | ZBX_PROXY,	0},
+		{"port",	"",	NULL,	NULL,	64,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC | ZBX_PROXY,	0},
+		{"description",	"",	NULL,	NULL,	ZBX_TYPE_SHORTTEXT_LEN,	ZBX_TYPE_SHORTTEXT,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"inventory_link",	"0",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"lifetime",	"30",	NULL,	NULL,	64,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"snmpv3_authprotocol",	"0",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC | ZBX_PROXY,	0},
+		{"snmpv3_privprotocol",	"0",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC | ZBX_PROXY,	0},
+		{"state",	"0",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"snmpv3_contextname",	"",	NULL,	NULL,	255,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC | ZBX_PROXY,	0},
 		{0}
 		},
 		"hostid,key_"
 	},
 	{"httpstepitem",	"httpstepitemid",	ZBX_SYNC,
 		{
-		{"httpstepitemid",	NULL,	NULL,	0,	ZBX_TYPE_ID,	ZBX_NOTNULL,	0},
-		{"httpstepid",	"httpstep",	"httpstepid",	0,	ZBX_TYPE_ID,	ZBX_NOTNULL | ZBX_SYNC | ZBX_PROXY,	ZBX_FK_CASCADE_DELETE},
-		{"itemid",	"items",	"itemid",	0,	ZBX_TYPE_ID,	ZBX_NOTNULL | ZBX_SYNC | ZBX_PROXY,	ZBX_FK_CASCADE_DELETE},
-		{"type",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC | ZBX_PROXY,	0},
+		{"httpstepitemid",	NULL,	NULL,	NULL,	0,	ZBX_TYPE_ID,	ZBX_NOTNULL,	0},
+		{"httpstepid",	NULL,	"httpstep",	"httpstepid",	0,	ZBX_TYPE_ID,	ZBX_NOTNULL | ZBX_SYNC | ZBX_PROXY,	ZBX_FK_CASCADE_DELETE},
+		{"itemid",	NULL,	"items",	"itemid",	0,	ZBX_TYPE_ID,	ZBX_NOTNULL | ZBX_SYNC | ZBX_PROXY,	ZBX_FK_CASCADE_DELETE},
+		{"type",	"0",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC | ZBX_PROXY,	0},
 		{0}
 		},
 		"httpstepid,itemid"
 	},
 	{"httptestitem",	"httptestitemid",	ZBX_SYNC,
 		{
-		{"httptestitemid",	NULL,	NULL,	0,	ZBX_TYPE_ID,	ZBX_NOTNULL,	0},
-		{"httptestid",	"httptest",	"httptestid",	0,	ZBX_TYPE_ID,	ZBX_NOTNULL | ZBX_SYNC | ZBX_PROXY,	ZBX_FK_CASCADE_DELETE},
-		{"itemid",	"items",	"itemid",	0,	ZBX_TYPE_ID,	ZBX_NOTNULL | ZBX_SYNC | ZBX_PROXY,	ZBX_FK_CASCADE_DELETE},
-		{"type",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC | ZBX_PROXY,	0},
+		{"httptestitemid",	NULL,	NULL,	NULL,	0,	ZBX_TYPE_ID,	ZBX_NOTNULL,	0},
+		{"httptestid",	NULL,	"httptest",	"httptestid",	0,	ZBX_TYPE_ID,	ZBX_NOTNULL | ZBX_SYNC | ZBX_PROXY,	ZBX_FK_CASCADE_DELETE},
+		{"itemid",	NULL,	"items",	"itemid",	0,	ZBX_TYPE_ID,	ZBX_NOTNULL | ZBX_SYNC | ZBX_PROXY,	ZBX_FK_CASCADE_DELETE},
+		{"type",	"0",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC | ZBX_PROXY,	0},
 		{0}
 		},
 		"httptestid,itemid"
 	},
 	{"media_type",	"mediatypeid",	ZBX_SYNC,
 		{
-		{"mediatypeid",	NULL,	NULL,	0,	ZBX_TYPE_ID,	ZBX_NOTNULL,	0},
-		{"type",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
-		{"description",	NULL,	NULL,	100,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC,	0},
-		{"smtp_server",	NULL,	NULL,	255,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC,	0},
-		{"smtp_helo",	NULL,	NULL,	255,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC,	0},
-		{"smtp_email",	NULL,	NULL,	255,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC,	0},
-		{"exec_path",	NULL,	NULL,	255,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC,	0},
-		{"gsm_modem",	NULL,	NULL,	255,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC,	0},
-		{"username",	NULL,	NULL,	255,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC,	0},
-		{"passwd",	NULL,	NULL,	255,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC,	0},
-		{"status",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"mediatypeid",	NULL,	NULL,	NULL,	0,	ZBX_TYPE_ID,	ZBX_NOTNULL,	0},
+		{"type",	"0",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"description",	"",	NULL,	NULL,	100,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"smtp_server",	"",	NULL,	NULL,	255,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"smtp_helo",	"",	NULL,	NULL,	255,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"smtp_email",	"",	NULL,	NULL,	255,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"exec_path",	"",	NULL,	NULL,	255,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"gsm_modem",	"",	NULL,	NULL,	255,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"username",	"",	NULL,	NULL,	255,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"passwd",	"",	NULL,	NULL,	255,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"status",	"0",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
 		{0}
-		}
+		},
+		NULL
 	},
 	{"users",	"userid",	ZBX_SYNC,
 		{
-		{"userid",	NULL,	NULL,	0,	ZBX_TYPE_ID,	ZBX_NOTNULL,	0},
-		{"alias",	NULL,	NULL,	100,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC,	0},
-		{"name",	NULL,	NULL,	100,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC,	0},
-		{"surname",	NULL,	NULL,	100,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC,	0},
-		{"passwd",	NULL,	NULL,	32,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC,	0},
-		{"url",	NULL,	NULL,	255,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC,	0},
-		{"autologin",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
-		{"autologout",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
-		{"lang",	NULL,	NULL,	5,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC,	0},
-		{"refresh",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
-		{"type",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
-		{"theme",	NULL,	NULL,	128,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC,	0},
-		{"attempt_failed",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
-		{"attempt_ip",	NULL,	NULL,	39,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC,	0},
-		{"attempt_clock",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
-		{"rows_per_page",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"userid",	NULL,	NULL,	NULL,	0,	ZBX_TYPE_ID,	ZBX_NOTNULL,	0},
+		{"alias",	"",	NULL,	NULL,	100,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"name",	"",	NULL,	NULL,	100,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"surname",	"",	NULL,	NULL,	100,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"passwd",	"",	NULL,	NULL,	32,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"url",	"",	NULL,	NULL,	255,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"autologin",	"0",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"autologout",	"900",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"lang",	"en_GB",	NULL,	NULL,	5,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"refresh",	"30",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"type",	"1",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"theme",	"default",	NULL,	NULL,	128,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"attempt_failed",	"0",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"attempt_ip",	"",	NULL,	NULL,	39,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"attempt_clock",	"0",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"rows_per_page",	"50",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
 		{0}
-		}
+		},
+		NULL
 	},
 	{"usrgrp",	"usrgrpid",	ZBX_SYNC,
 		{
-		{"usrgrpid",	NULL,	NULL,	0,	ZBX_TYPE_ID,	ZBX_NOTNULL,	0},
-		{"name",	NULL,	NULL,	64,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC,	0},
-		{"gui_access",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
-		{"users_status",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
-		{"debug_mode",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"usrgrpid",	NULL,	NULL,	NULL,	0,	ZBX_TYPE_ID,	ZBX_NOTNULL,	0},
+		{"name",	"",	NULL,	NULL,	64,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"gui_access",	"0",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"users_status",	"0",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"debug_mode",	"0",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
 		{0}
-		}
+		},
+		NULL
 	},
 	{"users_groups",	"id",	ZBX_SYNC,
 		{
-		{"id",	NULL,	NULL,	0,	ZBX_TYPE_ID,	ZBX_NOTNULL,	0},
-		{"usrgrpid",	"usrgrp",	"usrgrpid",	0,	ZBX_TYPE_ID,	ZBX_NOTNULL | ZBX_SYNC,	ZBX_FK_CASCADE_DELETE},
-		{"userid",	"users",	"userid",	0,	ZBX_TYPE_ID,	ZBX_NOTNULL | ZBX_SYNC,	ZBX_FK_CASCADE_DELETE},
+		{"id",	NULL,	NULL,	NULL,	0,	ZBX_TYPE_ID,	ZBX_NOTNULL,	0},
+		{"usrgrpid",	NULL,	"usrgrp",	"usrgrpid",	0,	ZBX_TYPE_ID,	ZBX_NOTNULL | ZBX_SYNC,	ZBX_FK_CASCADE_DELETE},
+		{"userid",	NULL,	"users",	"userid",	0,	ZBX_TYPE_ID,	ZBX_NOTNULL | ZBX_SYNC,	ZBX_FK_CASCADE_DELETE},
 		{0}
 		},
 		"usrgrpid,userid"
 	},
 	{"scripts",	"scriptid",	ZBX_SYNC,
 		{
-		{"scriptid",	NULL,	NULL,	0,	ZBX_TYPE_ID,	ZBX_NOTNULL,	0},
-		{"name",	NULL,	NULL,	255,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC,	0},
-		{"command",	NULL,	NULL,	255,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC,	0},
-		{"host_access",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
-		{"usrgrpid",	"usrgrp",	"usrgrpid",	0,	ZBX_TYPE_ID,	ZBX_SYNC,	0},
-		{"groupid",	"groups",	"groupid",	0,	ZBX_TYPE_ID,	ZBX_SYNC,	0},
-		{"description",	NULL,	NULL,	65535,	ZBX_TYPE_TEXT,	ZBX_NOTNULL | ZBX_SYNC,	0},
-		{"confirmation",	NULL,	NULL,	255,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC,	0},
-		{"type",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
-		{"execute_on",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"scriptid",	NULL,	NULL,	NULL,	0,	ZBX_TYPE_ID,	ZBX_NOTNULL,	0},
+		{"name",	"",	NULL,	NULL,	255,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"command",	"",	NULL,	NULL,	255,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"host_access",	"2",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"usrgrpid",	NULL,	"usrgrp",	"usrgrpid",	0,	ZBX_TYPE_ID,	ZBX_SYNC,	0},
+		{"groupid",	NULL,	"groups",	"groupid",	0,	ZBX_TYPE_ID,	ZBX_SYNC,	0},
+		{"description",	"",	NULL,	NULL,	ZBX_TYPE_SHORTTEXT_LEN,	ZBX_TYPE_SHORTTEXT,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"confirmation",	"",	NULL,	NULL,	255,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"type",	"0",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"execute_on",	"1",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
 		{0}
-		}
+		},
+		NULL
 	},
 	{"actions",	"actionid",	ZBX_SYNC,
 		{
-		{"actionid",	NULL,	NULL,	0,	ZBX_TYPE_ID,	ZBX_NOTNULL,	0},
-		{"name",	NULL,	NULL,	255,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC,	0},
-		{"eventsource",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
-		{"evaltype",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
-		{"status",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
-		{"esc_period",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
-		{"def_shortdata",	NULL,	NULL,	255,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC,	0},
-		{"def_longdata",	NULL,	NULL,	65535,	ZBX_TYPE_TEXT,	ZBX_NOTNULL | ZBX_SYNC,	0},
-		{"recovery_msg",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
-		{"r_shortdata",	NULL,	NULL,	255,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC,	0},
-		{"r_longdata",	NULL,	NULL,	65535,	ZBX_TYPE_TEXT,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"actionid",	NULL,	NULL,	NULL,	0,	ZBX_TYPE_ID,	ZBX_NOTNULL,	0},
+		{"name",	"",	NULL,	NULL,	255,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"eventsource",	"0",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"evaltype",	"0",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"status",	"0",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"esc_period",	"0",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"def_shortdata",	"",	NULL,	NULL,	255,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"def_longdata",	"",	NULL,	NULL,	ZBX_TYPE_SHORTTEXT_LEN,	ZBX_TYPE_SHORTTEXT,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"recovery_msg",	"0",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"r_shortdata",	"",	NULL,	NULL,	255,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"r_longdata",	"",	NULL,	NULL,	ZBX_TYPE_SHORTTEXT_LEN,	ZBX_TYPE_SHORTTEXT,	ZBX_NOTNULL | ZBX_SYNC,	0},
 		{0}
-		}
+		},
+		NULL
 	},
 	{"operations",	"operationid",	ZBX_SYNC,
 		{
-		{"operationid",	NULL,	NULL,	0,	ZBX_TYPE_ID,	ZBX_NOTNULL,	0},
-		{"actionid",	"actions",	"actionid",	0,	ZBX_TYPE_ID,	ZBX_NOTNULL | ZBX_SYNC,	ZBX_FK_CASCADE_DELETE},
-		{"operationtype",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
-		{"esc_period",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
-		{"esc_step_from",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
-		{"esc_step_to",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
-		{"evaltype",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"operationid",	NULL,	NULL,	NULL,	0,	ZBX_TYPE_ID,	ZBX_NOTNULL,	0},
+		{"actionid",	NULL,	"actions",	"actionid",	0,	ZBX_TYPE_ID,	ZBX_NOTNULL | ZBX_SYNC,	ZBX_FK_CASCADE_DELETE},
+		{"operationtype",	"0",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"esc_period",	"0",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"esc_step_from",	"1",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"esc_step_to",	"1",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"evaltype",	"0",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
 		{0}
-		}
+		},
+		NULL
 	},
 	{"opmessage",	"operationid",	ZBX_SYNC,
 		{
-		{"operationid",	"operations",	"operationid",	0,	ZBX_TYPE_ID,	ZBX_NOTNULL,	ZBX_FK_CASCADE_DELETE},
-		{"default_msg",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
-		{"subject",	NULL,	NULL,	255,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC,	0},
-		{"message",	NULL,	NULL,	65535,	ZBX_TYPE_TEXT,	ZBX_NOTNULL | ZBX_SYNC,	0},
-		{"mediatypeid",	"media_type",	"mediatypeid",	0,	ZBX_TYPE_ID,	ZBX_SYNC,	0},
+		{"operationid",	NULL,	"operations",	"operationid",	0,	ZBX_TYPE_ID,	ZBX_NOTNULL,	ZBX_FK_CASCADE_DELETE},
+		{"default_msg",	"0",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"subject",	"",	NULL,	NULL,	255,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"message",	"",	NULL,	NULL,	ZBX_TYPE_SHORTTEXT_LEN,	ZBX_TYPE_SHORTTEXT,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"mediatypeid",	NULL,	"media_type",	"mediatypeid",	0,	ZBX_TYPE_ID,	ZBX_SYNC,	0},
 		{0}
-		}
+		},
+		NULL
 	},
 	{"opmessage_grp",	"opmessage_grpid",	ZBX_SYNC,
 		{
-		{"opmessage_grpid",	NULL,	NULL,	0,	ZBX_TYPE_ID,	ZBX_NOTNULL,	0},
-		{"operationid",	"operations",	"operationid",	0,	ZBX_TYPE_ID,	ZBX_NOTNULL | ZBX_SYNC,	ZBX_FK_CASCADE_DELETE},
-		{"usrgrpid",	"usrgrp",	"usrgrpid",	0,	ZBX_TYPE_ID,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"opmessage_grpid",	NULL,	NULL,	NULL,	0,	ZBX_TYPE_ID,	ZBX_NOTNULL,	0},
+		{"operationid",	NULL,	"operations",	"operationid",	0,	ZBX_TYPE_ID,	ZBX_NOTNULL | ZBX_SYNC,	ZBX_FK_CASCADE_DELETE},
+		{"usrgrpid",	NULL,	"usrgrp",	"usrgrpid",	0,	ZBX_TYPE_ID,	ZBX_NOTNULL | ZBX_SYNC,	0},
 		{0}
 		},
 		"operationid,usrgrpid"
 	},
 	{"opmessage_usr",	"opmessage_usrid",	ZBX_SYNC,
 		{
-		{"opmessage_usrid",	NULL,	NULL,	0,	ZBX_TYPE_ID,	ZBX_NOTNULL,	0},
-		{"operationid",	"operations",	"operationid",	0,	ZBX_TYPE_ID,	ZBX_NOTNULL | ZBX_SYNC,	ZBX_FK_CASCADE_DELETE},
-		{"userid",	"users",	"userid",	0,	ZBX_TYPE_ID,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"opmessage_usrid",	NULL,	NULL,	NULL,	0,	ZBX_TYPE_ID,	ZBX_NOTNULL,	0},
+		{"operationid",	NULL,	"operations",	"operationid",	0,	ZBX_TYPE_ID,	ZBX_NOTNULL | ZBX_SYNC,	ZBX_FK_CASCADE_DELETE},
+		{"userid",	NULL,	"users",	"userid",	0,	ZBX_TYPE_ID,	ZBX_NOTNULL | ZBX_SYNC,	0},
 		{0}
 		},
 		"operationid,userid"
 	},
 	{"opcommand",	"operationid",	ZBX_SYNC,
 		{
-		{"operationid",	"operations",	"operationid",	0,	ZBX_TYPE_ID,	ZBX_NOTNULL,	ZBX_FK_CASCADE_DELETE},
-		{"type",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
-		{"scriptid",	"scripts",	"scriptid",	0,	ZBX_TYPE_ID,	ZBX_SYNC,	0},
-		{"execute_on",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
-		{"port",	NULL,	NULL,	64,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC,	0},
-		{"authtype",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
-		{"username",	NULL,	NULL,	64,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC,	0},
-		{"password",	NULL,	NULL,	64,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC,	0},
-		{"publickey",	NULL,	NULL,	64,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC,	0},
-		{"privatekey",	NULL,	NULL,	64,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC,	0},
-		{"command",	NULL,	NULL,	65535,	ZBX_TYPE_TEXT,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"operationid",	NULL,	"operations",	"operationid",	0,	ZBX_TYPE_ID,	ZBX_NOTNULL,	ZBX_FK_CASCADE_DELETE},
+		{"type",	"0",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"scriptid",	NULL,	"scripts",	"scriptid",	0,	ZBX_TYPE_ID,	ZBX_SYNC,	0},
+		{"execute_on",	"0",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"port",	"",	NULL,	NULL,	64,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"authtype",	"0",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"username",	"",	NULL,	NULL,	64,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"password",	"",	NULL,	NULL,	64,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"publickey",	"",	NULL,	NULL,	64,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"privatekey",	"",	NULL,	NULL,	64,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"command",	"",	NULL,	NULL,	ZBX_TYPE_SHORTTEXT_LEN,	ZBX_TYPE_SHORTTEXT,	ZBX_NOTNULL | ZBX_SYNC,	0},
 		{0}
-		}
+		},
+		NULL
 	},
 	{"opcommand_hst",	"opcommand_hstid",	ZBX_SYNC,
 		{
-		{"opcommand_hstid",	NULL,	NULL,	0,	ZBX_TYPE_ID,	ZBX_NOTNULL,	0},
-		{"operationid",	"operations",	"operationid",	0,	ZBX_TYPE_ID,	ZBX_NOTNULL | ZBX_SYNC,	ZBX_FK_CASCADE_DELETE},
-		{"hostid",	"hosts",	"hostid",	0,	ZBX_TYPE_ID,	ZBX_SYNC,	0},
+		{"opcommand_hstid",	NULL,	NULL,	NULL,	0,	ZBX_TYPE_ID,	ZBX_NOTNULL,	0},
+		{"operationid",	NULL,	"operations",	"operationid",	0,	ZBX_TYPE_ID,	ZBX_NOTNULL | ZBX_SYNC,	ZBX_FK_CASCADE_DELETE},
+		{"hostid",	NULL,	"hosts",	"hostid",	0,	ZBX_TYPE_ID,	ZBX_SYNC,	0},
 		{0}
-		}
+		},
+		NULL
 	},
 	{"opcommand_grp",	"opcommand_grpid",	ZBX_SYNC,
 		{
-		{"opcommand_grpid",	NULL,	NULL,	0,	ZBX_TYPE_ID,	ZBX_NOTNULL,	0},
-		{"operationid",	"operations",	"operationid",	0,	ZBX_TYPE_ID,	ZBX_NOTNULL | ZBX_SYNC,	ZBX_FK_CASCADE_DELETE},
-		{"groupid",	"groups",	"groupid",	0,	ZBX_TYPE_ID,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"opcommand_grpid",	NULL,	NULL,	NULL,	0,	ZBX_TYPE_ID,	ZBX_NOTNULL,	0},
+		{"operationid",	NULL,	"operations",	"operationid",	0,	ZBX_TYPE_ID,	ZBX_NOTNULL | ZBX_SYNC,	ZBX_FK_CASCADE_DELETE},
+		{"groupid",	NULL,	"groups",	"groupid",	0,	ZBX_TYPE_ID,	ZBX_NOTNULL | ZBX_SYNC,	0},
 		{0}
-		}
+		},
+		NULL
 	},
 	{"opgroup",	"opgroupid",	ZBX_SYNC,
 		{
-		{"opgroupid",	NULL,	NULL,	0,	ZBX_TYPE_ID,	ZBX_NOTNULL,	0},
-		{"operationid",	"operations",	"operationid",	0,	ZBX_TYPE_ID,	ZBX_NOTNULL | ZBX_SYNC,	ZBX_FK_CASCADE_DELETE},
-		{"groupid",	"groups",	"groupid",	0,	ZBX_TYPE_ID,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"opgroupid",	NULL,	NULL,	NULL,	0,	ZBX_TYPE_ID,	ZBX_NOTNULL,	0},
+		{"operationid",	NULL,	"operations",	"operationid",	0,	ZBX_TYPE_ID,	ZBX_NOTNULL | ZBX_SYNC,	ZBX_FK_CASCADE_DELETE},
+		{"groupid",	NULL,	"groups",	"groupid",	0,	ZBX_TYPE_ID,	ZBX_NOTNULL | ZBX_SYNC,	0},
 		{0}
 		},
 		"operationid,groupid"
 	},
 	{"optemplate",	"optemplateid",	ZBX_SYNC,
 		{
-		{"optemplateid",	NULL,	NULL,	0,	ZBX_TYPE_ID,	ZBX_NOTNULL,	0},
-		{"operationid",	"operations",	"operationid",	0,	ZBX_TYPE_ID,	ZBX_NOTNULL | ZBX_SYNC,	ZBX_FK_CASCADE_DELETE},
-		{"templateid",	"hosts",	"hostid",	0,	ZBX_TYPE_ID,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"optemplateid",	NULL,	NULL,	NULL,	0,	ZBX_TYPE_ID,	ZBX_NOTNULL,	0},
+		{"operationid",	NULL,	"operations",	"operationid",	0,	ZBX_TYPE_ID,	ZBX_NOTNULL | ZBX_SYNC,	ZBX_FK_CASCADE_DELETE},
+		{"templateid",	NULL,	"hosts",	"hostid",	0,	ZBX_TYPE_ID,	ZBX_NOTNULL | ZBX_SYNC,	0},
 		{0}
 		},
 		"operationid,templateid"
 	},
 	{"opconditions",	"opconditionid",	ZBX_SYNC,
 		{
-		{"opconditionid",	NULL,	NULL,	0,	ZBX_TYPE_ID,	ZBX_NOTNULL,	0},
-		{"operationid",	"operations",	"operationid",	0,	ZBX_TYPE_ID,	ZBX_NOTNULL | ZBX_SYNC,	ZBX_FK_CASCADE_DELETE},
-		{"conditiontype",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
-		{"operator",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
-		{"value",	NULL,	NULL,	255,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"opconditionid",	NULL,	NULL,	NULL,	0,	ZBX_TYPE_ID,	ZBX_NOTNULL,	0},
+		{"operationid",	NULL,	"operations",	"operationid",	0,	ZBX_TYPE_ID,	ZBX_NOTNULL | ZBX_SYNC,	ZBX_FK_CASCADE_DELETE},
+		{"conditiontype",	"0",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"operator",	"0",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"value",	"",	NULL,	NULL,	255,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC,	0},
 		{0}
-		}
+		},
+		NULL
 	},
 	{"conditions",	"conditionid",	ZBX_SYNC,
 		{
-		{"conditionid",	NULL,	NULL,	0,	ZBX_TYPE_ID,	ZBX_NOTNULL,	0},
-		{"actionid",	"actions",	"actionid",	0,	ZBX_TYPE_ID,	ZBX_NOTNULL | ZBX_SYNC,	ZBX_FK_CASCADE_DELETE},
-		{"conditiontype",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
-		{"operator",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
-		{"value",	NULL,	NULL,	255,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"conditionid",	NULL,	NULL,	NULL,	0,	ZBX_TYPE_ID,	ZBX_NOTNULL,	0},
+		{"actionid",	NULL,	"actions",	"actionid",	0,	ZBX_TYPE_ID,	ZBX_NOTNULL | ZBX_SYNC,	ZBX_FK_CASCADE_DELETE},
+		{"conditiontype",	"0",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"operator",	"0",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"value",	"",	NULL,	NULL,	255,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC,	0},
 		{0}
-		}
+		},
+		NULL
 	},
 	{"config",	"configid",	ZBX_SYNC,
 		{
-		{"configid",	NULL,	NULL,	0,	ZBX_TYPE_ID,	ZBX_NOTNULL,	0},
-		{"alert_history",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
-		{"event_history",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
-		{"refresh_unsupported",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC | ZBX_PROXY,	0},
-		{"work_period",	NULL,	NULL,	100,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC,	0},
-		{"alert_usrgrpid",	"usrgrp",	"usrgrpid",	0,	ZBX_TYPE_ID,	ZBX_SYNC,	0},
-		{"event_ack_enable",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
-		{"event_expire",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
-		{"event_show_max",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
-		{"default_theme",	NULL,	NULL,	128,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC,	0},
-		{"authentication_type",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
-		{"ldap_host",	NULL,	NULL,	255,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC,	0},
-		{"ldap_port",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
-		{"ldap_base_dn",	NULL,	NULL,	255,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC,	0},
-		{"ldap_bind_dn",	NULL,	NULL,	255,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC,	0},
-		{"ldap_bind_password",	NULL,	NULL,	128,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC,	0},
-		{"ldap_search_attribute",	NULL,	NULL,	128,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC,	0},
-		{"dropdown_first_entry",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
-		{"dropdown_first_remember",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
-		{"discovery_groupid",	"groups",	"groupid",	0,	ZBX_TYPE_ID,	ZBX_NOTNULL | ZBX_SYNC | ZBX_PROXY,	0},
-		{"max_in_table",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
-		{"search_limit",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
-		{"severity_color_0",	NULL,	NULL,	6,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC,	0},
-		{"severity_color_1",	NULL,	NULL,	6,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC,	0},
-		{"severity_color_2",	NULL,	NULL,	6,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC,	0},
-		{"severity_color_3",	NULL,	NULL,	6,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC,	0},
-		{"severity_color_4",	NULL,	NULL,	6,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC,	0},
-		{"severity_color_5",	NULL,	NULL,	6,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC,	0},
-		{"severity_name_0",	NULL,	NULL,	32,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC,	0},
-		{"severity_name_1",	NULL,	NULL,	32,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC,	0},
-		{"severity_name_2",	NULL,	NULL,	32,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC,	0},
-		{"severity_name_3",	NULL,	NULL,	32,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC,	0},
-		{"severity_name_4",	NULL,	NULL,	32,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC,	0},
-		{"severity_name_5",	NULL,	NULL,	32,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC,	0},
-		{"ok_period",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
-		{"blink_period",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
-		{"problem_unack_color",	NULL,	NULL,	6,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC,	0},
-		{"problem_ack_color",	NULL,	NULL,	6,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC,	0},
-		{"ok_unack_color",	NULL,	NULL,	6,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC,	0},
-		{"ok_ack_color",	NULL,	NULL,	6,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC,	0},
-		{"problem_unack_style",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
-		{"problem_ack_style",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
-		{"ok_unack_style",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
-		{"ok_ack_style",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
-		{"snmptrap_logging",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC | ZBX_PROXY,	0},
-		{"server_check_interval",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"configid",	NULL,	NULL,	NULL,	0,	ZBX_TYPE_ID,	ZBX_NOTNULL,	0},
+		{"refresh_unsupported",	"0",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC | ZBX_PROXY,	0},
+		{"work_period",	"1-5,00:00-24:00",	NULL,	NULL,	100,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"alert_usrgrpid",	NULL,	"usrgrp",	"usrgrpid",	0,	ZBX_TYPE_ID,	ZBX_SYNC,	0},
+		{"event_ack_enable",	"1",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"event_expire",	"7",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"event_show_max",	"100",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"default_theme",	"originalblue",	NULL,	NULL,	128,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"authentication_type",	"0",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"ldap_host",	"",	NULL,	NULL,	255,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"ldap_port",	"389",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"ldap_base_dn",	"",	NULL,	NULL,	255,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"ldap_bind_dn",	"",	NULL,	NULL,	255,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"ldap_bind_password",	"",	NULL,	NULL,	128,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"ldap_search_attribute",	"",	NULL,	NULL,	128,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"dropdown_first_entry",	"1",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"dropdown_first_remember",	"1",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"discovery_groupid",	NULL,	"groups",	"groupid",	0,	ZBX_TYPE_ID,	ZBX_NOTNULL | ZBX_SYNC | ZBX_PROXY,	0},
+		{"max_in_table",	"50",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"search_limit",	"1000",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"severity_color_0",	"DBDBDB",	NULL,	NULL,	6,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"severity_color_1",	"D6F6FF",	NULL,	NULL,	6,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"severity_color_2",	"FFF6A5",	NULL,	NULL,	6,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"severity_color_3",	"FFB689",	NULL,	NULL,	6,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"severity_color_4",	"FF9999",	NULL,	NULL,	6,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"severity_color_5",	"FF3838",	NULL,	NULL,	6,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"severity_name_0",	"Not classified",	NULL,	NULL,	32,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"severity_name_1",	"Information",	NULL,	NULL,	32,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"severity_name_2",	"Warning",	NULL,	NULL,	32,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"severity_name_3",	"Average",	NULL,	NULL,	32,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"severity_name_4",	"High",	NULL,	NULL,	32,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"severity_name_5",	"Disaster",	NULL,	NULL,	32,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"ok_period",	"1800",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"blink_period",	"1800",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"problem_unack_color",	"DC0000",	NULL,	NULL,	6,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"problem_ack_color",	"DC0000",	NULL,	NULL,	6,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"ok_unack_color",	"00AA00",	NULL,	NULL,	6,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"ok_ack_color",	"00AA00",	NULL,	NULL,	6,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"problem_unack_style",	"1",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"problem_ack_style",	"1",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"ok_unack_style",	"1",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"ok_ack_style",	"1",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"snmptrap_logging",	"1",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC | ZBX_PROXY,	0},
+		{"server_check_interval",	"10",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"hk_events_mode",	"1",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"hk_events_trigger",	"365",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"hk_events_internal",	"365",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"hk_events_discovery",	"365",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"hk_events_autoreg",	"365",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"hk_services_mode",	"1",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"hk_services",	"365",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"hk_audit_mode",	"1",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"hk_audit",	"365",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"hk_sessions_mode",	"1",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"hk_sessions",	"365",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"hk_history_mode",	"1",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"hk_history_global",	"0",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"hk_history",	"90",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"hk_trends_mode",	"1",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"hk_trends_global",	"0",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"hk_trends",	"365",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
 		{0}
-		}
+		},
+		NULL
 	},
 	{"triggers",	"triggerid",	ZBX_SYNC,
 		{
-		{"triggerid",	NULL,	NULL,	0,	ZBX_TYPE_ID,	ZBX_NOTNULL,	0},
-		{"expression",	NULL,	NULL,	255,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC,	0},
-		{"description",	NULL,	NULL,	255,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC,	0},
-		{"url",	NULL,	NULL,	255,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC,	0},
-		{"status",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
-		{"value",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
-		{"priority",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
-		{"lastchange",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
-		{"comments",	NULL,	NULL,	65535,	ZBX_TYPE_TEXT,	ZBX_NOTNULL | ZBX_SYNC,	0},
-		{"error",	NULL,	NULL,	128,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC,	0},
-		{"templateid",	"triggers",	"triggerid",	0,	ZBX_TYPE_ID,	ZBX_SYNC,	ZBX_FK_CASCADE_DELETE},
-		{"type",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
-		{"value_flags",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
-		{"flags",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"triggerid",	NULL,	NULL,	NULL,	0,	ZBX_TYPE_ID,	ZBX_NOTNULL,	0},
+		{"expression",	"",	NULL,	NULL,	2048,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"description",	"",	NULL,	NULL,	255,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"url",	"",	NULL,	NULL,	255,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"status",	"0",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"value",	"0",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"priority",	"0",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"lastchange",	"0",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"comments",	"",	NULL,	NULL,	ZBX_TYPE_SHORTTEXT_LEN,	ZBX_TYPE_SHORTTEXT,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"error",	"",	NULL,	NULL,	128,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"templateid",	NULL,	"triggers",	"triggerid",	0,	ZBX_TYPE_ID,	ZBX_SYNC,	ZBX_FK_CASCADE_DELETE},
+		{"type",	"0",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"state",	"0",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"flags",	"0",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
 		{0}
-		}
+		},
+		NULL
 	},
 	{"trigger_depends",	"triggerdepid",	ZBX_SYNC,
 		{
-		{"triggerdepid",	NULL,	NULL,	0,	ZBX_TYPE_ID,	ZBX_NOTNULL,	0},
-		{"triggerid_down",	"triggers",	"triggerid",	0,	ZBX_TYPE_ID,	ZBX_NOTNULL | ZBX_SYNC,	ZBX_FK_CASCADE_DELETE},
-		{"triggerid_up",	"triggers",	"triggerid",	0,	ZBX_TYPE_ID,	ZBX_NOTNULL | ZBX_SYNC,	ZBX_FK_CASCADE_DELETE},
+		{"triggerdepid",	NULL,	NULL,	NULL,	0,	ZBX_TYPE_ID,	ZBX_NOTNULL,	0},
+		{"triggerid_down",	NULL,	"triggers",	"triggerid",	0,	ZBX_TYPE_ID,	ZBX_NOTNULL | ZBX_SYNC,	ZBX_FK_CASCADE_DELETE},
+		{"triggerid_up",	NULL,	"triggers",	"triggerid",	0,	ZBX_TYPE_ID,	ZBX_NOTNULL | ZBX_SYNC,	ZBX_FK_CASCADE_DELETE},
 		{0}
 		},
 		"triggerid_down,triggerid_up"
 	},
 	{"functions",	"functionid",	ZBX_SYNC,
 		{
-		{"functionid",	NULL,	NULL,	0,	ZBX_TYPE_ID,	ZBX_NOTNULL,	0},
-		{"itemid",	"items",	"itemid",	0,	ZBX_TYPE_ID,	ZBX_NOTNULL | ZBX_SYNC,	ZBX_FK_CASCADE_DELETE},
-		{"triggerid",	"triggers",	"triggerid",	0,	ZBX_TYPE_ID,	ZBX_NOTNULL | ZBX_SYNC,	ZBX_FK_CASCADE_DELETE},
-		{"function",	NULL,	NULL,	12,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC,	0},
-		{"parameter",	NULL,	NULL,	255,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"functionid",	NULL,	NULL,	NULL,	0,	ZBX_TYPE_ID,	ZBX_NOTNULL,	0},
+		{"itemid",	NULL,	"items",	"itemid",	0,	ZBX_TYPE_ID,	ZBX_NOTNULL | ZBX_SYNC,	ZBX_FK_CASCADE_DELETE},
+		{"triggerid",	NULL,	"triggers",	"triggerid",	0,	ZBX_TYPE_ID,	ZBX_NOTNULL | ZBX_SYNC,	ZBX_FK_CASCADE_DELETE},
+		{"function",	"",	NULL,	NULL,	12,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"parameter",	"0",	NULL,	NULL,	255,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC,	0},
 		{0}
-		}
+		},
+		NULL
 	},
 	{"graphs",	"graphid",	ZBX_SYNC,
 		{
-		{"graphid",	NULL,	NULL,	0,	ZBX_TYPE_ID,	ZBX_NOTNULL,	0},
-		{"name",	NULL,	NULL,	128,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC,	0},
-		{"width",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
-		{"height",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
-		{"yaxismin",	NULL,	NULL,	0,	ZBX_TYPE_FLOAT,	ZBX_NOTNULL | ZBX_SYNC,	0},
-		{"yaxismax",	NULL,	NULL,	0,	ZBX_TYPE_FLOAT,	ZBX_NOTNULL | ZBX_SYNC,	0},
-		{"templateid",	"graphs",	"graphid",	0,	ZBX_TYPE_ID,	ZBX_SYNC,	ZBX_FK_CASCADE_DELETE},
-		{"show_work_period",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
-		{"show_triggers",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
-		{"graphtype",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
-		{"show_legend",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
-		{"show_3d",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
-		{"percent_left",	NULL,	NULL,	0,	ZBX_TYPE_FLOAT,	ZBX_NOTNULL | ZBX_SYNC,	0},
-		{"percent_right",	NULL,	NULL,	0,	ZBX_TYPE_FLOAT,	ZBX_NOTNULL | ZBX_SYNC,	0},
-		{"ymin_type",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
-		{"ymax_type",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
-		{"ymin_itemid",	"items",	"itemid",	0,	ZBX_TYPE_ID,	ZBX_SYNC,	0},
-		{"ymax_itemid",	"items",	"itemid",	0,	ZBX_TYPE_ID,	ZBX_SYNC,	0},
-		{"flags",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"graphid",	NULL,	NULL,	NULL,	0,	ZBX_TYPE_ID,	ZBX_NOTNULL,	0},
+		{"name",	"",	NULL,	NULL,	128,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"width",	"900",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"height",	"200",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"yaxismin",	"0",	NULL,	NULL,	0,	ZBX_TYPE_FLOAT,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"yaxismax",	"100",	NULL,	NULL,	0,	ZBX_TYPE_FLOAT,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"templateid",	NULL,	"graphs",	"graphid",	0,	ZBX_TYPE_ID,	ZBX_SYNC,	ZBX_FK_CASCADE_DELETE},
+		{"show_work_period",	"1",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"show_triggers",	"1",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"graphtype",	"0",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"show_legend",	"1",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"show_3d",	"0",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"percent_left",	"0",	NULL,	NULL,	0,	ZBX_TYPE_FLOAT,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"percent_right",	"0",	NULL,	NULL,	0,	ZBX_TYPE_FLOAT,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"ymin_type",	"0",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"ymax_type",	"0",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"ymin_itemid",	NULL,	"items",	"itemid",	0,	ZBX_TYPE_ID,	ZBX_SYNC,	0},
+		{"ymax_itemid",	NULL,	"items",	"itemid",	0,	ZBX_TYPE_ID,	ZBX_SYNC,	0},
+		{"flags",	"0",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
 		{0}
-		}
+		},
+		NULL
 	},
 	{"graphs_items",	"gitemid",	ZBX_SYNC,
 		{
-		{"gitemid",	NULL,	NULL,	0,	ZBX_TYPE_ID,	ZBX_NOTNULL,	0},
-		{"graphid",	"graphs",	"graphid",	0,	ZBX_TYPE_ID,	ZBX_NOTNULL | ZBX_SYNC,	ZBX_FK_CASCADE_DELETE},
-		{"itemid",	"items",	"itemid",	0,	ZBX_TYPE_ID,	ZBX_NOTNULL | ZBX_SYNC,	ZBX_FK_CASCADE_DELETE},
-		{"drawtype",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
-		{"sortorder",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
-		{"color",	NULL,	NULL,	6,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC,	0},
-		{"yaxisside",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
-		{"calc_fnc",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
-		{"type",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"gitemid",	NULL,	NULL,	NULL,	0,	ZBX_TYPE_ID,	ZBX_NOTNULL,	0},
+		{"graphid",	NULL,	"graphs",	"graphid",	0,	ZBX_TYPE_ID,	ZBX_NOTNULL | ZBX_SYNC,	ZBX_FK_CASCADE_DELETE},
+		{"itemid",	NULL,	"items",	"itemid",	0,	ZBX_TYPE_ID,	ZBX_NOTNULL | ZBX_SYNC,	ZBX_FK_CASCADE_DELETE},
+		{"drawtype",	"0",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"sortorder",	"0",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"color",	"009600",	NULL,	NULL,	6,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"yaxisside",	"0",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"calc_fnc",	"2",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"type",	"0",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
 		{0}
-		}
+		},
+		NULL
 	},
 	{"graph_theme",	"graphthemeid",	0,
 		{
-		{"graphthemeid",	NULL,	NULL,	0,	ZBX_TYPE_ID,	ZBX_NOTNULL,	0},
-		{"description",	NULL,	NULL,	64,	ZBX_TYPE_CHAR,	ZBX_NOTNULL,	0},
-		{"theme",	NULL,	NULL,	64,	ZBX_TYPE_CHAR,	ZBX_NOTNULL,	0},
-		{"backgroundcolor",	NULL,	NULL,	6,	ZBX_TYPE_CHAR,	ZBX_NOTNULL,	0},
-		{"graphcolor",	NULL,	NULL,	6,	ZBX_TYPE_CHAR,	ZBX_NOTNULL,	0},
-		{"graphbordercolor",	NULL,	NULL,	6,	ZBX_TYPE_CHAR,	ZBX_NOTNULL,	0},
-		{"gridcolor",	NULL,	NULL,	6,	ZBX_TYPE_CHAR,	ZBX_NOTNULL,	0},
-		{"maingridcolor",	NULL,	NULL,	6,	ZBX_TYPE_CHAR,	ZBX_NOTNULL,	0},
-		{"gridbordercolor",	NULL,	NULL,	6,	ZBX_TYPE_CHAR,	ZBX_NOTNULL,	0},
-		{"textcolor",	NULL,	NULL,	6,	ZBX_TYPE_CHAR,	ZBX_NOTNULL,	0},
-		{"highlightcolor",	NULL,	NULL,	6,	ZBX_TYPE_CHAR,	ZBX_NOTNULL,	0},
-		{"leftpercentilecolor",	NULL,	NULL,	6,	ZBX_TYPE_CHAR,	ZBX_NOTNULL,	0},
-		{"rightpercentilecolor",	NULL,	NULL,	6,	ZBX_TYPE_CHAR,	ZBX_NOTNULL,	0},
-		{"nonworktimecolor",	NULL,	NULL,	6,	ZBX_TYPE_CHAR,	ZBX_NOTNULL,	0},
-		{"gridview",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL,	0},
-		{"legendview",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL,	0},
+		{"graphthemeid",	NULL,	NULL,	NULL,	0,	ZBX_TYPE_ID,	ZBX_NOTNULL,	0},
+		{"description",	"",	NULL,	NULL,	64,	ZBX_TYPE_CHAR,	ZBX_NOTNULL,	0},
+		{"theme",	"",	NULL,	NULL,	64,	ZBX_TYPE_CHAR,	ZBX_NOTNULL,	0},
+		{"backgroundcolor",	"F0F0F0",	NULL,	NULL,	6,	ZBX_TYPE_CHAR,	ZBX_NOTNULL,	0},
+		{"graphcolor",	"FFFFFF",	NULL,	NULL,	6,	ZBX_TYPE_CHAR,	ZBX_NOTNULL,	0},
+		{"graphbordercolor",	"222222",	NULL,	NULL,	6,	ZBX_TYPE_CHAR,	ZBX_NOTNULL,	0},
+		{"gridcolor",	"CCCCCC",	NULL,	NULL,	6,	ZBX_TYPE_CHAR,	ZBX_NOTNULL,	0},
+		{"maingridcolor",	"AAAAAA",	NULL,	NULL,	6,	ZBX_TYPE_CHAR,	ZBX_NOTNULL,	0},
+		{"gridbordercolor",	"000000",	NULL,	NULL,	6,	ZBX_TYPE_CHAR,	ZBX_NOTNULL,	0},
+		{"textcolor",	"202020",	NULL,	NULL,	6,	ZBX_TYPE_CHAR,	ZBX_NOTNULL,	0},
+		{"highlightcolor",	"AA4444",	NULL,	NULL,	6,	ZBX_TYPE_CHAR,	ZBX_NOTNULL,	0},
+		{"leftpercentilecolor",	"11CC11",	NULL,	NULL,	6,	ZBX_TYPE_CHAR,	ZBX_NOTNULL,	0},
+		{"rightpercentilecolor",	"CC1111",	NULL,	NULL,	6,	ZBX_TYPE_CHAR,	ZBX_NOTNULL,	0},
+		{"nonworktimecolor",	"CCCCCC",	NULL,	NULL,	6,	ZBX_TYPE_CHAR,	ZBX_NOTNULL,	0},
+		{"gridview",	"1",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL,	0},
+		{"legendview",	"1",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL,	0},
 		{0}
-		}
-	},
-	{"help_items",	"itemtype,key_",	0,
-		{
-		{"itemtype",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL,	0},
-		{"key_",	NULL,	NULL,	255,	ZBX_TYPE_CHAR,	ZBX_NOTNULL,	0},
-		{"description",	NULL,	NULL,	255,	ZBX_TYPE_CHAR,	ZBX_NOTNULL,	0},
-		{0}
-		}
+		},
+		NULL
 	},
 	{"globalmacro",	"globalmacroid",	ZBX_SYNC,
 		{
-		{"globalmacroid",	NULL,	NULL,	0,	ZBX_TYPE_ID,	ZBX_NOTNULL,	0},
-		{"macro",	NULL,	NULL,	64,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC | ZBX_PROXY,	0},
-		{"value",	NULL,	NULL,	255,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC | ZBX_PROXY,	0},
+		{"globalmacroid",	NULL,	NULL,	NULL,	0,	ZBX_TYPE_ID,	ZBX_NOTNULL,	0},
+		{"macro",	"",	NULL,	NULL,	64,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC | ZBX_PROXY,	0},
+		{"value",	"",	NULL,	NULL,	255,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC | ZBX_PROXY,	0},
 		{0}
-		}
+		},
+		NULL
 	},
 	{"hostmacro",	"hostmacroid",	ZBX_SYNC,
 		{
-		{"hostmacroid",	NULL,	NULL,	0,	ZBX_TYPE_ID,	ZBX_NOTNULL,	0},
-		{"hostid",	"hosts",	"hostid",	0,	ZBX_TYPE_ID,	ZBX_NOTNULL | ZBX_SYNC | ZBX_PROXY,	ZBX_FK_CASCADE_DELETE},
-		{"macro",	NULL,	NULL,	64,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC | ZBX_PROXY,	0},
-		{"value",	NULL,	NULL,	255,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC | ZBX_PROXY,	0},
+		{"hostmacroid",	NULL,	NULL,	NULL,	0,	ZBX_TYPE_ID,	ZBX_NOTNULL,	0},
+		{"hostid",	NULL,	"hosts",	"hostid",	0,	ZBX_TYPE_ID,	ZBX_NOTNULL | ZBX_SYNC | ZBX_PROXY,	ZBX_FK_CASCADE_DELETE},
+		{"macro",	"",	NULL,	NULL,	64,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC | ZBX_PROXY,	0},
+		{"value",	"",	NULL,	NULL,	255,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC | ZBX_PROXY,	0},
 		{0}
 		},
 		"hostid,macro"
 	},
 	{"hosts_groups",	"hostgroupid",	ZBX_SYNC,
 		{
-		{"hostgroupid",	NULL,	NULL,	0,	ZBX_TYPE_ID,	ZBX_NOTNULL,	0},
-		{"hostid",	"hosts",	"hostid",	0,	ZBX_TYPE_ID,	ZBX_NOTNULL | ZBX_SYNC,	ZBX_FK_CASCADE_DELETE},
-		{"groupid",	"groups",	"groupid",	0,	ZBX_TYPE_ID,	ZBX_NOTNULL | ZBX_SYNC,	ZBX_FK_CASCADE_DELETE},
+		{"hostgroupid",	NULL,	NULL,	NULL,	0,	ZBX_TYPE_ID,	ZBX_NOTNULL,	0},
+		{"hostid",	NULL,	"hosts",	"hostid",	0,	ZBX_TYPE_ID,	ZBX_NOTNULL | ZBX_SYNC,	ZBX_FK_CASCADE_DELETE},
+		{"groupid",	NULL,	"groups",	"groupid",	0,	ZBX_TYPE_ID,	ZBX_NOTNULL | ZBX_SYNC,	ZBX_FK_CASCADE_DELETE},
 		{0}
 		},
 		"hostid,groupid"
 	},
 	{"hosts_templates",	"hosttemplateid",	ZBX_SYNC,
 		{
-		{"hosttemplateid",	NULL,	NULL,	0,	ZBX_TYPE_ID,	ZBX_NOTNULL,	0},
-		{"hostid",	"hosts",	"hostid",	0,	ZBX_TYPE_ID,	ZBX_NOTNULL | ZBX_SYNC | ZBX_PROXY,	ZBX_FK_CASCADE_DELETE},
-		{"templateid",	"hosts",	"hostid",	0,	ZBX_TYPE_ID,	ZBX_NOTNULL | ZBX_SYNC | ZBX_PROXY,	ZBX_FK_CASCADE_DELETE},
+		{"hosttemplateid",	NULL,	NULL,	NULL,	0,	ZBX_TYPE_ID,	ZBX_NOTNULL,	0},
+		{"hostid",	NULL,	"hosts",	"hostid",	0,	ZBX_TYPE_ID,	ZBX_NOTNULL | ZBX_SYNC | ZBX_PROXY,	ZBX_FK_CASCADE_DELETE},
+		{"templateid",	NULL,	"hosts",	"hostid",	0,	ZBX_TYPE_ID,	ZBX_NOTNULL | ZBX_SYNC | ZBX_PROXY,	ZBX_FK_CASCADE_DELETE},
 		{0}
 		},
 		"hostid,templateid"
 	},
 	{"items_applications",	"itemappid",	ZBX_SYNC,
 		{
-		{"itemappid",	NULL,	NULL,	0,	ZBX_TYPE_ID,	ZBX_NOTNULL,	0},
-		{"applicationid",	"applications",	"applicationid",	0,	ZBX_TYPE_ID,	ZBX_NOTNULL | ZBX_SYNC,	ZBX_FK_CASCADE_DELETE},
-		{"itemid",	"items",	"itemid",	0,	ZBX_TYPE_ID,	ZBX_NOTNULL | ZBX_SYNC,	ZBX_FK_CASCADE_DELETE},
+		{"itemappid",	NULL,	NULL,	NULL,	0,	ZBX_TYPE_ID,	ZBX_NOTNULL,	0},
+		{"applicationid",	NULL,	"applications",	"applicationid",	0,	ZBX_TYPE_ID,	ZBX_NOTNULL | ZBX_SYNC,	ZBX_FK_CASCADE_DELETE},
+		{"itemid",	NULL,	"items",	"itemid",	0,	ZBX_TYPE_ID,	ZBX_NOTNULL | ZBX_SYNC,	ZBX_FK_CASCADE_DELETE},
 		{0}
 		},
 		"applicationid,itemid"
 	},
 	{"mappings",	"mappingid",	ZBX_SYNC,
 		{
-		{"mappingid",	NULL,	NULL,	0,	ZBX_TYPE_ID,	ZBX_NOTNULL,	0},
-		{"valuemapid",	"valuemaps",	"valuemapid",	0,	ZBX_TYPE_ID,	ZBX_NOTNULL | ZBX_SYNC,	ZBX_FK_CASCADE_DELETE},
-		{"value",	NULL,	NULL,	64,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC,	0},
-		{"newvalue",	NULL,	NULL,	64,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"mappingid",	NULL,	NULL,	NULL,	0,	ZBX_TYPE_ID,	ZBX_NOTNULL,	0},
+		{"valuemapid",	NULL,	"valuemaps",	"valuemapid",	0,	ZBX_TYPE_ID,	ZBX_NOTNULL | ZBX_SYNC,	ZBX_FK_CASCADE_DELETE},
+		{"value",	"",	NULL,	NULL,	64,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"newvalue",	"",	NULL,	NULL,	64,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC,	0},
 		{0}
-		}
+		},
+		NULL
 	},
 	{"media",	"mediaid",	ZBX_SYNC,
 		{
-		{"mediaid",	NULL,	NULL,	0,	ZBX_TYPE_ID,	ZBX_NOTNULL,	0},
-		{"userid",	"users",	"userid",	0,	ZBX_TYPE_ID,	ZBX_NOTNULL | ZBX_SYNC,	ZBX_FK_CASCADE_DELETE},
-		{"mediatypeid",	"media_type",	"mediatypeid",	0,	ZBX_TYPE_ID,	ZBX_NOTNULL | ZBX_SYNC,	ZBX_FK_CASCADE_DELETE},
-		{"sendto",	NULL,	NULL,	100,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC,	0},
-		{"active",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
-		{"severity",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
-		{"period",	NULL,	NULL,	100,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"mediaid",	NULL,	NULL,	NULL,	0,	ZBX_TYPE_ID,	ZBX_NOTNULL,	0},
+		{"userid",	NULL,	"users",	"userid",	0,	ZBX_TYPE_ID,	ZBX_NOTNULL | ZBX_SYNC,	ZBX_FK_CASCADE_DELETE},
+		{"mediatypeid",	NULL,	"media_type",	"mediatypeid",	0,	ZBX_TYPE_ID,	ZBX_NOTNULL | ZBX_SYNC,	ZBX_FK_CASCADE_DELETE},
+		{"sendto",	"",	NULL,	NULL,	100,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"active",	"0",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"severity",	"63",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"period",	"1-7,00:00-24:00",	NULL,	NULL,	100,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC,	0},
 		{0}
-		}
+		},
+		NULL
 	},
 	{"rights",	"rightid",	ZBX_SYNC,
 		{
-		{"rightid",	NULL,	NULL,	0,	ZBX_TYPE_ID,	ZBX_NOTNULL,	0},
-		{"groupid",	"usrgrp",	"usrgrpid",	0,	ZBX_TYPE_ID,	ZBX_NOTNULL | ZBX_SYNC,	ZBX_FK_CASCADE_DELETE},
-		{"permission",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
-		{"id",	"groups",	"groupid",	0,	ZBX_TYPE_ID,	ZBX_NOTNULL | ZBX_SYNC,	ZBX_FK_CASCADE_DELETE},
+		{"rightid",	NULL,	NULL,	NULL,	0,	ZBX_TYPE_ID,	ZBX_NOTNULL,	0},
+		{"groupid",	NULL,	"usrgrp",	"usrgrpid",	0,	ZBX_TYPE_ID,	ZBX_NOTNULL | ZBX_SYNC,	ZBX_FK_CASCADE_DELETE},
+		{"permission",	"0",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"id",	NULL,	"groups",	"groupid",	0,	ZBX_TYPE_ID,	ZBX_NOTNULL | ZBX_SYNC,	ZBX_FK_CASCADE_DELETE},
 		{0}
-		}
+		},
+		NULL
 	},
 	{"services",	"serviceid",	ZBX_SYNC,
 		{
-		{"serviceid",	NULL,	NULL,	0,	ZBX_TYPE_ID,	ZBX_NOTNULL,	0},
-		{"name",	NULL,	NULL,	128,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC,	0},
-		{"status",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
-		{"algorithm",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
-		{"triggerid",	"triggers",	"triggerid",	0,	ZBX_TYPE_ID,	ZBX_SYNC,	ZBX_FK_CASCADE_DELETE},
-		{"showsla",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
-		{"goodsla",	NULL,	NULL,	0,	ZBX_TYPE_FLOAT,	ZBX_NOTNULL | ZBX_SYNC,	0},
-		{"sortorder",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"serviceid",	NULL,	NULL,	NULL,	0,	ZBX_TYPE_ID,	ZBX_NOTNULL,	0},
+		{"name",	"",	NULL,	NULL,	128,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"status",	"0",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"algorithm",	"0",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"triggerid",	NULL,	"triggers",	"triggerid",	0,	ZBX_TYPE_ID,	ZBX_SYNC,	ZBX_FK_CASCADE_DELETE},
+		{"showsla",	"0",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"goodsla",	"99.9",	NULL,	NULL,	0,	ZBX_TYPE_FLOAT,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"sortorder",	"0",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
 		{0}
-		}
+		},
+		NULL
 	},
 	{"services_links",	"linkid",	ZBX_SYNC,
 		{
-		{"linkid",	NULL,	NULL,	0,	ZBX_TYPE_ID,	ZBX_NOTNULL,	0},
-		{"serviceupid",	"services",	"serviceid",	0,	ZBX_TYPE_ID,	ZBX_NOTNULL | ZBX_SYNC,	ZBX_FK_CASCADE_DELETE},
-		{"servicedownid",	"services",	"serviceid",	0,	ZBX_TYPE_ID,	ZBX_NOTNULL | ZBX_SYNC,	ZBX_FK_CASCADE_DELETE},
-		{"soft",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"linkid",	NULL,	NULL,	NULL,	0,	ZBX_TYPE_ID,	ZBX_NOTNULL,	0},
+		{"serviceupid",	NULL,	"services",	"serviceid",	0,	ZBX_TYPE_ID,	ZBX_NOTNULL | ZBX_SYNC,	ZBX_FK_CASCADE_DELETE},
+		{"servicedownid",	NULL,	"services",	"serviceid",	0,	ZBX_TYPE_ID,	ZBX_NOTNULL | ZBX_SYNC,	ZBX_FK_CASCADE_DELETE},
+		{"soft",	"0",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
 		{0}
 		},
 		"serviceupid,servicedownid"
 	},
 	{"services_times",	"timeid",	ZBX_SYNC,
 		{
-		{"timeid",	NULL,	NULL,	0,	ZBX_TYPE_ID,	ZBX_NOTNULL,	0},
-		{"serviceid",	"services",	"serviceid",	0,	ZBX_TYPE_ID,	ZBX_NOTNULL | ZBX_SYNC,	ZBX_FK_CASCADE_DELETE},
-		{"type",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
-		{"ts_from",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
-		{"ts_to",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
-		{"note",	NULL,	NULL,	255,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"timeid",	NULL,	NULL,	NULL,	0,	ZBX_TYPE_ID,	ZBX_NOTNULL,	0},
+		{"serviceid",	NULL,	"services",	"serviceid",	0,	ZBX_TYPE_ID,	ZBX_NOTNULL | ZBX_SYNC,	ZBX_FK_CASCADE_DELETE},
+		{"type",	"0",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"ts_from",	"0",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"ts_to",	"0",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"note",	"",	NULL,	NULL,	255,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC,	0},
 		{0}
-		}
+		},
+		NULL
 	},
 	{"icon_map",	"iconmapid",	ZBX_SYNC,
 		{
-		{"iconmapid",	NULL,	NULL,	0,	ZBX_TYPE_ID,	ZBX_NOTNULL,	0},
-		{"name",	NULL,	NULL,	64,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC,	0},
-		{"default_iconid",	"images",	"imageid",	0,	ZBX_TYPE_ID,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"iconmapid",	NULL,	NULL,	NULL,	0,	ZBX_TYPE_ID,	ZBX_NOTNULL,	0},
+		{"name",	"",	NULL,	NULL,	64,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"default_iconid",	NULL,	"images",	"imageid",	0,	ZBX_TYPE_ID,	ZBX_NOTNULL | ZBX_SYNC,	0},
 		{0}
-		}
+		},
+		NULL
 	},
 	{"icon_mapping",	"iconmappingid",	ZBX_SYNC,
 		{
-		{"iconmappingid",	NULL,	NULL,	0,	ZBX_TYPE_ID,	ZBX_NOTNULL,	0},
-		{"iconmapid",	"icon_map",	"iconmapid",	0,	ZBX_TYPE_ID,	ZBX_NOTNULL | ZBX_SYNC,	ZBX_FK_CASCADE_DELETE},
-		{"iconid",	"images",	"imageid",	0,	ZBX_TYPE_ID,	ZBX_NOTNULL | ZBX_SYNC,	0},
-		{"inventory_link",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
-		{"expression",	NULL,	NULL,	64,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC,	0},
-		{"sortorder",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"iconmappingid",	NULL,	NULL,	NULL,	0,	ZBX_TYPE_ID,	ZBX_NOTNULL,	0},
+		{"iconmapid",	NULL,	"icon_map",	"iconmapid",	0,	ZBX_TYPE_ID,	ZBX_NOTNULL | ZBX_SYNC,	ZBX_FK_CASCADE_DELETE},
+		{"iconid",	NULL,	"images",	"imageid",	0,	ZBX_TYPE_ID,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"inventory_link",	"0",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"expression",	"",	NULL,	NULL,	64,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"sortorder",	"0",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
 		{0}
-		}
+		},
+		NULL
 	},
 	{"sysmaps",	"sysmapid",	ZBX_SYNC,
 		{
-		{"sysmapid",	NULL,	NULL,	0,	ZBX_TYPE_ID,	ZBX_NOTNULL,	0},
-		{"name",	NULL,	NULL,	128,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC,	0},
-		{"width",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
-		{"height",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
-		{"backgroundid",	"images",	"imageid",	0,	ZBX_TYPE_ID,	ZBX_SYNC,	0},
-		{"label_type",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
-		{"label_location",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
-		{"highlight",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
-		{"expandproblem",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
-		{"markelements",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
-		{"show_unack",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
-		{"grid_size",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
-		{"grid_show",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
-		{"grid_align",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
-		{"label_format",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
-		{"label_type_host",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
-		{"label_type_hostgroup",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
-		{"label_type_trigger",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
-		{"label_type_map",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
-		{"label_type_image",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
-		{"label_string_host",	NULL,	NULL,	255,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC,	0},
-		{"label_string_hostgroup",	NULL,	NULL,	255,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC,	0},
-		{"label_string_trigger",	NULL,	NULL,	255,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC,	0},
-		{"label_string_map",	NULL,	NULL,	255,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC,	0},
-		{"label_string_image",	NULL,	NULL,	255,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC,	0},
-		{"iconmapid",	"icon_map",	"iconmapid",	0,	ZBX_TYPE_ID,	ZBX_SYNC,	0},
-		{"expand_macros",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"sysmapid",	NULL,	NULL,	NULL,	0,	ZBX_TYPE_ID,	ZBX_NOTNULL,	0},
+		{"name",	"",	NULL,	NULL,	128,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"width",	"600",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"height",	"400",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"backgroundid",	NULL,	"images",	"imageid",	0,	ZBX_TYPE_ID,	ZBX_SYNC,	0},
+		{"label_type",	"2",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"label_location",	"0",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"highlight",	"1",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"expandproblem",	"1",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"markelements",	"0",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"show_unack",	"0",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"grid_size",	"50",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"grid_show",	"1",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"grid_align",	"1",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"label_format",	"0",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"label_type_host",	"2",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"label_type_hostgroup",	"2",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"label_type_trigger",	"2",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"label_type_map",	"2",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"label_type_image",	"2",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"label_string_host",	"",	NULL,	NULL,	255,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"label_string_hostgroup",	"",	NULL,	NULL,	255,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"label_string_trigger",	"",	NULL,	NULL,	255,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"label_string_map",	"",	NULL,	NULL,	255,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"label_string_image",	"",	NULL,	NULL,	255,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"iconmapid",	NULL,	"icon_map",	"iconmapid",	0,	ZBX_TYPE_ID,	ZBX_SYNC,	0},
+		{"expand_macros",	"0",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"severity_min",	"0",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
 		{0}
-		}
+		},
+		NULL
 	},
 	{"sysmaps_elements",	"selementid",	ZBX_SYNC,
 		{
-		{"selementid",	NULL,	NULL,	0,	ZBX_TYPE_ID,	ZBX_NOTNULL,	0},
-		{"sysmapid",	"sysmaps",	"sysmapid",	0,	ZBX_TYPE_ID,	ZBX_NOTNULL | ZBX_SYNC,	ZBX_FK_CASCADE_DELETE},
-		{"elementid",	NULL,	NULL,	0,	ZBX_TYPE_ID,	ZBX_NOTNULL | ZBX_SYNC,	0},
-		{"elementtype",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
-		{"iconid_off",	"images",	"imageid",	0,	ZBX_TYPE_ID,	ZBX_SYNC,	0},
-		{"iconid_on",	"images",	"imageid",	0,	ZBX_TYPE_ID,	ZBX_SYNC,	0},
-		{"label",	NULL,	NULL,	255,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC,	0},
-		{"label_location",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_SYNC,	0},
-		{"x",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
-		{"y",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
-		{"iconid_disabled",	"images",	"imageid",	0,	ZBX_TYPE_ID,	ZBX_SYNC,	0},
-		{"iconid_maintenance",	"images",	"imageid",	0,	ZBX_TYPE_ID,	ZBX_SYNC,	0},
-		{"elementsubtype",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
-		{"areatype",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
-		{"width",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
-		{"height",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
-		{"viewtype",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
-		{"use_iconmap",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"selementid",	NULL,	NULL,	NULL,	0,	ZBX_TYPE_ID,	ZBX_NOTNULL,	0},
+		{"sysmapid",	NULL,	"sysmaps",	"sysmapid",	0,	ZBX_TYPE_ID,	ZBX_NOTNULL | ZBX_SYNC,	ZBX_FK_CASCADE_DELETE},
+		{"elementid",	"0",	NULL,	NULL,	0,	ZBX_TYPE_ID,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"elementtype",	"0",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"iconid_off",	NULL,	"images",	"imageid",	0,	ZBX_TYPE_ID,	ZBX_SYNC,	0},
+		{"iconid_on",	NULL,	"images",	"imageid",	0,	ZBX_TYPE_ID,	ZBX_SYNC,	0},
+		{"label",	"",	NULL,	NULL,	2048,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"label_location",	"-1",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"x",	"0",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"y",	"0",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"iconid_disabled",	NULL,	"images",	"imageid",	0,	ZBX_TYPE_ID,	ZBX_SYNC,	0},
+		{"iconid_maintenance",	NULL,	"images",	"imageid",	0,	ZBX_TYPE_ID,	ZBX_SYNC,	0},
+		{"elementsubtype",	"0",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"areatype",	"0",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"width",	"200",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"height",	"200",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"viewtype",	"0",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"use_iconmap",	"1",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
 		{0}
-		}
+		},
+		NULL
 	},
 	{"sysmaps_links",	"linkid",	ZBX_SYNC,
 		{
-		{"linkid",	NULL,	NULL,	0,	ZBX_TYPE_ID,	ZBX_NOTNULL,	0},
-		{"sysmapid",	"sysmaps",	"sysmapid",	0,	ZBX_TYPE_ID,	ZBX_NOTNULL | ZBX_SYNC,	ZBX_FK_CASCADE_DELETE},
-		{"selementid1",	"sysmaps_elements",	"selementid",	0,	ZBX_TYPE_ID,	ZBX_NOTNULL | ZBX_SYNC,	ZBX_FK_CASCADE_DELETE},
-		{"selementid2",	"sysmaps_elements",	"selementid",	0,	ZBX_TYPE_ID,	ZBX_NOTNULL | ZBX_SYNC,	ZBX_FK_CASCADE_DELETE},
-		{"drawtype",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
-		{"color",	NULL,	NULL,	6,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC,	0},
-		{"label",	NULL,	NULL,	255,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"linkid",	NULL,	NULL,	NULL,	0,	ZBX_TYPE_ID,	ZBX_NOTNULL,	0},
+		{"sysmapid",	NULL,	"sysmaps",	"sysmapid",	0,	ZBX_TYPE_ID,	ZBX_NOTNULL | ZBX_SYNC,	ZBX_FK_CASCADE_DELETE},
+		{"selementid1",	NULL,	"sysmaps_elements",	"selementid",	0,	ZBX_TYPE_ID,	ZBX_NOTNULL | ZBX_SYNC,	ZBX_FK_CASCADE_DELETE},
+		{"selementid2",	NULL,	"sysmaps_elements",	"selementid",	0,	ZBX_TYPE_ID,	ZBX_NOTNULL | ZBX_SYNC,	ZBX_FK_CASCADE_DELETE},
+		{"drawtype",	"0",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"color",	"000000",	NULL,	NULL,	6,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"label",	"",	NULL,	NULL,	2048,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC,	0},
 		{0}
-		}
+		},
+		NULL
 	},
 	{"sysmaps_link_triggers",	"linktriggerid",	ZBX_SYNC,
 		{
-		{"linktriggerid",	NULL,	NULL,	0,	ZBX_TYPE_ID,	ZBX_NOTNULL,	0},
-		{"linkid",	"sysmaps_links",	"linkid",	0,	ZBX_TYPE_ID,	ZBX_NOTNULL | ZBX_SYNC,	ZBX_FK_CASCADE_DELETE},
-		{"triggerid",	"triggers",	"triggerid",	0,	ZBX_TYPE_ID,	ZBX_NOTNULL | ZBX_SYNC,	ZBX_FK_CASCADE_DELETE},
-		{"drawtype",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
-		{"color",	NULL,	NULL,	6,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"linktriggerid",	NULL,	NULL,	NULL,	0,	ZBX_TYPE_ID,	ZBX_NOTNULL,	0},
+		{"linkid",	NULL,	"sysmaps_links",	"linkid",	0,	ZBX_TYPE_ID,	ZBX_NOTNULL | ZBX_SYNC,	ZBX_FK_CASCADE_DELETE},
+		{"triggerid",	NULL,	"triggers",	"triggerid",	0,	ZBX_TYPE_ID,	ZBX_NOTNULL | ZBX_SYNC,	ZBX_FK_CASCADE_DELETE},
+		{"drawtype",	"0",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"color",	"000000",	NULL,	NULL,	6,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC,	0},
 		{0}
 		},
 		"linkid,triggerid"
 	},
 	{"sysmap_element_url",	"sysmapelementurlid",	ZBX_SYNC,
 		{
-		{"sysmapelementurlid",	NULL,	NULL,	0,	ZBX_TYPE_ID,	ZBX_NOTNULL,	0},
-		{"selementid",	"sysmaps_elements",	"selementid",	0,	ZBX_TYPE_ID,	ZBX_NOTNULL | ZBX_SYNC,	ZBX_FK_CASCADE_DELETE},
-		{"name",	NULL,	NULL,	255,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC,	0},
-		{"url",	NULL,	NULL,	255,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"sysmapelementurlid",	NULL,	NULL,	NULL,	0,	ZBX_TYPE_ID,	ZBX_NOTNULL,	0},
+		{"selementid",	NULL,	"sysmaps_elements",	"selementid",	0,	ZBX_TYPE_ID,	ZBX_NOTNULL | ZBX_SYNC,	ZBX_FK_CASCADE_DELETE},
+		{"name",	NULL,	NULL,	NULL,	255,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"url",	"",	NULL,	NULL,	255,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC,	0},
 		{0}
 		},
 		"selementid,name"
 	},
 	{"sysmap_url",	"sysmapurlid",	ZBX_SYNC,
 		{
-		{"sysmapurlid",	NULL,	NULL,	0,	ZBX_TYPE_ID,	ZBX_NOTNULL,	0},
-		{"sysmapid",	"sysmaps",	"sysmapid",	0,	ZBX_TYPE_ID,	ZBX_NOTNULL | ZBX_SYNC,	ZBX_FK_CASCADE_DELETE},
-		{"name",	NULL,	NULL,	255,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC,	0},
-		{"url",	NULL,	NULL,	255,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC,	0},
-		{"elementtype",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"sysmapurlid",	NULL,	NULL,	NULL,	0,	ZBX_TYPE_ID,	ZBX_NOTNULL,	0},
+		{"sysmapid",	NULL,	"sysmaps",	"sysmapid",	0,	ZBX_TYPE_ID,	ZBX_NOTNULL | ZBX_SYNC,	ZBX_FK_CASCADE_DELETE},
+		{"name",	NULL,	NULL,	NULL,	255,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"url",	"",	NULL,	NULL,	255,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"elementtype",	"0",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
 		{0}
 		},
 		"sysmapid,name"
 	},
 	{"maintenances_hosts",	"maintenance_hostid",	ZBX_SYNC,
 		{
-		{"maintenance_hostid",	NULL,	NULL,	0,	ZBX_TYPE_ID,	ZBX_NOTNULL,	0},
-		{"maintenanceid",	"maintenances",	"maintenanceid",	0,	ZBX_TYPE_ID,	ZBX_NOTNULL | ZBX_SYNC,	ZBX_FK_CASCADE_DELETE},
-		{"hostid",	"hosts",	"hostid",	0,	ZBX_TYPE_ID,	ZBX_NOTNULL | ZBX_SYNC,	ZBX_FK_CASCADE_DELETE},
+		{"maintenance_hostid",	NULL,	NULL,	NULL,	0,	ZBX_TYPE_ID,	ZBX_NOTNULL,	0},
+		{"maintenanceid",	NULL,	"maintenances",	"maintenanceid",	0,	ZBX_TYPE_ID,	ZBX_NOTNULL | ZBX_SYNC,	ZBX_FK_CASCADE_DELETE},
+		{"hostid",	NULL,	"hosts",	"hostid",	0,	ZBX_TYPE_ID,	ZBX_NOTNULL | ZBX_SYNC,	ZBX_FK_CASCADE_DELETE},
 		{0}
 		},
 		"maintenanceid,hostid"
 	},
 	{"maintenances_groups",	"maintenance_groupid",	ZBX_SYNC,
 		{
-		{"maintenance_groupid",	NULL,	NULL,	0,	ZBX_TYPE_ID,	ZBX_NOTNULL,	0},
-		{"maintenanceid",	"maintenances",	"maintenanceid",	0,	ZBX_TYPE_ID,	ZBX_NOTNULL | ZBX_SYNC,	ZBX_FK_CASCADE_DELETE},
-		{"groupid",	"groups",	"groupid",	0,	ZBX_TYPE_ID,	ZBX_NOTNULL | ZBX_SYNC,	ZBX_FK_CASCADE_DELETE},
+		{"maintenance_groupid",	NULL,	NULL,	NULL,	0,	ZBX_TYPE_ID,	ZBX_NOTNULL,	0},
+		{"maintenanceid",	NULL,	"maintenances",	"maintenanceid",	0,	ZBX_TYPE_ID,	ZBX_NOTNULL | ZBX_SYNC,	ZBX_FK_CASCADE_DELETE},
+		{"groupid",	NULL,	"groups",	"groupid",	0,	ZBX_TYPE_ID,	ZBX_NOTNULL | ZBX_SYNC,	ZBX_FK_CASCADE_DELETE},
 		{0}
 		},
 		"maintenanceid,groupid"
 	},
 	{"timeperiods",	"timeperiodid",	ZBX_SYNC,
 		{
-		{"timeperiodid",	NULL,	NULL,	0,	ZBX_TYPE_ID,	ZBX_NOTNULL,	0},
-		{"timeperiod_type",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
-		{"every",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
-		{"month",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
-		{"dayofweek",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
-		{"day",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
-		{"start_time",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
-		{"period",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
-		{"start_date",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"timeperiodid",	NULL,	NULL,	NULL,	0,	ZBX_TYPE_ID,	ZBX_NOTNULL,	0},
+		{"timeperiod_type",	"0",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"every",	"0",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"month",	"0",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"dayofweek",	"0",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"day",	"0",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"start_time",	"0",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"period",	"0",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"start_date",	"0",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
 		{0}
-		}
+		},
+		NULL
 	},
 	{"maintenances_windows",	"maintenance_timeperiodid",	ZBX_SYNC,
 		{
-		{"maintenance_timeperiodid",	NULL,	NULL,	0,	ZBX_TYPE_ID,	ZBX_NOTNULL,	0},
-		{"maintenanceid",	"maintenances",	"maintenanceid",	0,	ZBX_TYPE_ID,	ZBX_NOTNULL | ZBX_SYNC,	ZBX_FK_CASCADE_DELETE},
-		{"timeperiodid",	"timeperiods",	"timeperiodid",	0,	ZBX_TYPE_ID,	ZBX_NOTNULL | ZBX_SYNC,	ZBX_FK_CASCADE_DELETE},
+		{"maintenance_timeperiodid",	NULL,	NULL,	NULL,	0,	ZBX_TYPE_ID,	ZBX_NOTNULL,	0},
+		{"maintenanceid",	NULL,	"maintenances",	"maintenanceid",	0,	ZBX_TYPE_ID,	ZBX_NOTNULL | ZBX_SYNC,	ZBX_FK_CASCADE_DELETE},
+		{"timeperiodid",	NULL,	"timeperiods",	"timeperiodid",	0,	ZBX_TYPE_ID,	ZBX_NOTNULL | ZBX_SYNC,	ZBX_FK_CASCADE_DELETE},
 		{0}
 		},
 		"maintenanceid,timeperiodid"
 	},
 	{"regexps",	"regexpid",	ZBX_SYNC,
 		{
-		{"regexpid",	NULL,	NULL,	0,	ZBX_TYPE_ID,	ZBX_NOTNULL,	0},
-		{"name",	NULL,	NULL,	128,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC | ZBX_PROXY,	0},
-		{"test_string",	NULL,	NULL,	65535,	ZBX_TYPE_TEXT,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"regexpid",	NULL,	NULL,	NULL,	0,	ZBX_TYPE_ID,	ZBX_NOTNULL,	0},
+		{"name",	"",	NULL,	NULL,	128,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC | ZBX_PROXY,	0},
+		{"test_string",	"",	NULL,	NULL,	ZBX_TYPE_SHORTTEXT_LEN,	ZBX_TYPE_SHORTTEXT,	ZBX_NOTNULL | ZBX_SYNC,	0},
 		{0}
-		}
+		},
+		NULL
 	},
 	{"expressions",	"expressionid",	ZBX_SYNC,
 		{
-		{"expressionid",	NULL,	NULL,	0,	ZBX_TYPE_ID,	ZBX_NOTNULL,	0},
-		{"regexpid",	"regexps",	"regexpid",	0,	ZBX_TYPE_ID,	ZBX_NOTNULL | ZBX_SYNC | ZBX_PROXY,	ZBX_FK_CASCADE_DELETE},
-		{"expression",	NULL,	NULL,	255,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC | ZBX_PROXY,	0},
-		{"expression_type",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC | ZBX_PROXY,	0},
-		{"exp_delimiter",	NULL,	NULL,	1,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC | ZBX_PROXY,	0},
-		{"case_sensitive",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC | ZBX_PROXY,	0},
+		{"expressionid",	NULL,	NULL,	NULL,	0,	ZBX_TYPE_ID,	ZBX_NOTNULL,	0},
+		{"regexpid",	NULL,	"regexps",	"regexpid",	0,	ZBX_TYPE_ID,	ZBX_NOTNULL | ZBX_SYNC | ZBX_PROXY,	ZBX_FK_CASCADE_DELETE},
+		{"expression",	"",	NULL,	NULL,	255,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC | ZBX_PROXY,	0},
+		{"expression_type",	"0",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC | ZBX_PROXY,	0},
+		{"exp_delimiter",	"",	NULL,	NULL,	1,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC | ZBX_PROXY,	0},
+		{"case_sensitive",	"0",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC | ZBX_PROXY,	0},
 		{0}
-		}
+		},
+		NULL
 	},
 	{"nodes",	"nodeid",	0,
 		{
-		{"nodeid",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL,	0},
-		{"name",	NULL,	NULL,	64,	ZBX_TYPE_CHAR,	ZBX_NOTNULL,	0},
-		{"ip",	NULL,	NULL,	39,	ZBX_TYPE_CHAR,	ZBX_NOTNULL,	0},
-		{"port",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL,	0},
-		{"nodetype",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL,	0},
-		{"masterid",	"nodes",	"nodeid",	0,	ZBX_TYPE_INT,	0,	0},
+		{"nodeid",	NULL,	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL,	0},
+		{"name",	"0",	NULL,	NULL,	64,	ZBX_TYPE_CHAR,	ZBX_NOTNULL,	0},
+		{"ip",	"",	NULL,	NULL,	39,	ZBX_TYPE_CHAR,	ZBX_NOTNULL,	0},
+		{"port",	"10051",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL,	0},
+		{"nodetype",	"0",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL,	0},
+		{"masterid",	NULL,	"nodes",	"nodeid",	0,	ZBX_TYPE_INT,	0,	0},
 		{0}
-		}
+		},
+		NULL
 	},
 	{"node_cksum",	"",	0,
 		{
-		{"nodeid",	"nodes",	"nodeid",	0,	ZBX_TYPE_INT,	ZBX_NOTNULL,	ZBX_FK_CASCADE_DELETE},
-		{"tablename",	NULL,	NULL,	64,	ZBX_TYPE_CHAR,	ZBX_NOTNULL,	0},
-		{"recordid",	NULL,	NULL,	0,	ZBX_TYPE_ID,	ZBX_NOTNULL,	0},
-		{"cksumtype",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL,	0},
-		{"cksum",	NULL,	NULL,	65535,	ZBX_TYPE_TEXT,	ZBX_NOTNULL,	0},
-		{"sync",	NULL,	NULL,	128,	ZBX_TYPE_CHAR,	ZBX_NOTNULL,	0},
+		{"nodeid",	NULL,	"nodes",	"nodeid",	0,	ZBX_TYPE_INT,	ZBX_NOTNULL,	ZBX_FK_CASCADE_DELETE},
+		{"tablename",	"",	NULL,	NULL,	64,	ZBX_TYPE_CHAR,	ZBX_NOTNULL,	0},
+		{"recordid",	NULL,	NULL,	NULL,	0,	ZBX_TYPE_ID,	ZBX_NOTNULL,	0},
+		{"cksumtype",	"0",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL,	0},
+		{"cksum",	"",	NULL,	NULL,	ZBX_TYPE_TEXT_LEN,	ZBX_TYPE_TEXT,	ZBX_NOTNULL,	0},
+		{"sync",	"",	NULL,	NULL,	128,	ZBX_TYPE_CHAR,	ZBX_NOTNULL,	0},
 		{0}
-		}
+		},
+		NULL
 	},
 	{"ids",	"nodeid,table_name,field_name",	0,
 		{
-		{"nodeid",	"nodes",	"nodeid",	0,	ZBX_TYPE_INT,	ZBX_NOTNULL,	ZBX_FK_CASCADE_DELETE},
-		{"table_name",	NULL,	NULL,	64,	ZBX_TYPE_CHAR,	ZBX_NOTNULL,	0},
-		{"field_name",	NULL,	NULL,	64,	ZBX_TYPE_CHAR,	ZBX_NOTNULL,	0},
-		{"nextid",	NULL,	NULL,	0,	ZBX_TYPE_ID,	ZBX_NOTNULL,	0},
+		{"nodeid",	NULL,	"nodes",	"nodeid",	0,	ZBX_TYPE_INT,	ZBX_NOTNULL,	ZBX_FK_CASCADE_DELETE},
+		{"table_name",	"",	NULL,	NULL,	64,	ZBX_TYPE_CHAR,	ZBX_NOTNULL,	0},
+		{"field_name",	"",	NULL,	NULL,	64,	ZBX_TYPE_CHAR,	ZBX_NOTNULL,	0},
+		{"nextid",	NULL,	NULL,	NULL,	0,	ZBX_TYPE_ID,	ZBX_NOTNULL,	0},
 		{0}
-		}
+		},
+		NULL
 	},
 	{"alerts",	"alertid",	ZBX_HISTORY,
 		{
-		{"alertid",	NULL,	NULL,	0,	ZBX_TYPE_ID,	ZBX_NOTNULL,	0},
-		{"actionid",	"actions",	"actionid",	0,	ZBX_TYPE_ID,	ZBX_NOTNULL,	ZBX_FK_CASCADE_DELETE},
-		{"eventid",	"events",	"eventid",	0,	ZBX_TYPE_ID,	ZBX_NOTNULL,	ZBX_FK_CASCADE_DELETE},
-		{"userid",	"users",	"userid",	0,	ZBX_TYPE_ID,	0,	ZBX_FK_CASCADE_DELETE},
-		{"clock",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL,	0},
-		{"mediatypeid",	"media_type",	"mediatypeid",	0,	ZBX_TYPE_ID,	0,	ZBX_FK_CASCADE_DELETE},
-		{"sendto",	NULL,	NULL,	100,	ZBX_TYPE_CHAR,	ZBX_NOTNULL,	0},
-		{"subject",	NULL,	NULL,	255,	ZBX_TYPE_CHAR,	ZBX_NOTNULL,	0},
-		{"message",	NULL,	NULL,	65535,	ZBX_TYPE_TEXT,	ZBX_NOTNULL,	0},
-		{"status",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL,	0},
-		{"retries",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL,	0},
-		{"error",	NULL,	NULL,	128,	ZBX_TYPE_CHAR,	ZBX_NOTNULL,	0},
-		{"nextcheck",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL,	0},
-		{"esc_step",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL,	0},
-		{"alerttype",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL,	0},
+		{"alertid",	NULL,	NULL,	NULL,	0,	ZBX_TYPE_ID,	ZBX_NOTNULL,	0},
+		{"actionid",	NULL,	"actions",	"actionid",	0,	ZBX_TYPE_ID,	ZBX_NOTNULL,	ZBX_FK_CASCADE_DELETE},
+		{"eventid",	NULL,	"events",	"eventid",	0,	ZBX_TYPE_ID,	ZBX_NOTNULL,	ZBX_FK_CASCADE_DELETE},
+		{"userid",	NULL,	"users",	"userid",	0,	ZBX_TYPE_ID,	0,	ZBX_FK_CASCADE_DELETE},
+		{"clock",	"0",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL,	0},
+		{"mediatypeid",	NULL,	"media_type",	"mediatypeid",	0,	ZBX_TYPE_ID,	0,	ZBX_FK_CASCADE_DELETE},
+		{"sendto",	"",	NULL,	NULL,	100,	ZBX_TYPE_CHAR,	ZBX_NOTNULL,	0},
+		{"subject",	"",	NULL,	NULL,	255,	ZBX_TYPE_CHAR,	ZBX_NOTNULL,	0},
+		{"message",	"",	NULL,	NULL,	ZBX_TYPE_TEXT_LEN,	ZBX_TYPE_TEXT,	ZBX_NOTNULL,	0},
+		{"status",	"0",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL,	0},
+		{"retries",	"0",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL,	0},
+		{"error",	"",	NULL,	NULL,	128,	ZBX_TYPE_CHAR,	ZBX_NOTNULL,	0},
+		{"esc_step",	"0",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL,	0},
+		{"alerttype",	"0",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL,	0},
 		{0}
-		}
+		},
+		NULL
 	},
 	{"history",	"",	0,
 		{
-		{"itemid",	"items",	"itemid",	0,	ZBX_TYPE_ID,	ZBX_NOTNULL,	ZBX_FK_CASCADE_DELETE},
-		{"clock",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL,	0},
-		{"value",	NULL,	NULL,	0,	ZBX_TYPE_FLOAT,	ZBX_NOTNULL,	0},
-		{"ns",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL,	0},
+		{"itemid",	NULL,	"items",	"itemid",	0,	ZBX_TYPE_ID,	ZBX_NOTNULL,	ZBX_FK_CASCADE_DELETE},
+		{"clock",	"0",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL,	0},
+		{"value",	"0.0000",	NULL,	NULL,	0,	ZBX_TYPE_FLOAT,	ZBX_NOTNULL,	0},
+		{"ns",	"0",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL,	0},
 		{0}
-		}
+		},
+		NULL
 	},
 	{"history_sync",	"id",	ZBX_HISTORY_SYNC,
 		{
-		{"id",	NULL,	NULL,	0,	ZBX_TYPE_UINT,	ZBX_NOTNULL,	0},
-		{"nodeid",	"nodes",	"nodeid",	0,	ZBX_TYPE_INT,	ZBX_NOTNULL,	ZBX_FK_CASCADE_DELETE},
-		{"itemid",	"items",	"itemid",	0,	ZBX_TYPE_ID,	ZBX_NOTNULL | ZBX_HISTORY_SYNC,	ZBX_FK_CASCADE_DELETE},
-		{"clock",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_HISTORY_SYNC,	0},
-		{"value",	NULL,	NULL,	0,	ZBX_TYPE_FLOAT,	ZBX_NOTNULL | ZBX_HISTORY_SYNC,	0},
-		{"ns",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_HISTORY_SYNC,	0},
+		{"id",	NULL,	NULL,	NULL,	0,	ZBX_TYPE_UINT,	ZBX_NOTNULL,	0},
+		{"nodeid",	NULL,	"nodes",	"nodeid",	0,	ZBX_TYPE_INT,	ZBX_NOTNULL,	ZBX_FK_CASCADE_DELETE},
+		{"itemid",	NULL,	"items",	"itemid",	0,	ZBX_TYPE_ID,	ZBX_NOTNULL | ZBX_HISTORY_SYNC,	ZBX_FK_CASCADE_DELETE},
+		{"clock",	"0",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_HISTORY_SYNC,	0},
+		{"value",	"0.0000",	NULL,	NULL,	0,	ZBX_TYPE_FLOAT,	ZBX_NOTNULL | ZBX_HISTORY_SYNC,	0},
+		{"ns",	"0",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_HISTORY_SYNC,	0},
 		{0}
-		}
+		},
+		NULL
 	},
 	{"history_uint",	"",	0,
 		{
-		{"itemid",	"items",	"itemid",	0,	ZBX_TYPE_ID,	ZBX_NOTNULL,	ZBX_FK_CASCADE_DELETE},
-		{"clock",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL,	0},
-		{"value",	NULL,	NULL,	0,	ZBX_TYPE_UINT,	ZBX_NOTNULL,	0},
-		{"ns",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL,	0},
+		{"itemid",	NULL,	"items",	"itemid",	0,	ZBX_TYPE_ID,	ZBX_NOTNULL,	ZBX_FK_CASCADE_DELETE},
+		{"clock",	"0",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL,	0},
+		{"value",	"0",	NULL,	NULL,	0,	ZBX_TYPE_UINT,	ZBX_NOTNULL,	0},
+		{"ns",	"0",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL,	0},
 		{0}
-		}
+		},
+		NULL
 	},
 	{"history_uint_sync",	"id",	ZBX_HISTORY_SYNC,
 		{
-		{"id",	NULL,	NULL,	0,	ZBX_TYPE_UINT,	ZBX_NOTNULL,	0},
-		{"nodeid",	"nodes",	"nodeid",	0,	ZBX_TYPE_INT,	ZBX_NOTNULL,	ZBX_FK_CASCADE_DELETE},
-		{"itemid",	"items",	"itemid",	0,	ZBX_TYPE_ID,	ZBX_NOTNULL | ZBX_HISTORY_SYNC,	ZBX_FK_CASCADE_DELETE},
-		{"clock",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_HISTORY_SYNC,	0},
-		{"value",	NULL,	NULL,	0,	ZBX_TYPE_UINT,	ZBX_NOTNULL | ZBX_HISTORY_SYNC,	0},
-		{"ns",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_HISTORY_SYNC,	0},
+		{"id",	NULL,	NULL,	NULL,	0,	ZBX_TYPE_UINT,	ZBX_NOTNULL,	0},
+		{"nodeid",	NULL,	"nodes",	"nodeid",	0,	ZBX_TYPE_INT,	ZBX_NOTNULL,	ZBX_FK_CASCADE_DELETE},
+		{"itemid",	NULL,	"items",	"itemid",	0,	ZBX_TYPE_ID,	ZBX_NOTNULL | ZBX_HISTORY_SYNC,	ZBX_FK_CASCADE_DELETE},
+		{"clock",	"0",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_HISTORY_SYNC,	0},
+		{"value",	"0",	NULL,	NULL,	0,	ZBX_TYPE_UINT,	ZBX_NOTNULL | ZBX_HISTORY_SYNC,	0},
+		{"ns",	"0",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_HISTORY_SYNC,	0},
 		{0}
-		}
+		},
+		NULL
 	},
 	{"history_str",	"",	0,
 		{
-		{"itemid",	"items",	"itemid",	0,	ZBX_TYPE_ID,	ZBX_NOTNULL,	ZBX_FK_CASCADE_DELETE},
-		{"clock",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL,	0},
-		{"value",	NULL,	NULL,	255,	ZBX_TYPE_CHAR,	ZBX_NOTNULL,	0},
-		{"ns",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL,	0},
+		{"itemid",	NULL,	"items",	"itemid",	0,	ZBX_TYPE_ID,	ZBX_NOTNULL,	ZBX_FK_CASCADE_DELETE},
+		{"clock",	"0",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL,	0},
+		{"value",	"",	NULL,	NULL,	255,	ZBX_TYPE_CHAR,	ZBX_NOTNULL,	0},
+		{"ns",	"0",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL,	0},
 		{0}
-		}
+		},
+		NULL
 	},
 	{"history_str_sync",	"id",	ZBX_HISTORY_SYNC,
 		{
-		{"id",	NULL,	NULL,	0,	ZBX_TYPE_UINT,	ZBX_NOTNULL,	0},
-		{"nodeid",	"nodes",	"nodeid",	0,	ZBX_TYPE_INT,	ZBX_NOTNULL,	ZBX_FK_CASCADE_DELETE},
-		{"itemid",	"items",	"itemid",	0,	ZBX_TYPE_ID,	ZBX_NOTNULL | ZBX_HISTORY_SYNC,	ZBX_FK_CASCADE_DELETE},
-		{"clock",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_HISTORY_SYNC,	0},
-		{"value",	NULL,	NULL,	255,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_HISTORY_SYNC,	0},
-		{"ns",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_HISTORY_SYNC,	0},
+		{"id",	NULL,	NULL,	NULL,	0,	ZBX_TYPE_UINT,	ZBX_NOTNULL,	0},
+		{"nodeid",	NULL,	"nodes",	"nodeid",	0,	ZBX_TYPE_INT,	ZBX_NOTNULL,	ZBX_FK_CASCADE_DELETE},
+		{"itemid",	NULL,	"items",	"itemid",	0,	ZBX_TYPE_ID,	ZBX_NOTNULL | ZBX_HISTORY_SYNC,	ZBX_FK_CASCADE_DELETE},
+		{"clock",	"0",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_HISTORY_SYNC,	0},
+		{"value",	"",	NULL,	NULL,	255,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_HISTORY_SYNC,	0},
+		{"ns",	"0",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_HISTORY_SYNC,	0},
 		{0}
-		}
+		},
+		NULL
 	},
 	{"history_log",	"id",	ZBX_HISTORY,
 		{
-		{"id",	NULL,	NULL,	0,	ZBX_TYPE_ID,	ZBX_NOTNULL,	0},
-		{"itemid",	"items",	"itemid",	0,	ZBX_TYPE_ID,	ZBX_NOTNULL,	ZBX_FK_CASCADE_DELETE},
-		{"clock",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL,	0},
-		{"timestamp",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL,	0},
-		{"source",	NULL,	NULL,	64,	ZBX_TYPE_CHAR,	ZBX_NOTNULL,	0},
-		{"severity",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL,	0},
-		{"value",	NULL,	NULL,	65535,	ZBX_TYPE_TEXT,	ZBX_NOTNULL,	0},
-		{"logeventid",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL,	0},
-		{"ns",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL,	0},
+		{"id",	NULL,	NULL,	NULL,	0,	ZBX_TYPE_ID,	ZBX_NOTNULL,	0},
+		{"itemid",	NULL,	"items",	"itemid",	0,	ZBX_TYPE_ID,	ZBX_NOTNULL,	ZBX_FK_CASCADE_DELETE},
+		{"clock",	"0",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL,	0},
+		{"timestamp",	"0",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL,	0},
+		{"source",	"",	NULL,	NULL,	64,	ZBX_TYPE_CHAR,	ZBX_NOTNULL,	0},
+		{"severity",	"0",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL,	0},
+		{"value",	"",	NULL,	NULL,	ZBX_TYPE_TEXT_LEN,	ZBX_TYPE_TEXT,	ZBX_NOTNULL,	0},
+		{"logeventid",	"0",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL,	0},
+		{"ns",	"0",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL,	0},
 		{0}
 		},
 		"itemid,id"
 	},
 	{"history_text",	"id",	ZBX_HISTORY,
 		{
-		{"id",	NULL,	NULL,	0,	ZBX_TYPE_ID,	ZBX_NOTNULL,	0},
-		{"itemid",	"items",	"itemid",	0,	ZBX_TYPE_ID,	ZBX_NOTNULL,	ZBX_FK_CASCADE_DELETE},
-		{"clock",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL,	0},
-		{"value",	NULL,	NULL,	65535,	ZBX_TYPE_TEXT,	ZBX_NOTNULL,	0},
-		{"ns",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL,	0},
+		{"id",	NULL,	NULL,	NULL,	0,	ZBX_TYPE_ID,	ZBX_NOTNULL,	0},
+		{"itemid",	NULL,	"items",	"itemid",	0,	ZBX_TYPE_ID,	ZBX_NOTNULL,	ZBX_FK_CASCADE_DELETE},
+		{"clock",	"0",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL,	0},
+		{"value",	"",	NULL,	NULL,	ZBX_TYPE_TEXT_LEN,	ZBX_TYPE_TEXT,	ZBX_NOTNULL,	0},
+		{"ns",	"0",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL,	0},
 		{0}
 		},
 		"itemid,id"
 	},
 	{"proxy_history",	"id",	0,
 		{
-		{"id",	NULL,	NULL,	0,	ZBX_TYPE_UINT,	ZBX_NOTNULL,	0},
-		{"itemid",	"items",	"itemid",	0,	ZBX_TYPE_ID,	ZBX_NOTNULL,	ZBX_FK_CASCADE_DELETE},
-		{"clock",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL,	0},
-		{"timestamp",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL,	0},
-		{"source",	NULL,	NULL,	64,	ZBX_TYPE_CHAR,	ZBX_NOTNULL,	0},
-		{"severity",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL,	0},
-		{"value",	NULL,	NULL,	65535,	ZBX_TYPE_TEXT,	ZBX_NOTNULL,	0},
-		{"logeventid",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL,	0},
-		{"ns",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL,	0},
-		{"status",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL,	0},
+		{"id",	NULL,	NULL,	NULL,	0,	ZBX_TYPE_UINT,	ZBX_NOTNULL,	0},
+		{"itemid",	NULL,	"items",	"itemid",	0,	ZBX_TYPE_ID,	ZBX_NOTNULL,	ZBX_FK_CASCADE_DELETE},
+		{"clock",	"0",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL,	0},
+		{"timestamp",	"0",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL,	0},
+		{"source",	"",	NULL,	NULL,	64,	ZBX_TYPE_CHAR,	ZBX_NOTNULL,	0},
+		{"severity",	"0",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL,	0},
+		{"value",	"",	NULL,	NULL,	ZBX_TYPE_LONGTEXT_LEN,	ZBX_TYPE_LONGTEXT,	ZBX_NOTNULL,	0},
+		{"logeventid",	"0",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL,	0},
+		{"ns",	"0",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL,	0},
+		{"state",	"0",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL,	0},
 		{0}
-		}
+		},
+		NULL
 	},
 	{"proxy_dhistory",	"id",	0,
 		{
-		{"id",	NULL,	NULL,	0,	ZBX_TYPE_UINT,	ZBX_NOTNULL,	0},
-		{"clock",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL,	0},
-		{"druleid",	"drules",	"druleid",	0,	ZBX_TYPE_ID,	ZBX_NOTNULL,	ZBX_FK_CASCADE_DELETE},
-		{"type",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL,	0},
-		{"ip",	NULL,	NULL,	39,	ZBX_TYPE_CHAR,	ZBX_NOTNULL,	0},
-		{"port",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL,	0},
-		{"key_",	NULL,	NULL,	255,	ZBX_TYPE_CHAR,	ZBX_NOTNULL,	0},
-		{"value",	NULL,	NULL,	255,	ZBX_TYPE_CHAR,	ZBX_NOTNULL,	0},
-		{"status",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL,	0},
-		{"dcheckid",	"dchecks",	"dcheckid",	0,	ZBX_TYPE_ID,	0,	ZBX_FK_CASCADE_DELETE},
-		{"dns",	NULL,	NULL,	64,	ZBX_TYPE_CHAR,	ZBX_NOTNULL,	0},
+		{"id",	NULL,	NULL,	NULL,	0,	ZBX_TYPE_UINT,	ZBX_NOTNULL,	0},
+		{"clock",	"0",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL,	0},
+		{"druleid",	NULL,	"drules",	"druleid",	0,	ZBX_TYPE_ID,	ZBX_NOTNULL,	ZBX_FK_CASCADE_DELETE},
+		{"type",	"0",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL,	0},
+		{"ip",	"",	NULL,	NULL,	39,	ZBX_TYPE_CHAR,	ZBX_NOTNULL,	0},
+		{"port",	"0",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL,	0},
+		{"key_",	"",	NULL,	NULL,	255,	ZBX_TYPE_CHAR,	ZBX_NOTNULL,	0},
+		{"value",	"",	NULL,	NULL,	255,	ZBX_TYPE_CHAR,	ZBX_NOTNULL,	0},
+		{"status",	"0",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL,	0},
+		{"dcheckid",	NULL,	"dchecks",	"dcheckid",	0,	ZBX_TYPE_ID,	0,	ZBX_FK_CASCADE_DELETE},
+		{"dns",	"",	NULL,	NULL,	64,	ZBX_TYPE_CHAR,	ZBX_NOTNULL,	0},
 		{0}
-		}
+		},
+		NULL
 	},
 	{"events",	"eventid",	ZBX_HISTORY,
 		{
-		{"eventid",	NULL,	NULL,	0,	ZBX_TYPE_ID,	ZBX_NOTNULL,	0},
-		{"source",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL,	0},
-		{"object",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL,	0},
-		{"objectid",	NULL,	NULL,	0,	ZBX_TYPE_ID,	ZBX_NOTNULL,	0},
-		{"clock",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL,	0},
-		{"value",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL,	0},
-		{"acknowledged",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL,	0},
-		{"ns",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL,	0},
-		{"value_changed",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL,	0},
+		{"eventid",	NULL,	NULL,	NULL,	0,	ZBX_TYPE_ID,	ZBX_NOTNULL,	0},
+		{"source",	"0",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL,	0},
+		{"object",	"0",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL,	0},
+		{"objectid",	"0",	NULL,	NULL,	0,	ZBX_TYPE_ID,	ZBX_NOTNULL,	0},
+		{"clock",	"0",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL,	0},
+		{"value",	"0",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL,	0},
+		{"acknowledged",	"0",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL,	0},
+		{"ns",	"0",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL,	0},
 		{0}
-		}
+		},
+		NULL
 	},
 	{"trends",	"itemid,clock",	0,
 		{
-		{"itemid",	"items",	"itemid",	0,	ZBX_TYPE_ID,	ZBX_NOTNULL,	ZBX_FK_CASCADE_DELETE},
-		{"clock",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL,	0},
-		{"num",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL,	0},
-		{"value_min",	NULL,	NULL,	0,	ZBX_TYPE_FLOAT,	ZBX_NOTNULL,	0},
-		{"value_avg",	NULL,	NULL,	0,	ZBX_TYPE_FLOAT,	ZBX_NOTNULL,	0},
-		{"value_max",	NULL,	NULL,	0,	ZBX_TYPE_FLOAT,	ZBX_NOTNULL,	0},
+		{"itemid",	NULL,	"items",	"itemid",	0,	ZBX_TYPE_ID,	ZBX_NOTNULL,	ZBX_FK_CASCADE_DELETE},
+		{"clock",	"0",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL,	0},
+		{"num",	"0",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL,	0},
+		{"value_min",	"0.0000",	NULL,	NULL,	0,	ZBX_TYPE_FLOAT,	ZBX_NOTNULL,	0},
+		{"value_avg",	"0.0000",	NULL,	NULL,	0,	ZBX_TYPE_FLOAT,	ZBX_NOTNULL,	0},
+		{"value_max",	"0.0000",	NULL,	NULL,	0,	ZBX_TYPE_FLOAT,	ZBX_NOTNULL,	0},
 		{0}
-		}
+		},
+		NULL
 	},
 	{"trends_uint",	"itemid,clock",	0,
 		{
-		{"itemid",	"items",	"itemid",	0,	ZBX_TYPE_ID,	ZBX_NOTNULL,	ZBX_FK_CASCADE_DELETE},
-		{"clock",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL,	0},
-		{"num",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL,	0},
-		{"value_min",	NULL,	NULL,	0,	ZBX_TYPE_UINT,	ZBX_NOTNULL,	0},
-		{"value_avg",	NULL,	NULL,	0,	ZBX_TYPE_UINT,	ZBX_NOTNULL,	0},
-		{"value_max",	NULL,	NULL,	0,	ZBX_TYPE_UINT,	ZBX_NOTNULL,	0},
+		{"itemid",	NULL,	"items",	"itemid",	0,	ZBX_TYPE_ID,	ZBX_NOTNULL,	ZBX_FK_CASCADE_DELETE},
+		{"clock",	"0",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL,	0},
+		{"num",	"0",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL,	0},
+		{"value_min",	"0",	NULL,	NULL,	0,	ZBX_TYPE_UINT,	ZBX_NOTNULL,	0},
+		{"value_avg",	"0",	NULL,	NULL,	0,	ZBX_TYPE_UINT,	ZBX_NOTNULL,	0},
+		{"value_max",	"0",	NULL,	NULL,	0,	ZBX_TYPE_UINT,	ZBX_NOTNULL,	0},
 		{0}
-		}
+		},
+		NULL
 	},
 	{"acknowledges",	"acknowledgeid",	ZBX_HISTORY,
 		{
-		{"acknowledgeid",	NULL,	NULL,	0,	ZBX_TYPE_ID,	ZBX_NOTNULL,	0},
-		{"userid",	"users",	"userid",	0,	ZBX_TYPE_ID,	ZBX_NOTNULL,	ZBX_FK_CASCADE_DELETE},
-		{"eventid",	"events",	"eventid",	0,	ZBX_TYPE_ID,	ZBX_NOTNULL,	ZBX_FK_CASCADE_DELETE},
-		{"clock",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL,	0},
-		{"message",	NULL,	NULL,	255,	ZBX_TYPE_CHAR,	ZBX_NOTNULL,	0},
+		{"acknowledgeid",	NULL,	NULL,	NULL,	0,	ZBX_TYPE_ID,	ZBX_NOTNULL,	0},
+		{"userid",	NULL,	"users",	"userid",	0,	ZBX_TYPE_ID,	ZBX_NOTNULL,	ZBX_FK_CASCADE_DELETE},
+		{"eventid",	NULL,	"events",	"eventid",	0,	ZBX_TYPE_ID,	ZBX_NOTNULL,	ZBX_FK_CASCADE_DELETE},
+		{"clock",	"0",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL,	0},
+		{"message",	"",	NULL,	NULL,	255,	ZBX_TYPE_CHAR,	ZBX_NOTNULL,	0},
 		{0}
-		}
+		},
+		NULL
 	},
 	{"auditlog",	"auditid",	ZBX_HISTORY,
 		{
-		{"auditid",	NULL,	NULL,	0,	ZBX_TYPE_ID,	ZBX_NOTNULL,	0},
-		{"userid",	"users",	"userid",	0,	ZBX_TYPE_ID,	ZBX_NOTNULL,	ZBX_FK_CASCADE_DELETE},
-		{"clock",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL,	0},
-		{"action",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL,	0},
-		{"resourcetype",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL,	0},
-		{"details",	NULL,	NULL,	128 ,	ZBX_TYPE_CHAR,	ZBX_NOTNULL,	0},
-		{"ip",	NULL,	NULL,	39,	ZBX_TYPE_CHAR,	ZBX_NOTNULL,	0},
-		{"resourceid",	NULL,	NULL,	0,	ZBX_TYPE_ID,	ZBX_NOTNULL,	0},
-		{"resourcename",	NULL,	NULL,	255,	ZBX_TYPE_CHAR,	ZBX_NOTNULL,	0},
+		{"auditid",	NULL,	NULL,	NULL,	0,	ZBX_TYPE_ID,	ZBX_NOTNULL,	0},
+		{"userid",	NULL,	"users",	"userid",	0,	ZBX_TYPE_ID,	ZBX_NOTNULL,	ZBX_FK_CASCADE_DELETE},
+		{"clock",	"0",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL,	0},
+		{"action",	"0",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL,	0},
+		{"resourcetype",	"0",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL,	0},
+		{"details",	"0",	NULL,	NULL,	128 ,	ZBX_TYPE_CHAR,	ZBX_NOTNULL,	0},
+		{"ip",	"",	NULL,	NULL,	39,	ZBX_TYPE_CHAR,	ZBX_NOTNULL,	0},
+		{"resourceid",	"0",	NULL,	NULL,	0,	ZBX_TYPE_ID,	ZBX_NOTNULL,	0},
+		{"resourcename",	"",	NULL,	NULL,	255,	ZBX_TYPE_CHAR,	ZBX_NOTNULL,	0},
 		{0}
-		}
+		},
+		NULL
 	},
 	{"auditlog_details",	"auditdetailid",	ZBX_HISTORY,
 		{
-		{"auditdetailid",	NULL,	NULL,	0,	ZBX_TYPE_ID,	ZBX_NOTNULL,	0},
-		{"auditid",	"auditlog",	"auditid",	0,	ZBX_TYPE_ID,	ZBX_NOTNULL,	ZBX_FK_CASCADE_DELETE},
-		{"table_name",	NULL,	NULL,	64,	ZBX_TYPE_CHAR,	ZBX_NOTNULL,	0},
-		{"field_name",	NULL,	NULL,	64,	ZBX_TYPE_CHAR,	ZBX_NOTNULL,	0},
-		{"oldvalue",	NULL,	NULL,	65535,	ZBX_TYPE_TEXT,	ZBX_NOTNULL,	0},
-		{"newvalue",	NULL,	NULL,	65535,	ZBX_TYPE_TEXT,	ZBX_NOTNULL,	0},
+		{"auditdetailid",	NULL,	NULL,	NULL,	0,	ZBX_TYPE_ID,	ZBX_NOTNULL,	0},
+		{"auditid",	NULL,	"auditlog",	"auditid",	0,	ZBX_TYPE_ID,	ZBX_NOTNULL,	ZBX_FK_CASCADE_DELETE},
+		{"table_name",	"",	NULL,	NULL,	64,	ZBX_TYPE_CHAR,	ZBX_NOTNULL,	0},
+		{"field_name",	"",	NULL,	NULL,	64,	ZBX_TYPE_CHAR,	ZBX_NOTNULL,	0},
+		{"oldvalue",	"",	NULL,	NULL,	ZBX_TYPE_SHORTTEXT_LEN,	ZBX_TYPE_SHORTTEXT,	ZBX_NOTNULL,	0},
+		{"newvalue",	"",	NULL,	NULL,	ZBX_TYPE_SHORTTEXT_LEN,	ZBX_TYPE_SHORTTEXT,	ZBX_NOTNULL,	0},
 		{0}
-		}
+		},
+		NULL
 	},
 	{"service_alarms",	"servicealarmid",	ZBX_HISTORY,
 		{
-		{"servicealarmid",	NULL,	NULL,	0,	ZBX_TYPE_ID,	ZBX_NOTNULL,	0},
-		{"serviceid",	"services",	"serviceid",	0,	ZBX_TYPE_ID,	ZBX_NOTNULL,	ZBX_FK_CASCADE_DELETE},
-		{"clock",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL,	0},
-		{"value",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL,	0},
+		{"servicealarmid",	NULL,	NULL,	NULL,	0,	ZBX_TYPE_ID,	ZBX_NOTNULL,	0},
+		{"serviceid",	NULL,	"services",	"serviceid",	0,	ZBX_TYPE_ID,	ZBX_NOTNULL,	ZBX_FK_CASCADE_DELETE},
+		{"clock",	"0",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL,	0},
+		{"value",	"0",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL,	0},
 		{0}
-		}
+		},
+		NULL
 	},
 	{"autoreg_host",	"autoreg_hostid",	ZBX_SYNC,
 		{
-		{"autoreg_hostid",	NULL,	NULL,	0,	ZBX_TYPE_ID,	ZBX_NOTNULL,	0},
-		{"proxy_hostid",	"hosts",	"hostid",	0,	ZBX_TYPE_ID,	ZBX_SYNC,	ZBX_FK_CASCADE_DELETE},
-		{"host",	NULL,	NULL,	64,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC,	0},
-		{"listen_ip",	NULL,	NULL,	39,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC,	0},
-		{"listen_port",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
-		{"listen_dns",	NULL,	NULL,	64,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"autoreg_hostid",	NULL,	NULL,	NULL,	0,	ZBX_TYPE_ID,	ZBX_NOTNULL,	0},
+		{"proxy_hostid",	NULL,	"hosts",	"hostid",	0,	ZBX_TYPE_ID,	ZBX_SYNC,	ZBX_FK_CASCADE_DELETE},
+		{"host",	"",	NULL,	NULL,	64,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"listen_ip",	"",	NULL,	NULL,	39,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"listen_port",	"0",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"listen_dns",	"",	NULL,	NULL,	64,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"host_metadata",	"",	NULL,	NULL,	255,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC,	0},
 		{0}
-		}
+		},
+		NULL
 	},
 	{"proxy_autoreg_host",	"id",	0,
 		{
-		{"id",	NULL,	NULL,	0,	ZBX_TYPE_UINT,	ZBX_NOTNULL,	0},
-		{"clock",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL,	0},
-		{"host",	NULL,	NULL,	64,	ZBX_TYPE_CHAR,	ZBX_NOTNULL,	0},
-		{"listen_ip",	NULL,	NULL,	39,	ZBX_TYPE_CHAR,	ZBX_NOTNULL,	0},
-		{"listen_port",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL,	0},
-		{"listen_dns",	NULL,	NULL,	64,	ZBX_TYPE_CHAR,	ZBX_NOTNULL,	0},
+		{"id",	NULL,	NULL,	NULL,	0,	ZBX_TYPE_UINT,	ZBX_NOTNULL,	0},
+		{"clock",	"0",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL,	0},
+		{"host",	"",	NULL,	NULL,	64,	ZBX_TYPE_CHAR,	ZBX_NOTNULL,	0},
+		{"listen_ip",	"",	NULL,	NULL,	39,	ZBX_TYPE_CHAR,	ZBX_NOTNULL,	0},
+		{"listen_port",	"0",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL,	0},
+		{"listen_dns",	"",	NULL,	NULL,	64,	ZBX_TYPE_CHAR,	ZBX_NOTNULL,	0},
+		{"host_metadata",	"",	NULL,	NULL,	255,	ZBX_TYPE_CHAR,	ZBX_NOTNULL,	0},
 		{0}
-		}
+		},
+		NULL
 	},
 	{"dhosts",	"dhostid",	ZBX_SYNC,
 		{
-		{"dhostid",	NULL,	NULL,	0,	ZBX_TYPE_ID,	ZBX_NOTNULL,	0},
-		{"druleid",	"drules",	"druleid",	0,	ZBX_TYPE_ID,	ZBX_NOTNULL | ZBX_SYNC,	ZBX_FK_CASCADE_DELETE},
-		{"status",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
-		{"lastup",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
-		{"lastdown",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"dhostid",	NULL,	NULL,	NULL,	0,	ZBX_TYPE_ID,	ZBX_NOTNULL,	0},
+		{"druleid",	NULL,	"drules",	"druleid",	0,	ZBX_TYPE_ID,	ZBX_NOTNULL | ZBX_SYNC,	ZBX_FK_CASCADE_DELETE},
+		{"status",	"0",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"lastup",	"0",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"lastdown",	"0",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
 		{0}
-		}
+		},
+		NULL
 	},
 	{"dservices",	"dserviceid",	ZBX_SYNC,
 		{
-		{"dserviceid",	NULL,	NULL,	0,	ZBX_TYPE_ID,	ZBX_NOTNULL,	0},
-		{"dhostid",	"dhosts",	"dhostid",	0,	ZBX_TYPE_ID,	ZBX_NOTNULL | ZBX_SYNC,	ZBX_FK_CASCADE_DELETE},
-		{"type",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
-		{"key_",	NULL,	NULL,	255,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC,	0},
-		{"value",	NULL,	NULL,	255,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC,	0},
-		{"port",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
-		{"status",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
-		{"lastup",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
-		{"lastdown",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
-		{"dcheckid",	"dchecks",	"dcheckid",	0,	ZBX_TYPE_ID,	ZBX_NOTNULL | ZBX_SYNC,	ZBX_FK_CASCADE_DELETE},
-		{"ip",	NULL,	NULL,	39,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC,	0},
-		{"dns",	NULL,	NULL,	64,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"dserviceid",	NULL,	NULL,	NULL,	0,	ZBX_TYPE_ID,	ZBX_NOTNULL,	0},
+		{"dhostid",	NULL,	"dhosts",	"dhostid",	0,	ZBX_TYPE_ID,	ZBX_NOTNULL | ZBX_SYNC,	ZBX_FK_CASCADE_DELETE},
+		{"type",	"0",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"key_",	"",	NULL,	NULL,	255,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"value",	"",	NULL,	NULL,	255,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"port",	"0",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"status",	"0",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"lastup",	"0",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"lastdown",	"0",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"dcheckid",	NULL,	"dchecks",	"dcheckid",	0,	ZBX_TYPE_ID,	ZBX_NOTNULL | ZBX_SYNC,	ZBX_FK_CASCADE_DELETE},
+		{"ip",	"",	NULL,	NULL,	39,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"dns",	"",	NULL,	NULL,	64,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC,	0},
 		{0}
 		},
 		"dcheckid,type,key_,ip,port"
 	},
 	{"escalations",	"escalationid",	0,
 		{
-		{"escalationid",	NULL,	NULL,	0,	ZBX_TYPE_ID,	ZBX_NOTNULL,	0},
-		{"actionid",	"actions",	"actionid",	0,	ZBX_TYPE_ID,	ZBX_NOTNULL,	ZBX_FK_CASCADE_DELETE},
-		{"triggerid",	"triggers",	"triggerid",	0,	ZBX_TYPE_ID,	0,	ZBX_FK_CASCADE_DELETE},
-		{"eventid",	"events",	"eventid",	0,	ZBX_TYPE_ID,	0,	ZBX_FK_CASCADE_DELETE},
-		{"r_eventid",	"events",	"eventid",	0,	ZBX_TYPE_ID,	0,	ZBX_FK_CASCADE_DELETE},
-		{"nextcheck",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL,	0},
-		{"esc_step",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL,	0},
-		{"status",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL,	0},
+		{"escalationid",	NULL,	NULL,	NULL,	0,	ZBX_TYPE_ID,	ZBX_NOTNULL,	0},
+		{"actionid",	NULL,	"actions",	"actionid",	0,	ZBX_TYPE_ID,	ZBX_NOTNULL,	ZBX_FK_CASCADE_DELETE},
+		{"triggerid",	NULL,	"triggers",	"triggerid",	0,	ZBX_TYPE_ID,	0,	ZBX_FK_CASCADE_DELETE},
+		{"eventid",	NULL,	"events",	"eventid",	0,	ZBX_TYPE_ID,	0,	ZBX_FK_CASCADE_DELETE},
+		{"r_eventid",	NULL,	"events",	"eventid",	0,	ZBX_TYPE_ID,	0,	ZBX_FK_CASCADE_DELETE},
+		{"nextcheck",	"0",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL,	0},
+		{"esc_step",	"0",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL,	0},
+		{"status",	"0",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL,	0},
+		{"itemid",	NULL,	"items",	"itemid",	0,	ZBX_TYPE_ID,	0,	ZBX_FK_CASCADE_DELETE},
 		{0}
-		}
+		},
+		"actionid,triggerid,itemid,escalationid"
 	},
 	{"globalvars",	"globalvarid",	0,
 		{
-		{"globalvarid",	NULL,	NULL,	0,	ZBX_TYPE_ID,	ZBX_NOTNULL,	0},
-		{"snmp_lastsize",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL,	0},
+		{"globalvarid",	NULL,	NULL,	NULL,	0,	ZBX_TYPE_ID,	ZBX_NOTNULL,	0},
+		{"snmp_lastsize",	"0",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL,	0},
 		{0}
-		}
+		},
+		NULL
 	},
 	{"graph_discovery",	"graphdiscoveryid",	ZBX_SYNC,
 		{
-		{"graphdiscoveryid",	NULL,	NULL,	0,	ZBX_TYPE_ID,	ZBX_NOTNULL,	0},
-		{"graphid",	"graphs",	"graphid",	0,	ZBX_TYPE_ID,	ZBX_NOTNULL | ZBX_SYNC,	ZBX_FK_CASCADE_DELETE},
-		{"parent_graphid",	"graphs",	"graphid",	0,	ZBX_TYPE_ID,	ZBX_NOTNULL | ZBX_SYNC,	ZBX_FK_CASCADE_DELETE},
-		{"name",	NULL,	NULL,	128,	ZBX_TYPE_CHAR,	ZBX_NOTNULL,	0},
+		{"graphdiscoveryid",	NULL,	NULL,	NULL,	0,	ZBX_TYPE_ID,	ZBX_NOTNULL,	0},
+		{"graphid",	NULL,	"graphs",	"graphid",	0,	ZBX_TYPE_ID,	ZBX_NOTNULL | ZBX_SYNC,	ZBX_FK_CASCADE_DELETE},
+		{"parent_graphid",	NULL,	"graphs",	"graphid",	0,	ZBX_TYPE_ID,	ZBX_NOTNULL | ZBX_SYNC,	ZBX_FK_CASCADE_DELETE},
+		{"name",	"",	NULL,	NULL,	128,	ZBX_TYPE_CHAR,	ZBX_NOTNULL,	0},
 		{0}
 		},
 		"graphid,parent_graphid"
 	},
 	{"host_inventory",	"hostid",	ZBX_SYNC,
 		{
-		{"hostid",	"hosts",	"hostid",	0,	ZBX_TYPE_ID,	ZBX_NOTNULL,	ZBX_FK_CASCADE_DELETE},
-		{"inventory_mode",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
-		{"type",	NULL,	NULL,	64,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC,	0},
-		{"type_full",	NULL,	NULL,	64,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC,	0},
-		{"name",	NULL,	NULL,	64,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC,	0},
-		{"alias",	NULL,	NULL,	64,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC,	0},
-		{"os",	NULL,	NULL,	64,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC,	0},
-		{"os_full",	NULL,	NULL,	255,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC,	0},
-		{"os_short",	NULL,	NULL,	64,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC,	0},
-		{"serialno_a",	NULL,	NULL,	64,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC,	0},
-		{"serialno_b",	NULL,	NULL,	64,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC,	0},
-		{"tag",	NULL,	NULL,	64,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC,	0},
-		{"asset_tag",	NULL,	NULL,	64,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC,	0},
-		{"macaddress_a",	NULL,	NULL,	64,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC,	0},
-		{"macaddress_b",	NULL,	NULL,	64,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC,	0},
-		{"hardware",	NULL,	NULL,	255,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC,	0},
-		{"hardware_full",	NULL,	NULL,	65535,	ZBX_TYPE_TEXT,	ZBX_NOTNULL | ZBX_SYNC,	0},
-		{"software",	NULL,	NULL,	255,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC,	0},
-		{"software_full",	NULL,	NULL,	65535,	ZBX_TYPE_TEXT,	ZBX_NOTNULL | ZBX_SYNC,	0},
-		{"software_app_a",	NULL,	NULL,	64,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC,	0},
-		{"software_app_b",	NULL,	NULL,	64,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC,	0},
-		{"software_app_c",	NULL,	NULL,	64,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC,	0},
-		{"software_app_d",	NULL,	NULL,	64,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC,	0},
-		{"software_app_e",	NULL,	NULL,	64,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC,	0},
-		{"contact",	NULL,	NULL,	65535,	ZBX_TYPE_TEXT,	ZBX_NOTNULL | ZBX_SYNC,	0},
-		{"location",	NULL,	NULL,	65535,	ZBX_TYPE_TEXT,	ZBX_NOTNULL | ZBX_SYNC,	0},
-		{"location_lat",	NULL,	NULL,	16,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC,	0},
-		{"location_lon",	NULL,	NULL,	16,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC,	0},
-		{"notes",	NULL,	NULL,	65535,	ZBX_TYPE_TEXT,	ZBX_NOTNULL | ZBX_SYNC,	0},
-		{"chassis",	NULL,	NULL,	64,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC,	0},
-		{"model",	NULL,	NULL,	64,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC,	0},
-		{"hw_arch",	NULL,	NULL,	32,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC,	0},
-		{"vendor",	NULL,	NULL,	64,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC,	0},
-		{"contract_number",	NULL,	NULL,	64,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC,	0},
-		{"installer_name",	NULL,	NULL,	64,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC,	0},
-		{"deployment_status",	NULL,	NULL,	64,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC,	0},
-		{"url_a",	NULL,	NULL,	255,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC,	0},
-		{"url_b",	NULL,	NULL,	255,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC,	0},
-		{"url_c",	NULL,	NULL,	255,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC,	0},
-		{"host_networks",	NULL,	NULL,	65535,	ZBX_TYPE_TEXT,	ZBX_NOTNULL | ZBX_SYNC,	0},
-		{"host_netmask",	NULL,	NULL,	39,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC,	0},
-		{"host_router",	NULL,	NULL,	39,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC,	0},
-		{"oob_ip",	NULL,	NULL,	39,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC,	0},
-		{"oob_netmask",	NULL,	NULL,	39,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC,	0},
-		{"oob_router",	NULL,	NULL,	39,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC,	0},
-		{"date_hw_purchase",	NULL,	NULL,	64,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC,	0},
-		{"date_hw_install",	NULL,	NULL,	64,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC,	0},
-		{"date_hw_expiry",	NULL,	NULL,	64,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC,	0},
-		{"date_hw_decomm",	NULL,	NULL,	64,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC,	0},
-		{"site_address_a",	NULL,	NULL,	128,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC,	0},
-		{"site_address_b",	NULL,	NULL,	128,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC,	0},
-		{"site_address_c",	NULL,	NULL,	128,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC,	0},
-		{"site_city",	NULL,	NULL,	128,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC,	0},
-		{"site_state",	NULL,	NULL,	64,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC,	0},
-		{"site_country",	NULL,	NULL,	64,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC,	0},
-		{"site_zip",	NULL,	NULL,	64,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC,	0},
-		{"site_rack",	NULL,	NULL,	128,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC,	0},
-		{"site_notes",	NULL,	NULL,	65535,	ZBX_TYPE_TEXT,	ZBX_NOTNULL | ZBX_SYNC,	0},
-		{"poc_1_name",	NULL,	NULL,	128,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC,	0},
-		{"poc_1_email",	NULL,	NULL,	128,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC,	0},
-		{"poc_1_phone_a",	NULL,	NULL,	64,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC,	0},
-		{"poc_1_phone_b",	NULL,	NULL,	64,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC,	0},
-		{"poc_1_cell",	NULL,	NULL,	64,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC,	0},
-		{"poc_1_screen",	NULL,	NULL,	64,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC,	0},
-		{"poc_1_notes",	NULL,	NULL,	65535,	ZBX_TYPE_TEXT,	ZBX_NOTNULL | ZBX_SYNC,	0},
-		{"poc_2_name",	NULL,	NULL,	128,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC,	0},
-		{"poc_2_email",	NULL,	NULL,	128,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC,	0},
-		{"poc_2_phone_a",	NULL,	NULL,	64,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC,	0},
-		{"poc_2_phone_b",	NULL,	NULL,	64,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC,	0},
-		{"poc_2_cell",	NULL,	NULL,	64,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC,	0},
-		{"poc_2_screen",	NULL,	NULL,	64,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC,	0},
-		{"poc_2_notes",	NULL,	NULL,	65535,	ZBX_TYPE_TEXT,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"hostid",	NULL,	"hosts",	"hostid",	0,	ZBX_TYPE_ID,	ZBX_NOTNULL,	ZBX_FK_CASCADE_DELETE},
+		{"inventory_mode",	"0",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"type",	"",	NULL,	NULL,	64,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"type_full",	"",	NULL,	NULL,	64,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"name",	"",	NULL,	NULL,	64,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"alias",	"",	NULL,	NULL,	64,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"os",	"",	NULL,	NULL,	64,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"os_full",	"",	NULL,	NULL,	255,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"os_short",	"",	NULL,	NULL,	64,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"serialno_a",	"",	NULL,	NULL,	64,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"serialno_b",	"",	NULL,	NULL,	64,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"tag",	"",	NULL,	NULL,	64,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"asset_tag",	"",	NULL,	NULL,	64,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"macaddress_a",	"",	NULL,	NULL,	64,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"macaddress_b",	"",	NULL,	NULL,	64,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"hardware",	"",	NULL,	NULL,	255,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"hardware_full",	"",	NULL,	NULL,	ZBX_TYPE_SHORTTEXT_LEN,	ZBX_TYPE_SHORTTEXT,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"software",	"",	NULL,	NULL,	255,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"software_full",	"",	NULL,	NULL,	ZBX_TYPE_SHORTTEXT_LEN,	ZBX_TYPE_SHORTTEXT,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"software_app_a",	"",	NULL,	NULL,	64,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"software_app_b",	"",	NULL,	NULL,	64,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"software_app_c",	"",	NULL,	NULL,	64,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"software_app_d",	"",	NULL,	NULL,	64,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"software_app_e",	"",	NULL,	NULL,	64,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"contact",	"",	NULL,	NULL,	ZBX_TYPE_SHORTTEXT_LEN,	ZBX_TYPE_SHORTTEXT,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"location",	"",	NULL,	NULL,	ZBX_TYPE_SHORTTEXT_LEN,	ZBX_TYPE_SHORTTEXT,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"location_lat",	"",	NULL,	NULL,	16,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"location_lon",	"",	NULL,	NULL,	16,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"notes",	"",	NULL,	NULL,	ZBX_TYPE_SHORTTEXT_LEN,	ZBX_TYPE_SHORTTEXT,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"chassis",	"",	NULL,	NULL,	64,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"model",	"",	NULL,	NULL,	64,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"hw_arch",	"",	NULL,	NULL,	32,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"vendor",	"",	NULL,	NULL,	64,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"contract_number",	"",	NULL,	NULL,	64,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"installer_name",	"",	NULL,	NULL,	64,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"deployment_status",	"",	NULL,	NULL,	64,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"url_a",	"",	NULL,	NULL,	255,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"url_b",	"",	NULL,	NULL,	255,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"url_c",	"",	NULL,	NULL,	255,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"host_networks",	"",	NULL,	NULL,	ZBX_TYPE_SHORTTEXT_LEN,	ZBX_TYPE_SHORTTEXT,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"host_netmask",	"",	NULL,	NULL,	39,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"host_router",	"",	NULL,	NULL,	39,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"oob_ip",	"",	NULL,	NULL,	39,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"oob_netmask",	"",	NULL,	NULL,	39,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"oob_router",	"",	NULL,	NULL,	39,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"date_hw_purchase",	"",	NULL,	NULL,	64,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"date_hw_install",	"",	NULL,	NULL,	64,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"date_hw_expiry",	"",	NULL,	NULL,	64,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"date_hw_decomm",	"",	NULL,	NULL,	64,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"site_address_a",	"",	NULL,	NULL,	128,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"site_address_b",	"",	NULL,	NULL,	128,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"site_address_c",	"",	NULL,	NULL,	128,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"site_city",	"",	NULL,	NULL,	128,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"site_state",	"",	NULL,	NULL,	64,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"site_country",	"",	NULL,	NULL,	64,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"site_zip",	"",	NULL,	NULL,	64,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"site_rack",	"",	NULL,	NULL,	128,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"site_notes",	"",	NULL,	NULL,	ZBX_TYPE_SHORTTEXT_LEN,	ZBX_TYPE_SHORTTEXT,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"poc_1_name",	"",	NULL,	NULL,	128,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"poc_1_email",	"",	NULL,	NULL,	128,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"poc_1_phone_a",	"",	NULL,	NULL,	64,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"poc_1_phone_b",	"",	NULL,	NULL,	64,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"poc_1_cell",	"",	NULL,	NULL,	64,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"poc_1_screen",	"",	NULL,	NULL,	64,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"poc_1_notes",	"",	NULL,	NULL,	ZBX_TYPE_SHORTTEXT_LEN,	ZBX_TYPE_SHORTTEXT,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"poc_2_name",	"",	NULL,	NULL,	128,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"poc_2_email",	"",	NULL,	NULL,	128,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"poc_2_phone_a",	"",	NULL,	NULL,	64,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"poc_2_phone_b",	"",	NULL,	NULL,	64,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"poc_2_cell",	"",	NULL,	NULL,	64,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"poc_2_screen",	"",	NULL,	NULL,	64,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"poc_2_notes",	"",	NULL,	NULL,	ZBX_TYPE_SHORTTEXT_LEN,	ZBX_TYPE_SHORTTEXT,	ZBX_NOTNULL | ZBX_SYNC,	0},
 		{0}
-		}
+		},
+		NULL
 	},
 	{"housekeeper",	"housekeeperid",	0,
 		{
-		{"housekeeperid",	NULL,	NULL,	0,	ZBX_TYPE_ID,	ZBX_NOTNULL,	0},
-		{"tablename",	NULL,	NULL,	64,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC,	0},
-		{"field",	NULL,	NULL,	64,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC,	0},
-		{"value",	"items",	"value",	0,	ZBX_TYPE_ID,	ZBX_NOTNULL | ZBX_SYNC,	ZBX_FK_CASCADE_DELETE},
+		{"housekeeperid",	NULL,	NULL,	NULL,	0,	ZBX_TYPE_ID,	ZBX_NOTNULL,	0},
+		{"tablename",	"",	NULL,	NULL,	64,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"field",	"",	NULL,	NULL,	64,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"value",	NULL,	"items",	"value",	0,	ZBX_TYPE_ID,	ZBX_NOTNULL | ZBX_SYNC,	ZBX_FK_CASCADE_DELETE},
 		{0}
-		}
+		},
+		NULL
 	},
 	{"images",	"imageid",	ZBX_SYNC,
 		{
-		{"imageid",	NULL,	NULL,	0,	ZBX_TYPE_ID,	ZBX_NOTNULL,	0},
-		{"imagetype",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
-		{"name",	NULL,	NULL,	64,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC,	0},
-		{"image",	NULL,	NULL,	0,	ZBX_TYPE_BLOB,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"imageid",	NULL,	NULL,	NULL,	0,	ZBX_TYPE_ID,	ZBX_NOTNULL,	0},
+		{"imagetype",	"0",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"name",	"0",	NULL,	NULL,	64,	ZBX_TYPE_CHAR,	ZBX_NOTNULL | ZBX_SYNC,	0},
+		{"image",	"",	NULL,	NULL,	0,	ZBX_TYPE_BLOB,	ZBX_NOTNULL | ZBX_SYNC,	0},
 		{0}
-		}
+		},
+		NULL
 	},
 	{"item_discovery",	"itemdiscoveryid",	ZBX_SYNC,
 		{
-		{"itemdiscoveryid",	NULL,	NULL,	0,	ZBX_TYPE_ID,	ZBX_NOTNULL,	0},
-		{"itemid",	"items",	"itemid",	0,	ZBX_TYPE_ID,	ZBX_NOTNULL | ZBX_SYNC,	ZBX_FK_CASCADE_DELETE},
-		{"parent_itemid",	"items",	"itemid",	0,	ZBX_TYPE_ID,	ZBX_NOTNULL | ZBX_SYNC,	ZBX_FK_CASCADE_DELETE},
-		{"key_",	NULL,	NULL,	255,	ZBX_TYPE_CHAR,	ZBX_NOTNULL,	0},
-		{"lastcheck",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL,	0},
-		{"ts_delete",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL,	0},
+		{"itemdiscoveryid",	NULL,	NULL,	NULL,	0,	ZBX_TYPE_ID,	ZBX_NOTNULL,	0},
+		{"itemid",	NULL,	"items",	"itemid",	0,	ZBX_TYPE_ID,	ZBX_NOTNULL | ZBX_SYNC,	ZBX_FK_CASCADE_DELETE},
+		{"parent_itemid",	NULL,	"items",	"itemid",	0,	ZBX_TYPE_ID,	ZBX_NOTNULL | ZBX_SYNC,	ZBX_FK_CASCADE_DELETE},
+		{"key_",	"",	NULL,	NULL,	255,	ZBX_TYPE_CHAR,	ZBX_NOTNULL,	0},
+		{"lastcheck",	"0",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL,	0},
+		{"ts_delete",	"0",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL,	0},
 		{0}
 		},
 		"itemid,parent_itemid"
 	},
+	{"host_discovery",	"hostid",	ZBX_SYNC,
+		{
+		{"hostid",	NULL,	"hosts",	"hostid",	0,	ZBX_TYPE_ID,	ZBX_NOTNULL,	ZBX_FK_CASCADE_DELETE},
+		{"parent_hostid",	NULL,	"hosts",	"hostid",	0,	ZBX_TYPE_ID,	ZBX_SYNC,	0},
+		{"parent_itemid",	NULL,	"items",	"itemid",	0,	ZBX_TYPE_ID,	ZBX_SYNC,	0},
+		{"host",	"",	NULL,	NULL,	64,	ZBX_TYPE_CHAR,	ZBX_NOTNULL,	0},
+		{"lastcheck",	"0",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL,	0},
+		{"ts_delete",	"0",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL,	0},
+		{0}
+		},
+		NULL
+	},
+	{"interface_discovery",	"interfaceid",	ZBX_SYNC,
+		{
+		{"interfaceid",	NULL,	"interface",	"interfaceid",	0,	ZBX_TYPE_ID,	ZBX_NOTNULL | ZBX_SYNC,	ZBX_FK_CASCADE_DELETE},
+		{"parent_interfaceid",	NULL,	"interface",	"interfaceid",	0,	ZBX_TYPE_ID,	ZBX_NOTNULL | ZBX_SYNC,	ZBX_FK_CASCADE_DELETE},
+		{0}
+		},
+		NULL
+	},
 	{"profiles",	"profileid",	0,
 		{
-		{"profileid",	NULL,	NULL,	0,	ZBX_TYPE_ID,	ZBX_NOTNULL,	0},
-		{"userid",	"users",	"userid",	0,	ZBX_TYPE_ID,	ZBX_NOTNULL,	ZBX_FK_CASCADE_DELETE},
-		{"idx",	NULL,	NULL,	96,	ZBX_TYPE_CHAR,	ZBX_NOTNULL,	0},
-		{"idx2",	NULL,	NULL,	0,	ZBX_TYPE_ID,	ZBX_NOTNULL,	0},
-		{"value_id",	NULL,	NULL,	0,	ZBX_TYPE_ID,	ZBX_NOTNULL,	0},
-		{"value_int",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL,	0},
-		{"value_str",	NULL,	NULL,	255,	ZBX_TYPE_CHAR,	ZBX_NOTNULL,	0},
-		{"source",	NULL,	NULL,	96,	ZBX_TYPE_CHAR,	ZBX_NOTNULL,	0},
-		{"type",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL,	0},
+		{"profileid",	NULL,	NULL,	NULL,	0,	ZBX_TYPE_ID,	ZBX_NOTNULL,	0},
+		{"userid",	NULL,	"users",	"userid",	0,	ZBX_TYPE_ID,	ZBX_NOTNULL,	ZBX_FK_CASCADE_DELETE},
+		{"idx",	"",	NULL,	NULL,	96,	ZBX_TYPE_CHAR,	ZBX_NOTNULL,	0},
+		{"idx2",	"0",	NULL,	NULL,	0,	ZBX_TYPE_ID,	ZBX_NOTNULL,	0},
+		{"value_id",	"0",	NULL,	NULL,	0,	ZBX_TYPE_ID,	ZBX_NOTNULL,	0},
+		{"value_int",	"0",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL,	0},
+		{"value_str",	"",	NULL,	NULL,	255,	ZBX_TYPE_CHAR,	ZBX_NOTNULL,	0},
+		{"source",	"",	NULL,	NULL,	96,	ZBX_TYPE_CHAR,	ZBX_NOTNULL,	0},
+		{"type",	"0",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL,	0},
 		{0}
-		}
+		},
+		NULL
 	},
 	{"sessions",	"sessionid",	0,
 		{
-		{"sessionid",	NULL,	NULL,	32,	ZBX_TYPE_CHAR,	ZBX_NOTNULL,	0},
-		{"userid",	"users",	"userid",	0,	ZBX_TYPE_ID,	ZBX_NOTNULL,	ZBX_FK_CASCADE_DELETE},
-		{"lastaccess",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL,	0},
-		{"status",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL,	0},
+		{"sessionid",	"",	NULL,	NULL,	32,	ZBX_TYPE_CHAR,	ZBX_NOTNULL,	0},
+		{"userid",	NULL,	"users",	"userid",	0,	ZBX_TYPE_ID,	ZBX_NOTNULL,	ZBX_FK_CASCADE_DELETE},
+		{"lastaccess",	"0",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL,	0},
+		{"status",	"0",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL,	0},
 		{0}
-		}
+		},
+		NULL
 	},
 	{"trigger_discovery",	"triggerdiscoveryid",	ZBX_SYNC,
 		{
-		{"triggerdiscoveryid",	NULL,	NULL,	0,	ZBX_TYPE_ID,	ZBX_NOTNULL,	0},
-		{"triggerid",	"triggers",	"triggerid",	0,	ZBX_TYPE_ID,	ZBX_NOTNULL | ZBX_SYNC,	ZBX_FK_CASCADE_DELETE},
-		{"parent_triggerid",	"triggers",	"triggerid",	0,	ZBX_TYPE_ID,	ZBX_NOTNULL | ZBX_SYNC,	ZBX_FK_CASCADE_DELETE},
-		{"name",	NULL,	NULL,	255,	ZBX_TYPE_CHAR,	ZBX_NOTNULL,	0},
+		{"triggerdiscoveryid",	NULL,	NULL,	NULL,	0,	ZBX_TYPE_ID,	ZBX_NOTNULL,	0},
+		{"triggerid",	NULL,	"triggers",	"triggerid",	0,	ZBX_TYPE_ID,	ZBX_NOTNULL | ZBX_SYNC,	ZBX_FK_CASCADE_DELETE},
+		{"parent_triggerid",	NULL,	"triggers",	"triggerid",	0,	ZBX_TYPE_ID,	ZBX_NOTNULL | ZBX_SYNC,	ZBX_FK_CASCADE_DELETE},
+		{"name",	"",	NULL,	NULL,	255,	ZBX_TYPE_CHAR,	ZBX_NOTNULL,	0},
 		{0}
 		},
 		"triggerid,parent_triggerid"
 	},
 	{"user_history",	"userhistoryid",	0,
 		{
-		{"userhistoryid",	NULL,	NULL,	0,	ZBX_TYPE_ID,	ZBX_NOTNULL,	0},
-		{"userid",	"users",	"userid",	0,	ZBX_TYPE_ID,	ZBX_NOTNULL,	ZBX_FK_CASCADE_DELETE},
-		{"title1",	NULL,	NULL,	255,	ZBX_TYPE_CHAR,	ZBX_NOTNULL,	0},
-		{"url1",	NULL,	NULL,	255,	ZBX_TYPE_CHAR,	ZBX_NOTNULL,	0},
-		{"title2",	NULL,	NULL,	255,	ZBX_TYPE_CHAR,	ZBX_NOTNULL,	0},
-		{"url2",	NULL,	NULL,	255,	ZBX_TYPE_CHAR,	ZBX_NOTNULL,	0},
-		{"title3",	NULL,	NULL,	255,	ZBX_TYPE_CHAR,	ZBX_NOTNULL,	0},
-		{"url3",	NULL,	NULL,	255,	ZBX_TYPE_CHAR,	ZBX_NOTNULL,	0},
-		{"title4",	NULL,	NULL,	255,	ZBX_TYPE_CHAR,	ZBX_NOTNULL,	0},
-		{"url4",	NULL,	NULL,	255,	ZBX_TYPE_CHAR,	ZBX_NOTNULL,	0},
-		{"title5",	NULL,	NULL,	255,	ZBX_TYPE_CHAR,	ZBX_NOTNULL,	0},
-		{"url5",	NULL,	NULL,	255,	ZBX_TYPE_CHAR,	ZBX_NOTNULL,	0},
+		{"userhistoryid",	NULL,	NULL,	NULL,	0,	ZBX_TYPE_ID,	ZBX_NOTNULL,	0},
+		{"userid",	NULL,	"users",	"userid",	0,	ZBX_TYPE_ID,	ZBX_NOTNULL,	ZBX_FK_CASCADE_DELETE},
+		{"title1",	"",	NULL,	NULL,	255,	ZBX_TYPE_CHAR,	ZBX_NOTNULL,	0},
+		{"url1",	"",	NULL,	NULL,	255,	ZBX_TYPE_CHAR,	ZBX_NOTNULL,	0},
+		{"title2",	"",	NULL,	NULL,	255,	ZBX_TYPE_CHAR,	ZBX_NOTNULL,	0},
+		{"url2",	"",	NULL,	NULL,	255,	ZBX_TYPE_CHAR,	ZBX_NOTNULL,	0},
+		{"title3",	"",	NULL,	NULL,	255,	ZBX_TYPE_CHAR,	ZBX_NOTNULL,	0},
+		{"url3",	"",	NULL,	NULL,	255,	ZBX_TYPE_CHAR,	ZBX_NOTNULL,	0},
+		{"title4",	"",	NULL,	NULL,	255,	ZBX_TYPE_CHAR,	ZBX_NOTNULL,	0},
+		{"url4",	"",	NULL,	NULL,	255,	ZBX_TYPE_CHAR,	ZBX_NOTNULL,	0},
+		{"title5",	"",	NULL,	NULL,	255,	ZBX_TYPE_CHAR,	ZBX_NOTNULL,	0},
+		{"url5",	"",	NULL,	NULL,	255,	ZBX_TYPE_CHAR,	ZBX_NOTNULL,	0},
 		{0}
 		},
 		"userid"
 	},
+	{"application_template",	"application_templateid",	ZBX_SYNC,
+		{
+		{"application_templateid",	NULL,	NULL,	NULL,	0,	ZBX_TYPE_ID,	ZBX_NOTNULL,	0},
+		{"applicationid",	NULL,	"applications",	"applicationid",	0,	ZBX_TYPE_ID,	ZBX_NOTNULL | ZBX_SYNC,	ZBX_FK_CASCADE_DELETE},
+		{"templateid",	NULL,	"applications",	"applicationid",	0,	ZBX_TYPE_ID,	ZBX_NOTNULL | ZBX_SYNC,	ZBX_FK_CASCADE_DELETE},
+		{0}
+		},
+		"applicationid,templateid"
+	},
+	{"dbversion",	"",	0,
+		{
+		{"mandatory",	"0",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL,	0},
+		{"optional",	"0",	NULL,	NULL,	0,	ZBX_TYPE_INT,	ZBX_NOTNULL,	0},
+		{0}
+		},
+		NULL
+	},
 	{0}
+
+#undef ZBX_TYPE_LONGTEXT_LEN
+#undef ZBX_TYPE_SHORTTEXT_LEN
+
 };
 
 #if defined(HAVE_IBM_DB2)
@@ -1459,19 +1630,40 @@ jmx_available integer WITH DEFAULT '0' NOT NULL,\n\
 jmx_errors_from integer WITH DEFAULT '0' NOT NULL,\n\
 jmx_error varchar(128) WITH DEFAULT '' NOT NULL,\n\
 name varchar(64) WITH DEFAULT '' NOT NULL,\n\
+flags integer WITH DEFAULT '0' NOT NULL,\n\
+templateid bigint  NULL,\n\
 PRIMARY KEY (hostid)\n\
 );\n\
 CREATE INDEX hosts_1 ON hosts (host);\n\
 CREATE INDEX hosts_2 ON hosts (status);\n\
 CREATE INDEX hosts_3 ON hosts (proxy_hostid);\n\
 CREATE INDEX hosts_4 ON hosts (name);\n\
+CREATE INDEX hosts_5 ON hosts (maintenanceid);\n\
 CREATE TABLE groups (\n\
 groupid bigint  NOT NULL,\n\
 name varchar(64) WITH DEFAULT '' NOT NULL,\n\
 internal integer WITH DEFAULT '0' NOT NULL,\n\
+flags integer WITH DEFAULT '0' NOT NULL,\n\
 PRIMARY KEY (groupid)\n\
 );\n\
 CREATE INDEX groups_1 ON groups (name);\n\
+CREATE TABLE group_prototype (\n\
+group_prototypeid bigint  NOT NULL,\n\
+hostid bigint  NOT NULL,\n\
+name varchar(64) WITH DEFAULT '' NOT NULL,\n\
+groupid bigint  NULL,\n\
+templateid bigint  NULL,\n\
+PRIMARY KEY (group_prototypeid)\n\
+);\n\
+CREATE INDEX group_prototype_1 ON group_prototype (hostid);\n\
+CREATE TABLE group_discovery (\n\
+groupid bigint  NOT NULL,\n\
+parent_group_prototypeid bigint  NOT NULL,\n\
+name varchar(64) WITH DEFAULT '' NOT NULL,\n\
+lastcheck integer WITH DEFAULT '0' NOT NULL,\n\
+ts_delete integer WITH DEFAULT '0' NOT NULL,\n\
+PRIMARY KEY (groupid)\n\
+);\n\
 CREATE TABLE screens (\n\
 screenid bigint  NOT NULL,\n\
 name varchar(255)  NOT NULL,\n\
@@ -1480,6 +1672,7 @@ vsize integer WITH DEFAULT '1' NOT NULL,\n\
 templateid bigint  NULL,\n\
 PRIMARY KEY (screenid)\n\
 );\n\
+CREATE INDEX screens_1 ON screens (templateid);\n\
 CREATE TABLE screens_items (\n\
 screenitemid bigint  NOT NULL,\n\
 screenid bigint  NOT NULL,\n\
@@ -1498,8 +1691,10 @@ style integer WITH DEFAULT '0' NOT NULL,\n\
 url varchar(255) WITH DEFAULT '' NOT NULL,\n\
 dynamic integer WITH DEFAULT '0' NOT NULL,\n\
 sort_triggers integer WITH DEFAULT '0' NOT NULL,\n\
+application varchar(255) WITH DEFAULT '' NOT NULL,\n\
 PRIMARY KEY (screenitemid)\n\
 );\n\
+CREATE INDEX screens_items_1 ON screens_items (screenid);\n\
 CREATE TABLE slideshows (\n\
 slideshowid bigint  NOT NULL,\n\
 name varchar(255) WITH DEFAULT '' NOT NULL,\n\
@@ -1514,7 +1709,8 @@ step integer WITH DEFAULT '0' NOT NULL,\n\
 delay integer WITH DEFAULT '0' NOT NULL,\n\
 PRIMARY KEY (slideid)\n\
 );\n\
-CREATE INDEX slides_slides_1 ON slides (slideshowid);\n\
+CREATE INDEX slides_1 ON slides (slideshowid);\n\
+CREATE INDEX slides_2 ON slides (screenid);\n\
 CREATE TABLE drules (\n\
 druleid bigint  NOT NULL,\n\
 proxy_hostid bigint  NULL,\n\
@@ -1525,6 +1721,7 @@ nextcheck integer WITH DEFAULT '0' NOT NULL,\n\
 status integer WITH DEFAULT '0' NOT NULL,\n\
 PRIMARY KEY (druleid)\n\
 );\n\
+CREATE INDEX drules_1 ON drules (proxy_hostid);\n\
 CREATE TABLE dchecks (\n\
 dcheckid bigint  NOT NULL,\n\
 druleid bigint  NOT NULL,\n\
@@ -1537,6 +1734,9 @@ snmpv3_securitylevel integer WITH DEFAULT '0' NOT NULL,\n\
 snmpv3_authpassphrase varchar(64) WITH DEFAULT '' NOT NULL,\n\
 snmpv3_privpassphrase varchar(64) WITH DEFAULT '' NOT NULL,\n\
 uniq integer WITH DEFAULT '0' NOT NULL,\n\
+snmpv3_authprotocol integer WITH DEFAULT '0' NOT NULL,\n\
+snmpv3_privprotocol integer WITH DEFAULT '0' NOT NULL,\n\
+snmpv3_contextname varchar(255) WITH DEFAULT '' NOT NULL,\n\
 PRIMARY KEY (dcheckid)\n\
 );\n\
 CREATE INDEX dchecks_1 ON dchecks (druleid);\n\
@@ -1544,28 +1744,31 @@ CREATE TABLE applications (\n\
 applicationid bigint  NOT NULL,\n\
 hostid bigint  NOT NULL,\n\
 name varchar(255) WITH DEFAULT '' NOT NULL,\n\
-templateid bigint  NULL,\n\
 PRIMARY KEY (applicationid)\n\
 );\n\
-CREATE INDEX applications_1 ON applications (templateid);\n\
 CREATE UNIQUE INDEX applications_2 ON applications (hostid,name);\n\
 CREATE TABLE httptest (\n\
 httptestid bigint  NOT NULL,\n\
 name varchar(64) WITH DEFAULT '' NOT NULL,\n\
-applicationid bigint  NOT NULL,\n\
+applicationid bigint  NULL,\n\
 nextcheck integer WITH DEFAULT '0' NOT NULL,\n\
 delay integer WITH DEFAULT '60' NOT NULL,\n\
 status integer WITH DEFAULT '0' NOT NULL,\n\
-macros varchar(2048) WITH DEFAULT '' NOT NULL,\n\
+variables varchar(2048) WITH DEFAULT '' NOT NULL,\n\
 agent varchar(255) WITH DEFAULT '' NOT NULL,\n\
 authentication integer WITH DEFAULT '0' NOT NULL,\n\
 http_user varchar(64) WITH DEFAULT '' NOT NULL,\n\
 http_password varchar(64) WITH DEFAULT '' NOT NULL,\n\
+hostid bigint  NOT NULL,\n\
+templateid bigint  NULL,\n\
+http_proxy varchar(255) WITH DEFAULT '' NOT NULL,\n\
+retries integer WITH DEFAULT '1' NOT NULL,\n\
 PRIMARY KEY (httptestid)\n\
 );\n\
-CREATE INDEX httptest_httptest_1 ON httptest (applicationid);\n\
-CREATE INDEX httptest_2 ON httptest (name);\n\
+CREATE INDEX httptest_1 ON httptest (applicationid);\n\
+CREATE UNIQUE INDEX httptest_2 ON httptest (hostid,name);\n\
 CREATE INDEX httptest_3 ON httptest (status);\n\
+CREATE INDEX httptest_4 ON httptest (templateid);\n\
 CREATE TABLE httpstep (\n\
 httpstepid bigint  NOT NULL,\n\
 httptestid bigint  NOT NULL,\n\
@@ -1576,16 +1779,17 @@ timeout integer WITH DEFAULT '30' NOT NULL,\n\
 posts varchar(2048) WITH DEFAULT '' NOT NULL,\n\
 required varchar(255) WITH DEFAULT '' NOT NULL,\n\
 status_codes varchar(255) WITH DEFAULT '' NOT NULL,\n\
+variables varchar(2048) WITH DEFAULT '' NOT NULL,\n\
 PRIMARY KEY (httpstepid)\n\
 );\n\
-CREATE INDEX httpstep_httpstep_1 ON httpstep (httptestid);\n\
+CREATE INDEX httpstep_1 ON httpstep (httptestid);\n\
 CREATE TABLE interface (\n\
 interfaceid bigint  NOT NULL,\n\
 hostid bigint  NOT NULL,\n\
 main integer WITH DEFAULT '0' NOT NULL,\n\
 type integer WITH DEFAULT '0' NOT NULL,\n\
 useip integer WITH DEFAULT '1' NOT NULL,\n\
-ip varchar(39) WITH DEFAULT '127.0.0.1' NOT NULL,\n\
+ip varchar(64) WITH DEFAULT '127.0.0.1' NOT NULL,\n\
 dns varchar(64) WITH DEFAULT '' NOT NULL,\n\
 port varchar(64) WITH DEFAULT '10050' NOT NULL,\n\
 PRIMARY KEY (interfaceid)\n\
@@ -1609,16 +1813,12 @@ key_ varchar(255) WITH DEFAULT '' NOT NULL,\n\
 delay integer WITH DEFAULT '0' NOT NULL,\n\
 history integer WITH DEFAULT '90' NOT NULL,\n\
 trends integer WITH DEFAULT '365' NOT NULL,\n\
-lastvalue varchar(255)  NULL,\n\
-lastclock integer  NULL,\n\
-prevvalue varchar(255)  NULL,\n\
 status integer WITH DEFAULT '0' NOT NULL,\n\
 value_type integer WITH DEFAULT '0' NOT NULL,\n\
 trapper_hosts varchar(255) WITH DEFAULT '' NOT NULL,\n\
 units varchar(255) WITH DEFAULT '' NOT NULL,\n\
 multiplier integer WITH DEFAULT '0' NOT NULL,\n\
 delta integer WITH DEFAULT '0' NOT NULL,\n\
-prevorgvalue varchar(255)  NULL,\n\
 snmpv3_securityname varchar(64) WITH DEFAULT '' NOT NULL,\n\
 snmpv3_securitylevel integer WITH DEFAULT '0' NOT NULL,\n\
 snmpv3_authpassphrase varchar(64) WITH DEFAULT '' NOT NULL,\n\
@@ -1639,7 +1839,6 @@ password varchar(64) WITH DEFAULT '' NOT NULL,\n\
 publickey varchar(64) WITH DEFAULT '' NOT NULL,\n\
 privatekey varchar(64) WITH DEFAULT '' NOT NULL,\n\
 mtime integer WITH DEFAULT '0' NOT NULL,\n\
-lastns integer  NULL,\n\
 flags integer WITH DEFAULT '0' NOT NULL,\n\
 filter varchar(255) WITH DEFAULT '' NOT NULL,\n\
 interfaceid bigint  NULL,\n\
@@ -1647,12 +1846,17 @@ port varchar(64) WITH DEFAULT '' NOT NULL,\n\
 description varchar(2048) WITH DEFAULT '' NOT NULL,\n\
 inventory_link integer WITH DEFAULT '0' NOT NULL,\n\
 lifetime varchar(64) WITH DEFAULT '30' NOT NULL,\n\
+snmpv3_authprotocol integer WITH DEFAULT '0' NOT NULL,\n\
+snmpv3_privprotocol integer WITH DEFAULT '0' NOT NULL,\n\
+state integer WITH DEFAULT '0' NOT NULL,\n\
+snmpv3_contextname varchar(255) WITH DEFAULT '' NOT NULL,\n\
 PRIMARY KEY (itemid)\n\
 );\n\
 CREATE UNIQUE INDEX items_1 ON items (hostid,key_);\n\
 CREATE INDEX items_3 ON items (status);\n\
 CREATE INDEX items_4 ON items (templateid);\n\
 CREATE INDEX items_5 ON items (valuemapid);\n\
+CREATE INDEX items_6 ON items (interfaceid);\n\
 CREATE TABLE httpstepitem (\n\
 httpstepitemid bigint  NOT NULL,\n\
 httpstepid bigint  NOT NULL,\n\
@@ -1660,7 +1864,8 @@ itemid bigint  NOT NULL,\n\
 type integer WITH DEFAULT '0' NOT NULL,\n\
 PRIMARY KEY (httpstepitemid)\n\
 );\n\
-CREATE UNIQUE INDEX httpstepitem_httpstepitem_1 ON httpstepitem (httpstepid,itemid);\n\
+CREATE UNIQUE INDEX httpstepitem_1 ON httpstepitem (httpstepid,itemid);\n\
+CREATE INDEX httpstepitem_2 ON httpstepitem (itemid);\n\
 CREATE TABLE httptestitem (\n\
 httptestitemid bigint  NOT NULL,\n\
 httptestid bigint  NOT NULL,\n\
@@ -1668,7 +1873,8 @@ itemid bigint  NOT NULL,\n\
 type integer WITH DEFAULT '0' NOT NULL,\n\
 PRIMARY KEY (httptestitemid)\n\
 );\n\
-CREATE UNIQUE INDEX httptestitem_httptestitem_1 ON httptestitem (httptestid,itemid);\n\
+CREATE UNIQUE INDEX httptestitem_1 ON httptestitem (httptestid,itemid);\n\
+CREATE INDEX httptestitem_2 ON httptestitem (itemid);\n\
 CREATE TABLE media_type (\n\
 mediatypeid bigint  NOT NULL,\n\
 type integer WITH DEFAULT '0' NOT NULL,\n\
@@ -1694,7 +1900,7 @@ autologin integer WITH DEFAULT '0' NOT NULL,\n\
 autologout integer WITH DEFAULT '900' NOT NULL,\n\
 lang varchar(5) WITH DEFAULT 'en_GB' NOT NULL,\n\
 refresh integer WITH DEFAULT '30' NOT NULL,\n\
-type integer WITH DEFAULT '0' NOT NULL,\n\
+type integer WITH DEFAULT '1' NOT NULL,\n\
 theme varchar(128) WITH DEFAULT 'default' NOT NULL,\n\
 attempt_failed integer WITH DEFAULT 0 NOT NULL,\n\
 attempt_ip varchar(39) WITH DEFAULT '' NOT NULL,\n\
@@ -1719,6 +1925,7 @@ userid bigint  NOT NULL,\n\
 PRIMARY KEY (id)\n\
 );\n\
 CREATE UNIQUE INDEX users_groups_1 ON users_groups (usrgrpid,userid);\n\
+CREATE INDEX users_groups_2 ON users_groups (userid);\n\
 CREATE TABLE scripts (\n\
 scriptid bigint  NOT NULL,\n\
 name varchar(255) WITH DEFAULT '' NOT NULL,\n\
@@ -1732,6 +1939,8 @@ type integer WITH DEFAULT '0' NOT NULL,\n\
 execute_on integer WITH DEFAULT '1' NOT NULL,\n\
 PRIMARY KEY (scriptid)\n\
 );\n\
+CREATE INDEX scripts_1 ON scripts (usrgrpid);\n\
+CREATE INDEX scripts_2 ON scripts (groupid);\n\
 CREATE TABLE actions (\n\
 actionid bigint  NOT NULL,\n\
 name varchar(255) WITH DEFAULT '' NOT NULL,\n\
@@ -1766,6 +1975,7 @@ message varchar(2048) WITH DEFAULT '' NOT NULL,\n\
 mediatypeid bigint  NULL,\n\
 PRIMARY KEY (operationid)\n\
 );\n\
+CREATE INDEX opmessage_1 ON opmessage (mediatypeid);\n\
 CREATE TABLE opmessage_grp (\n\
 opmessage_grpid bigint  NOT NULL,\n\
 operationid bigint  NOT NULL,\n\
@@ -1773,6 +1983,7 @@ usrgrpid bigint  NOT NULL,\n\
 PRIMARY KEY (opmessage_grpid)\n\
 );\n\
 CREATE UNIQUE INDEX opmessage_grp_1 ON opmessage_grp (operationid,usrgrpid);\n\
+CREATE INDEX opmessage_grp_2 ON opmessage_grp (usrgrpid);\n\
 CREATE TABLE opmessage_usr (\n\
 opmessage_usrid bigint  NOT NULL,\n\
 operationid bigint  NOT NULL,\n\
@@ -1780,6 +1991,7 @@ userid bigint  NOT NULL,\n\
 PRIMARY KEY (opmessage_usrid)\n\
 );\n\
 CREATE UNIQUE INDEX opmessage_usr_1 ON opmessage_usr (operationid,userid);\n\
+CREATE INDEX opmessage_usr_2 ON opmessage_usr (userid);\n\
 CREATE TABLE opcommand (\n\
 operationid bigint  NOT NULL,\n\
 type integer WITH DEFAULT '0' NOT NULL,\n\
@@ -1794,6 +2006,7 @@ privatekey varchar(64) WITH DEFAULT '' NOT NULL,\n\
 command varchar(2048) WITH DEFAULT '' NOT NULL,\n\
 PRIMARY KEY (operationid)\n\
 );\n\
+CREATE INDEX opcommand_1 ON opcommand (scriptid);\n\
 CREATE TABLE opcommand_hst (\n\
 opcommand_hstid bigint  NOT NULL,\n\
 operationid bigint  NOT NULL,\n\
@@ -1801,6 +2014,7 @@ hostid bigint  NULL,\n\
 PRIMARY KEY (opcommand_hstid)\n\
 );\n\
 CREATE INDEX opcommand_hst_1 ON opcommand_hst (operationid);\n\
+CREATE INDEX opcommand_hst_2 ON opcommand_hst (hostid);\n\
 CREATE TABLE opcommand_grp (\n\
 opcommand_grpid bigint  NOT NULL,\n\
 operationid bigint  NOT NULL,\n\
@@ -1808,6 +2022,7 @@ groupid bigint  NOT NULL,\n\
 PRIMARY KEY (opcommand_grpid)\n\
 );\n\
 CREATE INDEX opcommand_grp_1 ON opcommand_grp (operationid);\n\
+CREATE INDEX opcommand_grp_2 ON opcommand_grp (groupid);\n\
 CREATE TABLE opgroup (\n\
 opgroupid bigint  NOT NULL,\n\
 operationid bigint  NOT NULL,\n\
@@ -1815,6 +2030,7 @@ groupid bigint  NOT NULL,\n\
 PRIMARY KEY (opgroupid)\n\
 );\n\
 CREATE UNIQUE INDEX opgroup_1 ON opgroup (operationid,groupid);\n\
+CREATE INDEX opgroup_2 ON opgroup (groupid);\n\
 CREATE TABLE optemplate (\n\
 optemplateid bigint  NOT NULL,\n\
 operationid bigint  NOT NULL,\n\
@@ -1822,6 +2038,7 @@ templateid bigint  NOT NULL,\n\
 PRIMARY KEY (optemplateid)\n\
 );\n\
 CREATE UNIQUE INDEX optemplate_1 ON optemplate (operationid,templateid);\n\
+CREATE INDEX optemplate_2 ON optemplate (templateid);\n\
 CREATE TABLE opconditions (\n\
 opconditionid bigint  NOT NULL,\n\
 operationid bigint  NOT NULL,\n\
@@ -1842,8 +2059,6 @@ PRIMARY KEY (conditionid)\n\
 CREATE INDEX conditions_1 ON conditions (actionid);\n\
 CREATE TABLE config (\n\
 configid bigint  NOT NULL,\n\
-alert_history integer WITH DEFAULT '0' NOT NULL,\n\
-event_history integer WITH DEFAULT '0' NOT NULL,\n\
 refresh_unsupported integer WITH DEFAULT '0' NOT NULL,\n\
 work_period varchar(100) WITH DEFAULT '1-5,00:00-24:00' NOT NULL,\n\
 alert_usrgrpid bigint  NULL,\n\
@@ -1887,11 +2102,30 @@ ok_unack_style integer WITH DEFAULT '1' NOT NULL,\n\
 ok_ack_style integer WITH DEFAULT '1' NOT NULL,\n\
 snmptrap_logging integer WITH DEFAULT '1' NOT NULL,\n\
 server_check_interval integer WITH DEFAULT '10' NOT NULL,\n\
+hk_events_mode integer WITH DEFAULT '1' NOT NULL,\n\
+hk_events_trigger integer WITH DEFAULT '365' NOT NULL,\n\
+hk_events_internal integer WITH DEFAULT '365' NOT NULL,\n\
+hk_events_discovery integer WITH DEFAULT '365' NOT NULL,\n\
+hk_events_autoreg integer WITH DEFAULT '365' NOT NULL,\n\
+hk_services_mode integer WITH DEFAULT '1' NOT NULL,\n\
+hk_services integer WITH DEFAULT '365' NOT NULL,\n\
+hk_audit_mode integer WITH DEFAULT '1' NOT NULL,\n\
+hk_audit integer WITH DEFAULT '365' NOT NULL,\n\
+hk_sessions_mode integer WITH DEFAULT '1' NOT NULL,\n\
+hk_sessions integer WITH DEFAULT '365' NOT NULL,\n\
+hk_history_mode integer WITH DEFAULT '1' NOT NULL,\n\
+hk_history_global integer WITH DEFAULT '0' NOT NULL,\n\
+hk_history integer WITH DEFAULT '90' NOT NULL,\n\
+hk_trends_mode integer WITH DEFAULT '1' NOT NULL,\n\
+hk_trends_global integer WITH DEFAULT '0' NOT NULL,\n\
+hk_trends integer WITH DEFAULT '365' NOT NULL,\n\
 PRIMARY KEY (configid)\n\
 );\n\
+CREATE INDEX config_1 ON config (alert_usrgrpid);\n\
+CREATE INDEX config_2 ON config (discovery_groupid);\n\
 CREATE TABLE triggers (\n\
 triggerid bigint  NOT NULL,\n\
-expression varchar(255) WITH DEFAULT '' NOT NULL,\n\
+expression varchar(2048) WITH DEFAULT '' NOT NULL,\n\
 description varchar(255) WITH DEFAULT '' NOT NULL,\n\
 url varchar(255) WITH DEFAULT '' NOT NULL,\n\
 status integer WITH DEFAULT '0' NOT NULL,\n\
@@ -1902,12 +2136,13 @@ comments varchar(2048) WITH DEFAULT '' NOT NULL,\n\
 error varchar(128) WITH DEFAULT '' NOT NULL,\n\
 templateid bigint  NULL,\n\
 type integer WITH DEFAULT '0' NOT NULL,\n\
-value_flags integer WITH DEFAULT '0' NOT NULL,\n\
+state integer WITH DEFAULT '0' NOT NULL,\n\
 flags integer WITH DEFAULT '0' NOT NULL,\n\
 PRIMARY KEY (triggerid)\n\
 );\n\
 CREATE INDEX triggers_1 ON triggers (status);\n\
 CREATE INDEX triggers_2 ON triggers (value);\n\
+CREATE INDEX triggers_3 ON triggers (templateid);\n\
 CREATE TABLE trigger_depends (\n\
 triggerdepid bigint  NOT NULL,\n\
 triggerid_down bigint  NOT NULL,\n\
@@ -1929,10 +2164,10 @@ CREATE INDEX functions_2 ON functions (itemid,function,parameter);\n\
 CREATE TABLE graphs (\n\
 graphid bigint  NOT NULL,\n\
 name varchar(128) WITH DEFAULT '' NOT NULL,\n\
-width integer WITH DEFAULT '0' NOT NULL,\n\
-height integer WITH DEFAULT '0' NOT NULL,\n\
+width integer WITH DEFAULT '900' NOT NULL,\n\
+height integer WITH DEFAULT '200' NOT NULL,\n\
 yaxismin decfloat(16) WITH DEFAULT '0' NOT NULL,\n\
-yaxismax decfloat(16) WITH DEFAULT '0' NOT NULL,\n\
+yaxismax decfloat(16) WITH DEFAULT '100' NOT NULL,\n\
 templateid bigint  NULL,\n\
 show_work_period integer WITH DEFAULT '1' NOT NULL,\n\
 show_triggers integer WITH DEFAULT '1' NOT NULL,\n\
@@ -1948,7 +2183,10 @@ ymax_itemid bigint  NULL,\n\
 flags integer WITH DEFAULT '0' NOT NULL,\n\
 PRIMARY KEY (graphid)\n\
 );\n\
-CREATE INDEX graphs_graphs_1 ON graphs (name);\n\
+CREATE INDEX graphs_1 ON graphs (name);\n\
+CREATE INDEX graphs_2 ON graphs (templateid);\n\
+CREATE INDEX graphs_3 ON graphs (ymin_itemid);\n\
+CREATE INDEX graphs_4 ON graphs (ymax_itemid);\n\
 CREATE TABLE graphs_items (\n\
 gitemid bigint  NOT NULL,\n\
 graphid bigint  NOT NULL,\n\
@@ -1956,7 +2194,7 @@ itemid bigint  NOT NULL,\n\
 drawtype integer WITH DEFAULT '0' NOT NULL,\n\
 sortorder integer WITH DEFAULT '0' NOT NULL,\n\
 color varchar(6) WITH DEFAULT '009600' NOT NULL,\n\
-yaxisside integer WITH DEFAULT '1' NOT NULL,\n\
+yaxisside integer WITH DEFAULT '0' NOT NULL,\n\
 calc_fnc integer WITH DEFAULT '2' NOT NULL,\n\
 type integer WITH DEFAULT '0' NOT NULL,\n\
 PRIMARY KEY (gitemid)\n\
@@ -1984,12 +2222,6 @@ PRIMARY KEY (graphthemeid)\n\
 );\n\
 CREATE INDEX graph_theme_1 ON graph_theme (description);\n\
 CREATE INDEX graph_theme_2 ON graph_theme (theme);\n\
-CREATE TABLE help_items (\n\
-itemtype integer WITH DEFAULT '0' NOT NULL,\n\
-key_ varchar(255) WITH DEFAULT '' NOT NULL,\n\
-description varchar(255) WITH DEFAULT '' NOT NULL,\n\
-PRIMARY KEY (itemtype,key_)\n\
-);\n\
 CREATE TABLE globalmacro (\n\
 globalmacroid bigint  NOT NULL,\n\
 macro varchar(64) WITH DEFAULT '' NOT NULL,\n\
@@ -2077,8 +2309,8 @@ servicedownid bigint  NOT NULL,\n\
 soft integer WITH DEFAULT '0' NOT NULL,\n\
 PRIMARY KEY (linkid)\n\
 );\n\
-CREATE INDEX services_links_links_1 ON services_links (servicedownid);\n\
-CREATE UNIQUE INDEX services_links_links_2 ON services_links (serviceupid,servicedownid);\n\
+CREATE INDEX services_links_1 ON services_links (servicedownid);\n\
+CREATE UNIQUE INDEX services_links_2 ON services_links (serviceupid,servicedownid);\n\
 CREATE TABLE services_times (\n\
 timeid bigint  NOT NULL,\n\
 serviceid bigint  NOT NULL,\n\
@@ -2088,7 +2320,7 @@ ts_to integer WITH DEFAULT '0' NOT NULL,\n\
 note varchar(255) WITH DEFAULT '' NOT NULL,\n\
 PRIMARY KEY (timeid)\n\
 );\n\
-CREATE INDEX services_times_times_1 ON services_times (serviceid,type,ts_from,ts_to);\n\
+CREATE INDEX services_times_1 ON services_times (serviceid,type,ts_from,ts_to);\n\
 CREATE TABLE icon_map (\n\
 iconmapid bigint  NOT NULL,\n\
 name varchar(64) WITH DEFAULT '' NOT NULL,\n\
@@ -2096,6 +2328,7 @@ default_iconid bigint  NOT NULL,\n\
 PRIMARY KEY (iconmapid)\n\
 );\n\
 CREATE INDEX icon_map_1 ON icon_map (name);\n\
+CREATE INDEX icon_map_2 ON icon_map (default_iconid);\n\
 CREATE TABLE icon_mapping (\n\
 iconmappingid bigint  NOT NULL,\n\
 iconmapid bigint  NOT NULL,\n\
@@ -2106,6 +2339,7 @@ sortorder integer WITH DEFAULT '0' NOT NULL,\n\
 PRIMARY KEY (iconmappingid)\n\
 );\n\
 CREATE INDEX icon_mapping_1 ON icon_mapping (iconmapid);\n\
+CREATE INDEX icon_mapping_2 ON icon_mapping (iconid);\n\
 CREATE TABLE sysmaps (\n\
 sysmapid bigint  NOT NULL,\n\
 name varchar(128) WITH DEFAULT '' NOT NULL,\n\
@@ -2113,7 +2347,7 @@ width integer WITH DEFAULT '600' NOT NULL,\n\
 height integer WITH DEFAULT '400' NOT NULL,\n\
 backgroundid bigint  NULL,\n\
 label_type integer WITH DEFAULT '2' NOT NULL,\n\
-label_location integer WITH DEFAULT '3' NOT NULL,\n\
+label_location integer WITH DEFAULT '0' NOT NULL,\n\
 highlight integer WITH DEFAULT '1' NOT NULL,\n\
 expandproblem integer WITH DEFAULT '1' NOT NULL,\n\
 markelements integer WITH DEFAULT '0' NOT NULL,\n\
@@ -2134,9 +2368,12 @@ label_string_map varchar(255) WITH DEFAULT '' NOT NULL,\n\
 label_string_image varchar(255) WITH DEFAULT '' NOT NULL,\n\
 iconmapid bigint  NULL,\n\
 expand_macros integer WITH DEFAULT '0' NOT NULL,\n\
+severity_min integer WITH DEFAULT '0' NOT NULL,\n\
 PRIMARY KEY (sysmapid)\n\
 );\n\
 CREATE INDEX sysmaps_1 ON sysmaps (name);\n\
+CREATE INDEX sysmaps_2 ON sysmaps (backgroundid);\n\
+CREATE INDEX sysmaps_3 ON sysmaps (iconmapid);\n\
 CREATE TABLE sysmaps_elements (\n\
 selementid bigint  NOT NULL,\n\
 sysmapid bigint  NOT NULL,\n\
@@ -2144,8 +2381,8 @@ elementid bigint WITH DEFAULT '0' NOT NULL,\n\
 elementtype integer WITH DEFAULT '0' NOT NULL,\n\
 iconid_off bigint  NULL,\n\
 iconid_on bigint  NULL,\n\
-label varchar(255) WITH DEFAULT '' NOT NULL,\n\
-label_location integer  NULL,\n\
+label varchar(2048) WITH DEFAULT '' NOT NULL,\n\
+label_location integer WITH DEFAULT '-1' NOT NULL,\n\
 x integer WITH DEFAULT '0' NOT NULL,\n\
 y integer WITH DEFAULT '0' NOT NULL,\n\
 iconid_disabled bigint  NULL,\n\
@@ -2158,6 +2395,11 @@ viewtype integer WITH DEFAULT '0' NOT NULL,\n\
 use_iconmap integer WITH DEFAULT '1' NOT NULL,\n\
 PRIMARY KEY (selementid)\n\
 );\n\
+CREATE INDEX sysmaps_elements_1 ON sysmaps_elements (sysmapid);\n\
+CREATE INDEX sysmaps_elements_2 ON sysmaps_elements (iconid_off);\n\
+CREATE INDEX sysmaps_elements_3 ON sysmaps_elements (iconid_on);\n\
+CREATE INDEX sysmaps_elements_4 ON sysmaps_elements (iconid_disabled);\n\
+CREATE INDEX sysmaps_elements_5 ON sysmaps_elements (iconid_maintenance);\n\
 CREATE TABLE sysmaps_links (\n\
 linkid bigint  NOT NULL,\n\
 sysmapid bigint  NOT NULL,\n\
@@ -2165,9 +2407,12 @@ selementid1 bigint  NOT NULL,\n\
 selementid2 bigint  NOT NULL,\n\
 drawtype integer WITH DEFAULT '0' NOT NULL,\n\
 color varchar(6) WITH DEFAULT '000000' NOT NULL,\n\
-label varchar(255) WITH DEFAULT '' NOT NULL,\n\
+label varchar(2048) WITH DEFAULT '' NOT NULL,\n\
 PRIMARY KEY (linkid)\n\
 );\n\
+CREATE INDEX sysmaps_links_1 ON sysmaps_links (sysmapid);\n\
+CREATE INDEX sysmaps_links_2 ON sysmaps_links (selementid1);\n\
+CREATE INDEX sysmaps_links_3 ON sysmaps_links (selementid2);\n\
 CREATE TABLE sysmaps_link_triggers (\n\
 linktriggerid bigint  NOT NULL,\n\
 linkid bigint  NOT NULL,\n\
@@ -2177,6 +2422,7 @@ color varchar(6) WITH DEFAULT '000000' NOT NULL,\n\
 PRIMARY KEY (linktriggerid)\n\
 );\n\
 CREATE UNIQUE INDEX sysmaps_link_triggers_1 ON sysmaps_link_triggers (linkid,triggerid);\n\
+CREATE INDEX sysmaps_link_triggers_2 ON sysmaps_link_triggers (triggerid);\n\
 CREATE TABLE sysmap_element_url (\n\
 sysmapelementurlid bigint  NOT NULL,\n\
 selementid bigint  NOT NULL,\n\
@@ -2201,6 +2447,7 @@ hostid bigint  NOT NULL,\n\
 PRIMARY KEY (maintenance_hostid)\n\
 );\n\
 CREATE UNIQUE INDEX maintenances_hosts_1 ON maintenances_hosts (maintenanceid,hostid);\n\
+CREATE INDEX maintenances_hosts_2 ON maintenances_hosts (hostid);\n\
 CREATE TABLE maintenances_groups (\n\
 maintenance_groupid bigint  NOT NULL,\n\
 maintenanceid bigint  NOT NULL,\n\
@@ -2208,6 +2455,7 @@ groupid bigint  NOT NULL,\n\
 PRIMARY KEY (maintenance_groupid)\n\
 );\n\
 CREATE UNIQUE INDEX maintenances_groups_1 ON maintenances_groups (maintenanceid,groupid);\n\
+CREATE INDEX maintenances_groups_2 ON maintenances_groups (groupid);\n\
 CREATE TABLE timeperiods (\n\
 timeperiodid bigint  NOT NULL,\n\
 timeperiod_type integer WITH DEFAULT '0' NOT NULL,\n\
@@ -2227,6 +2475,7 @@ timeperiodid bigint  NOT NULL,\n\
 PRIMARY KEY (maintenance_timeperiodid)\n\
 );\n\
 CREATE UNIQUE INDEX maintenances_windows_1 ON maintenances_windows (maintenanceid,timeperiodid);\n\
+CREATE INDEX maintenances_windows_2 ON maintenances_windows (timeperiodid);\n\
 CREATE TABLE regexps (\n\
 regexpid bigint  NOT NULL,\n\
 name varchar(128) WITH DEFAULT '' NOT NULL,\n\
@@ -2253,6 +2502,7 @@ nodetype integer WITH DEFAULT '0' NOT NULL,\n\
 masterid integer  NULL,\n\
 PRIMARY KEY (nodeid)\n\
 );\n\
+CREATE INDEX nodes_1 ON nodes (masterid);\n\
 CREATE TABLE node_cksum (\n\
 nodeid integer  NOT NULL,\n\
 tablename varchar(64) WITH DEFAULT '' NOT NULL,\n\
@@ -2282,7 +2532,6 @@ message varchar(2048) WITH DEFAULT '' NOT NULL,\n\
 status integer WITH DEFAULT '0' NOT NULL,\n\
 retries integer WITH DEFAULT '0' NOT NULL,\n\
 error varchar(128) WITH DEFAULT '' NOT NULL,\n\
-nextcheck integer WITH DEFAULT '0' NOT NULL,\n\
 esc_step integer WITH DEFAULT '0' NOT NULL,\n\
 alerttype integer WITH DEFAULT '0' NOT NULL,\n\
 PRIMARY KEY (alertid)\n\
@@ -2378,7 +2627,7 @@ severity integer WITH DEFAULT '0' NOT NULL,\n\
 value varchar(2048) WITH DEFAULT '' NOT NULL,\n\
 logeventid integer WITH DEFAULT '0' NOT NULL,\n\
 ns integer WITH DEFAULT '0' NOT NULL,\n\
-status integer WITH DEFAULT '0' NOT NULL,\n\
+state integer WITH DEFAULT '0' NOT NULL,\n\
 PRIMARY KEY (id)\n\
 );\n\
 CREATE INDEX proxy_history_1 ON proxy_history (clock);\n\
@@ -2406,11 +2655,10 @@ clock integer WITH DEFAULT '0' NOT NULL,\n\
 value integer WITH DEFAULT '0' NOT NULL,\n\
 acknowledged integer WITH DEFAULT '0' NOT NULL,\n\
 ns integer WITH DEFAULT '0' NOT NULL,\n\
-value_changed integer WITH DEFAULT '0' NOT NULL,\n\
 PRIMARY KEY (eventid)\n\
 );\n\
-CREATE INDEX events_1 ON events (object,objectid,eventid);\n\
-CREATE INDEX events_2 ON events (clock);\n\
+CREATE INDEX events_1 ON events (source,object,objectid,clock);\n\
+CREATE INDEX events_2 ON events (source,object,clock);\n\
 CREATE TABLE trends (\n\
 itemid bigint  NOT NULL,\n\
 clock integer WITH DEFAULT '0' NOT NULL,\n\
@@ -2480,6 +2728,7 @@ host varchar(64) WITH DEFAULT '' NOT NULL,\n\
 listen_ip varchar(39) WITH DEFAULT '' NOT NULL,\n\
 listen_port integer WITH DEFAULT '0' NOT NULL,\n\
 listen_dns varchar(64) WITH DEFAULT '' NOT NULL,\n\
+host_metadata varchar(255) WITH DEFAULT '' NOT NULL,\n\
 PRIMARY KEY (autoreg_hostid)\n\
 );\n\
 CREATE INDEX autoreg_host_1 ON autoreg_host (proxy_hostid,host);\n\
@@ -2490,6 +2739,7 @@ host varchar(64) WITH DEFAULT '' NOT NULL,\n\
 listen_ip varchar(39) WITH DEFAULT '' NOT NULL,\n\
 listen_port integer WITH DEFAULT '0' NOT NULL,\n\
 listen_dns varchar(64) WITH DEFAULT '' NOT NULL,\n\
+host_metadata varchar(255) WITH DEFAULT '' NOT NULL,\n\
 PRIMARY KEY (id)\n\
 );\n\
 CREATE INDEX proxy_autoreg_host_1 ON proxy_autoreg_host (clock);\n\
@@ -2528,9 +2778,10 @@ r_eventid bigint  NULL,\n\
 nextcheck integer WITH DEFAULT '0' NOT NULL,\n\
 esc_step integer WITH DEFAULT '0' NOT NULL,\n\
 status integer WITH DEFAULT '0' NOT NULL,\n\
+itemid bigint  NULL,\n\
 PRIMARY KEY (escalationid)\n\
 );\n\
-CREATE INDEX escalations_1 ON escalations (actionid,triggerid);\n\
+CREATE UNIQUE INDEX escalations_1 ON escalations (actionid,triggerid,itemid,escalationid);\n\
 CREATE TABLE globalvars (\n\
 globalvarid bigint  NOT NULL,\n\
 snmp_lastsize integer WITH DEFAULT '0' NOT NULL,\n\
@@ -2544,6 +2795,7 @@ name varchar(128) WITH DEFAULT '' NOT NULL,\n\
 PRIMARY KEY (graphdiscoveryid)\n\
 );\n\
 CREATE UNIQUE INDEX graph_discovery_1 ON graph_discovery (graphid,parent_graphid);\n\
+CREATE INDEX graph_discovery_2 ON graph_discovery (parent_graphid);\n\
 CREATE TABLE host_inventory (\n\
 hostid bigint  NOT NULL,\n\
 inventory_mode integer WITH DEFAULT '0' NOT NULL,\n\
@@ -2644,6 +2896,21 @@ ts_delete integer WITH DEFAULT '0' NOT NULL,\n\
 PRIMARY KEY (itemdiscoveryid)\n\
 );\n\
 CREATE UNIQUE INDEX item_discovery_1 ON item_discovery (itemid,parent_itemid);\n\
+CREATE INDEX item_discovery_2 ON item_discovery (parent_itemid);\n\
+CREATE TABLE host_discovery (\n\
+hostid bigint  NOT NULL,\n\
+parent_hostid bigint  NULL,\n\
+parent_itemid bigint  NULL,\n\
+host varchar(64) WITH DEFAULT '' NOT NULL,\n\
+lastcheck integer WITH DEFAULT '0' NOT NULL,\n\
+ts_delete integer WITH DEFAULT '0' NOT NULL,\n\
+PRIMARY KEY (hostid)\n\
+);\n\
+CREATE TABLE interface_discovery (\n\
+interfaceid bigint  NOT NULL,\n\
+parent_interfaceid bigint  NOT NULL,\n\
+PRIMARY KEY (interfaceid)\n\
+);\n\
 CREATE TABLE profiles (\n\
 profileid bigint  NOT NULL,\n\
 userid bigint  NOT NULL,\n\
@@ -2674,6 +2941,7 @@ name varchar(255) WITH DEFAULT '' NOT NULL,\n\
 PRIMARY KEY (triggerdiscoveryid)\n\
 );\n\
 CREATE UNIQUE INDEX trigger_discovery_1 ON trigger_discovery (triggerid,parent_triggerid);\n\
+CREATE INDEX trigger_discovery_2 ON trigger_discovery (parent_triggerid);\n\
 CREATE TABLE user_history (\n\
 userhistoryid bigint  NOT NULL,\n\
 userid bigint  NOT NULL,\n\
@@ -2690,10 +2958,29 @@ url5 varchar(255) WITH DEFAULT '' NOT NULL,\n\
 PRIMARY KEY (userhistoryid)\n\
 );\n\
 CREATE UNIQUE INDEX user_history_1 ON user_history (userid);\n\
+CREATE TABLE application_template (\n\
+application_templateid bigint  NOT NULL,\n\
+applicationid bigint  NOT NULL,\n\
+templateid bigint  NOT NULL,\n\
+PRIMARY KEY (application_templateid)\n\
+);\n\
+CREATE UNIQUE INDEX application_template_1 ON application_template (applicationid,templateid);\n\
+CREATE INDEX application_template_2 ON application_template (templateid);\n\
+CREATE TABLE dbversion (\n\
+mandatory integer WITH DEFAULT '0' NOT NULL,\n\
+optional integer WITH DEFAULT '0' NOT NULL\n\
+);\n\
+INSERT INTO dbversion VALUES ('2020000','2020001');\n\
 ";
 const char	*const db_schema_fkeys[] = {
 	"ALTER TABLE hosts ADD CONSTRAINT c_hosts_1 FOREIGN KEY (proxy_hostid) REFERENCES hosts (hostid)",
 	"ALTER TABLE hosts ADD CONSTRAINT c_hosts_2 FOREIGN KEY (maintenanceid) REFERENCES maintenances (maintenanceid)",
+	"ALTER TABLE hosts ADD CONSTRAINT c_hosts_3 FOREIGN KEY (templateid) REFERENCES hosts (hostid) ON DELETE CASCADE",
+	"ALTER TABLE group_prototype ADD CONSTRAINT c_group_prototype_1 FOREIGN KEY (hostid) REFERENCES hosts (hostid) ON DELETE CASCADE",
+	"ALTER TABLE group_prototype ADD CONSTRAINT c_group_prototype_2 FOREIGN KEY (groupid) REFERENCES groups (groupid)",
+	"ALTER TABLE group_prototype ADD CONSTRAINT c_group_prototype_3 FOREIGN KEY (templateid) REFERENCES group_prototype (group_prototypeid) ON DELETE CASCADE",
+	"ALTER TABLE group_discovery ADD CONSTRAINT c_group_discovery_1 FOREIGN KEY (groupid) REFERENCES groups (groupid) ON DELETE CASCADE",
+	"ALTER TABLE group_discovery ADD CONSTRAINT c_group_discovery_2 FOREIGN KEY (parent_group_prototypeid) REFERENCES group_prototype (group_prototypeid)",
 	"ALTER TABLE screens ADD CONSTRAINT c_screens_1 FOREIGN KEY (templateid) REFERENCES hosts (hostid) ON DELETE CASCADE",
 	"ALTER TABLE screens_items ADD CONSTRAINT c_screens_items_1 FOREIGN KEY (screenid) REFERENCES screens (screenid) ON DELETE CASCADE",
 	"ALTER TABLE slides ADD CONSTRAINT c_slides_1 FOREIGN KEY (slideshowid) REFERENCES slideshows (slideshowid) ON DELETE CASCADE",
@@ -2701,8 +2988,9 @@ const char	*const db_schema_fkeys[] = {
 	"ALTER TABLE drules ADD CONSTRAINT c_drules_1 FOREIGN KEY (proxy_hostid) REFERENCES hosts (hostid)",
 	"ALTER TABLE dchecks ADD CONSTRAINT c_dchecks_1 FOREIGN KEY (druleid) REFERENCES drules (druleid) ON DELETE CASCADE",
 	"ALTER TABLE applications ADD CONSTRAINT c_applications_1 FOREIGN KEY (hostid) REFERENCES hosts (hostid) ON DELETE CASCADE",
-	"ALTER TABLE applications ADD CONSTRAINT c_applications_2 FOREIGN KEY (templateid) REFERENCES applications (applicationid) ON DELETE CASCADE",
-	"ALTER TABLE httptest ADD CONSTRAINT c_httptest_1 FOREIGN KEY (applicationid) REFERENCES applications (applicationid) ON DELETE CASCADE",
+	"ALTER TABLE httptest ADD CONSTRAINT c_httptest_1 FOREIGN KEY (applicationid) REFERENCES applications (applicationid)",
+	"ALTER TABLE httptest ADD CONSTRAINT c_httptest_2 FOREIGN KEY (hostid) REFERENCES hosts (hostid) ON DELETE CASCADE",
+	"ALTER TABLE httptest ADD CONSTRAINT c_httptest_3 FOREIGN KEY (templateid) REFERENCES httptest (httptestid) ON DELETE CASCADE",
 	"ALTER TABLE httpstep ADD CONSTRAINT c_httpstep_1 FOREIGN KEY (httptestid) REFERENCES httptest (httptestid) ON DELETE CASCADE",
 	"ALTER TABLE interface ADD CONSTRAINT c_interface_1 FOREIGN KEY (hostid) REFERENCES hosts (hostid) ON DELETE CASCADE",
 	"ALTER TABLE items ADD CONSTRAINT c_items_1 FOREIGN KEY (hostid) REFERENCES hosts (hostid) ON DELETE CASCADE",
@@ -2808,16 +3096,29 @@ const char	*const db_schema_fkeys[] = {
 	"ALTER TABLE host_inventory ADD CONSTRAINT c_host_inventory_1 FOREIGN KEY (hostid) REFERENCES hosts (hostid) ON DELETE CASCADE",
 	"ALTER TABLE item_discovery ADD CONSTRAINT c_item_discovery_1 FOREIGN KEY (itemid) REFERENCES items (itemid) ON DELETE CASCADE",
 	"ALTER TABLE item_discovery ADD CONSTRAINT c_item_discovery_2 FOREIGN KEY (parent_itemid) REFERENCES items (itemid) ON DELETE CASCADE",
+	"ALTER TABLE host_discovery ADD CONSTRAINT c_host_discovery_1 FOREIGN KEY (hostid) REFERENCES hosts (hostid) ON DELETE CASCADE",
+	"ALTER TABLE host_discovery ADD CONSTRAINT c_host_discovery_2 FOREIGN KEY (parent_hostid) REFERENCES hosts (hostid)",
+	"ALTER TABLE host_discovery ADD CONSTRAINT c_host_discovery_3 FOREIGN KEY (parent_itemid) REFERENCES items (itemid)",
+	"ALTER TABLE interface_discovery ADD CONSTRAINT c_interface_discovery_1 FOREIGN KEY (interfaceid) REFERENCES interface (interfaceid) ON DELETE CASCADE",
+	"ALTER TABLE interface_discovery ADD CONSTRAINT c_interface_discovery_2 FOREIGN KEY (parent_interfaceid) REFERENCES interface (interfaceid) ON DELETE CASCADE",
 	"ALTER TABLE profiles ADD CONSTRAINT c_profiles_1 FOREIGN KEY (userid) REFERENCES users (userid) ON DELETE CASCADE",
 	"ALTER TABLE sessions ADD CONSTRAINT c_sessions_1 FOREIGN KEY (userid) REFERENCES users (userid) ON DELETE CASCADE",
 	"ALTER TABLE trigger_discovery ADD CONSTRAINT c_trigger_discovery_1 FOREIGN KEY (triggerid) REFERENCES triggers (triggerid) ON DELETE CASCADE",
 	"ALTER TABLE trigger_discovery ADD CONSTRAINT c_trigger_discovery_2 FOREIGN KEY (parent_triggerid) REFERENCES triggers (triggerid) ON DELETE CASCADE",
 	"ALTER TABLE user_history ADD CONSTRAINT c_user_history_1 FOREIGN KEY (userid) REFERENCES users (userid) ON DELETE CASCADE",
+	"ALTER TABLE application_template ADD CONSTRAINT c_application_template_1 FOREIGN KEY (applicationid) REFERENCES applications (applicationid) ON DELETE CASCADE",
+	"ALTER TABLE application_template ADD CONSTRAINT c_application_template_2 FOREIGN KEY (templateid) REFERENCES applications (applicationid) ON DELETE CASCADE",
 	NULL
 };
 const char	*const db_schema_fkeys_drop[] = {
 	"ALTER TABLE hosts DROP CONSTRAINT c_hosts_1",
 	"ALTER TABLE hosts DROP CONSTRAINT c_hosts_2",
+	"ALTER TABLE hosts DROP CONSTRAINT c_hosts_3",
+	"ALTER TABLE group_prototype DROP CONSTRAINT c_group_prototype_1",
+	"ALTER TABLE group_prototype DROP CONSTRAINT c_group_prototype_2",
+	"ALTER TABLE group_prototype DROP CONSTRAINT c_group_prototype_3",
+	"ALTER TABLE group_discovery DROP CONSTRAINT c_group_discovery_1",
+	"ALTER TABLE group_discovery DROP CONSTRAINT c_group_discovery_2",
 	"ALTER TABLE screens DROP CONSTRAINT c_screens_1",
 	"ALTER TABLE screens_items DROP CONSTRAINT c_screens_items_1",
 	"ALTER TABLE slides DROP CONSTRAINT c_slides_1",
@@ -2825,8 +3126,9 @@ const char	*const db_schema_fkeys_drop[] = {
 	"ALTER TABLE drules DROP CONSTRAINT c_drules_1",
 	"ALTER TABLE dchecks DROP CONSTRAINT c_dchecks_1",
 	"ALTER TABLE applications DROP CONSTRAINT c_applications_1",
-	"ALTER TABLE applications DROP CONSTRAINT c_applications_2",
 	"ALTER TABLE httptest DROP CONSTRAINT c_httptest_1",
+	"ALTER TABLE httptest DROP CONSTRAINT c_httptest_2",
+	"ALTER TABLE httptest DROP CONSTRAINT c_httptest_3",
 	"ALTER TABLE httpstep DROP CONSTRAINT c_httpstep_1",
 	"ALTER TABLE interface DROP CONSTRAINT c_interface_1",
 	"ALTER TABLE items DROP CONSTRAINT c_items_1",
@@ -2932,11 +3234,18 @@ const char	*const db_schema_fkeys_drop[] = {
 	"ALTER TABLE host_inventory DROP CONSTRAINT c_host_inventory_1",
 	"ALTER TABLE item_discovery DROP CONSTRAINT c_item_discovery_1",
 	"ALTER TABLE item_discovery DROP CONSTRAINT c_item_discovery_2",
+	"ALTER TABLE host_discovery DROP CONSTRAINT c_host_discovery_1",
+	"ALTER TABLE host_discovery DROP CONSTRAINT c_host_discovery_2",
+	"ALTER TABLE host_discovery DROP CONSTRAINT c_host_discovery_3",
+	"ALTER TABLE interface_discovery DROP CONSTRAINT c_interface_discovery_1",
+	"ALTER TABLE interface_discovery DROP CONSTRAINT c_interface_discovery_2",
 	"ALTER TABLE profiles DROP CONSTRAINT c_profiles_1",
 	"ALTER TABLE sessions DROP CONSTRAINT c_sessions_1",
 	"ALTER TABLE trigger_discovery DROP CONSTRAINT c_trigger_discovery_1",
 	"ALTER TABLE trigger_discovery DROP CONSTRAINT c_trigger_discovery_2",
 	"ALTER TABLE user_history DROP CONSTRAINT c_user_history_1",
+	"ALTER TABLE application_template DROP CONSTRAINT c_application_template_1",
+	"ALTER TABLE application_template DROP CONSTRAINT c_application_template_2",
 	NULL
 };
 #elif defined(HAVE_MYSQL)
@@ -2982,19 +3291,40 @@ CREATE TABLE `hosts` (\n\
 `jmx_errors_from` integer DEFAULT '0' NOT NULL,\n\
 `jmx_error` varchar(128) DEFAULT '' NOT NULL,\n\
 `name` varchar(64) DEFAULT '' NOT NULL,\n\
+`flags` integer DEFAULT '0' NOT NULL,\n\
+`templateid` bigint unsigned  NULL,\n\
 PRIMARY KEY (hostid)\n\
 ) ENGINE=InnoDB;\n\
 CREATE INDEX `hosts_1` ON `hosts` (`host`);\n\
 CREATE INDEX `hosts_2` ON `hosts` (`status`);\n\
 CREATE INDEX `hosts_3` ON `hosts` (`proxy_hostid`);\n\
 CREATE INDEX `hosts_4` ON `hosts` (`name`);\n\
+CREATE INDEX `hosts_5` ON `hosts` (`maintenanceid`);\n\
 CREATE TABLE `groups` (\n\
 `groupid` bigint unsigned  NOT NULL,\n\
 `name` varchar(64) DEFAULT '' NOT NULL,\n\
 `internal` integer DEFAULT '0' NOT NULL,\n\
+`flags` integer DEFAULT '0' NOT NULL,\n\
 PRIMARY KEY (groupid)\n\
 ) ENGINE=InnoDB;\n\
 CREATE INDEX `groups_1` ON `groups` (`name`);\n\
+CREATE TABLE `group_prototype` (\n\
+`group_prototypeid` bigint unsigned  NOT NULL,\n\
+`hostid` bigint unsigned  NOT NULL,\n\
+`name` varchar(64) DEFAULT '' NOT NULL,\n\
+`groupid` bigint unsigned  NULL,\n\
+`templateid` bigint unsigned  NULL,\n\
+PRIMARY KEY (group_prototypeid)\n\
+) ENGINE=InnoDB;\n\
+CREATE INDEX `group_prototype_1` ON `group_prototype` (`hostid`);\n\
+CREATE TABLE `group_discovery` (\n\
+`groupid` bigint unsigned  NOT NULL,\n\
+`parent_group_prototypeid` bigint unsigned  NOT NULL,\n\
+`name` varchar(64) DEFAULT '' NOT NULL,\n\
+`lastcheck` integer DEFAULT '0' NOT NULL,\n\
+`ts_delete` integer DEFAULT '0' NOT NULL,\n\
+PRIMARY KEY (groupid)\n\
+) ENGINE=InnoDB;\n\
 CREATE TABLE `screens` (\n\
 `screenid` bigint unsigned  NOT NULL,\n\
 `name` varchar(255)  NOT NULL,\n\
@@ -3003,6 +3333,7 @@ CREATE TABLE `screens` (\n\
 `templateid` bigint unsigned  NULL,\n\
 PRIMARY KEY (screenid)\n\
 ) ENGINE=InnoDB;\n\
+CREATE INDEX `screens_1` ON `screens` (`templateid`);\n\
 CREATE TABLE `screens_items` (\n\
 `screenitemid` bigint unsigned  NOT NULL,\n\
 `screenid` bigint unsigned  NOT NULL,\n\
@@ -3021,8 +3352,10 @@ CREATE TABLE `screens_items` (\n\
 `url` varchar(255) DEFAULT '' NOT NULL,\n\
 `dynamic` integer DEFAULT '0' NOT NULL,\n\
 `sort_triggers` integer DEFAULT '0' NOT NULL,\n\
+`application` varchar(255) DEFAULT '' NOT NULL,\n\
 PRIMARY KEY (screenitemid)\n\
 ) ENGINE=InnoDB;\n\
+CREATE INDEX `screens_items_1` ON `screens_items` (`screenid`);\n\
 CREATE TABLE `slideshows` (\n\
 `slideshowid` bigint unsigned  NOT NULL,\n\
 `name` varchar(255) DEFAULT '' NOT NULL,\n\
@@ -3037,7 +3370,8 @@ CREATE TABLE `slides` (\n\
 `delay` integer DEFAULT '0' NOT NULL,\n\
 PRIMARY KEY (slideid)\n\
 ) ENGINE=InnoDB;\n\
-CREATE INDEX `slides_slides_1` ON `slides` (`slideshowid`);\n\
+CREATE INDEX `slides_1` ON `slides` (`slideshowid`);\n\
+CREATE INDEX `slides_2` ON `slides` (`screenid`);\n\
 CREATE TABLE `drules` (\n\
 `druleid` bigint unsigned  NOT NULL,\n\
 `proxy_hostid` bigint unsigned  NULL,\n\
@@ -3048,6 +3382,7 @@ CREATE TABLE `drules` (\n\
 `status` integer DEFAULT '0' NOT NULL,\n\
 PRIMARY KEY (druleid)\n\
 ) ENGINE=InnoDB;\n\
+CREATE INDEX `drules_1` ON `drules` (`proxy_hostid`);\n\
 CREATE TABLE `dchecks` (\n\
 `dcheckid` bigint unsigned  NOT NULL,\n\
 `druleid` bigint unsigned  NOT NULL,\n\
@@ -3060,6 +3395,9 @@ CREATE TABLE `dchecks` (\n\
 `snmpv3_authpassphrase` varchar(64) DEFAULT '' NOT NULL,\n\
 `snmpv3_privpassphrase` varchar(64) DEFAULT '' NOT NULL,\n\
 `uniq` integer DEFAULT '0' NOT NULL,\n\
+`snmpv3_authprotocol` integer DEFAULT '0' NOT NULL,\n\
+`snmpv3_privprotocol` integer DEFAULT '0' NOT NULL,\n\
+`snmpv3_contextname` varchar(255) DEFAULT '' NOT NULL,\n\
 PRIMARY KEY (dcheckid)\n\
 ) ENGINE=InnoDB;\n\
 CREATE INDEX `dchecks_1` ON `dchecks` (`druleid`);\n\
@@ -3067,28 +3405,31 @@ CREATE TABLE `applications` (\n\
 `applicationid` bigint unsigned  NOT NULL,\n\
 `hostid` bigint unsigned  NOT NULL,\n\
 `name` varchar(255) DEFAULT '' NOT NULL,\n\
-`templateid` bigint unsigned  NULL,\n\
 PRIMARY KEY (applicationid)\n\
 ) ENGINE=InnoDB;\n\
-CREATE INDEX `applications_1` ON `applications` (`templateid`);\n\
 CREATE UNIQUE INDEX `applications_2` ON `applications` (`hostid`,`name`);\n\
 CREATE TABLE `httptest` (\n\
 `httptestid` bigint unsigned  NOT NULL,\n\
 `name` varchar(64) DEFAULT '' NOT NULL,\n\
-`applicationid` bigint unsigned  NOT NULL,\n\
+`applicationid` bigint unsigned  NULL,\n\
 `nextcheck` integer DEFAULT '0' NOT NULL,\n\
 `delay` integer DEFAULT '60' NOT NULL,\n\
 `status` integer DEFAULT '0' NOT NULL,\n\
-`macros` text  NOT NULL,\n\
+`variables` text  NOT NULL,\n\
 `agent` varchar(255) DEFAULT '' NOT NULL,\n\
 `authentication` integer DEFAULT '0' NOT NULL,\n\
 `http_user` varchar(64) DEFAULT '' NOT NULL,\n\
 `http_password` varchar(64) DEFAULT '' NOT NULL,\n\
+`hostid` bigint unsigned  NOT NULL,\n\
+`templateid` bigint unsigned  NULL,\n\
+`http_proxy` varchar(255) DEFAULT '' NOT NULL,\n\
+`retries` integer DEFAULT '1' NOT NULL,\n\
 PRIMARY KEY (httptestid)\n\
 ) ENGINE=InnoDB;\n\
-CREATE INDEX `httptest_httptest_1` ON `httptest` (`applicationid`);\n\
-CREATE INDEX `httptest_2` ON `httptest` (`name`);\n\
+CREATE INDEX `httptest_1` ON `httptest` (`applicationid`);\n\
+CREATE UNIQUE INDEX `httptest_2` ON `httptest` (`hostid`,`name`);\n\
 CREATE INDEX `httptest_3` ON `httptest` (`status`);\n\
+CREATE INDEX `httptest_4` ON `httptest` (`templateid`);\n\
 CREATE TABLE `httpstep` (\n\
 `httpstepid` bigint unsigned  NOT NULL,\n\
 `httptestid` bigint unsigned  NOT NULL,\n\
@@ -3099,16 +3440,17 @@ CREATE TABLE `httpstep` (\n\
 `posts` text  NOT NULL,\n\
 `required` varchar(255) DEFAULT '' NOT NULL,\n\
 `status_codes` varchar(255) DEFAULT '' NOT NULL,\n\
+`variables` text  NOT NULL,\n\
 PRIMARY KEY (httpstepid)\n\
 ) ENGINE=InnoDB;\n\
-CREATE INDEX `httpstep_httpstep_1` ON `httpstep` (`httptestid`);\n\
+CREATE INDEX `httpstep_1` ON `httpstep` (`httptestid`);\n\
 CREATE TABLE `interface` (\n\
 `interfaceid` bigint unsigned  NOT NULL,\n\
 `hostid` bigint unsigned  NOT NULL,\n\
 `main` integer DEFAULT '0' NOT NULL,\n\
 `type` integer DEFAULT '0' NOT NULL,\n\
 `useip` integer DEFAULT '1' NOT NULL,\n\
-`ip` varchar(39) DEFAULT '127.0.0.1' NOT NULL,\n\
+`ip` varchar(64) DEFAULT '127.0.0.1' NOT NULL,\n\
 `dns` varchar(64) DEFAULT '' NOT NULL,\n\
 `port` varchar(64) DEFAULT '10050' NOT NULL,\n\
 PRIMARY KEY (interfaceid)\n\
@@ -3132,16 +3474,12 @@ CREATE TABLE `items` (\n\
 `delay` integer DEFAULT '0' NOT NULL,\n\
 `history` integer DEFAULT '90' NOT NULL,\n\
 `trends` integer DEFAULT '365' NOT NULL,\n\
-`lastvalue` varchar(255)  NULL,\n\
-`lastclock` integer  NULL,\n\
-`prevvalue` varchar(255)  NULL,\n\
 `status` integer DEFAULT '0' NOT NULL,\n\
 `value_type` integer DEFAULT '0' NOT NULL,\n\
 `trapper_hosts` varchar(255) DEFAULT '' NOT NULL,\n\
 `units` varchar(255) DEFAULT '' NOT NULL,\n\
 `multiplier` integer DEFAULT '0' NOT NULL,\n\
 `delta` integer DEFAULT '0' NOT NULL,\n\
-`prevorgvalue` varchar(255)  NULL,\n\
 `snmpv3_securityname` varchar(64) DEFAULT '' NOT NULL,\n\
 `snmpv3_securitylevel` integer DEFAULT '0' NOT NULL,\n\
 `snmpv3_authpassphrase` varchar(64) DEFAULT '' NOT NULL,\n\
@@ -3162,7 +3500,6 @@ CREATE TABLE `items` (\n\
 `publickey` varchar(64) DEFAULT '' NOT NULL,\n\
 `privatekey` varchar(64) DEFAULT '' NOT NULL,\n\
 `mtime` integer DEFAULT '0' NOT NULL,\n\
-`lastns` integer  NULL,\n\
 `flags` integer DEFAULT '0' NOT NULL,\n\
 `filter` varchar(255) DEFAULT '' NOT NULL,\n\
 `interfaceid` bigint unsigned  NULL,\n\
@@ -3170,12 +3507,17 @@ CREATE TABLE `items` (\n\
 `description` text  NOT NULL,\n\
 `inventory_link` integer DEFAULT '0' NOT NULL,\n\
 `lifetime` varchar(64) DEFAULT '30' NOT NULL,\n\
+`snmpv3_authprotocol` integer DEFAULT '0' NOT NULL,\n\
+`snmpv3_privprotocol` integer DEFAULT '0' NOT NULL,\n\
+`state` integer DEFAULT '0' NOT NULL,\n\
+`snmpv3_contextname` varchar(255) DEFAULT '' NOT NULL,\n\
 PRIMARY KEY (itemid)\n\
 ) ENGINE=InnoDB;\n\
 CREATE UNIQUE INDEX `items_1` ON `items` (`hostid`,`key_`);\n\
 CREATE INDEX `items_3` ON `items` (`status`);\n\
 CREATE INDEX `items_4` ON `items` (`templateid`);\n\
 CREATE INDEX `items_5` ON `items` (`valuemapid`);\n\
+CREATE INDEX `items_6` ON `items` (`interfaceid`);\n\
 CREATE TABLE `httpstepitem` (\n\
 `httpstepitemid` bigint unsigned  NOT NULL,\n\
 `httpstepid` bigint unsigned  NOT NULL,\n\
@@ -3183,7 +3525,8 @@ CREATE TABLE `httpstepitem` (\n\
 `type` integer DEFAULT '0' NOT NULL,\n\
 PRIMARY KEY (httpstepitemid)\n\
 ) ENGINE=InnoDB;\n\
-CREATE UNIQUE INDEX `httpstepitem_httpstepitem_1` ON `httpstepitem` (`httpstepid`,`itemid`);\n\
+CREATE UNIQUE INDEX `httpstepitem_1` ON `httpstepitem` (`httpstepid`,`itemid`);\n\
+CREATE INDEX `httpstepitem_2` ON `httpstepitem` (`itemid`);\n\
 CREATE TABLE `httptestitem` (\n\
 `httptestitemid` bigint unsigned  NOT NULL,\n\
 `httptestid` bigint unsigned  NOT NULL,\n\
@@ -3191,7 +3534,8 @@ CREATE TABLE `httptestitem` (\n\
 `type` integer DEFAULT '0' NOT NULL,\n\
 PRIMARY KEY (httptestitemid)\n\
 ) ENGINE=InnoDB;\n\
-CREATE UNIQUE INDEX `httptestitem_httptestitem_1` ON `httptestitem` (`httptestid`,`itemid`);\n\
+CREATE UNIQUE INDEX `httptestitem_1` ON `httptestitem` (`httptestid`,`itemid`);\n\
+CREATE INDEX `httptestitem_2` ON `httptestitem` (`itemid`);\n\
 CREATE TABLE `media_type` (\n\
 `mediatypeid` bigint unsigned  NOT NULL,\n\
 `type` integer DEFAULT '0' NOT NULL,\n\
@@ -3217,7 +3561,7 @@ CREATE TABLE `users` (\n\
 `autologout` integer DEFAULT '900' NOT NULL,\n\
 `lang` varchar(5) DEFAULT 'en_GB' NOT NULL,\n\
 `refresh` integer DEFAULT '30' NOT NULL,\n\
-`type` integer DEFAULT '0' NOT NULL,\n\
+`type` integer DEFAULT '1' NOT NULL,\n\
 `theme` varchar(128) DEFAULT 'default' NOT NULL,\n\
 `attempt_failed` integer DEFAULT 0 NOT NULL,\n\
 `attempt_ip` varchar(39) DEFAULT '' NOT NULL,\n\
@@ -3242,6 +3586,7 @@ CREATE TABLE `users_groups` (\n\
 PRIMARY KEY (id)\n\
 ) ENGINE=InnoDB;\n\
 CREATE UNIQUE INDEX `users_groups_1` ON `users_groups` (`usrgrpid`,`userid`);\n\
+CREATE INDEX `users_groups_2` ON `users_groups` (`userid`);\n\
 CREATE TABLE `scripts` (\n\
 `scriptid` bigint unsigned  NOT NULL,\n\
 `name` varchar(255) DEFAULT '' NOT NULL,\n\
@@ -3255,6 +3600,8 @@ CREATE TABLE `scripts` (\n\
 `execute_on` integer DEFAULT '1' NOT NULL,\n\
 PRIMARY KEY (scriptid)\n\
 ) ENGINE=InnoDB;\n\
+CREATE INDEX `scripts_1` ON `scripts` (`usrgrpid`);\n\
+CREATE INDEX `scripts_2` ON `scripts` (`groupid`);\n\
 CREATE TABLE `actions` (\n\
 `actionid` bigint unsigned  NOT NULL,\n\
 `name` varchar(255) DEFAULT '' NOT NULL,\n\
@@ -3289,6 +3636,7 @@ CREATE TABLE `opmessage` (\n\
 `mediatypeid` bigint unsigned  NULL,\n\
 PRIMARY KEY (operationid)\n\
 ) ENGINE=InnoDB;\n\
+CREATE INDEX `opmessage_1` ON `opmessage` (`mediatypeid`);\n\
 CREATE TABLE `opmessage_grp` (\n\
 `opmessage_grpid` bigint unsigned  NOT NULL,\n\
 `operationid` bigint unsigned  NOT NULL,\n\
@@ -3296,6 +3644,7 @@ CREATE TABLE `opmessage_grp` (\n\
 PRIMARY KEY (opmessage_grpid)\n\
 ) ENGINE=InnoDB;\n\
 CREATE UNIQUE INDEX `opmessage_grp_1` ON `opmessage_grp` (`operationid`,`usrgrpid`);\n\
+CREATE INDEX `opmessage_grp_2` ON `opmessage_grp` (`usrgrpid`);\n\
 CREATE TABLE `opmessage_usr` (\n\
 `opmessage_usrid` bigint unsigned  NOT NULL,\n\
 `operationid` bigint unsigned  NOT NULL,\n\
@@ -3303,6 +3652,7 @@ CREATE TABLE `opmessage_usr` (\n\
 PRIMARY KEY (opmessage_usrid)\n\
 ) ENGINE=InnoDB;\n\
 CREATE UNIQUE INDEX `opmessage_usr_1` ON `opmessage_usr` (`operationid`,`userid`);\n\
+CREATE INDEX `opmessage_usr_2` ON `opmessage_usr` (`userid`);\n\
 CREATE TABLE `opcommand` (\n\
 `operationid` bigint unsigned  NOT NULL,\n\
 `type` integer DEFAULT '0' NOT NULL,\n\
@@ -3317,6 +3667,7 @@ CREATE TABLE `opcommand` (\n\
 `command` text  NOT NULL,\n\
 PRIMARY KEY (operationid)\n\
 ) ENGINE=InnoDB;\n\
+CREATE INDEX `opcommand_1` ON `opcommand` (`scriptid`);\n\
 CREATE TABLE `opcommand_hst` (\n\
 `opcommand_hstid` bigint unsigned  NOT NULL,\n\
 `operationid` bigint unsigned  NOT NULL,\n\
@@ -3324,6 +3675,7 @@ CREATE TABLE `opcommand_hst` (\n\
 PRIMARY KEY (opcommand_hstid)\n\
 ) ENGINE=InnoDB;\n\
 CREATE INDEX `opcommand_hst_1` ON `opcommand_hst` (`operationid`);\n\
+CREATE INDEX `opcommand_hst_2` ON `opcommand_hst` (`hostid`);\n\
 CREATE TABLE `opcommand_grp` (\n\
 `opcommand_grpid` bigint unsigned  NOT NULL,\n\
 `operationid` bigint unsigned  NOT NULL,\n\
@@ -3331,6 +3683,7 @@ CREATE TABLE `opcommand_grp` (\n\
 PRIMARY KEY (opcommand_grpid)\n\
 ) ENGINE=InnoDB;\n\
 CREATE INDEX `opcommand_grp_1` ON `opcommand_grp` (`operationid`);\n\
+CREATE INDEX `opcommand_grp_2` ON `opcommand_grp` (`groupid`);\n\
 CREATE TABLE `opgroup` (\n\
 `opgroupid` bigint unsigned  NOT NULL,\n\
 `operationid` bigint unsigned  NOT NULL,\n\
@@ -3338,6 +3691,7 @@ CREATE TABLE `opgroup` (\n\
 PRIMARY KEY (opgroupid)\n\
 ) ENGINE=InnoDB;\n\
 CREATE UNIQUE INDEX `opgroup_1` ON `opgroup` (`operationid`,`groupid`);\n\
+CREATE INDEX `opgroup_2` ON `opgroup` (`groupid`);\n\
 CREATE TABLE `optemplate` (\n\
 `optemplateid` bigint unsigned  NOT NULL,\n\
 `operationid` bigint unsigned  NOT NULL,\n\
@@ -3345,6 +3699,7 @@ CREATE TABLE `optemplate` (\n\
 PRIMARY KEY (optemplateid)\n\
 ) ENGINE=InnoDB;\n\
 CREATE UNIQUE INDEX `optemplate_1` ON `optemplate` (`operationid`,`templateid`);\n\
+CREATE INDEX `optemplate_2` ON `optemplate` (`templateid`);\n\
 CREATE TABLE `opconditions` (\n\
 `opconditionid` bigint unsigned  NOT NULL,\n\
 `operationid` bigint unsigned  NOT NULL,\n\
@@ -3365,8 +3720,6 @@ PRIMARY KEY (conditionid)\n\
 CREATE INDEX `conditions_1` ON `conditions` (`actionid`);\n\
 CREATE TABLE `config` (\n\
 `configid` bigint unsigned  NOT NULL,\n\
-`alert_history` integer DEFAULT '0' NOT NULL,\n\
-`event_history` integer DEFAULT '0' NOT NULL,\n\
 `refresh_unsupported` integer DEFAULT '0' NOT NULL,\n\
 `work_period` varchar(100) DEFAULT '1-5,00:00-24:00' NOT NULL,\n\
 `alert_usrgrpid` bigint unsigned  NULL,\n\
@@ -3410,11 +3763,30 @@ CREATE TABLE `config` (\n\
 `ok_ack_style` integer DEFAULT '1' NOT NULL,\n\
 `snmptrap_logging` integer DEFAULT '1' NOT NULL,\n\
 `server_check_interval` integer DEFAULT '10' NOT NULL,\n\
+`hk_events_mode` integer DEFAULT '1' NOT NULL,\n\
+`hk_events_trigger` integer DEFAULT '365' NOT NULL,\n\
+`hk_events_internal` integer DEFAULT '365' NOT NULL,\n\
+`hk_events_discovery` integer DEFAULT '365' NOT NULL,\n\
+`hk_events_autoreg` integer DEFAULT '365' NOT NULL,\n\
+`hk_services_mode` integer DEFAULT '1' NOT NULL,\n\
+`hk_services` integer DEFAULT '365' NOT NULL,\n\
+`hk_audit_mode` integer DEFAULT '1' NOT NULL,\n\
+`hk_audit` integer DEFAULT '365' NOT NULL,\n\
+`hk_sessions_mode` integer DEFAULT '1' NOT NULL,\n\
+`hk_sessions` integer DEFAULT '365' NOT NULL,\n\
+`hk_history_mode` integer DEFAULT '1' NOT NULL,\n\
+`hk_history_global` integer DEFAULT '0' NOT NULL,\n\
+`hk_history` integer DEFAULT '90' NOT NULL,\n\
+`hk_trends_mode` integer DEFAULT '1' NOT NULL,\n\
+`hk_trends_global` integer DEFAULT '0' NOT NULL,\n\
+`hk_trends` integer DEFAULT '365' NOT NULL,\n\
 PRIMARY KEY (configid)\n\
 ) ENGINE=InnoDB;\n\
+CREATE INDEX `config_1` ON `config` (`alert_usrgrpid`);\n\
+CREATE INDEX `config_2` ON `config` (`discovery_groupid`);\n\
 CREATE TABLE `triggers` (\n\
 `triggerid` bigint unsigned  NOT NULL,\n\
-`expression` varchar(255) DEFAULT '' NOT NULL,\n\
+`expression` varchar(2048) DEFAULT '' NOT NULL,\n\
 `description` varchar(255) DEFAULT '' NOT NULL,\n\
 `url` varchar(255) DEFAULT '' NOT NULL,\n\
 `status` integer DEFAULT '0' NOT NULL,\n\
@@ -3425,12 +3797,13 @@ CREATE TABLE `triggers` (\n\
 `error` varchar(128) DEFAULT '' NOT NULL,\n\
 `templateid` bigint unsigned  NULL,\n\
 `type` integer DEFAULT '0' NOT NULL,\n\
-`value_flags` integer DEFAULT '0' NOT NULL,\n\
+`state` integer DEFAULT '0' NOT NULL,\n\
 `flags` integer DEFAULT '0' NOT NULL,\n\
 PRIMARY KEY (triggerid)\n\
 ) ENGINE=InnoDB;\n\
 CREATE INDEX `triggers_1` ON `triggers` (`status`);\n\
 CREATE INDEX `triggers_2` ON `triggers` (`value`);\n\
+CREATE INDEX `triggers_3` ON `triggers` (`templateid`);\n\
 CREATE TABLE `trigger_depends` (\n\
 `triggerdepid` bigint unsigned  NOT NULL,\n\
 `triggerid_down` bigint unsigned  NOT NULL,\n\
@@ -3452,10 +3825,10 @@ CREATE INDEX `functions_2` ON `functions` (`itemid`,`function`,`parameter`);\n\
 CREATE TABLE `graphs` (\n\
 `graphid` bigint unsigned  NOT NULL,\n\
 `name` varchar(128) DEFAULT '' NOT NULL,\n\
-`width` integer DEFAULT '0' NOT NULL,\n\
-`height` integer DEFAULT '0' NOT NULL,\n\
+`width` integer DEFAULT '900' NOT NULL,\n\
+`height` integer DEFAULT '200' NOT NULL,\n\
 `yaxismin` double(16,4) DEFAULT '0' NOT NULL,\n\
-`yaxismax` double(16,4) DEFAULT '0' NOT NULL,\n\
+`yaxismax` double(16,4) DEFAULT '100' NOT NULL,\n\
 `templateid` bigint unsigned  NULL,\n\
 `show_work_period` integer DEFAULT '1' NOT NULL,\n\
 `show_triggers` integer DEFAULT '1' NOT NULL,\n\
@@ -3471,7 +3844,10 @@ CREATE TABLE `graphs` (\n\
 `flags` integer DEFAULT '0' NOT NULL,\n\
 PRIMARY KEY (graphid)\n\
 ) ENGINE=InnoDB;\n\
-CREATE INDEX `graphs_graphs_1` ON `graphs` (`name`);\n\
+CREATE INDEX `graphs_1` ON `graphs` (`name`);\n\
+CREATE INDEX `graphs_2` ON `graphs` (`templateid`);\n\
+CREATE INDEX `graphs_3` ON `graphs` (`ymin_itemid`);\n\
+CREATE INDEX `graphs_4` ON `graphs` (`ymax_itemid`);\n\
 CREATE TABLE `graphs_items` (\n\
 `gitemid` bigint unsigned  NOT NULL,\n\
 `graphid` bigint unsigned  NOT NULL,\n\
@@ -3479,7 +3855,7 @@ CREATE TABLE `graphs_items` (\n\
 `drawtype` integer DEFAULT '0' NOT NULL,\n\
 `sortorder` integer DEFAULT '0' NOT NULL,\n\
 `color` varchar(6) DEFAULT '009600' NOT NULL,\n\
-`yaxisside` integer DEFAULT '1' NOT NULL,\n\
+`yaxisside` integer DEFAULT '0' NOT NULL,\n\
 `calc_fnc` integer DEFAULT '2' NOT NULL,\n\
 `type` integer DEFAULT '0' NOT NULL,\n\
 PRIMARY KEY (gitemid)\n\
@@ -3507,12 +3883,6 @@ PRIMARY KEY (graphthemeid)\n\
 ) ENGINE=InnoDB;\n\
 CREATE INDEX `graph_theme_1` ON `graph_theme` (`description`);\n\
 CREATE INDEX `graph_theme_2` ON `graph_theme` (`theme`);\n\
-CREATE TABLE `help_items` (\n\
-`itemtype` integer DEFAULT '0' NOT NULL,\n\
-`key_` varchar(255) DEFAULT '' NOT NULL,\n\
-`description` varchar(255) DEFAULT '' NOT NULL,\n\
-PRIMARY KEY (itemtype,key_)\n\
-) ENGINE=InnoDB;\n\
 CREATE TABLE `globalmacro` (\n\
 `globalmacroid` bigint unsigned  NOT NULL,\n\
 `macro` varchar(64) DEFAULT '' NOT NULL,\n\
@@ -3600,8 +3970,8 @@ CREATE TABLE `services_links` (\n\
 `soft` integer DEFAULT '0' NOT NULL,\n\
 PRIMARY KEY (linkid)\n\
 ) ENGINE=InnoDB;\n\
-CREATE INDEX `services_links_links_1` ON `services_links` (`servicedownid`);\n\
-CREATE UNIQUE INDEX `services_links_links_2` ON `services_links` (`serviceupid`,`servicedownid`);\n\
+CREATE INDEX `services_links_1` ON `services_links` (`servicedownid`);\n\
+CREATE UNIQUE INDEX `services_links_2` ON `services_links` (`serviceupid`,`servicedownid`);\n\
 CREATE TABLE `services_times` (\n\
 `timeid` bigint unsigned  NOT NULL,\n\
 `serviceid` bigint unsigned  NOT NULL,\n\
@@ -3611,7 +3981,7 @@ CREATE TABLE `services_times` (\n\
 `note` varchar(255) DEFAULT '' NOT NULL,\n\
 PRIMARY KEY (timeid)\n\
 ) ENGINE=InnoDB;\n\
-CREATE INDEX `services_times_times_1` ON `services_times` (`serviceid`,`type`,`ts_from`,`ts_to`);\n\
+CREATE INDEX `services_times_1` ON `services_times` (`serviceid`,`type`,`ts_from`,`ts_to`);\n\
 CREATE TABLE `icon_map` (\n\
 `iconmapid` bigint unsigned  NOT NULL,\n\
 `name` varchar(64) DEFAULT '' NOT NULL,\n\
@@ -3619,6 +3989,7 @@ CREATE TABLE `icon_map` (\n\
 PRIMARY KEY (iconmapid)\n\
 ) ENGINE=InnoDB;\n\
 CREATE INDEX `icon_map_1` ON `icon_map` (`name`);\n\
+CREATE INDEX `icon_map_2` ON `icon_map` (`default_iconid`);\n\
 CREATE TABLE `icon_mapping` (\n\
 `iconmappingid` bigint unsigned  NOT NULL,\n\
 `iconmapid` bigint unsigned  NOT NULL,\n\
@@ -3629,6 +4000,7 @@ CREATE TABLE `icon_mapping` (\n\
 PRIMARY KEY (iconmappingid)\n\
 ) ENGINE=InnoDB;\n\
 CREATE INDEX `icon_mapping_1` ON `icon_mapping` (`iconmapid`);\n\
+CREATE INDEX `icon_mapping_2` ON `icon_mapping` (`iconid`);\n\
 CREATE TABLE `sysmaps` (\n\
 `sysmapid` bigint unsigned  NOT NULL,\n\
 `name` varchar(128) DEFAULT '' NOT NULL,\n\
@@ -3636,7 +4008,7 @@ CREATE TABLE `sysmaps` (\n\
 `height` integer DEFAULT '400' NOT NULL,\n\
 `backgroundid` bigint unsigned  NULL,\n\
 `label_type` integer DEFAULT '2' NOT NULL,\n\
-`label_location` integer DEFAULT '3' NOT NULL,\n\
+`label_location` integer DEFAULT '0' NOT NULL,\n\
 `highlight` integer DEFAULT '1' NOT NULL,\n\
 `expandproblem` integer DEFAULT '1' NOT NULL,\n\
 `markelements` integer DEFAULT '0' NOT NULL,\n\
@@ -3657,9 +4029,12 @@ CREATE TABLE `sysmaps` (\n\
 `label_string_image` varchar(255) DEFAULT '' NOT NULL,\n\
 `iconmapid` bigint unsigned  NULL,\n\
 `expand_macros` integer DEFAULT '0' NOT NULL,\n\
+`severity_min` integer DEFAULT '0' NOT NULL,\n\
 PRIMARY KEY (sysmapid)\n\
 ) ENGINE=InnoDB;\n\
 CREATE INDEX `sysmaps_1` ON `sysmaps` (`name`);\n\
+CREATE INDEX `sysmaps_2` ON `sysmaps` (`backgroundid`);\n\
+CREATE INDEX `sysmaps_3` ON `sysmaps` (`iconmapid`);\n\
 CREATE TABLE `sysmaps_elements` (\n\
 `selementid` bigint unsigned  NOT NULL,\n\
 `sysmapid` bigint unsigned  NOT NULL,\n\
@@ -3667,8 +4042,8 @@ CREATE TABLE `sysmaps_elements` (\n\
 `elementtype` integer DEFAULT '0' NOT NULL,\n\
 `iconid_off` bigint unsigned  NULL,\n\
 `iconid_on` bigint unsigned  NULL,\n\
-`label` varchar(255) DEFAULT '' NOT NULL,\n\
-`label_location` integer  NULL,\n\
+`label` varchar(2048) DEFAULT '' NOT NULL,\n\
+`label_location` integer DEFAULT '-1' NOT NULL,\n\
 `x` integer DEFAULT '0' NOT NULL,\n\
 `y` integer DEFAULT '0' NOT NULL,\n\
 `iconid_disabled` bigint unsigned  NULL,\n\
@@ -3681,6 +4056,11 @@ CREATE TABLE `sysmaps_elements` (\n\
 `use_iconmap` integer DEFAULT '1' NOT NULL,\n\
 PRIMARY KEY (selementid)\n\
 ) ENGINE=InnoDB;\n\
+CREATE INDEX `sysmaps_elements_1` ON `sysmaps_elements` (`sysmapid`);\n\
+CREATE INDEX `sysmaps_elements_2` ON `sysmaps_elements` (`iconid_off`);\n\
+CREATE INDEX `sysmaps_elements_3` ON `sysmaps_elements` (`iconid_on`);\n\
+CREATE INDEX `sysmaps_elements_4` ON `sysmaps_elements` (`iconid_disabled`);\n\
+CREATE INDEX `sysmaps_elements_5` ON `sysmaps_elements` (`iconid_maintenance`);\n\
 CREATE TABLE `sysmaps_links` (\n\
 `linkid` bigint unsigned  NOT NULL,\n\
 `sysmapid` bigint unsigned  NOT NULL,\n\
@@ -3688,9 +4068,12 @@ CREATE TABLE `sysmaps_links` (\n\
 `selementid2` bigint unsigned  NOT NULL,\n\
 `drawtype` integer DEFAULT '0' NOT NULL,\n\
 `color` varchar(6) DEFAULT '000000' NOT NULL,\n\
-`label` varchar(255) DEFAULT '' NOT NULL,\n\
+`label` varchar(2048) DEFAULT '' NOT NULL,\n\
 PRIMARY KEY (linkid)\n\
 ) ENGINE=InnoDB;\n\
+CREATE INDEX `sysmaps_links_1` ON `sysmaps_links` (`sysmapid`);\n\
+CREATE INDEX `sysmaps_links_2` ON `sysmaps_links` (`selementid1`);\n\
+CREATE INDEX `sysmaps_links_3` ON `sysmaps_links` (`selementid2`);\n\
 CREATE TABLE `sysmaps_link_triggers` (\n\
 `linktriggerid` bigint unsigned  NOT NULL,\n\
 `linkid` bigint unsigned  NOT NULL,\n\
@@ -3700,6 +4083,7 @@ CREATE TABLE `sysmaps_link_triggers` (\n\
 PRIMARY KEY (linktriggerid)\n\
 ) ENGINE=InnoDB;\n\
 CREATE UNIQUE INDEX `sysmaps_link_triggers_1` ON `sysmaps_link_triggers` (`linkid`,`triggerid`);\n\
+CREATE INDEX `sysmaps_link_triggers_2` ON `sysmaps_link_triggers` (`triggerid`);\n\
 CREATE TABLE `sysmap_element_url` (\n\
 `sysmapelementurlid` bigint unsigned  NOT NULL,\n\
 `selementid` bigint unsigned  NOT NULL,\n\
@@ -3724,6 +4108,7 @@ CREATE TABLE `maintenances_hosts` (\n\
 PRIMARY KEY (maintenance_hostid)\n\
 ) ENGINE=InnoDB;\n\
 CREATE UNIQUE INDEX `maintenances_hosts_1` ON `maintenances_hosts` (`maintenanceid`,`hostid`);\n\
+CREATE INDEX `maintenances_hosts_2` ON `maintenances_hosts` (`hostid`);\n\
 CREATE TABLE `maintenances_groups` (\n\
 `maintenance_groupid` bigint unsigned  NOT NULL,\n\
 `maintenanceid` bigint unsigned  NOT NULL,\n\
@@ -3731,6 +4116,7 @@ CREATE TABLE `maintenances_groups` (\n\
 PRIMARY KEY (maintenance_groupid)\n\
 ) ENGINE=InnoDB;\n\
 CREATE UNIQUE INDEX `maintenances_groups_1` ON `maintenances_groups` (`maintenanceid`,`groupid`);\n\
+CREATE INDEX `maintenances_groups_2` ON `maintenances_groups` (`groupid`);\n\
 CREATE TABLE `timeperiods` (\n\
 `timeperiodid` bigint unsigned  NOT NULL,\n\
 `timeperiod_type` integer DEFAULT '0' NOT NULL,\n\
@@ -3750,6 +4136,7 @@ CREATE TABLE `maintenances_windows` (\n\
 PRIMARY KEY (maintenance_timeperiodid)\n\
 ) ENGINE=InnoDB;\n\
 CREATE UNIQUE INDEX `maintenances_windows_1` ON `maintenances_windows` (`maintenanceid`,`timeperiodid`);\n\
+CREATE INDEX `maintenances_windows_2` ON `maintenances_windows` (`timeperiodid`);\n\
 CREATE TABLE `regexps` (\n\
 `regexpid` bigint unsigned  NOT NULL,\n\
 `name` varchar(128) DEFAULT '' NOT NULL,\n\
@@ -3776,6 +4163,7 @@ CREATE TABLE `nodes` (\n\
 `masterid` integer  NULL,\n\
 PRIMARY KEY (nodeid)\n\
 ) ENGINE=InnoDB;\n\
+CREATE INDEX `nodes_1` ON `nodes` (`masterid`);\n\
 CREATE TABLE `node_cksum` (\n\
 `nodeid` integer  NOT NULL,\n\
 `tablename` varchar(64) DEFAULT '' NOT NULL,\n\
@@ -3805,7 +4193,6 @@ CREATE TABLE `alerts` (\n\
 `status` integer DEFAULT '0' NOT NULL,\n\
 `retries` integer DEFAULT '0' NOT NULL,\n\
 `error` varchar(128) DEFAULT '' NOT NULL,\n\
-`nextcheck` integer DEFAULT '0' NOT NULL,\n\
 `esc_step` integer DEFAULT '0' NOT NULL,\n\
 `alerttype` integer DEFAULT '0' NOT NULL,\n\
 PRIMARY KEY (alertid)\n\
@@ -3824,7 +4211,7 @@ CREATE TABLE `history` (\n\
 ) ENGINE=InnoDB;\n\
 CREATE INDEX `history_1` ON `history` (`itemid`,`clock`);\n\
 CREATE TABLE `history_sync` (\n\
-`id` bigint unsigned  NOT NULL auto_increment unique,\n\
+`id` bigint unsigned  NOT NULL auto_increment,\n\
 `nodeid` integer  NOT NULL,\n\
 `itemid` bigint unsigned  NOT NULL,\n\
 `clock` integer DEFAULT '0' NOT NULL,\n\
@@ -3841,7 +4228,7 @@ CREATE TABLE `history_uint` (\n\
 ) ENGINE=InnoDB;\n\
 CREATE INDEX `history_uint_1` ON `history_uint` (`itemid`,`clock`);\n\
 CREATE TABLE `history_uint_sync` (\n\
-`id` bigint unsigned  NOT NULL auto_increment unique,\n\
+`id` bigint unsigned  NOT NULL auto_increment,\n\
 `nodeid` integer  NOT NULL,\n\
 `itemid` bigint unsigned  NOT NULL,\n\
 `clock` integer DEFAULT '0' NOT NULL,\n\
@@ -3858,7 +4245,7 @@ CREATE TABLE `history_str` (\n\
 ) ENGINE=InnoDB;\n\
 CREATE INDEX `history_str_1` ON `history_str` (`itemid`,`clock`);\n\
 CREATE TABLE `history_str_sync` (\n\
-`id` bigint unsigned  NOT NULL auto_increment unique,\n\
+`id` bigint unsigned  NOT NULL auto_increment,\n\
 `nodeid` integer  NOT NULL,\n\
 `itemid` bigint unsigned  NOT NULL,\n\
 `clock` integer DEFAULT '0' NOT NULL,\n\
@@ -3892,7 +4279,7 @@ PRIMARY KEY (id)\n\
 CREATE INDEX `history_text_1` ON `history_text` (`itemid`,`clock`);\n\
 CREATE UNIQUE INDEX `history_text_2` ON `history_text` (`itemid`,`id`);\n\
 CREATE TABLE `proxy_history` (\n\
-`id` bigint unsigned  NOT NULL auto_increment unique,\n\
+`id` bigint unsigned  NOT NULL auto_increment,\n\
 `itemid` bigint unsigned  NOT NULL,\n\
 `clock` integer DEFAULT '0' NOT NULL,\n\
 `timestamp` integer DEFAULT '0' NOT NULL,\n\
@@ -3901,12 +4288,12 @@ CREATE TABLE `proxy_history` (\n\
 `value` longtext  NOT NULL,\n\
 `logeventid` integer DEFAULT '0' NOT NULL,\n\
 `ns` integer DEFAULT '0' NOT NULL,\n\
-`status` integer DEFAULT '0' NOT NULL,\n\
+`state` integer DEFAULT '0' NOT NULL,\n\
 PRIMARY KEY (id)\n\
 ) ENGINE=InnoDB;\n\
 CREATE INDEX `proxy_history_1` ON `proxy_history` (`clock`);\n\
 CREATE TABLE `proxy_dhistory` (\n\
-`id` bigint unsigned  NOT NULL auto_increment unique,\n\
+`id` bigint unsigned  NOT NULL auto_increment,\n\
 `clock` integer DEFAULT '0' NOT NULL,\n\
 `druleid` bigint unsigned  NOT NULL,\n\
 `type` integer DEFAULT '0' NOT NULL,\n\
@@ -3929,11 +4316,10 @@ CREATE TABLE `events` (\n\
 `value` integer DEFAULT '0' NOT NULL,\n\
 `acknowledged` integer DEFAULT '0' NOT NULL,\n\
 `ns` integer DEFAULT '0' NOT NULL,\n\
-`value_changed` integer DEFAULT '0' NOT NULL,\n\
 PRIMARY KEY (eventid)\n\
 ) ENGINE=InnoDB;\n\
-CREATE INDEX `events_1` ON `events` (`object`,`objectid`,`eventid`);\n\
-CREATE INDEX `events_2` ON `events` (`clock`);\n\
+CREATE INDEX `events_1` ON `events` (`source`,`object`,`objectid`,`clock`);\n\
+CREATE INDEX `events_2` ON `events` (`source`,`object`,`clock`);\n\
 CREATE TABLE `trends` (\n\
 `itemid` bigint unsigned  NOT NULL,\n\
 `clock` integer DEFAULT '0' NOT NULL,\n\
@@ -4003,16 +4389,18 @@ CREATE TABLE `autoreg_host` (\n\
 `listen_ip` varchar(39) DEFAULT '' NOT NULL,\n\
 `listen_port` integer DEFAULT '0' NOT NULL,\n\
 `listen_dns` varchar(64) DEFAULT '' NOT NULL,\n\
+`host_metadata` varchar(255) DEFAULT '' NOT NULL,\n\
 PRIMARY KEY (autoreg_hostid)\n\
 ) ENGINE=InnoDB;\n\
 CREATE INDEX `autoreg_host_1` ON `autoreg_host` (`proxy_hostid`,`host`);\n\
 CREATE TABLE `proxy_autoreg_host` (\n\
-`id` bigint unsigned  NOT NULL auto_increment unique,\n\
+`id` bigint unsigned  NOT NULL auto_increment,\n\
 `clock` integer DEFAULT '0' NOT NULL,\n\
 `host` varchar(64) DEFAULT '' NOT NULL,\n\
 `listen_ip` varchar(39) DEFAULT '' NOT NULL,\n\
 `listen_port` integer DEFAULT '0' NOT NULL,\n\
 `listen_dns` varchar(64) DEFAULT '' NOT NULL,\n\
+`host_metadata` varchar(255) DEFAULT '' NOT NULL,\n\
 PRIMARY KEY (id)\n\
 ) ENGINE=InnoDB;\n\
 CREATE INDEX `proxy_autoreg_host_1` ON `proxy_autoreg_host` (`clock`);\n\
@@ -4051,9 +4439,10 @@ CREATE TABLE `escalations` (\n\
 `nextcheck` integer DEFAULT '0' NOT NULL,\n\
 `esc_step` integer DEFAULT '0' NOT NULL,\n\
 `status` integer DEFAULT '0' NOT NULL,\n\
+`itemid` bigint unsigned  NULL,\n\
 PRIMARY KEY (escalationid)\n\
 ) ENGINE=InnoDB;\n\
-CREATE INDEX `escalations_1` ON `escalations` (`actionid`,`triggerid`);\n\
+CREATE UNIQUE INDEX `escalations_1` ON `escalations` (`actionid`,`triggerid`,`itemid`,`escalationid`);\n\
 CREATE TABLE `globalvars` (\n\
 `globalvarid` bigint unsigned  NOT NULL,\n\
 `snmp_lastsize` integer DEFAULT '0' NOT NULL,\n\
@@ -4067,6 +4456,7 @@ CREATE TABLE `graph_discovery` (\n\
 PRIMARY KEY (graphdiscoveryid)\n\
 ) ENGINE=InnoDB;\n\
 CREATE UNIQUE INDEX `graph_discovery_1` ON `graph_discovery` (`graphid`,`parent_graphid`);\n\
+CREATE INDEX `graph_discovery_2` ON `graph_discovery` (`parent_graphid`);\n\
 CREATE TABLE `host_inventory` (\n\
 `hostid` bigint unsigned  NOT NULL,\n\
 `inventory_mode` integer DEFAULT '0' NOT NULL,\n\
@@ -4167,6 +4557,21 @@ CREATE TABLE `item_discovery` (\n\
 PRIMARY KEY (itemdiscoveryid)\n\
 ) ENGINE=InnoDB;\n\
 CREATE UNIQUE INDEX `item_discovery_1` ON `item_discovery` (`itemid`,`parent_itemid`);\n\
+CREATE INDEX `item_discovery_2` ON `item_discovery` (`parent_itemid`);\n\
+CREATE TABLE `host_discovery` (\n\
+`hostid` bigint unsigned  NOT NULL,\n\
+`parent_hostid` bigint unsigned  NULL,\n\
+`parent_itemid` bigint unsigned  NULL,\n\
+`host` varchar(64) DEFAULT '' NOT NULL,\n\
+`lastcheck` integer DEFAULT '0' NOT NULL,\n\
+`ts_delete` integer DEFAULT '0' NOT NULL,\n\
+PRIMARY KEY (hostid)\n\
+) ENGINE=InnoDB;\n\
+CREATE TABLE `interface_discovery` (\n\
+`interfaceid` bigint unsigned  NOT NULL,\n\
+`parent_interfaceid` bigint unsigned  NOT NULL,\n\
+PRIMARY KEY (interfaceid)\n\
+) ENGINE=InnoDB;\n\
 CREATE TABLE `profiles` (\n\
 `profileid` bigint unsigned  NOT NULL,\n\
 `userid` bigint unsigned  NOT NULL,\n\
@@ -4197,6 +4602,7 @@ CREATE TABLE `trigger_discovery` (\n\
 PRIMARY KEY (triggerdiscoveryid)\n\
 ) ENGINE=InnoDB;\n\
 CREATE UNIQUE INDEX `trigger_discovery_1` ON `trigger_discovery` (`triggerid`,`parent_triggerid`);\n\
+CREATE INDEX `trigger_discovery_2` ON `trigger_discovery` (`parent_triggerid`);\n\
 CREATE TABLE `user_history` (\n\
 `userhistoryid` bigint unsigned  NOT NULL,\n\
 `userid` bigint unsigned  NOT NULL,\n\
@@ -4213,10 +4619,29 @@ CREATE TABLE `user_history` (\n\
 PRIMARY KEY (userhistoryid)\n\
 ) ENGINE=InnoDB;\n\
 CREATE UNIQUE INDEX `user_history_1` ON `user_history` (`userid`);\n\
+CREATE TABLE `application_template` (\n\
+`application_templateid` bigint unsigned  NOT NULL,\n\
+`applicationid` bigint unsigned  NOT NULL,\n\
+`templateid` bigint unsigned  NOT NULL,\n\
+PRIMARY KEY (application_templateid)\n\
+) ENGINE=InnoDB;\n\
+CREATE UNIQUE INDEX `application_template_1` ON `application_template` (`applicationid`,`templateid`);\n\
+CREATE INDEX `application_template_2` ON `application_template` (`templateid`);\n\
+CREATE TABLE `dbversion` (\n\
+`mandatory` integer DEFAULT '0' NOT NULL,\n\
+`optional` integer DEFAULT '0' NOT NULL\n\
+) ENGINE=InnoDB;\n\
+INSERT INTO dbversion VALUES ('2020000','2020001');\n\
 ";
 const char	*const db_schema_fkeys[] = {
 	"ALTER TABLE `hosts` ADD CONSTRAINT `c_hosts_1` FOREIGN KEY (`proxy_hostid`) REFERENCES `hosts` (`hostid`)",
 	"ALTER TABLE `hosts` ADD CONSTRAINT `c_hosts_2` FOREIGN KEY (`maintenanceid`) REFERENCES `maintenances` (`maintenanceid`)",
+	"ALTER TABLE `hosts` ADD CONSTRAINT `c_hosts_3` FOREIGN KEY (`templateid`) REFERENCES `hosts` (`hostid`) ON DELETE CASCADE",
+	"ALTER TABLE `group_prototype` ADD CONSTRAINT `c_group_prototype_1` FOREIGN KEY (`hostid`) REFERENCES `hosts` (`hostid`) ON DELETE CASCADE",
+	"ALTER TABLE `group_prototype` ADD CONSTRAINT `c_group_prototype_2` FOREIGN KEY (`groupid`) REFERENCES `groups` (`groupid`)",
+	"ALTER TABLE `group_prototype` ADD CONSTRAINT `c_group_prototype_3` FOREIGN KEY (`templateid`) REFERENCES `group_prototype` (`group_prototypeid`) ON DELETE CASCADE",
+	"ALTER TABLE `group_discovery` ADD CONSTRAINT `c_group_discovery_1` FOREIGN KEY (`groupid`) REFERENCES `groups` (`groupid`) ON DELETE CASCADE",
+	"ALTER TABLE `group_discovery` ADD CONSTRAINT `c_group_discovery_2` FOREIGN KEY (`parent_group_prototypeid`) REFERENCES `group_prototype` (`group_prototypeid`)",
 	"ALTER TABLE `screens` ADD CONSTRAINT `c_screens_1` FOREIGN KEY (`templateid`) REFERENCES `hosts` (`hostid`) ON DELETE CASCADE",
 	"ALTER TABLE `screens_items` ADD CONSTRAINT `c_screens_items_1` FOREIGN KEY (`screenid`) REFERENCES `screens` (`screenid`) ON DELETE CASCADE",
 	"ALTER TABLE `slides` ADD CONSTRAINT `c_slides_1` FOREIGN KEY (`slideshowid`) REFERENCES `slideshows` (`slideshowid`) ON DELETE CASCADE",
@@ -4224,8 +4649,9 @@ const char	*const db_schema_fkeys[] = {
 	"ALTER TABLE `drules` ADD CONSTRAINT `c_drules_1` FOREIGN KEY (`proxy_hostid`) REFERENCES `hosts` (`hostid`)",
 	"ALTER TABLE `dchecks` ADD CONSTRAINT `c_dchecks_1` FOREIGN KEY (`druleid`) REFERENCES `drules` (`druleid`) ON DELETE CASCADE",
 	"ALTER TABLE `applications` ADD CONSTRAINT `c_applications_1` FOREIGN KEY (`hostid`) REFERENCES `hosts` (`hostid`) ON DELETE CASCADE",
-	"ALTER TABLE `applications` ADD CONSTRAINT `c_applications_2` FOREIGN KEY (`templateid`) REFERENCES `applications` (`applicationid`) ON DELETE CASCADE",
-	"ALTER TABLE `httptest` ADD CONSTRAINT `c_httptest_1` FOREIGN KEY (`applicationid`) REFERENCES `applications` (`applicationid`) ON DELETE CASCADE",
+	"ALTER TABLE `httptest` ADD CONSTRAINT `c_httptest_1` FOREIGN KEY (`applicationid`) REFERENCES `applications` (`applicationid`)",
+	"ALTER TABLE `httptest` ADD CONSTRAINT `c_httptest_2` FOREIGN KEY (`hostid`) REFERENCES `hosts` (`hostid`) ON DELETE CASCADE",
+	"ALTER TABLE `httptest` ADD CONSTRAINT `c_httptest_3` FOREIGN KEY (`templateid`) REFERENCES `httptest` (`httptestid`) ON DELETE CASCADE",
 	"ALTER TABLE `httpstep` ADD CONSTRAINT `c_httpstep_1` FOREIGN KEY (`httptestid`) REFERENCES `httptest` (`httptestid`) ON DELETE CASCADE",
 	"ALTER TABLE `interface` ADD CONSTRAINT `c_interface_1` FOREIGN KEY (`hostid`) REFERENCES `hosts` (`hostid`) ON DELETE CASCADE",
 	"ALTER TABLE `items` ADD CONSTRAINT `c_items_1` FOREIGN KEY (`hostid`) REFERENCES `hosts` (`hostid`) ON DELETE CASCADE",
@@ -4331,16 +4757,29 @@ const char	*const db_schema_fkeys[] = {
 	"ALTER TABLE `host_inventory` ADD CONSTRAINT `c_host_inventory_1` FOREIGN KEY (`hostid`) REFERENCES `hosts` (`hostid`) ON DELETE CASCADE",
 	"ALTER TABLE `item_discovery` ADD CONSTRAINT `c_item_discovery_1` FOREIGN KEY (`itemid`) REFERENCES `items` (`itemid`) ON DELETE CASCADE",
 	"ALTER TABLE `item_discovery` ADD CONSTRAINT `c_item_discovery_2` FOREIGN KEY (`parent_itemid`) REFERENCES `items` (`itemid`) ON DELETE CASCADE",
+	"ALTER TABLE `host_discovery` ADD CONSTRAINT `c_host_discovery_1` FOREIGN KEY (`hostid`) REFERENCES `hosts` (`hostid`) ON DELETE CASCADE",
+	"ALTER TABLE `host_discovery` ADD CONSTRAINT `c_host_discovery_2` FOREIGN KEY (`parent_hostid`) REFERENCES `hosts` (`hostid`)",
+	"ALTER TABLE `host_discovery` ADD CONSTRAINT `c_host_discovery_3` FOREIGN KEY (`parent_itemid`) REFERENCES `items` (`itemid`)",
+	"ALTER TABLE `interface_discovery` ADD CONSTRAINT `c_interface_discovery_1` FOREIGN KEY (`interfaceid`) REFERENCES `interface` (`interfaceid`) ON DELETE CASCADE",
+	"ALTER TABLE `interface_discovery` ADD CONSTRAINT `c_interface_discovery_2` FOREIGN KEY (`parent_interfaceid`) REFERENCES `interface` (`interfaceid`) ON DELETE CASCADE",
 	"ALTER TABLE `profiles` ADD CONSTRAINT `c_profiles_1` FOREIGN KEY (`userid`) REFERENCES `users` (`userid`) ON DELETE CASCADE",
 	"ALTER TABLE `sessions` ADD CONSTRAINT `c_sessions_1` FOREIGN KEY (`userid`) REFERENCES `users` (`userid`) ON DELETE CASCADE",
 	"ALTER TABLE `trigger_discovery` ADD CONSTRAINT `c_trigger_discovery_1` FOREIGN KEY (`triggerid`) REFERENCES `triggers` (`triggerid`) ON DELETE CASCADE",
 	"ALTER TABLE `trigger_discovery` ADD CONSTRAINT `c_trigger_discovery_2` FOREIGN KEY (`parent_triggerid`) REFERENCES `triggers` (`triggerid`) ON DELETE CASCADE",
 	"ALTER TABLE `user_history` ADD CONSTRAINT `c_user_history_1` FOREIGN KEY (`userid`) REFERENCES `users` (`userid`) ON DELETE CASCADE",
+	"ALTER TABLE `application_template` ADD CONSTRAINT `c_application_template_1` FOREIGN KEY (`applicationid`) REFERENCES `applications` (`applicationid`) ON DELETE CASCADE",
+	"ALTER TABLE `application_template` ADD CONSTRAINT `c_application_template_2` FOREIGN KEY (`templateid`) REFERENCES `applications` (`applicationid`) ON DELETE CASCADE",
 	NULL
 };
 const char	*const db_schema_fkeys_drop[] = {
 	"ALTER TABLE `hosts` DROP FOREIGN KEY `c_hosts_1`",
 	"ALTER TABLE `hosts` DROP FOREIGN KEY `c_hosts_2`",
+	"ALTER TABLE `hosts` DROP FOREIGN KEY `c_hosts_3`",
+	"ALTER TABLE `group_prototype` DROP FOREIGN KEY `c_group_prototype_1`",
+	"ALTER TABLE `group_prototype` DROP FOREIGN KEY `c_group_prototype_2`",
+	"ALTER TABLE `group_prototype` DROP FOREIGN KEY `c_group_prototype_3`",
+	"ALTER TABLE `group_discovery` DROP FOREIGN KEY `c_group_discovery_1`",
+	"ALTER TABLE `group_discovery` DROP FOREIGN KEY `c_group_discovery_2`",
 	"ALTER TABLE `screens` DROP FOREIGN KEY `c_screens_1`",
 	"ALTER TABLE `screens_items` DROP FOREIGN KEY `c_screens_items_1`",
 	"ALTER TABLE `slides` DROP FOREIGN KEY `c_slides_1`",
@@ -4348,8 +4787,9 @@ const char	*const db_schema_fkeys_drop[] = {
 	"ALTER TABLE `drules` DROP FOREIGN KEY `c_drules_1`",
 	"ALTER TABLE `dchecks` DROP FOREIGN KEY `c_dchecks_1`",
 	"ALTER TABLE `applications` DROP FOREIGN KEY `c_applications_1`",
-	"ALTER TABLE `applications` DROP FOREIGN KEY `c_applications_2`",
 	"ALTER TABLE `httptest` DROP FOREIGN KEY `c_httptest_1`",
+	"ALTER TABLE `httptest` DROP FOREIGN KEY `c_httptest_2`",
+	"ALTER TABLE `httptest` DROP FOREIGN KEY `c_httptest_3`",
 	"ALTER TABLE `httpstep` DROP FOREIGN KEY `c_httpstep_1`",
 	"ALTER TABLE `interface` DROP FOREIGN KEY `c_interface_1`",
 	"ALTER TABLE `items` DROP FOREIGN KEY `c_items_1`",
@@ -4455,11 +4895,18 @@ const char	*const db_schema_fkeys_drop[] = {
 	"ALTER TABLE `host_inventory` DROP FOREIGN KEY `c_host_inventory_1`",
 	"ALTER TABLE `item_discovery` DROP FOREIGN KEY `c_item_discovery_1`",
 	"ALTER TABLE `item_discovery` DROP FOREIGN KEY `c_item_discovery_2`",
+	"ALTER TABLE `host_discovery` DROP FOREIGN KEY `c_host_discovery_1`",
+	"ALTER TABLE `host_discovery` DROP FOREIGN KEY `c_host_discovery_2`",
+	"ALTER TABLE `host_discovery` DROP FOREIGN KEY `c_host_discovery_3`",
+	"ALTER TABLE `interface_discovery` DROP FOREIGN KEY `c_interface_discovery_1`",
+	"ALTER TABLE `interface_discovery` DROP FOREIGN KEY `c_interface_discovery_2`",
 	"ALTER TABLE `profiles` DROP FOREIGN KEY `c_profiles_1`",
 	"ALTER TABLE `sessions` DROP FOREIGN KEY `c_sessions_1`",
 	"ALTER TABLE `trigger_discovery` DROP FOREIGN KEY `c_trigger_discovery_1`",
 	"ALTER TABLE `trigger_discovery` DROP FOREIGN KEY `c_trigger_discovery_2`",
 	"ALTER TABLE `user_history` DROP FOREIGN KEY `c_user_history_1`",
+	"ALTER TABLE `application_template` DROP FOREIGN KEY `c_application_template_1`",
+	"ALTER TABLE `application_template` DROP FOREIGN KEY `c_application_template_2`",
 	NULL
 };
 #elif defined(HAVE_ORACLE)
@@ -4505,19 +4952,40 @@ jmx_available number(10) DEFAULT '0' NOT NULL,\n\
 jmx_errors_from number(10) DEFAULT '0' NOT NULL,\n\
 jmx_error nvarchar2(128) DEFAULT '' ,\n\
 name nvarchar2(64) DEFAULT '' ,\n\
+flags number(10) DEFAULT '0' NOT NULL,\n\
+templateid number(20)  NULL,\n\
 PRIMARY KEY (hostid)\n\
 );\n\
 CREATE INDEX hosts_1 ON hosts (host);\n\
 CREATE INDEX hosts_2 ON hosts (status);\n\
 CREATE INDEX hosts_3 ON hosts (proxy_hostid);\n\
 CREATE INDEX hosts_4 ON hosts (name);\n\
+CREATE INDEX hosts_5 ON hosts (maintenanceid);\n\
 CREATE TABLE groups (\n\
 groupid number(20)  NOT NULL,\n\
 name nvarchar2(64) DEFAULT '' ,\n\
 internal number(10) DEFAULT '0' NOT NULL,\n\
+flags number(10) DEFAULT '0' NOT NULL,\n\
 PRIMARY KEY (groupid)\n\
 );\n\
 CREATE INDEX groups_1 ON groups (name);\n\
+CREATE TABLE group_prototype (\n\
+group_prototypeid number(20)  NOT NULL,\n\
+hostid number(20)  NOT NULL,\n\
+name nvarchar2(64) DEFAULT '' ,\n\
+groupid number(20)  NULL,\n\
+templateid number(20)  NULL,\n\
+PRIMARY KEY (group_prototypeid)\n\
+);\n\
+CREATE INDEX group_prototype_1 ON group_prototype (hostid);\n\
+CREATE TABLE group_discovery (\n\
+groupid number(20)  NOT NULL,\n\
+parent_group_prototypeid number(20)  NOT NULL,\n\
+name nvarchar2(64) DEFAULT '' ,\n\
+lastcheck number(10) DEFAULT '0' NOT NULL,\n\
+ts_delete number(10) DEFAULT '0' NOT NULL,\n\
+PRIMARY KEY (groupid)\n\
+);\n\
 CREATE TABLE screens (\n\
 screenid number(20)  NOT NULL,\n\
 name nvarchar2(255)  ,\n\
@@ -4526,6 +4994,7 @@ vsize number(10) DEFAULT '1' NOT NULL,\n\
 templateid number(20)  NULL,\n\
 PRIMARY KEY (screenid)\n\
 );\n\
+CREATE INDEX screens_1 ON screens (templateid);\n\
 CREATE TABLE screens_items (\n\
 screenitemid number(20)  NOT NULL,\n\
 screenid number(20)  NOT NULL,\n\
@@ -4544,8 +5013,10 @@ style number(10) DEFAULT '0' NOT NULL,\n\
 url nvarchar2(255) DEFAULT '' ,\n\
 dynamic number(10) DEFAULT '0' NOT NULL,\n\
 sort_triggers number(10) DEFAULT '0' NOT NULL,\n\
+application nvarchar2(255) DEFAULT '' ,\n\
 PRIMARY KEY (screenitemid)\n\
 );\n\
+CREATE INDEX screens_items_1 ON screens_items (screenid);\n\
 CREATE TABLE slideshows (\n\
 slideshowid number(20)  NOT NULL,\n\
 name nvarchar2(255) DEFAULT '' ,\n\
@@ -4560,7 +5031,8 @@ step number(10) DEFAULT '0' NOT NULL,\n\
 delay number(10) DEFAULT '0' NOT NULL,\n\
 PRIMARY KEY (slideid)\n\
 );\n\
-CREATE INDEX slides_slides_1 ON slides (slideshowid);\n\
+CREATE INDEX slides_1 ON slides (slideshowid);\n\
+CREATE INDEX slides_2 ON slides (screenid);\n\
 CREATE TABLE drules (\n\
 druleid number(20)  NOT NULL,\n\
 proxy_hostid number(20)  NULL,\n\
@@ -4571,6 +5043,7 @@ nextcheck number(10) DEFAULT '0' NOT NULL,\n\
 status number(10) DEFAULT '0' NOT NULL,\n\
 PRIMARY KEY (druleid)\n\
 );\n\
+CREATE INDEX drules_1 ON drules (proxy_hostid);\n\
 CREATE TABLE dchecks (\n\
 dcheckid number(20)  NOT NULL,\n\
 druleid number(20)  NOT NULL,\n\
@@ -4583,6 +5056,9 @@ snmpv3_securitylevel number(10) DEFAULT '0' NOT NULL,\n\
 snmpv3_authpassphrase nvarchar2(64) DEFAULT '' ,\n\
 snmpv3_privpassphrase nvarchar2(64) DEFAULT '' ,\n\
 uniq number(10) DEFAULT '0' NOT NULL,\n\
+snmpv3_authprotocol number(10) DEFAULT '0' NOT NULL,\n\
+snmpv3_privprotocol number(10) DEFAULT '0' NOT NULL,\n\
+snmpv3_contextname nvarchar2(255) DEFAULT '' ,\n\
 PRIMARY KEY (dcheckid)\n\
 );\n\
 CREATE INDEX dchecks_1 ON dchecks (druleid);\n\
@@ -4590,28 +5066,31 @@ CREATE TABLE applications (\n\
 applicationid number(20)  NOT NULL,\n\
 hostid number(20)  NOT NULL,\n\
 name nvarchar2(255) DEFAULT '' ,\n\
-templateid number(20)  NULL,\n\
 PRIMARY KEY (applicationid)\n\
 );\n\
-CREATE INDEX applications_1 ON applications (templateid);\n\
 CREATE UNIQUE INDEX applications_2 ON applications (hostid,name);\n\
 CREATE TABLE httptest (\n\
 httptestid number(20)  NOT NULL,\n\
 name nvarchar2(64) DEFAULT '' ,\n\
-applicationid number(20)  NOT NULL,\n\
+applicationid number(20)  NULL,\n\
 nextcheck number(10) DEFAULT '0' NOT NULL,\n\
 delay number(10) DEFAULT '60' NOT NULL,\n\
 status number(10) DEFAULT '0' NOT NULL,\n\
-macros nvarchar2(2048) DEFAULT '' ,\n\
+variables nvarchar2(2048) DEFAULT '' ,\n\
 agent nvarchar2(255) DEFAULT '' ,\n\
 authentication number(10) DEFAULT '0' NOT NULL,\n\
 http_user nvarchar2(64) DEFAULT '' ,\n\
 http_password nvarchar2(64) DEFAULT '' ,\n\
+hostid number(20)  NOT NULL,\n\
+templateid number(20)  NULL,\n\
+http_proxy nvarchar2(255) DEFAULT '' ,\n\
+retries number(10) DEFAULT '1' NOT NULL,\n\
 PRIMARY KEY (httptestid)\n\
 );\n\
-CREATE INDEX httptest_httptest_1 ON httptest (applicationid);\n\
-CREATE INDEX httptest_2 ON httptest (name);\n\
+CREATE INDEX httptest_1 ON httptest (applicationid);\n\
+CREATE UNIQUE INDEX httptest_2 ON httptest (hostid,name);\n\
 CREATE INDEX httptest_3 ON httptest (status);\n\
+CREATE INDEX httptest_4 ON httptest (templateid);\n\
 CREATE TABLE httpstep (\n\
 httpstepid number(20)  NOT NULL,\n\
 httptestid number(20)  NOT NULL,\n\
@@ -4622,16 +5101,17 @@ timeout number(10) DEFAULT '30' NOT NULL,\n\
 posts nvarchar2(2048) DEFAULT '' ,\n\
 required nvarchar2(255) DEFAULT '' ,\n\
 status_codes nvarchar2(255) DEFAULT '' ,\n\
+variables nvarchar2(2048) DEFAULT '' ,\n\
 PRIMARY KEY (httpstepid)\n\
 );\n\
-CREATE INDEX httpstep_httpstep_1 ON httpstep (httptestid);\n\
+CREATE INDEX httpstep_1 ON httpstep (httptestid);\n\
 CREATE TABLE interface (\n\
 interfaceid number(20)  NOT NULL,\n\
 hostid number(20)  NOT NULL,\n\
 main number(10) DEFAULT '0' NOT NULL,\n\
 type number(10) DEFAULT '0' NOT NULL,\n\
 useip number(10) DEFAULT '1' NOT NULL,\n\
-ip nvarchar2(39) DEFAULT '127.0.0.1' ,\n\
+ip nvarchar2(64) DEFAULT '127.0.0.1' ,\n\
 dns nvarchar2(64) DEFAULT '' ,\n\
 port nvarchar2(64) DEFAULT '10050' ,\n\
 PRIMARY KEY (interfaceid)\n\
@@ -4655,16 +5135,12 @@ key_ nvarchar2(255) DEFAULT '' ,\n\
 delay number(10) DEFAULT '0' NOT NULL,\n\
 history number(10) DEFAULT '90' NOT NULL,\n\
 trends number(10) DEFAULT '365' NOT NULL,\n\
-lastvalue nvarchar2(255)  ,\n\
-lastclock number(10)  NULL,\n\
-prevvalue nvarchar2(255)  ,\n\
 status number(10) DEFAULT '0' NOT NULL,\n\
 value_type number(10) DEFAULT '0' NOT NULL,\n\
 trapper_hosts nvarchar2(255) DEFAULT '' ,\n\
 units nvarchar2(255) DEFAULT '' ,\n\
 multiplier number(10) DEFAULT '0' NOT NULL,\n\
 delta number(10) DEFAULT '0' NOT NULL,\n\
-prevorgvalue nvarchar2(255)  ,\n\
 snmpv3_securityname nvarchar2(64) DEFAULT '' ,\n\
 snmpv3_securitylevel number(10) DEFAULT '0' NOT NULL,\n\
 snmpv3_authpassphrase nvarchar2(64) DEFAULT '' ,\n\
@@ -4685,7 +5161,6 @@ password nvarchar2(64) DEFAULT '' ,\n\
 publickey nvarchar2(64) DEFAULT '' ,\n\
 privatekey nvarchar2(64) DEFAULT '' ,\n\
 mtime number(10) DEFAULT '0' NOT NULL,\n\
-lastns number(10)  NULL,\n\
 flags number(10) DEFAULT '0' NOT NULL,\n\
 filter nvarchar2(255) DEFAULT '' ,\n\
 interfaceid number(20)  NULL,\n\
@@ -4693,12 +5168,17 @@ port nvarchar2(64) DEFAULT '' ,\n\
 description nvarchar2(2048) DEFAULT '' ,\n\
 inventory_link number(10) DEFAULT '0' NOT NULL,\n\
 lifetime nvarchar2(64) DEFAULT '30' ,\n\
+snmpv3_authprotocol number(10) DEFAULT '0' NOT NULL,\n\
+snmpv3_privprotocol number(10) DEFAULT '0' NOT NULL,\n\
+state number(10) DEFAULT '0' NOT NULL,\n\
+snmpv3_contextname nvarchar2(255) DEFAULT '' ,\n\
 PRIMARY KEY (itemid)\n\
 );\n\
 CREATE UNIQUE INDEX items_1 ON items (hostid,key_);\n\
 CREATE INDEX items_3 ON items (status);\n\
 CREATE INDEX items_4 ON items (templateid);\n\
 CREATE INDEX items_5 ON items (valuemapid);\n\
+CREATE INDEX items_6 ON items (interfaceid);\n\
 CREATE TABLE httpstepitem (\n\
 httpstepitemid number(20)  NOT NULL,\n\
 httpstepid number(20)  NOT NULL,\n\
@@ -4706,7 +5186,8 @@ itemid number(20)  NOT NULL,\n\
 type number(10) DEFAULT '0' NOT NULL,\n\
 PRIMARY KEY (httpstepitemid)\n\
 );\n\
-CREATE UNIQUE INDEX httpstepitem_httpstepitem_1 ON httpstepitem (httpstepid,itemid);\n\
+CREATE UNIQUE INDEX httpstepitem_1 ON httpstepitem (httpstepid,itemid);\n\
+CREATE INDEX httpstepitem_2 ON httpstepitem (itemid);\n\
 CREATE TABLE httptestitem (\n\
 httptestitemid number(20)  NOT NULL,\n\
 httptestid number(20)  NOT NULL,\n\
@@ -4714,7 +5195,8 @@ itemid number(20)  NOT NULL,\n\
 type number(10) DEFAULT '0' NOT NULL,\n\
 PRIMARY KEY (httptestitemid)\n\
 );\n\
-CREATE UNIQUE INDEX httptestitem_httptestitem_1 ON httptestitem (httptestid,itemid);\n\
+CREATE UNIQUE INDEX httptestitem_1 ON httptestitem (httptestid,itemid);\n\
+CREATE INDEX httptestitem_2 ON httptestitem (itemid);\n\
 CREATE TABLE media_type (\n\
 mediatypeid number(20)  NOT NULL,\n\
 type number(10) DEFAULT '0' NOT NULL,\n\
@@ -4740,7 +5222,7 @@ autologin number(10) DEFAULT '0' NOT NULL,\n\
 autologout number(10) DEFAULT '900' NOT NULL,\n\
 lang nvarchar2(5) DEFAULT 'en_GB' ,\n\
 refresh number(10) DEFAULT '30' NOT NULL,\n\
-type number(10) DEFAULT '0' NOT NULL,\n\
+type number(10) DEFAULT '1' NOT NULL,\n\
 theme nvarchar2(128) DEFAULT 'default' ,\n\
 attempt_failed number(10) DEFAULT 0 NOT NULL,\n\
 attempt_ip nvarchar2(39) DEFAULT '' ,\n\
@@ -4765,6 +5247,7 @@ userid number(20)  NOT NULL,\n\
 PRIMARY KEY (id)\n\
 );\n\
 CREATE UNIQUE INDEX users_groups_1 ON users_groups (usrgrpid,userid);\n\
+CREATE INDEX users_groups_2 ON users_groups (userid);\n\
 CREATE TABLE scripts (\n\
 scriptid number(20)  NOT NULL,\n\
 name nvarchar2(255) DEFAULT '' ,\n\
@@ -4778,6 +5261,8 @@ type number(10) DEFAULT '0' NOT NULL,\n\
 execute_on number(10) DEFAULT '1' NOT NULL,\n\
 PRIMARY KEY (scriptid)\n\
 );\n\
+CREATE INDEX scripts_1 ON scripts (usrgrpid);\n\
+CREATE INDEX scripts_2 ON scripts (groupid);\n\
 CREATE TABLE actions (\n\
 actionid number(20)  NOT NULL,\n\
 name nvarchar2(255) DEFAULT '' ,\n\
@@ -4812,6 +5297,7 @@ message nvarchar2(2048) DEFAULT '' ,\n\
 mediatypeid number(20)  NULL,\n\
 PRIMARY KEY (operationid)\n\
 );\n\
+CREATE INDEX opmessage_1 ON opmessage (mediatypeid);\n\
 CREATE TABLE opmessage_grp (\n\
 opmessage_grpid number(20)  NOT NULL,\n\
 operationid number(20)  NOT NULL,\n\
@@ -4819,6 +5305,7 @@ usrgrpid number(20)  NOT NULL,\n\
 PRIMARY KEY (opmessage_grpid)\n\
 );\n\
 CREATE UNIQUE INDEX opmessage_grp_1 ON opmessage_grp (operationid,usrgrpid);\n\
+CREATE INDEX opmessage_grp_2 ON opmessage_grp (usrgrpid);\n\
 CREATE TABLE opmessage_usr (\n\
 opmessage_usrid number(20)  NOT NULL,\n\
 operationid number(20)  NOT NULL,\n\
@@ -4826,6 +5313,7 @@ userid number(20)  NOT NULL,\n\
 PRIMARY KEY (opmessage_usrid)\n\
 );\n\
 CREATE UNIQUE INDEX opmessage_usr_1 ON opmessage_usr (operationid,userid);\n\
+CREATE INDEX opmessage_usr_2 ON opmessage_usr (userid);\n\
 CREATE TABLE opcommand (\n\
 operationid number(20)  NOT NULL,\n\
 type number(10) DEFAULT '0' NOT NULL,\n\
@@ -4840,6 +5328,7 @@ privatekey nvarchar2(64) DEFAULT '' ,\n\
 command nvarchar2(2048) DEFAULT '' ,\n\
 PRIMARY KEY (operationid)\n\
 );\n\
+CREATE INDEX opcommand_1 ON opcommand (scriptid);\n\
 CREATE TABLE opcommand_hst (\n\
 opcommand_hstid number(20)  NOT NULL,\n\
 operationid number(20)  NOT NULL,\n\
@@ -4847,6 +5336,7 @@ hostid number(20)  NULL,\n\
 PRIMARY KEY (opcommand_hstid)\n\
 );\n\
 CREATE INDEX opcommand_hst_1 ON opcommand_hst (operationid);\n\
+CREATE INDEX opcommand_hst_2 ON opcommand_hst (hostid);\n\
 CREATE TABLE opcommand_grp (\n\
 opcommand_grpid number(20)  NOT NULL,\n\
 operationid number(20)  NOT NULL,\n\
@@ -4854,6 +5344,7 @@ groupid number(20)  NOT NULL,\n\
 PRIMARY KEY (opcommand_grpid)\n\
 );\n\
 CREATE INDEX opcommand_grp_1 ON opcommand_grp (operationid);\n\
+CREATE INDEX opcommand_grp_2 ON opcommand_grp (groupid);\n\
 CREATE TABLE opgroup (\n\
 opgroupid number(20)  NOT NULL,\n\
 operationid number(20)  NOT NULL,\n\
@@ -4861,6 +5352,7 @@ groupid number(20)  NOT NULL,\n\
 PRIMARY KEY (opgroupid)\n\
 );\n\
 CREATE UNIQUE INDEX opgroup_1 ON opgroup (operationid,groupid);\n\
+CREATE INDEX opgroup_2 ON opgroup (groupid);\n\
 CREATE TABLE optemplate (\n\
 optemplateid number(20)  NOT NULL,\n\
 operationid number(20)  NOT NULL,\n\
@@ -4868,6 +5360,7 @@ templateid number(20)  NOT NULL,\n\
 PRIMARY KEY (optemplateid)\n\
 );\n\
 CREATE UNIQUE INDEX optemplate_1 ON optemplate (operationid,templateid);\n\
+CREATE INDEX optemplate_2 ON optemplate (templateid);\n\
 CREATE TABLE opconditions (\n\
 opconditionid number(20)  NOT NULL,\n\
 operationid number(20)  NOT NULL,\n\
@@ -4888,8 +5381,6 @@ PRIMARY KEY (conditionid)\n\
 CREATE INDEX conditions_1 ON conditions (actionid);\n\
 CREATE TABLE config (\n\
 configid number(20)  NOT NULL,\n\
-alert_history number(10) DEFAULT '0' NOT NULL,\n\
-event_history number(10) DEFAULT '0' NOT NULL,\n\
 refresh_unsupported number(10) DEFAULT '0' NOT NULL,\n\
 work_period nvarchar2(100) DEFAULT '1-5,00:00-24:00' ,\n\
 alert_usrgrpid number(20)  NULL,\n\
@@ -4933,11 +5424,30 @@ ok_unack_style number(10) DEFAULT '1' NOT NULL,\n\
 ok_ack_style number(10) DEFAULT '1' NOT NULL,\n\
 snmptrap_logging number(10) DEFAULT '1' NOT NULL,\n\
 server_check_interval number(10) DEFAULT '10' NOT NULL,\n\
+hk_events_mode number(10) DEFAULT '1' NOT NULL,\n\
+hk_events_trigger number(10) DEFAULT '365' NOT NULL,\n\
+hk_events_internal number(10) DEFAULT '365' NOT NULL,\n\
+hk_events_discovery number(10) DEFAULT '365' NOT NULL,\n\
+hk_events_autoreg number(10) DEFAULT '365' NOT NULL,\n\
+hk_services_mode number(10) DEFAULT '1' NOT NULL,\n\
+hk_services number(10) DEFAULT '365' NOT NULL,\n\
+hk_audit_mode number(10) DEFAULT '1' NOT NULL,\n\
+hk_audit number(10) DEFAULT '365' NOT NULL,\n\
+hk_sessions_mode number(10) DEFAULT '1' NOT NULL,\n\
+hk_sessions number(10) DEFAULT '365' NOT NULL,\n\
+hk_history_mode number(10) DEFAULT '1' NOT NULL,\n\
+hk_history_global number(10) DEFAULT '0' NOT NULL,\n\
+hk_history number(10) DEFAULT '90' NOT NULL,\n\
+hk_trends_mode number(10) DEFAULT '1' NOT NULL,\n\
+hk_trends_global number(10) DEFAULT '0' NOT NULL,\n\
+hk_trends number(10) DEFAULT '365' NOT NULL,\n\
 PRIMARY KEY (configid)\n\
 );\n\
+CREATE INDEX config_1 ON config (alert_usrgrpid);\n\
+CREATE INDEX config_2 ON config (discovery_groupid);\n\
 CREATE TABLE triggers (\n\
 triggerid number(20)  NOT NULL,\n\
-expression nvarchar2(255) DEFAULT '' ,\n\
+expression nvarchar2(2048) DEFAULT '' ,\n\
 description nvarchar2(255) DEFAULT '' ,\n\
 url nvarchar2(255) DEFAULT '' ,\n\
 status number(10) DEFAULT '0' NOT NULL,\n\
@@ -4948,12 +5458,13 @@ comments nvarchar2(2048) DEFAULT '' ,\n\
 error nvarchar2(128) DEFAULT '' ,\n\
 templateid number(20)  NULL,\n\
 type number(10) DEFAULT '0' NOT NULL,\n\
-value_flags number(10) DEFAULT '0' NOT NULL,\n\
+state number(10) DEFAULT '0' NOT NULL,\n\
 flags number(10) DEFAULT '0' NOT NULL,\n\
 PRIMARY KEY (triggerid)\n\
 );\n\
 CREATE INDEX triggers_1 ON triggers (status);\n\
 CREATE INDEX triggers_2 ON triggers (value);\n\
+CREATE INDEX triggers_3 ON triggers (templateid);\n\
 CREATE TABLE trigger_depends (\n\
 triggerdepid number(20)  NOT NULL,\n\
 triggerid_down number(20)  NOT NULL,\n\
@@ -4975,10 +5486,10 @@ CREATE INDEX functions_2 ON functions (itemid,function,parameter);\n\
 CREATE TABLE graphs (\n\
 graphid number(20)  NOT NULL,\n\
 name nvarchar2(128) DEFAULT '' ,\n\
-width number(10) DEFAULT '0' NOT NULL,\n\
-height number(10) DEFAULT '0' NOT NULL,\n\
+width number(10) DEFAULT '900' NOT NULL,\n\
+height number(10) DEFAULT '200' NOT NULL,\n\
 yaxismin number(20,4) DEFAULT '0' NOT NULL,\n\
-yaxismax number(20,4) DEFAULT '0' NOT NULL,\n\
+yaxismax number(20,4) DEFAULT '100' NOT NULL,\n\
 templateid number(20)  NULL,\n\
 show_work_period number(10) DEFAULT '1' NOT NULL,\n\
 show_triggers number(10) DEFAULT '1' NOT NULL,\n\
@@ -4994,7 +5505,10 @@ ymax_itemid number(20)  NULL,\n\
 flags number(10) DEFAULT '0' NOT NULL,\n\
 PRIMARY KEY (graphid)\n\
 );\n\
-CREATE INDEX graphs_graphs_1 ON graphs (name);\n\
+CREATE INDEX graphs_1 ON graphs (name);\n\
+CREATE INDEX graphs_2 ON graphs (templateid);\n\
+CREATE INDEX graphs_3 ON graphs (ymin_itemid);\n\
+CREATE INDEX graphs_4 ON graphs (ymax_itemid);\n\
 CREATE TABLE graphs_items (\n\
 gitemid number(20)  NOT NULL,\n\
 graphid number(20)  NOT NULL,\n\
@@ -5002,7 +5516,7 @@ itemid number(20)  NOT NULL,\n\
 drawtype number(10) DEFAULT '0' NOT NULL,\n\
 sortorder number(10) DEFAULT '0' NOT NULL,\n\
 color nvarchar2(6) DEFAULT '009600' ,\n\
-yaxisside number(10) DEFAULT '1' NOT NULL,\n\
+yaxisside number(10) DEFAULT '0' NOT NULL,\n\
 calc_fnc number(10) DEFAULT '2' NOT NULL,\n\
 type number(10) DEFAULT '0' NOT NULL,\n\
 PRIMARY KEY (gitemid)\n\
@@ -5030,12 +5544,6 @@ PRIMARY KEY (graphthemeid)\n\
 );\n\
 CREATE INDEX graph_theme_1 ON graph_theme (description);\n\
 CREATE INDEX graph_theme_2 ON graph_theme (theme);\n\
-CREATE TABLE help_items (\n\
-itemtype number(10) DEFAULT '0' NOT NULL,\n\
-key_ nvarchar2(255) DEFAULT '' ,\n\
-description nvarchar2(255) DEFAULT '' ,\n\
-PRIMARY KEY (itemtype,key_)\n\
-);\n\
 CREATE TABLE globalmacro (\n\
 globalmacroid number(20)  NOT NULL,\n\
 macro nvarchar2(64) DEFAULT '' ,\n\
@@ -5123,8 +5631,8 @@ servicedownid number(20)  NOT NULL,\n\
 soft number(10) DEFAULT '0' NOT NULL,\n\
 PRIMARY KEY (linkid)\n\
 );\n\
-CREATE INDEX services_links_links_1 ON services_links (servicedownid);\n\
-CREATE UNIQUE INDEX services_links_links_2 ON services_links (serviceupid,servicedownid);\n\
+CREATE INDEX services_links_1 ON services_links (servicedownid);\n\
+CREATE UNIQUE INDEX services_links_2 ON services_links (serviceupid,servicedownid);\n\
 CREATE TABLE services_times (\n\
 timeid number(20)  NOT NULL,\n\
 serviceid number(20)  NOT NULL,\n\
@@ -5134,7 +5642,7 @@ ts_to number(10) DEFAULT '0' NOT NULL,\n\
 note nvarchar2(255) DEFAULT '' ,\n\
 PRIMARY KEY (timeid)\n\
 );\n\
-CREATE INDEX services_times_times_1 ON services_times (serviceid,type,ts_from,ts_to);\n\
+CREATE INDEX services_times_1 ON services_times (serviceid,type,ts_from,ts_to);\n\
 CREATE TABLE icon_map (\n\
 iconmapid number(20)  NOT NULL,\n\
 name nvarchar2(64) DEFAULT '' ,\n\
@@ -5142,6 +5650,7 @@ default_iconid number(20)  NOT NULL,\n\
 PRIMARY KEY (iconmapid)\n\
 );\n\
 CREATE INDEX icon_map_1 ON icon_map (name);\n\
+CREATE INDEX icon_map_2 ON icon_map (default_iconid);\n\
 CREATE TABLE icon_mapping (\n\
 iconmappingid number(20)  NOT NULL,\n\
 iconmapid number(20)  NOT NULL,\n\
@@ -5152,6 +5661,7 @@ sortorder number(10) DEFAULT '0' NOT NULL,\n\
 PRIMARY KEY (iconmappingid)\n\
 );\n\
 CREATE INDEX icon_mapping_1 ON icon_mapping (iconmapid);\n\
+CREATE INDEX icon_mapping_2 ON icon_mapping (iconid);\n\
 CREATE TABLE sysmaps (\n\
 sysmapid number(20)  NOT NULL,\n\
 name nvarchar2(128) DEFAULT '' ,\n\
@@ -5159,7 +5669,7 @@ width number(10) DEFAULT '600' NOT NULL,\n\
 height number(10) DEFAULT '400' NOT NULL,\n\
 backgroundid number(20)  NULL,\n\
 label_type number(10) DEFAULT '2' NOT NULL,\n\
-label_location number(10) DEFAULT '3' NOT NULL,\n\
+label_location number(10) DEFAULT '0' NOT NULL,\n\
 highlight number(10) DEFAULT '1' NOT NULL,\n\
 expandproblem number(10) DEFAULT '1' NOT NULL,\n\
 markelements number(10) DEFAULT '0' NOT NULL,\n\
@@ -5180,9 +5690,12 @@ label_string_map nvarchar2(255) DEFAULT '' ,\n\
 label_string_image nvarchar2(255) DEFAULT '' ,\n\
 iconmapid number(20)  NULL,\n\
 expand_macros number(10) DEFAULT '0' NOT NULL,\n\
+severity_min number(10) DEFAULT '0' NOT NULL,\n\
 PRIMARY KEY (sysmapid)\n\
 );\n\
 CREATE INDEX sysmaps_1 ON sysmaps (name);\n\
+CREATE INDEX sysmaps_2 ON sysmaps (backgroundid);\n\
+CREATE INDEX sysmaps_3 ON sysmaps (iconmapid);\n\
 CREATE TABLE sysmaps_elements (\n\
 selementid number(20)  NOT NULL,\n\
 sysmapid number(20)  NOT NULL,\n\
@@ -5190,8 +5703,8 @@ elementid number(20) DEFAULT '0' NOT NULL,\n\
 elementtype number(10) DEFAULT '0' NOT NULL,\n\
 iconid_off number(20)  NULL,\n\
 iconid_on number(20)  NULL,\n\
-label nvarchar2(255) DEFAULT '' ,\n\
-label_location number(10)  NULL,\n\
+label nvarchar2(2048) DEFAULT '' ,\n\
+label_location number(10) DEFAULT '-1' NOT NULL,\n\
 x number(10) DEFAULT '0' NOT NULL,\n\
 y number(10) DEFAULT '0' NOT NULL,\n\
 iconid_disabled number(20)  NULL,\n\
@@ -5204,6 +5717,11 @@ viewtype number(10) DEFAULT '0' NOT NULL,\n\
 use_iconmap number(10) DEFAULT '1' NOT NULL,\n\
 PRIMARY KEY (selementid)\n\
 );\n\
+CREATE INDEX sysmaps_elements_1 ON sysmaps_elements (sysmapid);\n\
+CREATE INDEX sysmaps_elements_2 ON sysmaps_elements (iconid_off);\n\
+CREATE INDEX sysmaps_elements_3 ON sysmaps_elements (iconid_on);\n\
+CREATE INDEX sysmaps_elements_4 ON sysmaps_elements (iconid_disabled);\n\
+CREATE INDEX sysmaps_elements_5 ON sysmaps_elements (iconid_maintenance);\n\
 CREATE TABLE sysmaps_links (\n\
 linkid number(20)  NOT NULL,\n\
 sysmapid number(20)  NOT NULL,\n\
@@ -5211,9 +5729,12 @@ selementid1 number(20)  NOT NULL,\n\
 selementid2 number(20)  NOT NULL,\n\
 drawtype number(10) DEFAULT '0' NOT NULL,\n\
 color nvarchar2(6) DEFAULT '000000' ,\n\
-label nvarchar2(255) DEFAULT '' ,\n\
+label nvarchar2(2048) DEFAULT '' ,\n\
 PRIMARY KEY (linkid)\n\
 );\n\
+CREATE INDEX sysmaps_links_1 ON sysmaps_links (sysmapid);\n\
+CREATE INDEX sysmaps_links_2 ON sysmaps_links (selementid1);\n\
+CREATE INDEX sysmaps_links_3 ON sysmaps_links (selementid2);\n\
 CREATE TABLE sysmaps_link_triggers (\n\
 linktriggerid number(20)  NOT NULL,\n\
 linkid number(20)  NOT NULL,\n\
@@ -5223,6 +5744,7 @@ color nvarchar2(6) DEFAULT '000000' ,\n\
 PRIMARY KEY (linktriggerid)\n\
 );\n\
 CREATE UNIQUE INDEX sysmaps_link_triggers_1 ON sysmaps_link_triggers (linkid,triggerid);\n\
+CREATE INDEX sysmaps_link_triggers_2 ON sysmaps_link_triggers (triggerid);\n\
 CREATE TABLE sysmap_element_url (\n\
 sysmapelementurlid number(20)  NOT NULL,\n\
 selementid number(20)  NOT NULL,\n\
@@ -5247,6 +5769,7 @@ hostid number(20)  NOT NULL,\n\
 PRIMARY KEY (maintenance_hostid)\n\
 );\n\
 CREATE UNIQUE INDEX maintenances_hosts_1 ON maintenances_hosts (maintenanceid,hostid);\n\
+CREATE INDEX maintenances_hosts_2 ON maintenances_hosts (hostid);\n\
 CREATE TABLE maintenances_groups (\n\
 maintenance_groupid number(20)  NOT NULL,\n\
 maintenanceid number(20)  NOT NULL,\n\
@@ -5254,6 +5777,7 @@ groupid number(20)  NOT NULL,\n\
 PRIMARY KEY (maintenance_groupid)\n\
 );\n\
 CREATE UNIQUE INDEX maintenances_groups_1 ON maintenances_groups (maintenanceid,groupid);\n\
+CREATE INDEX maintenances_groups_2 ON maintenances_groups (groupid);\n\
 CREATE TABLE timeperiods (\n\
 timeperiodid number(20)  NOT NULL,\n\
 timeperiod_type number(10) DEFAULT '0' NOT NULL,\n\
@@ -5273,6 +5797,7 @@ timeperiodid number(20)  NOT NULL,\n\
 PRIMARY KEY (maintenance_timeperiodid)\n\
 );\n\
 CREATE UNIQUE INDEX maintenances_windows_1 ON maintenances_windows (maintenanceid,timeperiodid);\n\
+CREATE INDEX maintenances_windows_2 ON maintenances_windows (timeperiodid);\n\
 CREATE TABLE regexps (\n\
 regexpid number(20)  NOT NULL,\n\
 name nvarchar2(128) DEFAULT '' ,\n\
@@ -5299,6 +5824,7 @@ nodetype number(10) DEFAULT '0' NOT NULL,\n\
 masterid number(10)  NULL,\n\
 PRIMARY KEY (nodeid)\n\
 );\n\
+CREATE INDEX nodes_1 ON nodes (masterid);\n\
 CREATE TABLE node_cksum (\n\
 nodeid number(10)  NOT NULL,\n\
 tablename nvarchar2(64) DEFAULT '' ,\n\
@@ -5324,11 +5850,10 @@ clock number(10) DEFAULT '0' NOT NULL,\n\
 mediatypeid number(20)  NULL,\n\
 sendto nvarchar2(100) DEFAULT '' ,\n\
 subject nvarchar2(255) DEFAULT '' ,\n\
-message nvarchar2(2048) DEFAULT '' ,\n\
+message nclob DEFAULT '' ,\n\
 status number(10) DEFAULT '0' NOT NULL,\n\
 retries number(10) DEFAULT '0' NOT NULL,\n\
 error nvarchar2(128) DEFAULT '' ,\n\
-nextcheck number(10) DEFAULT '0' NOT NULL,\n\
 esc_step number(10) DEFAULT '0' NOT NULL,\n\
 alerttype number(10) DEFAULT '0' NOT NULL,\n\
 PRIMARY KEY (alertid)\n\
@@ -5424,7 +5949,7 @@ severity number(10) DEFAULT '0' NOT NULL,\n\
 value nclob DEFAULT '' ,\n\
 logeventid number(10) DEFAULT '0' NOT NULL,\n\
 ns number(10) DEFAULT '0' NOT NULL,\n\
-status number(10) DEFAULT '0' NOT NULL,\n\
+state number(10) DEFAULT '0' NOT NULL,\n\
 PRIMARY KEY (id)\n\
 );\n\
 CREATE INDEX proxy_history_1 ON proxy_history (clock);\n\
@@ -5452,11 +5977,10 @@ clock number(10) DEFAULT '0' NOT NULL,\n\
 value number(10) DEFAULT '0' NOT NULL,\n\
 acknowledged number(10) DEFAULT '0' NOT NULL,\n\
 ns number(10) DEFAULT '0' NOT NULL,\n\
-value_changed number(10) DEFAULT '0' NOT NULL,\n\
 PRIMARY KEY (eventid)\n\
 );\n\
-CREATE INDEX events_1 ON events (object,objectid,eventid);\n\
-CREATE INDEX events_2 ON events (clock);\n\
+CREATE INDEX events_1 ON events (source,object,objectid,clock);\n\
+CREATE INDEX events_2 ON events (source,object,clock);\n\
 CREATE TABLE trends (\n\
 itemid number(20)  NOT NULL,\n\
 clock number(10) DEFAULT '0' NOT NULL,\n\
@@ -5526,6 +6050,7 @@ host nvarchar2(64) DEFAULT '' ,\n\
 listen_ip nvarchar2(39) DEFAULT '' ,\n\
 listen_port number(10) DEFAULT '0' NOT NULL,\n\
 listen_dns nvarchar2(64) DEFAULT '' ,\n\
+host_metadata nvarchar2(255) DEFAULT '' ,\n\
 PRIMARY KEY (autoreg_hostid)\n\
 );\n\
 CREATE INDEX autoreg_host_1 ON autoreg_host (proxy_hostid,host);\n\
@@ -5536,6 +6061,7 @@ host nvarchar2(64) DEFAULT '' ,\n\
 listen_ip nvarchar2(39) DEFAULT '' ,\n\
 listen_port number(10) DEFAULT '0' NOT NULL,\n\
 listen_dns nvarchar2(64) DEFAULT '' ,\n\
+host_metadata nvarchar2(255) DEFAULT '' ,\n\
 PRIMARY KEY (id)\n\
 );\n\
 CREATE INDEX proxy_autoreg_host_1 ON proxy_autoreg_host (clock);\n\
@@ -5574,9 +6100,10 @@ r_eventid number(20)  NULL,\n\
 nextcheck number(10) DEFAULT '0' NOT NULL,\n\
 esc_step number(10) DEFAULT '0' NOT NULL,\n\
 status number(10) DEFAULT '0' NOT NULL,\n\
+itemid number(20)  NULL,\n\
 PRIMARY KEY (escalationid)\n\
 );\n\
-CREATE INDEX escalations_1 ON escalations (actionid,triggerid);\n\
+CREATE UNIQUE INDEX escalations_1 ON escalations (actionid,triggerid,itemid,escalationid);\n\
 CREATE TABLE globalvars (\n\
 globalvarid number(20)  NOT NULL,\n\
 snmp_lastsize number(10) DEFAULT '0' NOT NULL,\n\
@@ -5590,6 +6117,7 @@ name nvarchar2(128) DEFAULT '' ,\n\
 PRIMARY KEY (graphdiscoveryid)\n\
 );\n\
 CREATE UNIQUE INDEX graph_discovery_1 ON graph_discovery (graphid,parent_graphid);\n\
+CREATE INDEX graph_discovery_2 ON graph_discovery (parent_graphid);\n\
 CREATE TABLE host_inventory (\n\
 hostid number(20)  NOT NULL,\n\
 inventory_mode number(10) DEFAULT '0' NOT NULL,\n\
@@ -5690,6 +6218,21 @@ ts_delete number(10) DEFAULT '0' NOT NULL,\n\
 PRIMARY KEY (itemdiscoveryid)\n\
 );\n\
 CREATE UNIQUE INDEX item_discovery_1 ON item_discovery (itemid,parent_itemid);\n\
+CREATE INDEX item_discovery_2 ON item_discovery (parent_itemid);\n\
+CREATE TABLE host_discovery (\n\
+hostid number(20)  NOT NULL,\n\
+parent_hostid number(20)  NULL,\n\
+parent_itemid number(20)  NULL,\n\
+host nvarchar2(64) DEFAULT '' ,\n\
+lastcheck number(10) DEFAULT '0' NOT NULL,\n\
+ts_delete number(10) DEFAULT '0' NOT NULL,\n\
+PRIMARY KEY (hostid)\n\
+);\n\
+CREATE TABLE interface_discovery (\n\
+interfaceid number(20)  NOT NULL,\n\
+parent_interfaceid number(20)  NOT NULL,\n\
+PRIMARY KEY (interfaceid)\n\
+);\n\
 CREATE TABLE profiles (\n\
 profileid number(20)  NOT NULL,\n\
 userid number(20)  NOT NULL,\n\
@@ -5720,6 +6263,7 @@ name nvarchar2(255) DEFAULT '' ,\n\
 PRIMARY KEY (triggerdiscoveryid)\n\
 );\n\
 CREATE UNIQUE INDEX trigger_discovery_1 ON trigger_discovery (triggerid,parent_triggerid);\n\
+CREATE INDEX trigger_discovery_2 ON trigger_discovery (parent_triggerid);\n\
 CREATE TABLE user_history (\n\
 userhistoryid number(20)  NOT NULL,\n\
 userid number(20)  NOT NULL,\n\
@@ -5736,6 +6280,19 @@ url5 nvarchar2(255) DEFAULT '' ,\n\
 PRIMARY KEY (userhistoryid)\n\
 );\n\
 CREATE UNIQUE INDEX user_history_1 ON user_history (userid);\n\
+CREATE TABLE application_template (\n\
+application_templateid number(20)  NOT NULL,\n\
+applicationid number(20)  NOT NULL,\n\
+templateid number(20)  NOT NULL,\n\
+PRIMARY KEY (application_templateid)\n\
+);\n\
+CREATE UNIQUE INDEX application_template_1 ON application_template (applicationid,templateid);\n\
+CREATE INDEX application_template_2 ON application_template (templateid);\n\
+CREATE TABLE dbversion (\n\
+mandatory number(10) DEFAULT '0' NOT NULL,\n\
+optional number(10) DEFAULT '0' NOT NULL\n\
+);\n\
+INSERT INTO dbversion VALUES ('2020000','2020001');\n\
 CREATE SEQUENCE history_sync_seq\n\
 START WITH 1\n\
 INCREMENT BY 1\n\
@@ -5812,6 +6369,12 @@ END;\n\
 const char	*const db_schema_fkeys[] = {
 	"ALTER TABLE hosts ADD CONSTRAINT c_hosts_1 FOREIGN KEY (proxy_hostid) REFERENCES hosts (hostid)",
 	"ALTER TABLE hosts ADD CONSTRAINT c_hosts_2 FOREIGN KEY (maintenanceid) REFERENCES maintenances (maintenanceid)",
+	"ALTER TABLE hosts ADD CONSTRAINT c_hosts_3 FOREIGN KEY (templateid) REFERENCES hosts (hostid) ON DELETE CASCADE",
+	"ALTER TABLE group_prototype ADD CONSTRAINT c_group_prototype_1 FOREIGN KEY (hostid) REFERENCES hosts (hostid) ON DELETE CASCADE",
+	"ALTER TABLE group_prototype ADD CONSTRAINT c_group_prototype_2 FOREIGN KEY (groupid) REFERENCES groups (groupid)",
+	"ALTER TABLE group_prototype ADD CONSTRAINT c_group_prototype_3 FOREIGN KEY (templateid) REFERENCES group_prototype (group_prototypeid) ON DELETE CASCADE",
+	"ALTER TABLE group_discovery ADD CONSTRAINT c_group_discovery_1 FOREIGN KEY (groupid) REFERENCES groups (groupid) ON DELETE CASCADE",
+	"ALTER TABLE group_discovery ADD CONSTRAINT c_group_discovery_2 FOREIGN KEY (parent_group_prototypeid) REFERENCES group_prototype (group_prototypeid)",
 	"ALTER TABLE screens ADD CONSTRAINT c_screens_1 FOREIGN KEY (templateid) REFERENCES hosts (hostid) ON DELETE CASCADE",
 	"ALTER TABLE screens_items ADD CONSTRAINT c_screens_items_1 FOREIGN KEY (screenid) REFERENCES screens (screenid) ON DELETE CASCADE",
 	"ALTER TABLE slides ADD CONSTRAINT c_slides_1 FOREIGN KEY (slideshowid) REFERENCES slideshows (slideshowid) ON DELETE CASCADE",
@@ -5819,8 +6382,9 @@ const char	*const db_schema_fkeys[] = {
 	"ALTER TABLE drules ADD CONSTRAINT c_drules_1 FOREIGN KEY (proxy_hostid) REFERENCES hosts (hostid)",
 	"ALTER TABLE dchecks ADD CONSTRAINT c_dchecks_1 FOREIGN KEY (druleid) REFERENCES drules (druleid) ON DELETE CASCADE",
 	"ALTER TABLE applications ADD CONSTRAINT c_applications_1 FOREIGN KEY (hostid) REFERENCES hosts (hostid) ON DELETE CASCADE",
-	"ALTER TABLE applications ADD CONSTRAINT c_applications_2 FOREIGN KEY (templateid) REFERENCES applications (applicationid) ON DELETE CASCADE",
-	"ALTER TABLE httptest ADD CONSTRAINT c_httptest_1 FOREIGN KEY (applicationid) REFERENCES applications (applicationid) ON DELETE CASCADE",
+	"ALTER TABLE httptest ADD CONSTRAINT c_httptest_1 FOREIGN KEY (applicationid) REFERENCES applications (applicationid)",
+	"ALTER TABLE httptest ADD CONSTRAINT c_httptest_2 FOREIGN KEY (hostid) REFERENCES hosts (hostid) ON DELETE CASCADE",
+	"ALTER TABLE httptest ADD CONSTRAINT c_httptest_3 FOREIGN KEY (templateid) REFERENCES httptest (httptestid) ON DELETE CASCADE",
 	"ALTER TABLE httpstep ADD CONSTRAINT c_httpstep_1 FOREIGN KEY (httptestid) REFERENCES httptest (httptestid) ON DELETE CASCADE",
 	"ALTER TABLE interface ADD CONSTRAINT c_interface_1 FOREIGN KEY (hostid) REFERENCES hosts (hostid) ON DELETE CASCADE",
 	"ALTER TABLE items ADD CONSTRAINT c_items_1 FOREIGN KEY (hostid) REFERENCES hosts (hostid) ON DELETE CASCADE",
@@ -5926,16 +6490,29 @@ const char	*const db_schema_fkeys[] = {
 	"ALTER TABLE host_inventory ADD CONSTRAINT c_host_inventory_1 FOREIGN KEY (hostid) REFERENCES hosts (hostid) ON DELETE CASCADE",
 	"ALTER TABLE item_discovery ADD CONSTRAINT c_item_discovery_1 FOREIGN KEY (itemid) REFERENCES items (itemid) ON DELETE CASCADE",
 	"ALTER TABLE item_discovery ADD CONSTRAINT c_item_discovery_2 FOREIGN KEY (parent_itemid) REFERENCES items (itemid) ON DELETE CASCADE",
+	"ALTER TABLE host_discovery ADD CONSTRAINT c_host_discovery_1 FOREIGN KEY (hostid) REFERENCES hosts (hostid) ON DELETE CASCADE",
+	"ALTER TABLE host_discovery ADD CONSTRAINT c_host_discovery_2 FOREIGN KEY (parent_hostid) REFERENCES hosts (hostid)",
+	"ALTER TABLE host_discovery ADD CONSTRAINT c_host_discovery_3 FOREIGN KEY (parent_itemid) REFERENCES items (itemid)",
+	"ALTER TABLE interface_discovery ADD CONSTRAINT c_interface_discovery_1 FOREIGN KEY (interfaceid) REFERENCES interface (interfaceid) ON DELETE CASCADE",
+	"ALTER TABLE interface_discovery ADD CONSTRAINT c_interface_discovery_2 FOREIGN KEY (parent_interfaceid) REFERENCES interface (interfaceid) ON DELETE CASCADE",
 	"ALTER TABLE profiles ADD CONSTRAINT c_profiles_1 FOREIGN KEY (userid) REFERENCES users (userid) ON DELETE CASCADE",
 	"ALTER TABLE sessions ADD CONSTRAINT c_sessions_1 FOREIGN KEY (userid) REFERENCES users (userid) ON DELETE CASCADE",
 	"ALTER TABLE trigger_discovery ADD CONSTRAINT c_trigger_discovery_1 FOREIGN KEY (triggerid) REFERENCES triggers (triggerid) ON DELETE CASCADE",
 	"ALTER TABLE trigger_discovery ADD CONSTRAINT c_trigger_discovery_2 FOREIGN KEY (parent_triggerid) REFERENCES triggers (triggerid) ON DELETE CASCADE",
 	"ALTER TABLE user_history ADD CONSTRAINT c_user_history_1 FOREIGN KEY (userid) REFERENCES users (userid) ON DELETE CASCADE",
+	"ALTER TABLE application_template ADD CONSTRAINT c_application_template_1 FOREIGN KEY (applicationid) REFERENCES applications (applicationid) ON DELETE CASCADE",
+	"ALTER TABLE application_template ADD CONSTRAINT c_application_template_2 FOREIGN KEY (templateid) REFERENCES applications (applicationid) ON DELETE CASCADE",
 	NULL
 };
 const char	*const db_schema_fkeys_drop[] = {
 	"ALTER TABLE hosts DROP CONSTRAINT c_hosts_1",
 	"ALTER TABLE hosts DROP CONSTRAINT c_hosts_2",
+	"ALTER TABLE hosts DROP CONSTRAINT c_hosts_3",
+	"ALTER TABLE group_prototype DROP CONSTRAINT c_group_prototype_1",
+	"ALTER TABLE group_prototype DROP CONSTRAINT c_group_prototype_2",
+	"ALTER TABLE group_prototype DROP CONSTRAINT c_group_prototype_3",
+	"ALTER TABLE group_discovery DROP CONSTRAINT c_group_discovery_1",
+	"ALTER TABLE group_discovery DROP CONSTRAINT c_group_discovery_2",
 	"ALTER TABLE screens DROP CONSTRAINT c_screens_1",
 	"ALTER TABLE screens_items DROP CONSTRAINT c_screens_items_1",
 	"ALTER TABLE slides DROP CONSTRAINT c_slides_1",
@@ -5943,8 +6520,9 @@ const char	*const db_schema_fkeys_drop[] = {
 	"ALTER TABLE drules DROP CONSTRAINT c_drules_1",
 	"ALTER TABLE dchecks DROP CONSTRAINT c_dchecks_1",
 	"ALTER TABLE applications DROP CONSTRAINT c_applications_1",
-	"ALTER TABLE applications DROP CONSTRAINT c_applications_2",
 	"ALTER TABLE httptest DROP CONSTRAINT c_httptest_1",
+	"ALTER TABLE httptest DROP CONSTRAINT c_httptest_2",
+	"ALTER TABLE httptest DROP CONSTRAINT c_httptest_3",
 	"ALTER TABLE httpstep DROP CONSTRAINT c_httpstep_1",
 	"ALTER TABLE interface DROP CONSTRAINT c_interface_1",
 	"ALTER TABLE items DROP CONSTRAINT c_items_1",
@@ -6050,11 +6628,18 @@ const char	*const db_schema_fkeys_drop[] = {
 	"ALTER TABLE host_inventory DROP CONSTRAINT c_host_inventory_1",
 	"ALTER TABLE item_discovery DROP CONSTRAINT c_item_discovery_1",
 	"ALTER TABLE item_discovery DROP CONSTRAINT c_item_discovery_2",
+	"ALTER TABLE host_discovery DROP CONSTRAINT c_host_discovery_1",
+	"ALTER TABLE host_discovery DROP CONSTRAINT c_host_discovery_2",
+	"ALTER TABLE host_discovery DROP CONSTRAINT c_host_discovery_3",
+	"ALTER TABLE interface_discovery DROP CONSTRAINT c_interface_discovery_1",
+	"ALTER TABLE interface_discovery DROP CONSTRAINT c_interface_discovery_2",
 	"ALTER TABLE profiles DROP CONSTRAINT c_profiles_1",
 	"ALTER TABLE sessions DROP CONSTRAINT c_sessions_1",
 	"ALTER TABLE trigger_discovery DROP CONSTRAINT c_trigger_discovery_1",
 	"ALTER TABLE trigger_discovery DROP CONSTRAINT c_trigger_discovery_2",
 	"ALTER TABLE user_history DROP CONSTRAINT c_user_history_1",
+	"ALTER TABLE application_template DROP CONSTRAINT c_application_template_1",
+	"ALTER TABLE application_template DROP CONSTRAINT c_application_template_2",
 	NULL
 };
 #elif defined(HAVE_POSTGRESQL)
@@ -6100,19 +6685,40 @@ jmx_available integer DEFAULT '0' NOT NULL,\n\
 jmx_errors_from integer DEFAULT '0' NOT NULL,\n\
 jmx_error varchar(128) DEFAULT '' NOT NULL,\n\
 name varchar(64) DEFAULT '' NOT NULL,\n\
+flags integer DEFAULT '0' NOT NULL,\n\
+templateid bigint  NULL,\n\
 PRIMARY KEY (hostid)\n\
 );\n\
 CREATE INDEX hosts_1 ON hosts (host);\n\
 CREATE INDEX hosts_2 ON hosts (status);\n\
 CREATE INDEX hosts_3 ON hosts (proxy_hostid);\n\
 CREATE INDEX hosts_4 ON hosts (name);\n\
+CREATE INDEX hosts_5 ON hosts (maintenanceid);\n\
 CREATE TABLE groups (\n\
 groupid bigint  NOT NULL,\n\
 name varchar(64) DEFAULT '' NOT NULL,\n\
 internal integer DEFAULT '0' NOT NULL,\n\
+flags integer DEFAULT '0' NOT NULL,\n\
 PRIMARY KEY (groupid)\n\
 );\n\
 CREATE INDEX groups_1 ON groups (name);\n\
+CREATE TABLE group_prototype (\n\
+group_prototypeid bigint  NOT NULL,\n\
+hostid bigint  NOT NULL,\n\
+name varchar(64) DEFAULT '' NOT NULL,\n\
+groupid bigint  NULL,\n\
+templateid bigint  NULL,\n\
+PRIMARY KEY (group_prototypeid)\n\
+);\n\
+CREATE INDEX group_prototype_1 ON group_prototype (hostid);\n\
+CREATE TABLE group_discovery (\n\
+groupid bigint  NOT NULL,\n\
+parent_group_prototypeid bigint  NOT NULL,\n\
+name varchar(64) DEFAULT '' NOT NULL,\n\
+lastcheck integer DEFAULT '0' NOT NULL,\n\
+ts_delete integer DEFAULT '0' NOT NULL,\n\
+PRIMARY KEY (groupid)\n\
+);\n\
 CREATE TABLE screens (\n\
 screenid bigint  NOT NULL,\n\
 name varchar(255)  NOT NULL,\n\
@@ -6121,6 +6727,7 @@ vsize integer DEFAULT '1' NOT NULL,\n\
 templateid bigint  NULL,\n\
 PRIMARY KEY (screenid)\n\
 );\n\
+CREATE INDEX screens_1 ON screens (templateid);\n\
 CREATE TABLE screens_items (\n\
 screenitemid bigint  NOT NULL,\n\
 screenid bigint  NOT NULL,\n\
@@ -6139,8 +6746,10 @@ style integer DEFAULT '0' NOT NULL,\n\
 url varchar(255) DEFAULT '' NOT NULL,\n\
 dynamic integer DEFAULT '0' NOT NULL,\n\
 sort_triggers integer DEFAULT '0' NOT NULL,\n\
+application varchar(255) DEFAULT '' NOT NULL,\n\
 PRIMARY KEY (screenitemid)\n\
 );\n\
+CREATE INDEX screens_items_1 ON screens_items (screenid);\n\
 CREATE TABLE slideshows (\n\
 slideshowid bigint  NOT NULL,\n\
 name varchar(255) DEFAULT '' NOT NULL,\n\
@@ -6155,7 +6764,8 @@ step integer DEFAULT '0' NOT NULL,\n\
 delay integer DEFAULT '0' NOT NULL,\n\
 PRIMARY KEY (slideid)\n\
 );\n\
-CREATE INDEX slides_slides_1 ON slides (slideshowid);\n\
+CREATE INDEX slides_1 ON slides (slideshowid);\n\
+CREATE INDEX slides_2 ON slides (screenid);\n\
 CREATE TABLE drules (\n\
 druleid bigint  NOT NULL,\n\
 proxy_hostid bigint  NULL,\n\
@@ -6166,6 +6776,7 @@ nextcheck integer DEFAULT '0' NOT NULL,\n\
 status integer DEFAULT '0' NOT NULL,\n\
 PRIMARY KEY (druleid)\n\
 );\n\
+CREATE INDEX drules_1 ON drules (proxy_hostid);\n\
 CREATE TABLE dchecks (\n\
 dcheckid bigint  NOT NULL,\n\
 druleid bigint  NOT NULL,\n\
@@ -6178,6 +6789,9 @@ snmpv3_securitylevel integer DEFAULT '0' NOT NULL,\n\
 snmpv3_authpassphrase varchar(64) DEFAULT '' NOT NULL,\n\
 snmpv3_privpassphrase varchar(64) DEFAULT '' NOT NULL,\n\
 uniq integer DEFAULT '0' NOT NULL,\n\
+snmpv3_authprotocol integer DEFAULT '0' NOT NULL,\n\
+snmpv3_privprotocol integer DEFAULT '0' NOT NULL,\n\
+snmpv3_contextname varchar(255) DEFAULT '' NOT NULL,\n\
 PRIMARY KEY (dcheckid)\n\
 );\n\
 CREATE INDEX dchecks_1 ON dchecks (druleid);\n\
@@ -6185,28 +6799,31 @@ CREATE TABLE applications (\n\
 applicationid bigint  NOT NULL,\n\
 hostid bigint  NOT NULL,\n\
 name varchar(255) DEFAULT '' NOT NULL,\n\
-templateid bigint  NULL,\n\
 PRIMARY KEY (applicationid)\n\
 );\n\
-CREATE INDEX applications_1 ON applications (templateid);\n\
 CREATE UNIQUE INDEX applications_2 ON applications (hostid,name);\n\
 CREATE TABLE httptest (\n\
 httptestid bigint  NOT NULL,\n\
 name varchar(64) DEFAULT '' NOT NULL,\n\
-applicationid bigint  NOT NULL,\n\
+applicationid bigint  NULL,\n\
 nextcheck integer DEFAULT '0' NOT NULL,\n\
 delay integer DEFAULT '60' NOT NULL,\n\
 status integer DEFAULT '0' NOT NULL,\n\
-macros text DEFAULT '' NOT NULL,\n\
+variables text DEFAULT '' NOT NULL,\n\
 agent varchar(255) DEFAULT '' NOT NULL,\n\
 authentication integer DEFAULT '0' NOT NULL,\n\
 http_user varchar(64) DEFAULT '' NOT NULL,\n\
 http_password varchar(64) DEFAULT '' NOT NULL,\n\
+hostid bigint  NOT NULL,\n\
+templateid bigint  NULL,\n\
+http_proxy varchar(255) DEFAULT '' NOT NULL,\n\
+retries integer DEFAULT '1' NOT NULL,\n\
 PRIMARY KEY (httptestid)\n\
 );\n\
-CREATE INDEX httptest_httptest_1 ON httptest (applicationid);\n\
-CREATE INDEX httptest_2 ON httptest (name);\n\
+CREATE INDEX httptest_1 ON httptest (applicationid);\n\
+CREATE UNIQUE INDEX httptest_2 ON httptest (hostid,name);\n\
 CREATE INDEX httptest_3 ON httptest (status);\n\
+CREATE INDEX httptest_4 ON httptest (templateid);\n\
 CREATE TABLE httpstep (\n\
 httpstepid bigint  NOT NULL,\n\
 httptestid bigint  NOT NULL,\n\
@@ -6217,16 +6834,17 @@ timeout integer DEFAULT '30' NOT NULL,\n\
 posts text DEFAULT '' NOT NULL,\n\
 required varchar(255) DEFAULT '' NOT NULL,\n\
 status_codes varchar(255) DEFAULT '' NOT NULL,\n\
+variables text DEFAULT '' NOT NULL,\n\
 PRIMARY KEY (httpstepid)\n\
 );\n\
-CREATE INDEX httpstep_httpstep_1 ON httpstep (httptestid);\n\
+CREATE INDEX httpstep_1 ON httpstep (httptestid);\n\
 CREATE TABLE interface (\n\
 interfaceid bigint  NOT NULL,\n\
 hostid bigint  NOT NULL,\n\
 main integer DEFAULT '0' NOT NULL,\n\
 type integer DEFAULT '0' NOT NULL,\n\
 useip integer DEFAULT '1' NOT NULL,\n\
-ip varchar(39) DEFAULT '127.0.0.1' NOT NULL,\n\
+ip varchar(64) DEFAULT '127.0.0.1' NOT NULL,\n\
 dns varchar(64) DEFAULT '' NOT NULL,\n\
 port varchar(64) DEFAULT '10050' NOT NULL,\n\
 PRIMARY KEY (interfaceid)\n\
@@ -6250,16 +6868,12 @@ key_ varchar(255) DEFAULT '' NOT NULL,\n\
 delay integer DEFAULT '0' NOT NULL,\n\
 history integer DEFAULT '90' NOT NULL,\n\
 trends integer DEFAULT '365' NOT NULL,\n\
-lastvalue varchar(255)  NULL,\n\
-lastclock integer  NULL,\n\
-prevvalue varchar(255)  NULL,\n\
 status integer DEFAULT '0' NOT NULL,\n\
 value_type integer DEFAULT '0' NOT NULL,\n\
 trapper_hosts varchar(255) DEFAULT '' NOT NULL,\n\
 units varchar(255) DEFAULT '' NOT NULL,\n\
 multiplier integer DEFAULT '0' NOT NULL,\n\
 delta integer DEFAULT '0' NOT NULL,\n\
-prevorgvalue varchar(255)  NULL,\n\
 snmpv3_securityname varchar(64) DEFAULT '' NOT NULL,\n\
 snmpv3_securitylevel integer DEFAULT '0' NOT NULL,\n\
 snmpv3_authpassphrase varchar(64) DEFAULT '' NOT NULL,\n\
@@ -6280,7 +6894,6 @@ password varchar(64) DEFAULT '' NOT NULL,\n\
 publickey varchar(64) DEFAULT '' NOT NULL,\n\
 privatekey varchar(64) DEFAULT '' NOT NULL,\n\
 mtime integer DEFAULT '0' NOT NULL,\n\
-lastns integer  NULL,\n\
 flags integer DEFAULT '0' NOT NULL,\n\
 filter varchar(255) DEFAULT '' NOT NULL,\n\
 interfaceid bigint  NULL,\n\
@@ -6288,12 +6901,17 @@ port varchar(64) DEFAULT '' NOT NULL,\n\
 description text DEFAULT '' NOT NULL,\n\
 inventory_link integer DEFAULT '0' NOT NULL,\n\
 lifetime varchar(64) DEFAULT '30' NOT NULL,\n\
+snmpv3_authprotocol integer DEFAULT '0' NOT NULL,\n\
+snmpv3_privprotocol integer DEFAULT '0' NOT NULL,\n\
+state integer DEFAULT '0' NOT NULL,\n\
+snmpv3_contextname varchar(255) DEFAULT '' NOT NULL,\n\
 PRIMARY KEY (itemid)\n\
 );\n\
 CREATE UNIQUE INDEX items_1 ON items (hostid,key_);\n\
 CREATE INDEX items_3 ON items (status);\n\
 CREATE INDEX items_4 ON items (templateid);\n\
 CREATE INDEX items_5 ON items (valuemapid);\n\
+CREATE INDEX items_6 ON items (interfaceid);\n\
 CREATE TABLE httpstepitem (\n\
 httpstepitemid bigint  NOT NULL,\n\
 httpstepid bigint  NOT NULL,\n\
@@ -6301,7 +6919,8 @@ itemid bigint  NOT NULL,\n\
 type integer DEFAULT '0' NOT NULL,\n\
 PRIMARY KEY (httpstepitemid)\n\
 );\n\
-CREATE UNIQUE INDEX httpstepitem_httpstepitem_1 ON httpstepitem (httpstepid,itemid);\n\
+CREATE UNIQUE INDEX httpstepitem_1 ON httpstepitem (httpstepid,itemid);\n\
+CREATE INDEX httpstepitem_2 ON httpstepitem (itemid);\n\
 CREATE TABLE httptestitem (\n\
 httptestitemid bigint  NOT NULL,\n\
 httptestid bigint  NOT NULL,\n\
@@ -6309,7 +6928,8 @@ itemid bigint  NOT NULL,\n\
 type integer DEFAULT '0' NOT NULL,\n\
 PRIMARY KEY (httptestitemid)\n\
 );\n\
-CREATE UNIQUE INDEX httptestitem_httptestitem_1 ON httptestitem (httptestid,itemid);\n\
+CREATE UNIQUE INDEX httptestitem_1 ON httptestitem (httptestid,itemid);\n\
+CREATE INDEX httptestitem_2 ON httptestitem (itemid);\n\
 CREATE TABLE media_type (\n\
 mediatypeid bigint  NOT NULL,\n\
 type integer DEFAULT '0' NOT NULL,\n\
@@ -6335,7 +6955,7 @@ autologin integer DEFAULT '0' NOT NULL,\n\
 autologout integer DEFAULT '900' NOT NULL,\n\
 lang varchar(5) DEFAULT 'en_GB' NOT NULL,\n\
 refresh integer DEFAULT '30' NOT NULL,\n\
-type integer DEFAULT '0' NOT NULL,\n\
+type integer DEFAULT '1' NOT NULL,\n\
 theme varchar(128) DEFAULT 'default' NOT NULL,\n\
 attempt_failed integer DEFAULT 0 NOT NULL,\n\
 attempt_ip varchar(39) DEFAULT '' NOT NULL,\n\
@@ -6360,6 +6980,7 @@ userid bigint  NOT NULL,\n\
 PRIMARY KEY (id)\n\
 );\n\
 CREATE UNIQUE INDEX users_groups_1 ON users_groups (usrgrpid,userid);\n\
+CREATE INDEX users_groups_2 ON users_groups (userid);\n\
 CREATE TABLE scripts (\n\
 scriptid bigint  NOT NULL,\n\
 name varchar(255) DEFAULT '' NOT NULL,\n\
@@ -6373,6 +6994,8 @@ type integer DEFAULT '0' NOT NULL,\n\
 execute_on integer DEFAULT '1' NOT NULL,\n\
 PRIMARY KEY (scriptid)\n\
 );\n\
+CREATE INDEX scripts_1 ON scripts (usrgrpid);\n\
+CREATE INDEX scripts_2 ON scripts (groupid);\n\
 CREATE TABLE actions (\n\
 actionid bigint  NOT NULL,\n\
 name varchar(255) DEFAULT '' NOT NULL,\n\
@@ -6407,6 +7030,7 @@ message text DEFAULT '' NOT NULL,\n\
 mediatypeid bigint  NULL,\n\
 PRIMARY KEY (operationid)\n\
 );\n\
+CREATE INDEX opmessage_1 ON opmessage (mediatypeid);\n\
 CREATE TABLE opmessage_grp (\n\
 opmessage_grpid bigint  NOT NULL,\n\
 operationid bigint  NOT NULL,\n\
@@ -6414,6 +7038,7 @@ usrgrpid bigint  NOT NULL,\n\
 PRIMARY KEY (opmessage_grpid)\n\
 );\n\
 CREATE UNIQUE INDEX opmessage_grp_1 ON opmessage_grp (operationid,usrgrpid);\n\
+CREATE INDEX opmessage_grp_2 ON opmessage_grp (usrgrpid);\n\
 CREATE TABLE opmessage_usr (\n\
 opmessage_usrid bigint  NOT NULL,\n\
 operationid bigint  NOT NULL,\n\
@@ -6421,6 +7046,7 @@ userid bigint  NOT NULL,\n\
 PRIMARY KEY (opmessage_usrid)\n\
 );\n\
 CREATE UNIQUE INDEX opmessage_usr_1 ON opmessage_usr (operationid,userid);\n\
+CREATE INDEX opmessage_usr_2 ON opmessage_usr (userid);\n\
 CREATE TABLE opcommand (\n\
 operationid bigint  NOT NULL,\n\
 type integer DEFAULT '0' NOT NULL,\n\
@@ -6435,6 +7061,7 @@ privatekey varchar(64) DEFAULT '' NOT NULL,\n\
 command text DEFAULT '' NOT NULL,\n\
 PRIMARY KEY (operationid)\n\
 );\n\
+CREATE INDEX opcommand_1 ON opcommand (scriptid);\n\
 CREATE TABLE opcommand_hst (\n\
 opcommand_hstid bigint  NOT NULL,\n\
 operationid bigint  NOT NULL,\n\
@@ -6442,6 +7069,7 @@ hostid bigint  NULL,\n\
 PRIMARY KEY (opcommand_hstid)\n\
 );\n\
 CREATE INDEX opcommand_hst_1 ON opcommand_hst (operationid);\n\
+CREATE INDEX opcommand_hst_2 ON opcommand_hst (hostid);\n\
 CREATE TABLE opcommand_grp (\n\
 opcommand_grpid bigint  NOT NULL,\n\
 operationid bigint  NOT NULL,\n\
@@ -6449,6 +7077,7 @@ groupid bigint  NOT NULL,\n\
 PRIMARY KEY (opcommand_grpid)\n\
 );\n\
 CREATE INDEX opcommand_grp_1 ON opcommand_grp (operationid);\n\
+CREATE INDEX opcommand_grp_2 ON opcommand_grp (groupid);\n\
 CREATE TABLE opgroup (\n\
 opgroupid bigint  NOT NULL,\n\
 operationid bigint  NOT NULL,\n\
@@ -6456,6 +7085,7 @@ groupid bigint  NOT NULL,\n\
 PRIMARY KEY (opgroupid)\n\
 );\n\
 CREATE UNIQUE INDEX opgroup_1 ON opgroup (operationid,groupid);\n\
+CREATE INDEX opgroup_2 ON opgroup (groupid);\n\
 CREATE TABLE optemplate (\n\
 optemplateid bigint  NOT NULL,\n\
 operationid bigint  NOT NULL,\n\
@@ -6463,6 +7093,7 @@ templateid bigint  NOT NULL,\n\
 PRIMARY KEY (optemplateid)\n\
 );\n\
 CREATE UNIQUE INDEX optemplate_1 ON optemplate (operationid,templateid);\n\
+CREATE INDEX optemplate_2 ON optemplate (templateid);\n\
 CREATE TABLE opconditions (\n\
 opconditionid bigint  NOT NULL,\n\
 operationid bigint  NOT NULL,\n\
@@ -6483,8 +7114,6 @@ PRIMARY KEY (conditionid)\n\
 CREATE INDEX conditions_1 ON conditions (actionid);\n\
 CREATE TABLE config (\n\
 configid bigint  NOT NULL,\n\
-alert_history integer DEFAULT '0' NOT NULL,\n\
-event_history integer DEFAULT '0' NOT NULL,\n\
 refresh_unsupported integer DEFAULT '0' NOT NULL,\n\
 work_period varchar(100) DEFAULT '1-5,00:00-24:00' NOT NULL,\n\
 alert_usrgrpid bigint  NULL,\n\
@@ -6528,11 +7157,30 @@ ok_unack_style integer DEFAULT '1' NOT NULL,\n\
 ok_ack_style integer DEFAULT '1' NOT NULL,\n\
 snmptrap_logging integer DEFAULT '1' NOT NULL,\n\
 server_check_interval integer DEFAULT '10' NOT NULL,\n\
+hk_events_mode integer DEFAULT '1' NOT NULL,\n\
+hk_events_trigger integer DEFAULT '365' NOT NULL,\n\
+hk_events_internal integer DEFAULT '365' NOT NULL,\n\
+hk_events_discovery integer DEFAULT '365' NOT NULL,\n\
+hk_events_autoreg integer DEFAULT '365' NOT NULL,\n\
+hk_services_mode integer DEFAULT '1' NOT NULL,\n\
+hk_services integer DEFAULT '365' NOT NULL,\n\
+hk_audit_mode integer DEFAULT '1' NOT NULL,\n\
+hk_audit integer DEFAULT '365' NOT NULL,\n\
+hk_sessions_mode integer DEFAULT '1' NOT NULL,\n\
+hk_sessions integer DEFAULT '365' NOT NULL,\n\
+hk_history_mode integer DEFAULT '1' NOT NULL,\n\
+hk_history_global integer DEFAULT '0' NOT NULL,\n\
+hk_history integer DEFAULT '90' NOT NULL,\n\
+hk_trends_mode integer DEFAULT '1' NOT NULL,\n\
+hk_trends_global integer DEFAULT '0' NOT NULL,\n\
+hk_trends integer DEFAULT '365' NOT NULL,\n\
 PRIMARY KEY (configid)\n\
 );\n\
+CREATE INDEX config_1 ON config (alert_usrgrpid);\n\
+CREATE INDEX config_2 ON config (discovery_groupid);\n\
 CREATE TABLE triggers (\n\
 triggerid bigint  NOT NULL,\n\
-expression varchar(255) DEFAULT '' NOT NULL,\n\
+expression varchar(2048) DEFAULT '' NOT NULL,\n\
 description varchar(255) DEFAULT '' NOT NULL,\n\
 url varchar(255) DEFAULT '' NOT NULL,\n\
 status integer DEFAULT '0' NOT NULL,\n\
@@ -6543,12 +7191,13 @@ comments text DEFAULT '' NOT NULL,\n\
 error varchar(128) DEFAULT '' NOT NULL,\n\
 templateid bigint  NULL,\n\
 type integer DEFAULT '0' NOT NULL,\n\
-value_flags integer DEFAULT '0' NOT NULL,\n\
+state integer DEFAULT '0' NOT NULL,\n\
 flags integer DEFAULT '0' NOT NULL,\n\
 PRIMARY KEY (triggerid)\n\
 );\n\
 CREATE INDEX triggers_1 ON triggers (status);\n\
 CREATE INDEX triggers_2 ON triggers (value);\n\
+CREATE INDEX triggers_3 ON triggers (templateid);\n\
 CREATE TABLE trigger_depends (\n\
 triggerdepid bigint  NOT NULL,\n\
 triggerid_down bigint  NOT NULL,\n\
@@ -6570,10 +7219,10 @@ CREATE INDEX functions_2 ON functions (itemid,function,parameter);\n\
 CREATE TABLE graphs (\n\
 graphid bigint  NOT NULL,\n\
 name varchar(128) DEFAULT '' NOT NULL,\n\
-width integer DEFAULT '0' NOT NULL,\n\
-height integer DEFAULT '0' NOT NULL,\n\
+width integer DEFAULT '900' NOT NULL,\n\
+height integer DEFAULT '200' NOT NULL,\n\
 yaxismin numeric(16,4) DEFAULT '0' NOT NULL,\n\
-yaxismax numeric(16,4) DEFAULT '0' NOT NULL,\n\
+yaxismax numeric(16,4) DEFAULT '100' NOT NULL,\n\
 templateid bigint  NULL,\n\
 show_work_period integer DEFAULT '1' NOT NULL,\n\
 show_triggers integer DEFAULT '1' NOT NULL,\n\
@@ -6589,7 +7238,10 @@ ymax_itemid bigint  NULL,\n\
 flags integer DEFAULT '0' NOT NULL,\n\
 PRIMARY KEY (graphid)\n\
 );\n\
-CREATE INDEX graphs_graphs_1 ON graphs (name);\n\
+CREATE INDEX graphs_1 ON graphs (name);\n\
+CREATE INDEX graphs_2 ON graphs (templateid);\n\
+CREATE INDEX graphs_3 ON graphs (ymin_itemid);\n\
+CREATE INDEX graphs_4 ON graphs (ymax_itemid);\n\
 CREATE TABLE graphs_items (\n\
 gitemid bigint  NOT NULL,\n\
 graphid bigint  NOT NULL,\n\
@@ -6597,7 +7249,7 @@ itemid bigint  NOT NULL,\n\
 drawtype integer DEFAULT '0' NOT NULL,\n\
 sortorder integer DEFAULT '0' NOT NULL,\n\
 color varchar(6) DEFAULT '009600' NOT NULL,\n\
-yaxisside integer DEFAULT '1' NOT NULL,\n\
+yaxisside integer DEFAULT '0' NOT NULL,\n\
 calc_fnc integer DEFAULT '2' NOT NULL,\n\
 type integer DEFAULT '0' NOT NULL,\n\
 PRIMARY KEY (gitemid)\n\
@@ -6625,12 +7277,6 @@ PRIMARY KEY (graphthemeid)\n\
 );\n\
 CREATE INDEX graph_theme_1 ON graph_theme (description);\n\
 CREATE INDEX graph_theme_2 ON graph_theme (theme);\n\
-CREATE TABLE help_items (\n\
-itemtype integer DEFAULT '0' NOT NULL,\n\
-key_ varchar(255) DEFAULT '' NOT NULL,\n\
-description varchar(255) DEFAULT '' NOT NULL,\n\
-PRIMARY KEY (itemtype,key_)\n\
-);\n\
 CREATE TABLE globalmacro (\n\
 globalmacroid bigint  NOT NULL,\n\
 macro varchar(64) DEFAULT '' NOT NULL,\n\
@@ -6718,8 +7364,8 @@ servicedownid bigint  NOT NULL,\n\
 soft integer DEFAULT '0' NOT NULL,\n\
 PRIMARY KEY (linkid)\n\
 );\n\
-CREATE INDEX services_links_links_1 ON services_links (servicedownid);\n\
-CREATE UNIQUE INDEX services_links_links_2 ON services_links (serviceupid,servicedownid);\n\
+CREATE INDEX services_links_1 ON services_links (servicedownid);\n\
+CREATE UNIQUE INDEX services_links_2 ON services_links (serviceupid,servicedownid);\n\
 CREATE TABLE services_times (\n\
 timeid bigint  NOT NULL,\n\
 serviceid bigint  NOT NULL,\n\
@@ -6729,7 +7375,7 @@ ts_to integer DEFAULT '0' NOT NULL,\n\
 note varchar(255) DEFAULT '' NOT NULL,\n\
 PRIMARY KEY (timeid)\n\
 );\n\
-CREATE INDEX services_times_times_1 ON services_times (serviceid,type,ts_from,ts_to);\n\
+CREATE INDEX services_times_1 ON services_times (serviceid,type,ts_from,ts_to);\n\
 CREATE TABLE icon_map (\n\
 iconmapid bigint  NOT NULL,\n\
 name varchar(64) DEFAULT '' NOT NULL,\n\
@@ -6737,6 +7383,7 @@ default_iconid bigint  NOT NULL,\n\
 PRIMARY KEY (iconmapid)\n\
 );\n\
 CREATE INDEX icon_map_1 ON icon_map (name);\n\
+CREATE INDEX icon_map_2 ON icon_map (default_iconid);\n\
 CREATE TABLE icon_mapping (\n\
 iconmappingid bigint  NOT NULL,\n\
 iconmapid bigint  NOT NULL,\n\
@@ -6747,6 +7394,7 @@ sortorder integer DEFAULT '0' NOT NULL,\n\
 PRIMARY KEY (iconmappingid)\n\
 );\n\
 CREATE INDEX icon_mapping_1 ON icon_mapping (iconmapid);\n\
+CREATE INDEX icon_mapping_2 ON icon_mapping (iconid);\n\
 CREATE TABLE sysmaps (\n\
 sysmapid bigint  NOT NULL,\n\
 name varchar(128) DEFAULT '' NOT NULL,\n\
@@ -6754,7 +7402,7 @@ width integer DEFAULT '600' NOT NULL,\n\
 height integer DEFAULT '400' NOT NULL,\n\
 backgroundid bigint  NULL,\n\
 label_type integer DEFAULT '2' NOT NULL,\n\
-label_location integer DEFAULT '3' NOT NULL,\n\
+label_location integer DEFAULT '0' NOT NULL,\n\
 highlight integer DEFAULT '1' NOT NULL,\n\
 expandproblem integer DEFAULT '1' NOT NULL,\n\
 markelements integer DEFAULT '0' NOT NULL,\n\
@@ -6775,9 +7423,12 @@ label_string_map varchar(255) DEFAULT '' NOT NULL,\n\
 label_string_image varchar(255) DEFAULT '' NOT NULL,\n\
 iconmapid bigint  NULL,\n\
 expand_macros integer DEFAULT '0' NOT NULL,\n\
+severity_min integer DEFAULT '0' NOT NULL,\n\
 PRIMARY KEY (sysmapid)\n\
 );\n\
 CREATE INDEX sysmaps_1 ON sysmaps (name);\n\
+CREATE INDEX sysmaps_2 ON sysmaps (backgroundid);\n\
+CREATE INDEX sysmaps_3 ON sysmaps (iconmapid);\n\
 CREATE TABLE sysmaps_elements (\n\
 selementid bigint  NOT NULL,\n\
 sysmapid bigint  NOT NULL,\n\
@@ -6785,8 +7436,8 @@ elementid bigint DEFAULT '0' NOT NULL,\n\
 elementtype integer DEFAULT '0' NOT NULL,\n\
 iconid_off bigint  NULL,\n\
 iconid_on bigint  NULL,\n\
-label varchar(255) DEFAULT '' NOT NULL,\n\
-label_location integer  NULL,\n\
+label varchar(2048) DEFAULT '' NOT NULL,\n\
+label_location integer DEFAULT '-1' NOT NULL,\n\
 x integer DEFAULT '0' NOT NULL,\n\
 y integer DEFAULT '0' NOT NULL,\n\
 iconid_disabled bigint  NULL,\n\
@@ -6799,6 +7450,11 @@ viewtype integer DEFAULT '0' NOT NULL,\n\
 use_iconmap integer DEFAULT '1' NOT NULL,\n\
 PRIMARY KEY (selementid)\n\
 );\n\
+CREATE INDEX sysmaps_elements_1 ON sysmaps_elements (sysmapid);\n\
+CREATE INDEX sysmaps_elements_2 ON sysmaps_elements (iconid_off);\n\
+CREATE INDEX sysmaps_elements_3 ON sysmaps_elements (iconid_on);\n\
+CREATE INDEX sysmaps_elements_4 ON sysmaps_elements (iconid_disabled);\n\
+CREATE INDEX sysmaps_elements_5 ON sysmaps_elements (iconid_maintenance);\n\
 CREATE TABLE sysmaps_links (\n\
 linkid bigint  NOT NULL,\n\
 sysmapid bigint  NOT NULL,\n\
@@ -6806,9 +7462,12 @@ selementid1 bigint  NOT NULL,\n\
 selementid2 bigint  NOT NULL,\n\
 drawtype integer DEFAULT '0' NOT NULL,\n\
 color varchar(6) DEFAULT '000000' NOT NULL,\n\
-label varchar(255) DEFAULT '' NOT NULL,\n\
+label varchar(2048) DEFAULT '' NOT NULL,\n\
 PRIMARY KEY (linkid)\n\
 );\n\
+CREATE INDEX sysmaps_links_1 ON sysmaps_links (sysmapid);\n\
+CREATE INDEX sysmaps_links_2 ON sysmaps_links (selementid1);\n\
+CREATE INDEX sysmaps_links_3 ON sysmaps_links (selementid2);\n\
 CREATE TABLE sysmaps_link_triggers (\n\
 linktriggerid bigint  NOT NULL,\n\
 linkid bigint  NOT NULL,\n\
@@ -6818,6 +7477,7 @@ color varchar(6) DEFAULT '000000' NOT NULL,\n\
 PRIMARY KEY (linktriggerid)\n\
 );\n\
 CREATE UNIQUE INDEX sysmaps_link_triggers_1 ON sysmaps_link_triggers (linkid,triggerid);\n\
+CREATE INDEX sysmaps_link_triggers_2 ON sysmaps_link_triggers (triggerid);\n\
 CREATE TABLE sysmap_element_url (\n\
 sysmapelementurlid bigint  NOT NULL,\n\
 selementid bigint  NOT NULL,\n\
@@ -6842,6 +7502,7 @@ hostid bigint  NOT NULL,\n\
 PRIMARY KEY (maintenance_hostid)\n\
 );\n\
 CREATE UNIQUE INDEX maintenances_hosts_1 ON maintenances_hosts (maintenanceid,hostid);\n\
+CREATE INDEX maintenances_hosts_2 ON maintenances_hosts (hostid);\n\
 CREATE TABLE maintenances_groups (\n\
 maintenance_groupid bigint  NOT NULL,\n\
 maintenanceid bigint  NOT NULL,\n\
@@ -6849,6 +7510,7 @@ groupid bigint  NOT NULL,\n\
 PRIMARY KEY (maintenance_groupid)\n\
 );\n\
 CREATE UNIQUE INDEX maintenances_groups_1 ON maintenances_groups (maintenanceid,groupid);\n\
+CREATE INDEX maintenances_groups_2 ON maintenances_groups (groupid);\n\
 CREATE TABLE timeperiods (\n\
 timeperiodid bigint  NOT NULL,\n\
 timeperiod_type integer DEFAULT '0' NOT NULL,\n\
@@ -6868,6 +7530,7 @@ timeperiodid bigint  NOT NULL,\n\
 PRIMARY KEY (maintenance_timeperiodid)\n\
 );\n\
 CREATE UNIQUE INDEX maintenances_windows_1 ON maintenances_windows (maintenanceid,timeperiodid);\n\
+CREATE INDEX maintenances_windows_2 ON maintenances_windows (timeperiodid);\n\
 CREATE TABLE regexps (\n\
 regexpid bigint  NOT NULL,\n\
 name varchar(128) DEFAULT '' NOT NULL,\n\
@@ -6894,6 +7557,7 @@ nodetype integer DEFAULT '0' NOT NULL,\n\
 masterid integer  NULL,\n\
 PRIMARY KEY (nodeid)\n\
 );\n\
+CREATE INDEX nodes_1 ON nodes (masterid);\n\
 CREATE TABLE node_cksum (\n\
 nodeid integer  NOT NULL,\n\
 tablename varchar(64) DEFAULT '' NOT NULL,\n\
@@ -6923,7 +7587,6 @@ message text DEFAULT '' NOT NULL,\n\
 status integer DEFAULT '0' NOT NULL,\n\
 retries integer DEFAULT '0' NOT NULL,\n\
 error varchar(128) DEFAULT '' NOT NULL,\n\
-nextcheck integer DEFAULT '0' NOT NULL,\n\
 esc_step integer DEFAULT '0' NOT NULL,\n\
 alerttype integer DEFAULT '0' NOT NULL,\n\
 PRIMARY KEY (alertid)\n\
@@ -6942,7 +7605,7 @@ ns integer DEFAULT '0' NOT NULL\n\
 );\n\
 CREATE INDEX history_1 ON history (itemid,clock);\n\
 CREATE TABLE history_sync (\n\
-id serial  NOT NULL,\n\
+id bigserial  NOT NULL,\n\
 nodeid integer  NOT NULL,\n\
 itemid bigint  NOT NULL,\n\
 clock integer DEFAULT '0' NOT NULL,\n\
@@ -6959,7 +7622,7 @@ ns integer DEFAULT '0' NOT NULL\n\
 );\n\
 CREATE INDEX history_uint_1 ON history_uint (itemid,clock);\n\
 CREATE TABLE history_uint_sync (\n\
-id serial  NOT NULL,\n\
+id bigserial  NOT NULL,\n\
 nodeid integer  NOT NULL,\n\
 itemid bigint  NOT NULL,\n\
 clock integer DEFAULT '0' NOT NULL,\n\
@@ -6976,7 +7639,7 @@ ns integer DEFAULT '0' NOT NULL\n\
 );\n\
 CREATE INDEX history_str_1 ON history_str (itemid,clock);\n\
 CREATE TABLE history_str_sync (\n\
-id serial  NOT NULL,\n\
+id bigserial  NOT NULL,\n\
 nodeid integer  NOT NULL,\n\
 itemid bigint  NOT NULL,\n\
 clock integer DEFAULT '0' NOT NULL,\n\
@@ -7010,7 +7673,7 @@ PRIMARY KEY (id)\n\
 CREATE INDEX history_text_1 ON history_text (itemid,clock);\n\
 CREATE UNIQUE INDEX history_text_2 ON history_text (itemid,id);\n\
 CREATE TABLE proxy_history (\n\
-id serial  NOT NULL,\n\
+id bigserial  NOT NULL,\n\
 itemid bigint  NOT NULL,\n\
 clock integer DEFAULT '0' NOT NULL,\n\
 timestamp integer DEFAULT '0' NOT NULL,\n\
@@ -7019,12 +7682,12 @@ severity integer DEFAULT '0' NOT NULL,\n\
 value text DEFAULT '' NOT NULL,\n\
 logeventid integer DEFAULT '0' NOT NULL,\n\
 ns integer DEFAULT '0' NOT NULL,\n\
-status integer DEFAULT '0' NOT NULL,\n\
+state integer DEFAULT '0' NOT NULL,\n\
 PRIMARY KEY (id)\n\
 );\n\
 CREATE INDEX proxy_history_1 ON proxy_history (clock);\n\
 CREATE TABLE proxy_dhistory (\n\
-id serial  NOT NULL,\n\
+id bigserial  NOT NULL,\n\
 clock integer DEFAULT '0' NOT NULL,\n\
 druleid bigint  NOT NULL,\n\
 type integer DEFAULT '0' NOT NULL,\n\
@@ -7047,11 +7710,10 @@ clock integer DEFAULT '0' NOT NULL,\n\
 value integer DEFAULT '0' NOT NULL,\n\
 acknowledged integer DEFAULT '0' NOT NULL,\n\
 ns integer DEFAULT '0' NOT NULL,\n\
-value_changed integer DEFAULT '0' NOT NULL,\n\
 PRIMARY KEY (eventid)\n\
 );\n\
-CREATE INDEX events_1 ON events (object,objectid,eventid);\n\
-CREATE INDEX events_2 ON events (clock);\n\
+CREATE INDEX events_1 ON events (source,object,objectid,clock);\n\
+CREATE INDEX events_2 ON events (source,object,clock);\n\
 CREATE TABLE trends (\n\
 itemid bigint  NOT NULL,\n\
 clock integer DEFAULT '0' NOT NULL,\n\
@@ -7121,16 +7783,18 @@ host varchar(64) DEFAULT '' NOT NULL,\n\
 listen_ip varchar(39) DEFAULT '' NOT NULL,\n\
 listen_port integer DEFAULT '0' NOT NULL,\n\
 listen_dns varchar(64) DEFAULT '' NOT NULL,\n\
+host_metadata varchar(255) DEFAULT '' NOT NULL,\n\
 PRIMARY KEY (autoreg_hostid)\n\
 );\n\
 CREATE INDEX autoreg_host_1 ON autoreg_host (proxy_hostid,host);\n\
 CREATE TABLE proxy_autoreg_host (\n\
-id serial  NOT NULL,\n\
+id bigserial  NOT NULL,\n\
 clock integer DEFAULT '0' NOT NULL,\n\
 host varchar(64) DEFAULT '' NOT NULL,\n\
 listen_ip varchar(39) DEFAULT '' NOT NULL,\n\
 listen_port integer DEFAULT '0' NOT NULL,\n\
 listen_dns varchar(64) DEFAULT '' NOT NULL,\n\
+host_metadata varchar(255) DEFAULT '' NOT NULL,\n\
 PRIMARY KEY (id)\n\
 );\n\
 CREATE INDEX proxy_autoreg_host_1 ON proxy_autoreg_host (clock);\n\
@@ -7169,9 +7833,10 @@ r_eventid bigint  NULL,\n\
 nextcheck integer DEFAULT '0' NOT NULL,\n\
 esc_step integer DEFAULT '0' NOT NULL,\n\
 status integer DEFAULT '0' NOT NULL,\n\
+itemid bigint  NULL,\n\
 PRIMARY KEY (escalationid)\n\
 );\n\
-CREATE INDEX escalations_1 ON escalations (actionid,triggerid);\n\
+CREATE UNIQUE INDEX escalations_1 ON escalations (actionid,triggerid,itemid,escalationid);\n\
 CREATE TABLE globalvars (\n\
 globalvarid bigint  NOT NULL,\n\
 snmp_lastsize integer DEFAULT '0' NOT NULL,\n\
@@ -7185,6 +7850,7 @@ name varchar(128) DEFAULT '' NOT NULL,\n\
 PRIMARY KEY (graphdiscoveryid)\n\
 );\n\
 CREATE UNIQUE INDEX graph_discovery_1 ON graph_discovery (graphid,parent_graphid);\n\
+CREATE INDEX graph_discovery_2 ON graph_discovery (parent_graphid);\n\
 CREATE TABLE host_inventory (\n\
 hostid bigint  NOT NULL,\n\
 inventory_mode integer DEFAULT '0' NOT NULL,\n\
@@ -7285,6 +7951,21 @@ ts_delete integer DEFAULT '0' NOT NULL,\n\
 PRIMARY KEY (itemdiscoveryid)\n\
 );\n\
 CREATE UNIQUE INDEX item_discovery_1 ON item_discovery (itemid,parent_itemid);\n\
+CREATE INDEX item_discovery_2 ON item_discovery (parent_itemid);\n\
+CREATE TABLE host_discovery (\n\
+hostid bigint  NOT NULL,\n\
+parent_hostid bigint  NULL,\n\
+parent_itemid bigint  NULL,\n\
+host varchar(64) DEFAULT '' NOT NULL,\n\
+lastcheck integer DEFAULT '0' NOT NULL,\n\
+ts_delete integer DEFAULT '0' NOT NULL,\n\
+PRIMARY KEY (hostid)\n\
+);\n\
+CREATE TABLE interface_discovery (\n\
+interfaceid bigint  NOT NULL,\n\
+parent_interfaceid bigint  NOT NULL,\n\
+PRIMARY KEY (interfaceid)\n\
+);\n\
 CREATE TABLE profiles (\n\
 profileid bigint  NOT NULL,\n\
 userid bigint  NOT NULL,\n\
@@ -7315,6 +7996,7 @@ name varchar(255) DEFAULT '' NOT NULL,\n\
 PRIMARY KEY (triggerdiscoveryid)\n\
 );\n\
 CREATE UNIQUE INDEX trigger_discovery_1 ON trigger_discovery (triggerid,parent_triggerid);\n\
+CREATE INDEX trigger_discovery_2 ON trigger_discovery (parent_triggerid);\n\
 CREATE TABLE user_history (\n\
 userhistoryid bigint  NOT NULL,\n\
 userid bigint  NOT NULL,\n\
@@ -7331,10 +8013,29 @@ url5 varchar(255) DEFAULT '' NOT NULL,\n\
 PRIMARY KEY (userhistoryid)\n\
 );\n\
 CREATE UNIQUE INDEX user_history_1 ON user_history (userid);\n\
+CREATE TABLE application_template (\n\
+application_templateid bigint  NOT NULL,\n\
+applicationid bigint  NOT NULL,\n\
+templateid bigint  NOT NULL,\n\
+PRIMARY KEY (application_templateid)\n\
+);\n\
+CREATE UNIQUE INDEX application_template_1 ON application_template (applicationid,templateid);\n\
+CREATE INDEX application_template_2 ON application_template (templateid);\n\
+CREATE TABLE dbversion (\n\
+mandatory integer DEFAULT '0' NOT NULL,\n\
+optional integer DEFAULT '0' NOT NULL\n\
+);\n\
+INSERT INTO dbversion VALUES ('2020000','2020001');\n\
 ";
 const char	*const db_schema_fkeys[] = {
 	"ALTER TABLE ONLY hosts ADD CONSTRAINT c_hosts_1 FOREIGN KEY (proxy_hostid) REFERENCES hosts (hostid)",
 	"ALTER TABLE ONLY hosts ADD CONSTRAINT c_hosts_2 FOREIGN KEY (maintenanceid) REFERENCES maintenances (maintenanceid)",
+	"ALTER TABLE ONLY hosts ADD CONSTRAINT c_hosts_3 FOREIGN KEY (templateid) REFERENCES hosts (hostid) ON DELETE CASCADE",
+	"ALTER TABLE ONLY group_prototype ADD CONSTRAINT c_group_prototype_1 FOREIGN KEY (hostid) REFERENCES hosts (hostid) ON DELETE CASCADE",
+	"ALTER TABLE ONLY group_prototype ADD CONSTRAINT c_group_prototype_2 FOREIGN KEY (groupid) REFERENCES groups (groupid)",
+	"ALTER TABLE ONLY group_prototype ADD CONSTRAINT c_group_prototype_3 FOREIGN KEY (templateid) REFERENCES group_prototype (group_prototypeid) ON DELETE CASCADE",
+	"ALTER TABLE ONLY group_discovery ADD CONSTRAINT c_group_discovery_1 FOREIGN KEY (groupid) REFERENCES groups (groupid) ON DELETE CASCADE",
+	"ALTER TABLE ONLY group_discovery ADD CONSTRAINT c_group_discovery_2 FOREIGN KEY (parent_group_prototypeid) REFERENCES group_prototype (group_prototypeid)",
 	"ALTER TABLE ONLY screens ADD CONSTRAINT c_screens_1 FOREIGN KEY (templateid) REFERENCES hosts (hostid) ON DELETE CASCADE",
 	"ALTER TABLE ONLY screens_items ADD CONSTRAINT c_screens_items_1 FOREIGN KEY (screenid) REFERENCES screens (screenid) ON DELETE CASCADE",
 	"ALTER TABLE ONLY slides ADD CONSTRAINT c_slides_1 FOREIGN KEY (slideshowid) REFERENCES slideshows (slideshowid) ON DELETE CASCADE",
@@ -7342,8 +8043,9 @@ const char	*const db_schema_fkeys[] = {
 	"ALTER TABLE ONLY drules ADD CONSTRAINT c_drules_1 FOREIGN KEY (proxy_hostid) REFERENCES hosts (hostid)",
 	"ALTER TABLE ONLY dchecks ADD CONSTRAINT c_dchecks_1 FOREIGN KEY (druleid) REFERENCES drules (druleid) ON DELETE CASCADE",
 	"ALTER TABLE ONLY applications ADD CONSTRAINT c_applications_1 FOREIGN KEY (hostid) REFERENCES hosts (hostid) ON DELETE CASCADE",
-	"ALTER TABLE ONLY applications ADD CONSTRAINT c_applications_2 FOREIGN KEY (templateid) REFERENCES applications (applicationid) ON DELETE CASCADE",
-	"ALTER TABLE ONLY httptest ADD CONSTRAINT c_httptest_1 FOREIGN KEY (applicationid) REFERENCES applications (applicationid) ON DELETE CASCADE",
+	"ALTER TABLE ONLY httptest ADD CONSTRAINT c_httptest_1 FOREIGN KEY (applicationid) REFERENCES applications (applicationid)",
+	"ALTER TABLE ONLY httptest ADD CONSTRAINT c_httptest_2 FOREIGN KEY (hostid) REFERENCES hosts (hostid) ON DELETE CASCADE",
+	"ALTER TABLE ONLY httptest ADD CONSTRAINT c_httptest_3 FOREIGN KEY (templateid) REFERENCES httptest (httptestid) ON DELETE CASCADE",
 	"ALTER TABLE ONLY httpstep ADD CONSTRAINT c_httpstep_1 FOREIGN KEY (httptestid) REFERENCES httptest (httptestid) ON DELETE CASCADE",
 	"ALTER TABLE ONLY interface ADD CONSTRAINT c_interface_1 FOREIGN KEY (hostid) REFERENCES hosts (hostid) ON DELETE CASCADE",
 	"ALTER TABLE ONLY items ADD CONSTRAINT c_items_1 FOREIGN KEY (hostid) REFERENCES hosts (hostid) ON DELETE CASCADE",
@@ -7449,16 +8151,29 @@ const char	*const db_schema_fkeys[] = {
 	"ALTER TABLE ONLY host_inventory ADD CONSTRAINT c_host_inventory_1 FOREIGN KEY (hostid) REFERENCES hosts (hostid) ON DELETE CASCADE",
 	"ALTER TABLE ONLY item_discovery ADD CONSTRAINT c_item_discovery_1 FOREIGN KEY (itemid) REFERENCES items (itemid) ON DELETE CASCADE",
 	"ALTER TABLE ONLY item_discovery ADD CONSTRAINT c_item_discovery_2 FOREIGN KEY (parent_itemid) REFERENCES items (itemid) ON DELETE CASCADE",
+	"ALTER TABLE ONLY host_discovery ADD CONSTRAINT c_host_discovery_1 FOREIGN KEY (hostid) REFERENCES hosts (hostid) ON DELETE CASCADE",
+	"ALTER TABLE ONLY host_discovery ADD CONSTRAINT c_host_discovery_2 FOREIGN KEY (parent_hostid) REFERENCES hosts (hostid)",
+	"ALTER TABLE ONLY host_discovery ADD CONSTRAINT c_host_discovery_3 FOREIGN KEY (parent_itemid) REFERENCES items (itemid)",
+	"ALTER TABLE ONLY interface_discovery ADD CONSTRAINT c_interface_discovery_1 FOREIGN KEY (interfaceid) REFERENCES interface (interfaceid) ON DELETE CASCADE",
+	"ALTER TABLE ONLY interface_discovery ADD CONSTRAINT c_interface_discovery_2 FOREIGN KEY (parent_interfaceid) REFERENCES interface (interfaceid) ON DELETE CASCADE",
 	"ALTER TABLE ONLY profiles ADD CONSTRAINT c_profiles_1 FOREIGN KEY (userid) REFERENCES users (userid) ON DELETE CASCADE",
 	"ALTER TABLE ONLY sessions ADD CONSTRAINT c_sessions_1 FOREIGN KEY (userid) REFERENCES users (userid) ON DELETE CASCADE",
 	"ALTER TABLE ONLY trigger_discovery ADD CONSTRAINT c_trigger_discovery_1 FOREIGN KEY (triggerid) REFERENCES triggers (triggerid) ON DELETE CASCADE",
 	"ALTER TABLE ONLY trigger_discovery ADD CONSTRAINT c_trigger_discovery_2 FOREIGN KEY (parent_triggerid) REFERENCES triggers (triggerid) ON DELETE CASCADE",
 	"ALTER TABLE ONLY user_history ADD CONSTRAINT c_user_history_1 FOREIGN KEY (userid) REFERENCES users (userid) ON DELETE CASCADE",
+	"ALTER TABLE ONLY application_template ADD CONSTRAINT c_application_template_1 FOREIGN KEY (applicationid) REFERENCES applications (applicationid) ON DELETE CASCADE",
+	"ALTER TABLE ONLY application_template ADD CONSTRAINT c_application_template_2 FOREIGN KEY (templateid) REFERENCES applications (applicationid) ON DELETE CASCADE",
 	NULL
 };
 const char	*const db_schema_fkeys_drop[] = {
 	"ALTER TABLE ONLY hosts DROP CONSTRAINT c_hosts_1",
 	"ALTER TABLE ONLY hosts DROP CONSTRAINT c_hosts_2",
+	"ALTER TABLE ONLY hosts DROP CONSTRAINT c_hosts_3",
+	"ALTER TABLE ONLY group_prototype DROP CONSTRAINT c_group_prototype_1",
+	"ALTER TABLE ONLY group_prototype DROP CONSTRAINT c_group_prototype_2",
+	"ALTER TABLE ONLY group_prototype DROP CONSTRAINT c_group_prototype_3",
+	"ALTER TABLE ONLY group_discovery DROP CONSTRAINT c_group_discovery_1",
+	"ALTER TABLE ONLY group_discovery DROP CONSTRAINT c_group_discovery_2",
 	"ALTER TABLE ONLY screens DROP CONSTRAINT c_screens_1",
 	"ALTER TABLE ONLY screens_items DROP CONSTRAINT c_screens_items_1",
 	"ALTER TABLE ONLY slides DROP CONSTRAINT c_slides_1",
@@ -7466,8 +8181,9 @@ const char	*const db_schema_fkeys_drop[] = {
 	"ALTER TABLE ONLY drules DROP CONSTRAINT c_drules_1",
 	"ALTER TABLE ONLY dchecks DROP CONSTRAINT c_dchecks_1",
 	"ALTER TABLE ONLY applications DROP CONSTRAINT c_applications_1",
-	"ALTER TABLE ONLY applications DROP CONSTRAINT c_applications_2",
 	"ALTER TABLE ONLY httptest DROP CONSTRAINT c_httptest_1",
+	"ALTER TABLE ONLY httptest DROP CONSTRAINT c_httptest_2",
+	"ALTER TABLE ONLY httptest DROP CONSTRAINT c_httptest_3",
 	"ALTER TABLE ONLY httpstep DROP CONSTRAINT c_httpstep_1",
 	"ALTER TABLE ONLY interface DROP CONSTRAINT c_interface_1",
 	"ALTER TABLE ONLY items DROP CONSTRAINT c_items_1",
@@ -7573,11 +8289,18 @@ const char	*const db_schema_fkeys_drop[] = {
 	"ALTER TABLE ONLY host_inventory DROP CONSTRAINT c_host_inventory_1",
 	"ALTER TABLE ONLY item_discovery DROP CONSTRAINT c_item_discovery_1",
 	"ALTER TABLE ONLY item_discovery DROP CONSTRAINT c_item_discovery_2",
+	"ALTER TABLE ONLY host_discovery DROP CONSTRAINT c_host_discovery_1",
+	"ALTER TABLE ONLY host_discovery DROP CONSTRAINT c_host_discovery_2",
+	"ALTER TABLE ONLY host_discovery DROP CONSTRAINT c_host_discovery_3",
+	"ALTER TABLE ONLY interface_discovery DROP CONSTRAINT c_interface_discovery_1",
+	"ALTER TABLE ONLY interface_discovery DROP CONSTRAINT c_interface_discovery_2",
 	"ALTER TABLE ONLY profiles DROP CONSTRAINT c_profiles_1",
 	"ALTER TABLE ONLY sessions DROP CONSTRAINT c_sessions_1",
 	"ALTER TABLE ONLY trigger_discovery DROP CONSTRAINT c_trigger_discovery_1",
 	"ALTER TABLE ONLY trigger_discovery DROP CONSTRAINT c_trigger_discovery_2",
 	"ALTER TABLE ONLY user_history DROP CONSTRAINT c_user_history_1",
+	"ALTER TABLE ONLY application_template DROP CONSTRAINT c_application_template_1",
+	"ALTER TABLE ONLY application_template DROP CONSTRAINT c_application_template_2",
 	NULL
 };
 #elif defined(HAVE_SQLITE3)
@@ -7623,19 +8346,40 @@ jmx_available integer DEFAULT '0' NOT NULL,\n\
 jmx_errors_from integer DEFAULT '0' NOT NULL,\n\
 jmx_error varchar(128) DEFAULT '' NOT NULL,\n\
 name varchar(64) DEFAULT '' NOT NULL,\n\
+flags integer DEFAULT '0' NOT NULL,\n\
+templateid bigint  NULL REFERENCES hosts (hostid) ON DELETE CASCADE,\n\
 PRIMARY KEY (hostid)\n\
 );\n\
 CREATE INDEX hosts_1 ON hosts (host);\n\
 CREATE INDEX hosts_2 ON hosts (status);\n\
 CREATE INDEX hosts_3 ON hosts (proxy_hostid);\n\
 CREATE INDEX hosts_4 ON hosts (name);\n\
+CREATE INDEX hosts_5 ON hosts (maintenanceid);\n\
 CREATE TABLE groups (\n\
 groupid bigint  NOT NULL,\n\
 name varchar(64) DEFAULT '' NOT NULL,\n\
 internal integer DEFAULT '0' NOT NULL,\n\
+flags integer DEFAULT '0' NOT NULL,\n\
 PRIMARY KEY (groupid)\n\
 );\n\
 CREATE INDEX groups_1 ON groups (name);\n\
+CREATE TABLE group_prototype (\n\
+group_prototypeid bigint  NOT NULL,\n\
+hostid bigint  NOT NULL REFERENCES hosts (hostid) ON DELETE CASCADE,\n\
+name varchar(64) DEFAULT '' NOT NULL,\n\
+groupid bigint  NULL REFERENCES groups (groupid),\n\
+templateid bigint  NULL REFERENCES group_prototype (group_prototypeid) ON DELETE CASCADE,\n\
+PRIMARY KEY (group_prototypeid)\n\
+);\n\
+CREATE INDEX group_prototype_1 ON group_prototype (hostid);\n\
+CREATE TABLE group_discovery (\n\
+groupid bigint  NOT NULL REFERENCES groups (groupid) ON DELETE CASCADE,\n\
+parent_group_prototypeid bigint  NOT NULL REFERENCES group_prototype (group_prototypeid),\n\
+name varchar(64) DEFAULT '' NOT NULL,\n\
+lastcheck integer DEFAULT '0' NOT NULL,\n\
+ts_delete integer DEFAULT '0' NOT NULL,\n\
+PRIMARY KEY (groupid)\n\
+);\n\
 CREATE TABLE screens (\n\
 screenid bigint  NOT NULL,\n\
 name varchar(255)  NOT NULL,\n\
@@ -7644,6 +8388,7 @@ vsize integer DEFAULT '1' NOT NULL,\n\
 templateid bigint  NULL REFERENCES hosts (hostid) ON DELETE CASCADE,\n\
 PRIMARY KEY (screenid)\n\
 );\n\
+CREATE INDEX screens_1 ON screens (templateid);\n\
 CREATE TABLE screens_items (\n\
 screenitemid bigint  NOT NULL,\n\
 screenid bigint  NOT NULL REFERENCES screens (screenid) ON DELETE CASCADE,\n\
@@ -7662,8 +8407,10 @@ style integer DEFAULT '0' NOT NULL,\n\
 url varchar(255) DEFAULT '' NOT NULL,\n\
 dynamic integer DEFAULT '0' NOT NULL,\n\
 sort_triggers integer DEFAULT '0' NOT NULL,\n\
+application varchar(255) DEFAULT '' NOT NULL,\n\
 PRIMARY KEY (screenitemid)\n\
 );\n\
+CREATE INDEX screens_items_1 ON screens_items (screenid);\n\
 CREATE TABLE slideshows (\n\
 slideshowid bigint  NOT NULL,\n\
 name varchar(255) DEFAULT '' NOT NULL,\n\
@@ -7678,7 +8425,8 @@ step integer DEFAULT '0' NOT NULL,\n\
 delay integer DEFAULT '0' NOT NULL,\n\
 PRIMARY KEY (slideid)\n\
 );\n\
-CREATE INDEX slides_slides_1 ON slides (slideshowid);\n\
+CREATE INDEX slides_1 ON slides (slideshowid);\n\
+CREATE INDEX slides_2 ON slides (screenid);\n\
 CREATE TABLE drules (\n\
 druleid bigint  NOT NULL,\n\
 proxy_hostid bigint  NULL REFERENCES hosts (hostid),\n\
@@ -7689,6 +8437,7 @@ nextcheck integer DEFAULT '0' NOT NULL,\n\
 status integer DEFAULT '0' NOT NULL,\n\
 PRIMARY KEY (druleid)\n\
 );\n\
+CREATE INDEX drules_1 ON drules (proxy_hostid);\n\
 CREATE TABLE dchecks (\n\
 dcheckid bigint  NOT NULL,\n\
 druleid bigint  NOT NULL REFERENCES drules (druleid) ON DELETE CASCADE,\n\
@@ -7701,6 +8450,9 @@ snmpv3_securitylevel integer DEFAULT '0' NOT NULL,\n\
 snmpv3_authpassphrase varchar(64) DEFAULT '' NOT NULL,\n\
 snmpv3_privpassphrase varchar(64) DEFAULT '' NOT NULL,\n\
 uniq integer DEFAULT '0' NOT NULL,\n\
+snmpv3_authprotocol integer DEFAULT '0' NOT NULL,\n\
+snmpv3_privprotocol integer DEFAULT '0' NOT NULL,\n\
+snmpv3_contextname varchar(255) DEFAULT '' NOT NULL,\n\
 PRIMARY KEY (dcheckid)\n\
 );\n\
 CREATE INDEX dchecks_1 ON dchecks (druleid);\n\
@@ -7708,28 +8460,31 @@ CREATE TABLE applications (\n\
 applicationid bigint  NOT NULL,\n\
 hostid bigint  NOT NULL REFERENCES hosts (hostid) ON DELETE CASCADE,\n\
 name varchar(255) DEFAULT '' NOT NULL,\n\
-templateid bigint  NULL REFERENCES applications (applicationid) ON DELETE CASCADE,\n\
 PRIMARY KEY (applicationid)\n\
 );\n\
-CREATE INDEX applications_1 ON applications (templateid);\n\
 CREATE UNIQUE INDEX applications_2 ON applications (hostid,name);\n\
 CREATE TABLE httptest (\n\
 httptestid bigint  NOT NULL,\n\
 name varchar(64) DEFAULT '' NOT NULL,\n\
-applicationid bigint  NOT NULL REFERENCES applications (applicationid) ON DELETE CASCADE,\n\
+applicationid bigint  NULL REFERENCES applications (applicationid),\n\
 nextcheck integer DEFAULT '0' NOT NULL,\n\
 delay integer DEFAULT '60' NOT NULL,\n\
 status integer DEFAULT '0' NOT NULL,\n\
-macros text DEFAULT '' NOT NULL,\n\
+variables text DEFAULT '' NOT NULL,\n\
 agent varchar(255) DEFAULT '' NOT NULL,\n\
 authentication integer DEFAULT '0' NOT NULL,\n\
 http_user varchar(64) DEFAULT '' NOT NULL,\n\
 http_password varchar(64) DEFAULT '' NOT NULL,\n\
+hostid bigint  NOT NULL REFERENCES hosts (hostid) ON DELETE CASCADE,\n\
+templateid bigint  NULL REFERENCES httptest (httptestid) ON DELETE CASCADE,\n\
+http_proxy varchar(255) DEFAULT '' NOT NULL,\n\
+retries integer DEFAULT '1' NOT NULL,\n\
 PRIMARY KEY (httptestid)\n\
 );\n\
-CREATE INDEX httptest_httptest_1 ON httptest (applicationid);\n\
-CREATE INDEX httptest_2 ON httptest (name);\n\
+CREATE INDEX httptest_1 ON httptest (applicationid);\n\
+CREATE UNIQUE INDEX httptest_2 ON httptest (hostid,name);\n\
 CREATE INDEX httptest_3 ON httptest (status);\n\
+CREATE INDEX httptest_4 ON httptest (templateid);\n\
 CREATE TABLE httpstep (\n\
 httpstepid bigint  NOT NULL,\n\
 httptestid bigint  NOT NULL REFERENCES httptest (httptestid) ON DELETE CASCADE,\n\
@@ -7740,16 +8495,17 @@ timeout integer DEFAULT '30' NOT NULL,\n\
 posts text DEFAULT '' NOT NULL,\n\
 required varchar(255) DEFAULT '' NOT NULL,\n\
 status_codes varchar(255) DEFAULT '' NOT NULL,\n\
+variables text DEFAULT '' NOT NULL,\n\
 PRIMARY KEY (httpstepid)\n\
 );\n\
-CREATE INDEX httpstep_httpstep_1 ON httpstep (httptestid);\n\
+CREATE INDEX httpstep_1 ON httpstep (httptestid);\n\
 CREATE TABLE interface (\n\
 interfaceid bigint  NOT NULL,\n\
 hostid bigint  NOT NULL REFERENCES hosts (hostid) ON DELETE CASCADE,\n\
 main integer DEFAULT '0' NOT NULL,\n\
 type integer DEFAULT '0' NOT NULL,\n\
 useip integer DEFAULT '1' NOT NULL,\n\
-ip varchar(39) DEFAULT '127.0.0.1' NOT NULL,\n\
+ip varchar(64) DEFAULT '127.0.0.1' NOT NULL,\n\
 dns varchar(64) DEFAULT '' NOT NULL,\n\
 port varchar(64) DEFAULT '10050' NOT NULL,\n\
 PRIMARY KEY (interfaceid)\n\
@@ -7773,16 +8529,12 @@ key_ varchar(255) DEFAULT '' NOT NULL,\n\
 delay integer DEFAULT '0' NOT NULL,\n\
 history integer DEFAULT '90' NOT NULL,\n\
 trends integer DEFAULT '365' NOT NULL,\n\
-lastvalue varchar(255)  NULL,\n\
-lastclock integer  NULL,\n\
-prevvalue varchar(255)  NULL,\n\
 status integer DEFAULT '0' NOT NULL,\n\
 value_type integer DEFAULT '0' NOT NULL,\n\
 trapper_hosts varchar(255) DEFAULT '' NOT NULL,\n\
 units varchar(255) DEFAULT '' NOT NULL,\n\
 multiplier integer DEFAULT '0' NOT NULL,\n\
 delta integer DEFAULT '0' NOT NULL,\n\
-prevorgvalue varchar(255)  NULL,\n\
 snmpv3_securityname varchar(64) DEFAULT '' NOT NULL,\n\
 snmpv3_securitylevel integer DEFAULT '0' NOT NULL,\n\
 snmpv3_authpassphrase varchar(64) DEFAULT '' NOT NULL,\n\
@@ -7803,7 +8555,6 @@ password varchar(64) DEFAULT '' NOT NULL,\n\
 publickey varchar(64) DEFAULT '' NOT NULL,\n\
 privatekey varchar(64) DEFAULT '' NOT NULL,\n\
 mtime integer DEFAULT '0' NOT NULL,\n\
-lastns integer  NULL,\n\
 flags integer DEFAULT '0' NOT NULL,\n\
 filter varchar(255) DEFAULT '' NOT NULL,\n\
 interfaceid bigint  NULL REFERENCES interface (interfaceid),\n\
@@ -7811,12 +8562,17 @@ port varchar(64) DEFAULT '' NOT NULL,\n\
 description text DEFAULT '' NOT NULL,\n\
 inventory_link integer DEFAULT '0' NOT NULL,\n\
 lifetime varchar(64) DEFAULT '30' NOT NULL,\n\
+snmpv3_authprotocol integer DEFAULT '0' NOT NULL,\n\
+snmpv3_privprotocol integer DEFAULT '0' NOT NULL,\n\
+state integer DEFAULT '0' NOT NULL,\n\
+snmpv3_contextname varchar(255) DEFAULT '' NOT NULL,\n\
 PRIMARY KEY (itemid)\n\
 );\n\
 CREATE UNIQUE INDEX items_1 ON items (hostid,key_);\n\
 CREATE INDEX items_3 ON items (status);\n\
 CREATE INDEX items_4 ON items (templateid);\n\
 CREATE INDEX items_5 ON items (valuemapid);\n\
+CREATE INDEX items_6 ON items (interfaceid);\n\
 CREATE TABLE httpstepitem (\n\
 httpstepitemid bigint  NOT NULL,\n\
 httpstepid bigint  NOT NULL REFERENCES httpstep (httpstepid) ON DELETE CASCADE,\n\
@@ -7824,7 +8580,8 @@ itemid bigint  NOT NULL REFERENCES items (itemid) ON DELETE CASCADE,\n\
 type integer DEFAULT '0' NOT NULL,\n\
 PRIMARY KEY (httpstepitemid)\n\
 );\n\
-CREATE UNIQUE INDEX httpstepitem_httpstepitem_1 ON httpstepitem (httpstepid,itemid);\n\
+CREATE UNIQUE INDEX httpstepitem_1 ON httpstepitem (httpstepid,itemid);\n\
+CREATE INDEX httpstepitem_2 ON httpstepitem (itemid);\n\
 CREATE TABLE httptestitem (\n\
 httptestitemid bigint  NOT NULL,\n\
 httptestid bigint  NOT NULL REFERENCES httptest (httptestid) ON DELETE CASCADE,\n\
@@ -7832,7 +8589,8 @@ itemid bigint  NOT NULL REFERENCES items (itemid) ON DELETE CASCADE,\n\
 type integer DEFAULT '0' NOT NULL,\n\
 PRIMARY KEY (httptestitemid)\n\
 );\n\
-CREATE UNIQUE INDEX httptestitem_httptestitem_1 ON httptestitem (httptestid,itemid);\n\
+CREATE UNIQUE INDEX httptestitem_1 ON httptestitem (httptestid,itemid);\n\
+CREATE INDEX httptestitem_2 ON httptestitem (itemid);\n\
 CREATE TABLE media_type (\n\
 mediatypeid bigint  NOT NULL,\n\
 type integer DEFAULT '0' NOT NULL,\n\
@@ -7858,7 +8616,7 @@ autologin integer DEFAULT '0' NOT NULL,\n\
 autologout integer DEFAULT '900' NOT NULL,\n\
 lang varchar(5) DEFAULT 'en_GB' NOT NULL,\n\
 refresh integer DEFAULT '30' NOT NULL,\n\
-type integer DEFAULT '0' NOT NULL,\n\
+type integer DEFAULT '1' NOT NULL,\n\
 theme varchar(128) DEFAULT 'default' NOT NULL,\n\
 attempt_failed integer DEFAULT 0 NOT NULL,\n\
 attempt_ip varchar(39) DEFAULT '' NOT NULL,\n\
@@ -7883,6 +8641,7 @@ userid bigint  NOT NULL REFERENCES users (userid) ON DELETE CASCADE,\n\
 PRIMARY KEY (id)\n\
 );\n\
 CREATE UNIQUE INDEX users_groups_1 ON users_groups (usrgrpid,userid);\n\
+CREATE INDEX users_groups_2 ON users_groups (userid);\n\
 CREATE TABLE scripts (\n\
 scriptid bigint  NOT NULL,\n\
 name varchar(255) DEFAULT '' NOT NULL,\n\
@@ -7896,6 +8655,8 @@ type integer DEFAULT '0' NOT NULL,\n\
 execute_on integer DEFAULT '1' NOT NULL,\n\
 PRIMARY KEY (scriptid)\n\
 );\n\
+CREATE INDEX scripts_1 ON scripts (usrgrpid);\n\
+CREATE INDEX scripts_2 ON scripts (groupid);\n\
 CREATE TABLE actions (\n\
 actionid bigint  NOT NULL,\n\
 name varchar(255) DEFAULT '' NOT NULL,\n\
@@ -7930,6 +8691,7 @@ message text DEFAULT '' NOT NULL,\n\
 mediatypeid bigint  NULL REFERENCES media_type (mediatypeid),\n\
 PRIMARY KEY (operationid)\n\
 );\n\
+CREATE INDEX opmessage_1 ON opmessage (mediatypeid);\n\
 CREATE TABLE opmessage_grp (\n\
 opmessage_grpid bigint  NOT NULL,\n\
 operationid bigint  NOT NULL REFERENCES operations (operationid) ON DELETE CASCADE,\n\
@@ -7937,6 +8699,7 @@ usrgrpid bigint  NOT NULL REFERENCES usrgrp (usrgrpid),\n\
 PRIMARY KEY (opmessage_grpid)\n\
 );\n\
 CREATE UNIQUE INDEX opmessage_grp_1 ON opmessage_grp (operationid,usrgrpid);\n\
+CREATE INDEX opmessage_grp_2 ON opmessage_grp (usrgrpid);\n\
 CREATE TABLE opmessage_usr (\n\
 opmessage_usrid bigint  NOT NULL,\n\
 operationid bigint  NOT NULL REFERENCES operations (operationid) ON DELETE CASCADE,\n\
@@ -7944,6 +8707,7 @@ userid bigint  NOT NULL REFERENCES users (userid),\n\
 PRIMARY KEY (opmessage_usrid)\n\
 );\n\
 CREATE UNIQUE INDEX opmessage_usr_1 ON opmessage_usr (operationid,userid);\n\
+CREATE INDEX opmessage_usr_2 ON opmessage_usr (userid);\n\
 CREATE TABLE opcommand (\n\
 operationid bigint  NOT NULL REFERENCES operations (operationid) ON DELETE CASCADE,\n\
 type integer DEFAULT '0' NOT NULL,\n\
@@ -7958,6 +8722,7 @@ privatekey varchar(64) DEFAULT '' NOT NULL,\n\
 command text DEFAULT '' NOT NULL,\n\
 PRIMARY KEY (operationid)\n\
 );\n\
+CREATE INDEX opcommand_1 ON opcommand (scriptid);\n\
 CREATE TABLE opcommand_hst (\n\
 opcommand_hstid bigint  NOT NULL,\n\
 operationid bigint  NOT NULL REFERENCES operations (operationid) ON DELETE CASCADE,\n\
@@ -7965,6 +8730,7 @@ hostid bigint  NULL REFERENCES hosts (hostid),\n\
 PRIMARY KEY (opcommand_hstid)\n\
 );\n\
 CREATE INDEX opcommand_hst_1 ON opcommand_hst (operationid);\n\
+CREATE INDEX opcommand_hst_2 ON opcommand_hst (hostid);\n\
 CREATE TABLE opcommand_grp (\n\
 opcommand_grpid bigint  NOT NULL,\n\
 operationid bigint  NOT NULL REFERENCES operations (operationid) ON DELETE CASCADE,\n\
@@ -7972,6 +8738,7 @@ groupid bigint  NOT NULL REFERENCES groups (groupid),\n\
 PRIMARY KEY (opcommand_grpid)\n\
 );\n\
 CREATE INDEX opcommand_grp_1 ON opcommand_grp (operationid);\n\
+CREATE INDEX opcommand_grp_2 ON opcommand_grp (groupid);\n\
 CREATE TABLE opgroup (\n\
 opgroupid bigint  NOT NULL,\n\
 operationid bigint  NOT NULL REFERENCES operations (operationid) ON DELETE CASCADE,\n\
@@ -7979,6 +8746,7 @@ groupid bigint  NOT NULL REFERENCES groups (groupid),\n\
 PRIMARY KEY (opgroupid)\n\
 );\n\
 CREATE UNIQUE INDEX opgroup_1 ON opgroup (operationid,groupid);\n\
+CREATE INDEX opgroup_2 ON opgroup (groupid);\n\
 CREATE TABLE optemplate (\n\
 optemplateid bigint  NOT NULL,\n\
 operationid bigint  NOT NULL REFERENCES operations (operationid) ON DELETE CASCADE,\n\
@@ -7986,6 +8754,7 @@ templateid bigint  NOT NULL REFERENCES hosts (hostid),\n\
 PRIMARY KEY (optemplateid)\n\
 );\n\
 CREATE UNIQUE INDEX optemplate_1 ON optemplate (operationid,templateid);\n\
+CREATE INDEX optemplate_2 ON optemplate (templateid);\n\
 CREATE TABLE opconditions (\n\
 opconditionid bigint  NOT NULL,\n\
 operationid bigint  NOT NULL REFERENCES operations (operationid) ON DELETE CASCADE,\n\
@@ -8006,8 +8775,6 @@ PRIMARY KEY (conditionid)\n\
 CREATE INDEX conditions_1 ON conditions (actionid);\n\
 CREATE TABLE config (\n\
 configid bigint  NOT NULL,\n\
-alert_history integer DEFAULT '0' NOT NULL,\n\
-event_history integer DEFAULT '0' NOT NULL,\n\
 refresh_unsupported integer DEFAULT '0' NOT NULL,\n\
 work_period varchar(100) DEFAULT '1-5,00:00-24:00' NOT NULL,\n\
 alert_usrgrpid bigint  NULL REFERENCES usrgrp (usrgrpid),\n\
@@ -8051,11 +8818,30 @@ ok_unack_style integer DEFAULT '1' NOT NULL,\n\
 ok_ack_style integer DEFAULT '1' NOT NULL,\n\
 snmptrap_logging integer DEFAULT '1' NOT NULL,\n\
 server_check_interval integer DEFAULT '10' NOT NULL,\n\
+hk_events_mode integer DEFAULT '1' NOT NULL,\n\
+hk_events_trigger integer DEFAULT '365' NOT NULL,\n\
+hk_events_internal integer DEFAULT '365' NOT NULL,\n\
+hk_events_discovery integer DEFAULT '365' NOT NULL,\n\
+hk_events_autoreg integer DEFAULT '365' NOT NULL,\n\
+hk_services_mode integer DEFAULT '1' NOT NULL,\n\
+hk_services integer DEFAULT '365' NOT NULL,\n\
+hk_audit_mode integer DEFAULT '1' NOT NULL,\n\
+hk_audit integer DEFAULT '365' NOT NULL,\n\
+hk_sessions_mode integer DEFAULT '1' NOT NULL,\n\
+hk_sessions integer DEFAULT '365' NOT NULL,\n\
+hk_history_mode integer DEFAULT '1' NOT NULL,\n\
+hk_history_global integer DEFAULT '0' NOT NULL,\n\
+hk_history integer DEFAULT '90' NOT NULL,\n\
+hk_trends_mode integer DEFAULT '1' NOT NULL,\n\
+hk_trends_global integer DEFAULT '0' NOT NULL,\n\
+hk_trends integer DEFAULT '365' NOT NULL,\n\
 PRIMARY KEY (configid)\n\
 );\n\
+CREATE INDEX config_1 ON config (alert_usrgrpid);\n\
+CREATE INDEX config_2 ON config (discovery_groupid);\n\
 CREATE TABLE triggers (\n\
 triggerid bigint  NOT NULL,\n\
-expression varchar(255) DEFAULT '' NOT NULL,\n\
+expression varchar(2048) DEFAULT '' NOT NULL,\n\
 description varchar(255) DEFAULT '' NOT NULL,\n\
 url varchar(255) DEFAULT '' NOT NULL,\n\
 status integer DEFAULT '0' NOT NULL,\n\
@@ -8066,12 +8852,13 @@ comments text DEFAULT '' NOT NULL,\n\
 error varchar(128) DEFAULT '' NOT NULL,\n\
 templateid bigint  NULL REFERENCES triggers (triggerid) ON DELETE CASCADE,\n\
 type integer DEFAULT '0' NOT NULL,\n\
-value_flags integer DEFAULT '0' NOT NULL,\n\
+state integer DEFAULT '0' NOT NULL,\n\
 flags integer DEFAULT '0' NOT NULL,\n\
 PRIMARY KEY (triggerid)\n\
 );\n\
 CREATE INDEX triggers_1 ON triggers (status);\n\
 CREATE INDEX triggers_2 ON triggers (value);\n\
+CREATE INDEX triggers_3 ON triggers (templateid);\n\
 CREATE TABLE trigger_depends (\n\
 triggerdepid bigint  NOT NULL,\n\
 triggerid_down bigint  NOT NULL REFERENCES triggers (triggerid) ON DELETE CASCADE,\n\
@@ -8093,10 +8880,10 @@ CREATE INDEX functions_2 ON functions (itemid,function,parameter);\n\
 CREATE TABLE graphs (\n\
 graphid bigint  NOT NULL,\n\
 name varchar(128) DEFAULT '' NOT NULL,\n\
-width integer DEFAULT '0' NOT NULL,\n\
-height integer DEFAULT '0' NOT NULL,\n\
+width integer DEFAULT '900' NOT NULL,\n\
+height integer DEFAULT '200' NOT NULL,\n\
 yaxismin double(16,4) DEFAULT '0' NOT NULL,\n\
-yaxismax double(16,4) DEFAULT '0' NOT NULL,\n\
+yaxismax double(16,4) DEFAULT '100' NOT NULL,\n\
 templateid bigint  NULL REFERENCES graphs (graphid) ON DELETE CASCADE,\n\
 show_work_period integer DEFAULT '1' NOT NULL,\n\
 show_triggers integer DEFAULT '1' NOT NULL,\n\
@@ -8112,7 +8899,10 @@ ymax_itemid bigint  NULL REFERENCES items (itemid),\n\
 flags integer DEFAULT '0' NOT NULL,\n\
 PRIMARY KEY (graphid)\n\
 );\n\
-CREATE INDEX graphs_graphs_1 ON graphs (name);\n\
+CREATE INDEX graphs_1 ON graphs (name);\n\
+CREATE INDEX graphs_2 ON graphs (templateid);\n\
+CREATE INDEX graphs_3 ON graphs (ymin_itemid);\n\
+CREATE INDEX graphs_4 ON graphs (ymax_itemid);\n\
 CREATE TABLE graphs_items (\n\
 gitemid bigint  NOT NULL,\n\
 graphid bigint  NOT NULL REFERENCES graphs (graphid) ON DELETE CASCADE,\n\
@@ -8120,7 +8910,7 @@ itemid bigint  NOT NULL REFERENCES items (itemid) ON DELETE CASCADE,\n\
 drawtype integer DEFAULT '0' NOT NULL,\n\
 sortorder integer DEFAULT '0' NOT NULL,\n\
 color varchar(6) DEFAULT '009600' NOT NULL,\n\
-yaxisside integer DEFAULT '1' NOT NULL,\n\
+yaxisside integer DEFAULT '0' NOT NULL,\n\
 calc_fnc integer DEFAULT '2' NOT NULL,\n\
 type integer DEFAULT '0' NOT NULL,\n\
 PRIMARY KEY (gitemid)\n\
@@ -8148,12 +8938,6 @@ PRIMARY KEY (graphthemeid)\n\
 );\n\
 CREATE INDEX graph_theme_1 ON graph_theme (description);\n\
 CREATE INDEX graph_theme_2 ON graph_theme (theme);\n\
-CREATE TABLE help_items (\n\
-itemtype integer DEFAULT '0' NOT NULL,\n\
-key_ varchar(255) DEFAULT '' NOT NULL,\n\
-description varchar(255) DEFAULT '' NOT NULL,\n\
-PRIMARY KEY (itemtype,key_)\n\
-);\n\
 CREATE TABLE globalmacro (\n\
 globalmacroid bigint  NOT NULL,\n\
 macro varchar(64) DEFAULT '' NOT NULL,\n\
@@ -8241,8 +9025,8 @@ servicedownid bigint  NOT NULL REFERENCES services (serviceid) ON DELETE CASCADE
 soft integer DEFAULT '0' NOT NULL,\n\
 PRIMARY KEY (linkid)\n\
 );\n\
-CREATE INDEX services_links_links_1 ON services_links (servicedownid);\n\
-CREATE UNIQUE INDEX services_links_links_2 ON services_links (serviceupid,servicedownid);\n\
+CREATE INDEX services_links_1 ON services_links (servicedownid);\n\
+CREATE UNIQUE INDEX services_links_2 ON services_links (serviceupid,servicedownid);\n\
 CREATE TABLE services_times (\n\
 timeid bigint  NOT NULL,\n\
 serviceid bigint  NOT NULL REFERENCES services (serviceid) ON DELETE CASCADE,\n\
@@ -8252,7 +9036,7 @@ ts_to integer DEFAULT '0' NOT NULL,\n\
 note varchar(255) DEFAULT '' NOT NULL,\n\
 PRIMARY KEY (timeid)\n\
 );\n\
-CREATE INDEX services_times_times_1 ON services_times (serviceid,type,ts_from,ts_to);\n\
+CREATE INDEX services_times_1 ON services_times (serviceid,type,ts_from,ts_to);\n\
 CREATE TABLE icon_map (\n\
 iconmapid bigint  NOT NULL,\n\
 name varchar(64) DEFAULT '' NOT NULL,\n\
@@ -8260,6 +9044,7 @@ default_iconid bigint  NOT NULL REFERENCES images (imageid),\n\
 PRIMARY KEY (iconmapid)\n\
 );\n\
 CREATE INDEX icon_map_1 ON icon_map (name);\n\
+CREATE INDEX icon_map_2 ON icon_map (default_iconid);\n\
 CREATE TABLE icon_mapping (\n\
 iconmappingid bigint  NOT NULL,\n\
 iconmapid bigint  NOT NULL REFERENCES icon_map (iconmapid) ON DELETE CASCADE,\n\
@@ -8270,6 +9055,7 @@ sortorder integer DEFAULT '0' NOT NULL,\n\
 PRIMARY KEY (iconmappingid)\n\
 );\n\
 CREATE INDEX icon_mapping_1 ON icon_mapping (iconmapid);\n\
+CREATE INDEX icon_mapping_2 ON icon_mapping (iconid);\n\
 CREATE TABLE sysmaps (\n\
 sysmapid bigint  NOT NULL,\n\
 name varchar(128) DEFAULT '' NOT NULL,\n\
@@ -8277,7 +9063,7 @@ width integer DEFAULT '600' NOT NULL,\n\
 height integer DEFAULT '400' NOT NULL,\n\
 backgroundid bigint  NULL REFERENCES images (imageid),\n\
 label_type integer DEFAULT '2' NOT NULL,\n\
-label_location integer DEFAULT '3' NOT NULL,\n\
+label_location integer DEFAULT '0' NOT NULL,\n\
 highlight integer DEFAULT '1' NOT NULL,\n\
 expandproblem integer DEFAULT '1' NOT NULL,\n\
 markelements integer DEFAULT '0' NOT NULL,\n\
@@ -8298,9 +9084,12 @@ label_string_map varchar(255) DEFAULT '' NOT NULL,\n\
 label_string_image varchar(255) DEFAULT '' NOT NULL,\n\
 iconmapid bigint  NULL REFERENCES icon_map (iconmapid),\n\
 expand_macros integer DEFAULT '0' NOT NULL,\n\
+severity_min integer DEFAULT '0' NOT NULL,\n\
 PRIMARY KEY (sysmapid)\n\
 );\n\
 CREATE INDEX sysmaps_1 ON sysmaps (name);\n\
+CREATE INDEX sysmaps_2 ON sysmaps (backgroundid);\n\
+CREATE INDEX sysmaps_3 ON sysmaps (iconmapid);\n\
 CREATE TABLE sysmaps_elements (\n\
 selementid bigint  NOT NULL,\n\
 sysmapid bigint  NOT NULL REFERENCES sysmaps (sysmapid) ON DELETE CASCADE,\n\
@@ -8308,8 +9097,8 @@ elementid bigint DEFAULT '0' NOT NULL,\n\
 elementtype integer DEFAULT '0' NOT NULL,\n\
 iconid_off bigint  NULL REFERENCES images (imageid),\n\
 iconid_on bigint  NULL REFERENCES images (imageid),\n\
-label varchar(255) DEFAULT '' NOT NULL,\n\
-label_location integer  NULL,\n\
+label varchar(2048) DEFAULT '' NOT NULL,\n\
+label_location integer DEFAULT '-1' NOT NULL,\n\
 x integer DEFAULT '0' NOT NULL,\n\
 y integer DEFAULT '0' NOT NULL,\n\
 iconid_disabled bigint  NULL REFERENCES images (imageid),\n\
@@ -8322,6 +9111,11 @@ viewtype integer DEFAULT '0' NOT NULL,\n\
 use_iconmap integer DEFAULT '1' NOT NULL,\n\
 PRIMARY KEY (selementid)\n\
 );\n\
+CREATE INDEX sysmaps_elements_1 ON sysmaps_elements (sysmapid);\n\
+CREATE INDEX sysmaps_elements_2 ON sysmaps_elements (iconid_off);\n\
+CREATE INDEX sysmaps_elements_3 ON sysmaps_elements (iconid_on);\n\
+CREATE INDEX sysmaps_elements_4 ON sysmaps_elements (iconid_disabled);\n\
+CREATE INDEX sysmaps_elements_5 ON sysmaps_elements (iconid_maintenance);\n\
 CREATE TABLE sysmaps_links (\n\
 linkid bigint  NOT NULL,\n\
 sysmapid bigint  NOT NULL REFERENCES sysmaps (sysmapid) ON DELETE CASCADE,\n\
@@ -8329,9 +9123,12 @@ selementid1 bigint  NOT NULL REFERENCES sysmaps_elements (selementid) ON DELETE 
 selementid2 bigint  NOT NULL REFERENCES sysmaps_elements (selementid) ON DELETE CASCADE,\n\
 drawtype integer DEFAULT '0' NOT NULL,\n\
 color varchar(6) DEFAULT '000000' NOT NULL,\n\
-label varchar(255) DEFAULT '' NOT NULL,\n\
+label varchar(2048) DEFAULT '' NOT NULL,\n\
 PRIMARY KEY (linkid)\n\
 );\n\
+CREATE INDEX sysmaps_links_1 ON sysmaps_links (sysmapid);\n\
+CREATE INDEX sysmaps_links_2 ON sysmaps_links (selementid1);\n\
+CREATE INDEX sysmaps_links_3 ON sysmaps_links (selementid2);\n\
 CREATE TABLE sysmaps_link_triggers (\n\
 linktriggerid bigint  NOT NULL,\n\
 linkid bigint  NOT NULL REFERENCES sysmaps_links (linkid) ON DELETE CASCADE,\n\
@@ -8341,6 +9138,7 @@ color varchar(6) DEFAULT '000000' NOT NULL,\n\
 PRIMARY KEY (linktriggerid)\n\
 );\n\
 CREATE UNIQUE INDEX sysmaps_link_triggers_1 ON sysmaps_link_triggers (linkid,triggerid);\n\
+CREATE INDEX sysmaps_link_triggers_2 ON sysmaps_link_triggers (triggerid);\n\
 CREATE TABLE sysmap_element_url (\n\
 sysmapelementurlid bigint  NOT NULL,\n\
 selementid bigint  NOT NULL REFERENCES sysmaps_elements (selementid) ON DELETE CASCADE,\n\
@@ -8365,6 +9163,7 @@ hostid bigint  NOT NULL REFERENCES hosts (hostid) ON DELETE CASCADE,\n\
 PRIMARY KEY (maintenance_hostid)\n\
 );\n\
 CREATE UNIQUE INDEX maintenances_hosts_1 ON maintenances_hosts (maintenanceid,hostid);\n\
+CREATE INDEX maintenances_hosts_2 ON maintenances_hosts (hostid);\n\
 CREATE TABLE maintenances_groups (\n\
 maintenance_groupid bigint  NOT NULL,\n\
 maintenanceid bigint  NOT NULL REFERENCES maintenances (maintenanceid) ON DELETE CASCADE,\n\
@@ -8372,6 +9171,7 @@ groupid bigint  NOT NULL REFERENCES groups (groupid) ON DELETE CASCADE,\n\
 PRIMARY KEY (maintenance_groupid)\n\
 );\n\
 CREATE UNIQUE INDEX maintenances_groups_1 ON maintenances_groups (maintenanceid,groupid);\n\
+CREATE INDEX maintenances_groups_2 ON maintenances_groups (groupid);\n\
 CREATE TABLE timeperiods (\n\
 timeperiodid bigint  NOT NULL,\n\
 timeperiod_type integer DEFAULT '0' NOT NULL,\n\
@@ -8391,6 +9191,7 @@ timeperiodid bigint  NOT NULL REFERENCES timeperiods (timeperiodid) ON DELETE CA
 PRIMARY KEY (maintenance_timeperiodid)\n\
 );\n\
 CREATE UNIQUE INDEX maintenances_windows_1 ON maintenances_windows (maintenanceid,timeperiodid);\n\
+CREATE INDEX maintenances_windows_2 ON maintenances_windows (timeperiodid);\n\
 CREATE TABLE regexps (\n\
 regexpid bigint  NOT NULL,\n\
 name varchar(128) DEFAULT '' NOT NULL,\n\
@@ -8417,6 +9218,7 @@ nodetype integer DEFAULT '0' NOT NULL,\n\
 masterid integer  NULL REFERENCES nodes (nodeid),\n\
 PRIMARY KEY (nodeid)\n\
 );\n\
+CREATE INDEX nodes_1 ON nodes (masterid);\n\
 CREATE TABLE node_cksum (\n\
 nodeid integer  NOT NULL REFERENCES nodes (nodeid) ON DELETE CASCADE,\n\
 tablename varchar(64) DEFAULT '' NOT NULL,\n\
@@ -8446,7 +9248,6 @@ message text DEFAULT '' NOT NULL,\n\
 status integer DEFAULT '0' NOT NULL,\n\
 retries integer DEFAULT '0' NOT NULL,\n\
 error varchar(128) DEFAULT '' NOT NULL,\n\
-nextcheck integer DEFAULT '0' NOT NULL,\n\
 esc_step integer DEFAULT '0' NOT NULL,\n\
 alerttype integer DEFAULT '0' NOT NULL,\n\
 PRIMARY KEY (alertid)\n\
@@ -8539,7 +9340,7 @@ severity integer DEFAULT '0' NOT NULL,\n\
 value text DEFAULT '' NOT NULL,\n\
 logeventid integer DEFAULT '0' NOT NULL,\n\
 ns integer DEFAULT '0' NOT NULL,\n\
-status integer DEFAULT '0' NOT NULL\n\
+state integer DEFAULT '0' NOT NULL\n\
 );\n\
 CREATE INDEX proxy_history_1 ON proxy_history (clock);\n\
 CREATE TABLE proxy_dhistory (\n\
@@ -8565,11 +9366,10 @@ clock integer DEFAULT '0' NOT NULL,\n\
 value integer DEFAULT '0' NOT NULL,\n\
 acknowledged integer DEFAULT '0' NOT NULL,\n\
 ns integer DEFAULT '0' NOT NULL,\n\
-value_changed integer DEFAULT '0' NOT NULL,\n\
 PRIMARY KEY (eventid)\n\
 );\n\
-CREATE INDEX events_1 ON events (object,objectid,eventid);\n\
-CREATE INDEX events_2 ON events (clock);\n\
+CREATE INDEX events_1 ON events (source,object,objectid,clock);\n\
+CREATE INDEX events_2 ON events (source,object,clock);\n\
 CREATE TABLE trends (\n\
 itemid bigint  NOT NULL,\n\
 clock integer DEFAULT '0' NOT NULL,\n\
@@ -8639,6 +9439,7 @@ host varchar(64) DEFAULT '' NOT NULL,\n\
 listen_ip varchar(39) DEFAULT '' NOT NULL,\n\
 listen_port integer DEFAULT '0' NOT NULL,\n\
 listen_dns varchar(64) DEFAULT '' NOT NULL,\n\
+host_metadata varchar(255) DEFAULT '' NOT NULL,\n\
 PRIMARY KEY (autoreg_hostid)\n\
 );\n\
 CREATE INDEX autoreg_host_1 ON autoreg_host (proxy_hostid,host);\n\
@@ -8648,7 +9449,8 @@ clock integer DEFAULT '0' NOT NULL,\n\
 host varchar(64) DEFAULT '' NOT NULL,\n\
 listen_ip varchar(39) DEFAULT '' NOT NULL,\n\
 listen_port integer DEFAULT '0' NOT NULL,\n\
-listen_dns varchar(64) DEFAULT '' NOT NULL\n\
+listen_dns varchar(64) DEFAULT '' NOT NULL,\n\
+host_metadata varchar(255) DEFAULT '' NOT NULL\n\
 );\n\
 CREATE INDEX proxy_autoreg_host_1 ON proxy_autoreg_host (clock);\n\
 CREATE TABLE dhosts (\n\
@@ -8686,9 +9488,10 @@ r_eventid bigint  NULL,\n\
 nextcheck integer DEFAULT '0' NOT NULL,\n\
 esc_step integer DEFAULT '0' NOT NULL,\n\
 status integer DEFAULT '0' NOT NULL,\n\
+itemid bigint  NULL,\n\
 PRIMARY KEY (escalationid)\n\
 );\n\
-CREATE INDEX escalations_1 ON escalations (actionid,triggerid);\n\
+CREATE UNIQUE INDEX escalations_1 ON escalations (actionid,triggerid,itemid,escalationid);\n\
 CREATE TABLE globalvars (\n\
 globalvarid bigint  NOT NULL,\n\
 snmp_lastsize integer DEFAULT '0' NOT NULL,\n\
@@ -8702,6 +9505,7 @@ name varchar(128) DEFAULT '' NOT NULL,\n\
 PRIMARY KEY (graphdiscoveryid)\n\
 );\n\
 CREATE UNIQUE INDEX graph_discovery_1 ON graph_discovery (graphid,parent_graphid);\n\
+CREATE INDEX graph_discovery_2 ON graph_discovery (parent_graphid);\n\
 CREATE TABLE host_inventory (\n\
 hostid bigint  NOT NULL REFERENCES hosts (hostid) ON DELETE CASCADE,\n\
 inventory_mode integer DEFAULT '0' NOT NULL,\n\
@@ -8802,6 +9606,21 @@ ts_delete integer DEFAULT '0' NOT NULL,\n\
 PRIMARY KEY (itemdiscoveryid)\n\
 );\n\
 CREATE UNIQUE INDEX item_discovery_1 ON item_discovery (itemid,parent_itemid);\n\
+CREATE INDEX item_discovery_2 ON item_discovery (parent_itemid);\n\
+CREATE TABLE host_discovery (\n\
+hostid bigint  NOT NULL REFERENCES hosts (hostid) ON DELETE CASCADE,\n\
+parent_hostid bigint  NULL REFERENCES hosts (hostid),\n\
+parent_itemid bigint  NULL REFERENCES items (itemid),\n\
+host varchar(64) DEFAULT '' NOT NULL,\n\
+lastcheck integer DEFAULT '0' NOT NULL,\n\
+ts_delete integer DEFAULT '0' NOT NULL,\n\
+PRIMARY KEY (hostid)\n\
+);\n\
+CREATE TABLE interface_discovery (\n\
+interfaceid bigint  NOT NULL REFERENCES interface (interfaceid) ON DELETE CASCADE,\n\
+parent_interfaceid bigint  NOT NULL REFERENCES interface (interfaceid) ON DELETE CASCADE,\n\
+PRIMARY KEY (interfaceid)\n\
+);\n\
 CREATE TABLE profiles (\n\
 profileid bigint  NOT NULL,\n\
 userid bigint  NOT NULL REFERENCES users (userid) ON DELETE CASCADE,\n\
@@ -8832,6 +9651,7 @@ name varchar(255) DEFAULT '' NOT NULL,\n\
 PRIMARY KEY (triggerdiscoveryid)\n\
 );\n\
 CREATE UNIQUE INDEX trigger_discovery_1 ON trigger_discovery (triggerid,parent_triggerid);\n\
+CREATE INDEX trigger_discovery_2 ON trigger_discovery (parent_triggerid);\n\
 CREATE TABLE user_history (\n\
 userhistoryid bigint  NOT NULL,\n\
 userid bigint  NOT NULL REFERENCES users (userid) ON DELETE CASCADE,\n\
@@ -8848,6 +9668,19 @@ url5 varchar(255) DEFAULT '' NOT NULL,\n\
 PRIMARY KEY (userhistoryid)\n\
 );\n\
 CREATE UNIQUE INDEX user_history_1 ON user_history (userid);\n\
+CREATE TABLE application_template (\n\
+application_templateid bigint  NOT NULL,\n\
+applicationid bigint  NOT NULL REFERENCES applications (applicationid) ON DELETE CASCADE,\n\
+templateid bigint  NOT NULL REFERENCES applications (applicationid) ON DELETE CASCADE,\n\
+PRIMARY KEY (application_templateid)\n\
+);\n\
+CREATE UNIQUE INDEX application_template_1 ON application_template (applicationid,templateid);\n\
+CREATE INDEX application_template_2 ON application_template (templateid);\n\
+CREATE TABLE dbversion (\n\
+mandatory integer DEFAULT '0' NOT NULL,\n\
+optional integer DEFAULT '0' NOT NULL\n\
+);\n\
+INSERT INTO dbversion VALUES ('2020000','2020001');\n\
 ";
 const char	*const db_schema_fkeys[] = {
 	NULL

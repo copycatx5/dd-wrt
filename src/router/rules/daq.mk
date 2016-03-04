@@ -1,6 +1,8 @@
 daq-configure: libpcap libdnet-configure libnetfilter_queue-configure libdnet libnetfilter_queue
 	cd daq && autoconf
 	export ac_cv_header_linux_netfilter_h=yes ; \
+	export ac_cv_lib_pcap_pcap_lib_version=yes ; \
+	export daq_cv_libpcap_version_1x=yes ; \
 	cd daq && ./configure \
 		--build=$(ARCH)-linux \
 		--host=$(ARCH)-linux-gnu \
@@ -11,13 +13,14 @@ daq-configure: libpcap libdnet-configure libnetfilter_queue-configure libdnet li
 		--enable-static \
 		--prefix=$(TOP)/daq/install \
 		--libdir=$(TOP)/daq/install/lib \
-		--with-libpcap-includes="$(TOP)/libpcap_noring" \
-		--with-libpcap-libraries="$(TOP)/libpcap_noring" \
+		--with-libpcap-includes="$(TOP)/libpcap" \
+		--with-libpcap-libraries="$(TOP)/libpcap" \
 		--with-dnet-includes="$(TOP)/libdnet/include" \
 		--with-dnet-libraries="$(TOP)/libdnet/src/.libs" \
-		CFLAGS="$(COPTS) $(MIPS16_OPT) -fPIC -DNEED_PRINTF -Drpl_malloc=malloc -I$(TOP)/iptables/include -I$(TOP)/iptables/include/libipq -I$(TOP)/libnetfilter_queue/include -I$(TOP)/libnfnetlink/include" \
-		CPPFLAGS="$(COPTS) $(MIPS16_OPT) -fPIC -DNEED_PRINTF  -Drpl_malloc=malloc -I$(TOP)/iptables/include -I$(TOP)/iptables/include/libipq -I$(TOP)/libnetfilter_queue/include -I$(TOP)/libnfnetlink/include" \
+		CFLAGS="$(COPTS) $(MIPS16_OPT) -fPIC -DNEED_PRINTF -D_GNU_SOURCE -Drpl_malloc=malloc -I$(TOP)/iptables/include -I$(TOP)/iptables/include/libipq -I$(TOP)/libnetfilter_queue/include -I$(TOP)/libnfnetlink/include" \
+		CPPFLAGS="$(COPTS) $(MIPS16_OPT) -fPIC -DNEED_PRINTF -D_GNU_SOURCE  -Drpl_malloc=malloc -I$(TOP)/iptables/include -I$(TOP)/iptables/include/libipq -I$(TOP)/libnetfilter_queue/include -I$(TOP)/libnfnetlink/include" \
 		LDFLAGS="-L$(TOP)/iptables/libipq -L$(TOP)/libnetfilter_queue/src/.libs -L$(TOP)/libnfnetlink/src/.libs -fPIC"
+	$(MAKE) -C daq all install CFLAGS="$(COPTS) -fPIC -DNEED_PRINTF -Drpl_malloc=malloc"
 
 daq: libpcap libdnet 
 	-mkdir daq/install

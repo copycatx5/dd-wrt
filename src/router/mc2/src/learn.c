@@ -1,7 +1,7 @@
 /*
    Learn keys
 
-   Copyright (C) 1995-2014
+   Copyright (C) 1995-2015
    Free Software Foundation, Inc.
 
    Written by:
@@ -95,10 +95,7 @@ learn_button (WButton * button, int action)
                           "and wait as well."), _(key_name_conv_tab[action - B_USER].longname));
     mc_refresh ();
     if (learnkeys[action - B_USER].sequence != NULL)
-    {
-        g_free (learnkeys[action - B_USER].sequence);
-        learnkeys[action - B_USER].sequence = NULL;
-    }
+        MC_PTR_FREE (learnkeys[action - B_USER].sequence);
 
     seq = learn_key ();
     if (seq != NULL)
@@ -221,6 +218,8 @@ learn_check_key (int c)
     case 'k':
         dlg_one_up (learn_dlg);
         return TRUE;
+    default:
+        break;
     }
 
     /* Prevent from disappearing if a non-defined sequence is pressed

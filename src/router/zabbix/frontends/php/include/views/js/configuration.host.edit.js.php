@@ -6,10 +6,10 @@
 		<input type="hidden" id="interface_type_#{iface.interfaceid}" name="interfaces[#{iface.interfaceid}][type]" value="#{iface.type}" />
 	</td>
 	<td class="interface-ip">
-		<input class="input text" name="interfaces[#{iface.interfaceid}][ip]" type="text" size="24" value="#{iface.ip}" />
+		<input class="input text" name="interfaces[#{iface.interfaceid}][ip]" type="text" size="24" maxlength="64" value="#{iface.ip}" />
 	</td>
 	<td class="interface-dns">
-		<input class="input text" name="interfaces[#{iface.interfaceid}][dns]" type="text" size="30" value="#{iface.dns}" />
+		<input class="input text" name="interfaces[#{iface.interfaceid}][dns]" type="text" size="30" maxlength="64" value="#{iface.dns}" />
 	</td>
 	<td class="interface-connect-to">
 		<div class="jqueryinputset">
@@ -19,7 +19,7 @@
 		</div>
 	</td>
 	<td class="interface-port">
-		<input class="input text" name="interfaces[#{iface.interfaceid}][port]" type="text" size="15" value="#{iface.port}" />
+		<input class="input text" name="interfaces[#{iface.interfaceid}][port]" type="text" size="15" maxlength="64" value="#{iface.port}" />
 	</td>
 	<td class="interface-default">
 		<input class="mainInterface" type="radio" id="interface_main_#{iface.interfaceid}" name="mainInterfaces[#{iface.type}]" value="#{iface.interfaceid}" />
@@ -174,16 +174,16 @@
 
 			switch (hostInterfaceType) {
 				case getHostInterfaceNumericType('agent'):
-					footerRowId = '#agentIterfacesFooter';
+					footerRowId = '#agentInterfacesFooter';
 					break;
 				case getHostInterfaceNumericType('snmp'):
-					footerRowId = '#SNMPIterfacesFooter';
+					footerRowId = '#SNMPInterfacesFooter';
 					break;
 				case getHostInterfaceNumericType('jmx'):
-					footerRowId = '#JMXIterfacesFooter';
+					footerRowId = '#JMXInterfacesFooter';
 					break;
 				case getHostInterfaceNumericType('ipmi'):
-					footerRowId = '#IPMIIterfacesFooter';
+					footerRowId = '#IPMIInterfacesFooter';
 					break;
 				default:
 					throw new Error('Unknown host interface type.');
@@ -303,6 +303,13 @@
 
 			setUseipForInterface: function(hostInterfaceId, useip) {
 				allHostInterfaces[hostInterfaceId].useip = useip;
+			},
+
+			disable: function() {
+				jQuery('.interface-drag-control, .interface-control').html('');
+				jQuery('.interfaceRow').find('input').attr('readonly', true);
+				jQuery('.interfaceRow').find('input[type="radio"]').attr('disabled', true);
+				jQuery('.interface-connect-to').find('input').button('disable');
 			}
 		}
 	}());
@@ -386,8 +393,6 @@
 					break;
 			}
 		});
-		jQuery('#name').focus();
-
 
 		/**
 		 * Mass update
@@ -401,5 +406,4 @@
 		jQuery('#templates_' + templateid).remove();
 		jQuery('#template_row_' + templateid).remove();
 	}
-
 </script>

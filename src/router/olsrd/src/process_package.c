@@ -62,7 +62,7 @@ static void process_message_neighbors(struct neighbor_entry *, const struct hell
 
 static void linking_this_2_entries(struct neighbor_entry *, struct neighbor_2_entry *, olsr_reltime);
 
-static bool lookup_mpr_status(const struct hello_message *, const struct interface *);
+static bool lookup_mpr_status(const struct hello_message *, const struct interface_olsr *);
 
 /**
  *Processes an list of neighbors from an incoming HELLO message.
@@ -290,7 +290,7 @@ linking_this_2_entries(struct neighbor_entry *neighbor, struct neighbor_2_entry 
  *@return 1 if we are selected as MPR 0 if not
  */
 static bool
-lookup_mpr_status(const struct hello_message *message, const struct interface *in_if)
+lookup_mpr_status(const struct hello_message *message, const struct interface_olsr *in_if)
 {
   struct hello_neighbor *neighbors;
 
@@ -368,7 +368,7 @@ deserialize_hello(struct hello_message *hello, const void *ser)
 }
 
 bool
-olsr_input_hello(union olsr_message * ser, struct interface * inif, union olsr_ip_addr * from)
+olsr_input_hello(union olsr_message * ser, struct interface_olsr * inif, union olsr_ip_addr * from)
 {
   struct hello_message hello;
 
@@ -403,7 +403,7 @@ olsr_init_package_process(void)
 }
 
 void
-olsr_hello_tap(struct hello_message *message, struct interface *in_if, const union olsr_ip_addr *from_addr)
+olsr_hello_tap(struct hello_message *message, struct interface_olsr *in_if, const union olsr_ip_addr *from_addr)
 {
   struct neighbor_entry *neighbor;
 
@@ -441,21 +441,15 @@ olsr_hello_tap(struct hello_message *message, struct interface *in_if, const uni
 
     /* find the input interface in the list of neighbor interfaces */
     for (walker = message->neighbors; walker != NULL; walker = walker->next) {
-      if (walker->link != UNSPEC_LINK
-          && ipequal(&walker->address, &in_if->ip_addr)) {
+      if (ipequal(&walker->address, &in_if->ip_addr)) {
+        /*
+         * memorize our neighbour's idea of the link quality, so that we
+         * know the link quality in both directions
+         */
+        olsr_memorize_foreign_hello_lq(lnk, walker->link != UNSPEC_LINK ? walker : NULL);
         break;
       }
     }
-
-    /*
-     * memorize our neighbour's idea of the link quality, so that we
-     * know the link quality in both directions
-     *
-     * walker is NULL if there the current interface was not included in
-     * the message (or was included as an UNSPEC_LINK)
-     */
-    olsr_memorize_foreign_hello_lq(lnk, walker);
-
     /* update packet loss for link quality calculation */
     olsr_received_hello_handler(lnk);
   }
@@ -493,7 +487,7 @@ olsr_hello_tap(struct hello_message *message, struct interface *in_if, const uni
   if (neighbor->willingness != WILL_NEVER)
     process_message_neighbors(neighbor, message);
 
-  /* Process changes immedeatly in case of MPR updates */
+  /* Process changes immediately in case of MPR updates */
   olsr_process_changes();
 
   olsr_free_hello_packet(message);

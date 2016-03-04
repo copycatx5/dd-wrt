@@ -1,7 +1,7 @@
 /*
    Editor text keep buffer.
 
-   Copyright (C) 2013-2014
+   Copyright (C) 2013-2015
    Free Software Foundation, Inc.
 
    Written by:
@@ -69,7 +69,7 @@
  * fin.
  *
  *
- * This is called a "gab buffer".
+ * This is called a "gap buffer".
  * See also:
  * http://en.wikipedia.org/wiki/Gap_buffer
  * http://stackoverflow.com/questions/4199694/data-structure-for-text-editor
@@ -204,7 +204,7 @@ edit_buffer_get_byte (const edit_buffer_t * buf, off_t byte_index)
   *
   * @param buf pointer to editor buffer
   * @param byte_index byte index
-  * @param char_width width of returned symbol
+  * @param char_length length of returned symbol
   *
   * @return '\n' if byte_index is negative or larger than file size;
   *         0 if utf-8 symbol at specified index is invalid;
@@ -212,7 +212,7 @@ edit_buffer_get_byte (const edit_buffer_t * buf, off_t byte_index)
   */
 
 int
-edit_buffer_get_utf (const edit_buffer_t * buf, off_t byte_index, int *char_width)
+edit_buffer_get_utf (const edit_buffer_t * buf, off_t byte_index, int *char_length)
 {
     gchar *str = NULL;
     gunichar res;
@@ -221,14 +221,14 @@ edit_buffer_get_utf (const edit_buffer_t * buf, off_t byte_index, int *char_widt
 
     if (byte_index >= (buf->curs1 + buf->curs2) || byte_index < 0)
     {
-        *char_width = 0;
+        *char_length = 0;
         return '\n';
     }
 
     str = edit_buffer_get_byte_ptr (buf, byte_index);
     if (str == NULL)
     {
-        *char_width = 0;
+        *char_length = 0;
         return 0;
     }
 
@@ -248,20 +248,14 @@ edit_buffer_get_utf (const edit_buffer_t * buf, off_t byte_index, int *char_widt
     if (res == (gunichar) (-2) || res == (gunichar) (-1))
     {
         ch = *str;
-        *char_width = 0;
+        *char_length = 0;
     }
     else
     {
         ch = res;
-        /* Calculate UTF-8 char width */
+        /* Calculate UTF-8 char length */
         next_ch = g_utf8_next_char (str);
-        if (next_ch != NULL)
-            *char_width = next_ch - str;
-        else
-        {
-            ch = 0;
-            *char_width = 0;
-        }
+        *char_length = next_ch - str;
     }
 
     return (int) ch;
@@ -273,7 +267,7 @@ edit_buffer_get_utf (const edit_buffer_t * buf, off_t byte_index, int *char_widt
   *
   * @param buf pointer to editor buffer
   * @param byte_index byte index
-  * @param char_width width of returned symbol
+  * @param char_length length of returned symbol
   *
   * @return 0 if byte_index is negative or larger than file size;
   *         1-byte value before specified index if utf-8 symbol before specified index is invalid;
@@ -281,7 +275,7 @@ edit_buffer_get_utf (const edit_buffer_t * buf, off_t byte_index, int *char_widt
   */
 
 int
-edit_buffer_get_prev_utf (const edit_buffer_t * buf, off_t byte_index, int *char_width)
+edit_buffer_get_prev_utf (const edit_buffer_t * buf, off_t byte_index, int *char_length)
 {
     size_t i;
     gchar utf8_buf[3 * UTF8_CHAR_LEN + 1];
@@ -291,7 +285,7 @@ edit_buffer_get_prev_utf (const edit_buffer_t * buf, off_t byte_index, int *char
 
     if (byte_index > (buf->curs1 + buf->curs2) || byte_index <= 0)
     {
-        *char_width = 0;
+        *char_length = 0;
         return 0;
     }
 
@@ -304,18 +298,18 @@ edit_buffer_get_prev_utf (const edit_buffer_t * buf, off_t byte_index, int *char
 
     if (str == NULL || g_utf8_next_char (str) != cursor_buf_ptr)
     {
-        *char_width = 1;
+        *char_length = 1;
         return *(cursor_buf_ptr - 1);
     }
 
     res = g_utf8_get_char_validated (str, -1);
     if (res == (gunichar) (-2) || res == (gunichar) (-1))
     {
-        *char_width = 1;
+        *char_length = 1;
         return *(cursor_buf_ptr - 1);
     }
 
-    *char_width = cursor_buf_ptr - str;
+    *char_length = cursor_buf_ptr - str;
     return (int) res;
 }
 #endif /* HAVE_CHARSET */
@@ -637,12 +631,17 @@ edit_buffer_move_backward (const edit_buffer_t * buf, off_t current, long lines)
  */
 
 off_t
-edit_buffer_read_file (edit_buffer_t * buf, int fd, off_t size)
+edit_buffer_read_file (edit_buffer_t * buf, int fd, off_t size,
+                       edit_buffer_read_file_status_msg_t * sm, gboolean * aborted)
 {
     off_t ret = 0;
     off_t i, j;
     off_t data_size;
     void *b;
+    status_msg_t *s = STATUS_MSG (sm);
+    unsigned short update_cnt = 0;
+
+    *aborted = FALSE;
 
     buf->lines = 0;
     buf->curs2 = size;
@@ -683,6 +682,24 @@ edit_buffer_read_file (edit_buffer_t * buf, int fd, off_t size)
             if (*((char *) b + j) == '\n')
                 buf->lines++;
 
+        if (s != NULL && s->update != NULL)
+        {
+            update_cnt = (update_cnt + 1) & 0xf;
+            if (update_cnt == 0)
+            {
+                /* FIXME: overcare */
+                if (sm->buf == NULL)
+                    sm->buf = buf;
+
+                sm->loaded = ret;
+                if (s->update (s) == B_CANCEL)
+                {
+                    *aborted = TRUE;
+                    return (-1);
+                }
+            }
+        }
+
         if (sz != data_size)
             break;
     }
@@ -698,6 +715,20 @@ edit_buffer_read_file (edit_buffer_t * buf, int fd, off_t size)
         b = *b1;
         *b1 = *b2;
         *b2 = b;
+
+        if (s != NULL && s->update != NULL)
+        {
+            update_cnt = (update_cnt + 1) & 0xf;
+            if (update_cnt == 0)
+            {
+                sm->loaded = ret;
+                if (s->update (s) == B_CANCEL)
+                {
+                    *aborted = TRUE;
+                    return (-1);
+                }
+            }
+        }
     }
 
     return ret;
@@ -775,6 +806,33 @@ edit_buffer_write_file (edit_buffer_t * buf, int fd)
     }
 
     return ret;
+}
+
+/* --------------------------------------------------------------------------------------------- */
+/**
+ * Calculate percentage of specified character offset
+ *
+ * @param buf pointer to editor buffer
+ * @param p character offset
+ *
+ * @return percentage of specified character offset
+ */
+
+int
+edit_buffer_calc_percent (const edit_buffer_t * buf, off_t offset)
+{
+    int percent;
+
+    if (buf->size == 0)
+        percent = 0;
+    else if (offset >= buf->size)
+        percent = 100;
+    else if (offset > (INT_MAX / 100))
+        percent = offset / (buf->size / 100);
+    else
+        percent = offset * 100 / buf->size;
+
+    return percent;
 }
 
 /* --------------------------------------------------------------------------------------------- */

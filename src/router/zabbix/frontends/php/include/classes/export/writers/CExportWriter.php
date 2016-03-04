@@ -1,7 +1,7 @@
 <?php
 /*
 ** Zabbix
-** Copyright (C) 2001-2013 Zabbix SIA
+** Copyright (C) 2001-2015 Zabbix SIA
 **
 ** This program is free software; you can redistribute it and/or modify
 ** it under the terms of the GNU General Public License as published by
@@ -43,7 +43,7 @@ abstract class CExportWriter {
 	abstract public function write(array $array);
 
 	/**
-	 * Enable or dsable output formatting. Enabled by default.
+	 * Enable or disable output formatting. Enabled by default.
 	 *
 	 * @param bool $value
 	 *

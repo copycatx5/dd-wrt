@@ -25,7 +25,7 @@
 
 #include "mobilebackup2.h"
 #include "device_link_service.h"
-#include "debug.h"
+#include "common/debug.h"
 
 #define MBACKUP2_VERSION_INT1 300
 #define MBACKUP2_VERSION_INT2 0
@@ -61,19 +61,7 @@ static mobilebackup2_error_t mobilebackup2_error(device_link_service_error_t err
 	return MOBILEBACKUP2_E_UNKNOWN_ERROR;
 }
 
-/**
- * Connects to the mobilebackup2 service on the specified device.
- *
- * @param device The device to connect to.
- * @param service The service descriptor returned by lockdownd_start_service.
- * @param client Pointer that will be set to a newly allocated
- *     mobilebackup2_client_t upon successful return.
- *
- * @return MOBILEBACKUP2_E_SUCCESS on success, MOBILEBACKUP2_E_INVALID ARG
- *     if one or more parameter is invalid, or MOBILEBACKUP2_E_BAD_VERSION
- *     if the mobilebackup2 version on the device is newer.
- */
-mobilebackup2_error_t mobilebackup2_client_new(idevice_t device, lockdownd_service_descriptor_t service,
+LIBIMOBILEDEVICE_API mobilebackup2_error_t mobilebackup2_client_new(idevice_t device, lockdownd_service_descriptor_t service,
 						mobilebackup2_client_t * client)
 {
 	if (!device || !service || service->port == 0 || !client || *client)
@@ -101,16 +89,14 @@ mobilebackup2_error_t mobilebackup2_client_new(idevice_t device, lockdownd_servi
 	return ret;
 }
 
-/**
- * Disconnects a mobilebackup2 client from the device and frees up the
- * mobilebackup2 client data.
- *
- * @param client The mobilebackup2 client to disconnect and free.
- *
- * @return MOBILEBACKUP2_E_SUCCESS on success, or MOBILEBACKUP2_E_INVALID_ARG
- *     if client is NULL.
- */
-mobilebackup2_error_t mobilebackup2_client_free(mobilebackup2_client_t client)
+LIBIMOBILEDEVICE_API mobilebackup2_error_t mobilebackup2_client_start_service(idevice_t device, mobilebackup2_client_t * client, const char* label)
+{
+	mobilebackup2_error_t err = MOBILEBACKUP2_E_UNKNOWN_ERROR;
+	service_client_factory_start_service(device, MOBILEBACKUP2_SERVICE_NAME, (void**)client, label, SERVICE_CONSTRUCTOR(mobilebackup2_client_new), &err);
+	return err;
+}
+
+LIBIMOBILEDEVICE_API mobilebackup2_error_t mobilebackup2_client_free(mobilebackup2_client_t client)
 {
 	if (!client)
 		return MOBILEBACKUP2_E_INVALID_ARG;
@@ -123,19 +109,7 @@ mobilebackup2_error_t mobilebackup2_client_free(mobilebackup2_client_t client)
 	return err;
 }
 
-/**
- * Sends a backup message plist.
- *
- * @param client The connected MobileBackup client to use.
- * @param message The message to send. This will be inserted into the request
- *     plist as value for MessageName. If this parameter is NULL,
- *     the plist passed in the options parameter will be sent directly.
- * @param options Additional options as PLIST_DICT to add to the request.
- *     The MessageName key with the value passed in the message parameter
- *     will be inserted into this plist before sending it. This parameter
- *     can be NULL if message is not NULL.
- */
-mobilebackup2_error_t mobilebackup2_send_message(mobilebackup2_client_t client, const char *message, plist_t options)
+LIBIMOBILEDEVICE_API mobilebackup2_error_t mobilebackup2_send_message(mobilebackup2_client_t client, const char *message, plist_t options)
 {
 	if (!client || !client->parent || (!message && !options))
 		return MOBILEBACKUP2_E_INVALID_ARG;
@@ -153,7 +127,7 @@ mobilebackup2_error_t mobilebackup2_send_message(mobilebackup2_client_t client, 
 		} else {
 			dict = plist_new_dict();
 		}
-		plist_dict_insert_item(dict, "MessageName", plist_new_string(message));
+		plist_dict_set_item(dict, "MessageName", plist_new_string(message));
 
 		/* send it as DLMessageProcessMessage */
 		err = mobilebackup2_error(device_link_service_send_process_message(client->parent, dict));
@@ -233,46 +207,12 @@ leave:
 	return err;
 }
 
-/**
- * Receives a DL* message plist from the device.
- * This function is a wrapper around device_link_service_receive_message.
- *
- * @param client The connected MobileBackup client to use.
- * @param msg_plist Pointer to a plist that will be set to the contents of the
- *    message plist upon successful return.
- * @param dlmessage A pointer that will be set to a newly allocated char*
- *     containing the DL* string from the given plist. It is up to the caller
- *     to free the allocated memory. If this parameter is NULL
- *     it will be ignored.
- *
- * @return MOBILEBACKUP2_E_SUCCESS if a DL* message was received,
- *    MOBILEBACKUP2_E_INVALID_ARG if client or message is invalid,
- *    MOBILEBACKUP2_E_PLIST_ERROR if the received plist is invalid
- *    or is not a DL* message plist, or MOBILEBACKUP2_E_MUX_ERROR if
- *    receiving from the device failed.
- */
-mobilebackup2_error_t mobilebackup2_receive_message(mobilebackup2_client_t client, plist_t *msg_plist, char **dlmessage)
+LIBIMOBILEDEVICE_API mobilebackup2_error_t mobilebackup2_receive_message(mobilebackup2_client_t client, plist_t *msg_plist, char **dlmessage)
 {
 	return mobilebackup2_error(device_link_service_receive_message(client->parent, msg_plist, dlmessage));
 }
 
-/**
- * Send binary data to the device.
- *
- * @note This function returns MOBILEBACKUP2_E_SUCCESS even if less than the
- *     requested length has been sent. The fourth parameter is required and
- *     must be checked to ensure if the whole data has been sent.
- *
- * @param client The MobileBackup client to send to.
- * @param data Pointer to the data to send
- * @param length Number of bytes to send
- * @param bytes Number of bytes actually sent
- *
- * @return MOBILEBACKUP2_E_SUCCESS if any data was successfully sent,
- *     MOBILEBACKUP2_E_INVALID_ARG if one of the parameters is invalid,
- *     or MOBILEBACKUP2_E_MUX_ERROR if sending of the data failed.
- */
-mobilebackup2_error_t mobilebackup2_send_raw(mobilebackup2_client_t client, const char *data, uint32_t length, uint32_t *bytes)
+LIBIMOBILEDEVICE_API mobilebackup2_error_t mobilebackup2_send_raw(mobilebackup2_client_t client, const char *data, uint32_t length, uint32_t *bytes)
 {
 	if (!client || !client->parent || !data || (length == 0) || !bytes)
 		return MOBILEBACKUP2_E_INVALID_ARG;
@@ -298,25 +238,7 @@ mobilebackup2_error_t mobilebackup2_send_raw(mobilebackup2_client_t client, cons
 	}
 }
 
-/**
- * Receive binary from the device.
- *
- * @note This function returns MOBILEBACKUP2_E_SUCCESS even if no data
- *     has been received (unless a communication error occured).
- *     The fourth parameter is required and must be checked to know how
- *     many bytes were actually received.
- *
- * @param client The MobileBackup client to receive from.
- * @param data Pointer to a buffer that will be filled with the received data.
- * @param length Number of bytes to receive. The data buffer needs to be large
- *     enough to store this amount of data.
- * @paran bytes Number of bytes actually received.
- *
- * @return MOBILEBACKUP2_E_SUCCESS if any or no data was received,
- *     MOBILEBACKUP2_E_INVALID_ARG if one of the parameters is invalid,
- *     or MOBILEBACKUP2_E_MUX_ERROR if receiving the data failed.
- */
-mobilebackup2_error_t mobilebackup2_receive_raw(mobilebackup2_client_t client, char *data, uint32_t length, uint32_t *bytes)
+LIBIMOBILEDEVICE_API mobilebackup2_error_t mobilebackup2_receive_raw(mobilebackup2_client_t client, char *data, uint32_t length, uint32_t *bytes)
 {
 	if (!client || !client->parent || !data || (length == 0) || !bytes)
 		return MOBILEBACKUP2_E_INVALID_ARG;
@@ -343,18 +265,7 @@ mobilebackup2_error_t mobilebackup2_receive_raw(mobilebackup2_client_t client, c
 	}
 }
 
-/**
- * Performs the mobilebackup2 protocol version exchange.
- * 
- * @param client The MobileBackup client to use.
- * @param local_versions An array of supported versions to send to the remote.
- * @param count The number of items in local_versions.
- * @param remote_version Holds the protocol version of the remote on success.
- * 
- * @return MOBILEBACKUP2_E_SUCCESS on success, or a MOBILEBACKUP2_E_* error
- *     code otherwise.
- */
-mobilebackup2_error_t mobilebackup2_version_exchange(mobilebackup2_client_t client, double local_versions[], char count, double *remote_version)
+LIBIMOBILEDEVICE_API mobilebackup2_error_t mobilebackup2_version_exchange(mobilebackup2_client_t client, double local_versions[], char count, double *remote_version)
 {
 	int i;
 
@@ -366,7 +277,7 @@ mobilebackup2_error_t mobilebackup2_version_exchange(mobilebackup2_client_t clie
 	for (i = 0; i < count; i++) {
 		plist_array_append_item(array, plist_new_real(local_versions[i]));
 	}
-	plist_dict_insert_item(dict, "SupportedProtocolVersions", array);
+	plist_dict_set_item(dict, "SupportedProtocolVersions", array);
 
 	mobilebackup2_error_t err = mobilebackup2_send_message(client, "Hello", dict);
 	plist_free(dict);
@@ -412,31 +323,30 @@ leave:
 	return err;
 }
 
-/**
- * Send a request to the connected mobilebackup2 service.
- *
- * @param client
- * @param request The request to send to the backup service.
- *     Currently, this is one of "Backup", "Restore", "Info", or "List".
- * @param target_identifier UDID of the target device.
- * @param source_identifier UDID of backup data?
- * @param options Additional options in a plist of type PLIST_DICT.
- *
- * @return MOBILEBACKUP2_E_SUCCESS if the request was successfully sent,
- *     or a MOBILEBACKUP2_E_* error value otherwise.
- */
-mobilebackup2_error_t mobilebackup2_send_request(mobilebackup2_client_t client, const char *request, const char *target_identifier, const char *source_identifier, plist_t options)
+LIBIMOBILEDEVICE_API mobilebackup2_error_t mobilebackup2_send_request(mobilebackup2_client_t client, const char *request, const char *target_identifier, const char *source_identifier, plist_t options)
 {
 	if (!client || !client->parent || !request || !target_identifier)
 		return MOBILEBACKUP2_E_INVALID_ARG;
 
 	plist_t dict = plist_new_dict();
-	plist_dict_insert_item(dict, "TargetIdentifier", plist_new_string(target_identifier));
+	plist_dict_set_item(dict, "TargetIdentifier", plist_new_string(target_identifier));
 	if (source_identifier) {
-		plist_dict_insert_item(dict, "SourceIdentifier", plist_new_string(source_identifier));
+		plist_dict_set_item(dict, "SourceIdentifier", plist_new_string(source_identifier));
 	}
 	if (options) {
-		plist_dict_insert_item(dict, "Options", plist_copy(options));
+		plist_dict_set_item(dict, "Options", plist_copy(options));
+	}
+	if (!strcmp(request, "Unback") && options) {
+		plist_t node = plist_dict_get_item(options, "Password");
+		if (node) {
+			plist_dict_set_item(dict, "Password", plist_copy(node));
+		}
+	}
+	if (!strcmp(request, "EnableCloudBackup") && options) {
+		plist_t node = plist_dict_get_item(options, "CloudBackupState");
+		if (node) {
+			plist_dict_set_item(dict, "CloudBackupState", plist_copy(node));
+		}
 	}
 	mobilebackup2_error_t err = mobilebackup2_send_message(client, request, dict);
 	plist_free(dict);
@@ -444,19 +354,7 @@ mobilebackup2_error_t mobilebackup2_send_request(mobilebackup2_client_t client, 
 	return err;
 }
 
-/**
- * Sends a DLMessageStatusResponse to the device.
- * 
- * @param client The MobileBackup client to use.
- * @param status_code The status code to send.
- * @param status1 A status message to send. Can be NULL if not required.
- * @param status2 An additional status plist to attach to the response.
- *     Can be NULL if not required.
- *
- * @return MOBILEBACKUP2_E_SUCCESS on success, MOBILEBACKUP2_E_INVALID_ARG
- *     if client is invalid, or another MOBILEBACKUP2_E_* otherwise.
- */
-mobilebackup2_error_t mobilebackup2_send_status_response(mobilebackup2_client_t client, int status_code, const char *status1, plist_t status2)
+LIBIMOBILEDEVICE_API mobilebackup2_error_t mobilebackup2_send_status_response(mobilebackup2_client_t client, int status_code, const char *status1, plist_t status2)
 {
 	if (!client || !client->parent)
 		return MOBILEBACKUP2_E_INVALID_ARG;

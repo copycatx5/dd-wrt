@@ -40,7 +40,7 @@
 extern int usejffs;
 
 void stop_udhcpd(void);
-extern void addHost(char *host, char *ip);
+extern void addHost(char *host, char *ip, int withdomain);
 
 static int adjust_dhcp_range(void)
 {
@@ -203,7 +203,7 @@ void start_udhcpd(void)
 
 	if (nvram_invmatch("wan_wins", "")
 	    && nvram_invmatch("wan_wins", "0.0.0.0"))
-		fprintf(fp, "option wins %s\n", nvram_get("wan_wins"));
+		fprintf(fp, "option wins %s\n", nvram_safe_get("wan_wins"));
 
 	// Wolf add - keep lease within reasonable timeframe
 	if (atoi(nvram_safe_get("dhcp_lease")) < 10) {
@@ -281,12 +281,16 @@ void start_udhcpd(void)
 		perror("/tmp/udhcpd.statics");
 		return;
 	}
+	char mac[18];
+	getLANMac(mac);
+	if (strlen(mac) == 0)
+		strcpy(mac, nvram_safe_get("et0macaddr_safe"));
 
 	if (nvram_match("local_dns", "1")) {
 		if (nvram_match("port_swap", "1"))
 			fprintf(fp, "%s %s %s\n", nvram_safe_get("lan_ipaddr"), nvram_safe_get("et1macaddr"), nvram_safe_get("router_name"));
 		else
-			fprintf(fp, "%s %s %s\n", nvram_safe_get("lan_ipaddr"), nvram_safe_get("et0macaddr"), nvram_safe_get("router_name"));
+			fprintf(fp, "%s %s %s\n", nvram_safe_get("lan_ipaddr"), mac, nvram_safe_get("router_name"));
 	}
 	int leasenum = atoi(nvram_safe_get("static_leasenum"));
 
@@ -305,7 +309,7 @@ void start_udhcpd(void)
 			if (mac == NULL || host == NULL || ip == NULL)
 				continue;
 			fprintf(fp, "%s %s %s\n", ip, mac, host);
-			addHost(host, ip);
+			addHost(host, ip, 1);
 		}
 		free(cp);
 	}

@@ -1,6 +1,6 @@
 /*
 ** Zabbix
-** Copyright (C) 2001-2013 Zabbix SIA
+** Copyright (C) 2001-2015 Zabbix SIA
 **
 ** This program is free software; you can redistribute it and/or modify
 ** it under the terms of the GNU General Public License as published by
@@ -32,7 +32,7 @@
  *                            in each zabbix application                      *
  *                                                                            *
  ******************************************************************************/
-static void	app_title()
+static void	app_title(void)
 {
 	printf("%s v%s (revision %s) (%s)\n", title_message, ZABBIX_VERSION, ZABBIX_REVISION, ZABBIX_REVDATE);
 }
@@ -47,7 +47,7 @@ static void	app_title()
  * Author: Eugene Grigorjev                                                   *
  *                                                                            *
  ******************************************************************************/
-void	version()
+void	version(void)
 {
 	app_title();
 	printf("Compilation time: %s %s\n", __DATE__, __TIME__);
@@ -65,7 +65,7 @@ void	version()
  *                            in each zabbix application                      *
  *                                                                            *
  ******************************************************************************/
-void	usage()
+void	usage(void)
 {
 	printf("usage: %s %s\n", progname, usage_message);
 }
@@ -83,7 +83,7 @@ void	usage()
  *                            in each zabbix application                      *
  *                                                                            *
  ******************************************************************************/
-void	help()
+void	help(void)
 {
 	const char	**p = help_message;
 
@@ -175,24 +175,31 @@ void	__zbx_zbx_snprintf_alloc(char **str, size_t *alloc_len, size_t *offset, con
 	va_list	args;
 	size_t	avail_len, written_len;
 retry:
-	va_start(args, fmt);
+	if (NULL == *str)
+	{
+		/* zbx_vsnprintf() returns bytes actually written instead of bytes to write, */
+		/* so we have to use the standard function                                   */
+		va_start(args, fmt);
+		*alloc_len = vsnprintf(NULL, 0, fmt, args) + 2;	/* '\0' + one byte to prevent the operation retry */
+		va_end(args);
+		*offset = 0;
+		*str = zbx_malloc(*str, *alloc_len);
+	}
 
 	avail_len = *alloc_len - *offset;
+	va_start(args, fmt);
 	written_len = zbx_vsnprintf(*str + *offset, avail_len, fmt, args);
+	va_end(args);
 
 	if (written_len == avail_len - 1)
 	{
 		*alloc_len *= 2;
 		*str = zbx_realloc(*str, *alloc_len);
 
-		va_end(args);
-
 		goto retry;
 	}
 
 	*offset += written_len;
-
-	va_end(args);
 }
 
 /******************************************************************************
@@ -214,20 +221,18 @@ retry:
  ******************************************************************************/
 size_t	zbx_vsnprintf(char *str, size_t count, const char *fmt, va_list args)
 {
-	size_t	written_len;
+	int	written_len = 0;
 
-	assert(str);
+	if (0 < count)
+	{
+		if (0 > (written_len = vsnprintf(str, count, fmt, args)))
+			written_len = (int)count - 1;		/* count an output error as a full buffer */
+		else
+			written_len = MIN(written_len, (int)count - 1);		/* result could be truncated */
+	}
+	str[written_len] = '\0';	/* always write '\0', even if buffer size is 0 or vsnprintf() error */
 
-	if (-1 == (written_len = vsnprintf(str, count, fmt, args)))
-		written_len = count - 1;	/* result was truncated */
-	else
-		written_len = MIN(written_len, count - 1);
-
-	written_len = MAX(written_len, 0);
-
-	str[written_len] = '\0';
-
-	return written_len;
+	return (size_t)written_len;
 }
 
 /******************************************************************************
@@ -251,7 +256,13 @@ size_t	zbx_vsnprintf(char *str, size_t count, const char *fmt, va_list args)
  ******************************************************************************/
 void	zbx_strncpy_alloc(char **str, size_t *alloc_len, size_t *offset, const char *src, size_t n)
 {
-	if (*offset + n >= *alloc_len)
+	if (NULL == *str)
+	{
+		*alloc_len = n + 1;
+		*offset = 0;
+		*str = zbx_malloc(*str, *alloc_len);
+	}
+	else if (*offset + n >= *alloc_len)
 	{
 		while (*offset + n >= *alloc_len)
 			*alloc_len *= 2;
@@ -490,77 +501,86 @@ void	zbx_remove_chars(register char *str, const char *charlist)
  ******************************************************************************/
 void	compress_signs(char *str)
 {
-	int	i,j,len;
+	int	i, j, len, loop = 1;
 	char	cur, next, prev;
-	int	loop = 1;
 
-	/* Compress '--' '+-' '++' '-+' */
-	while(loop == 1)
+	/* compress '--' '+-' '++' '-+' */
+	while (1 == loop)
 	{
-		loop=0;
-		for(i=0;str[i]!='\0';i++)
+		loop = 0;
+
+		for (i = 0; '\0' != str[i]; i++)
 		{
-			cur=str[i];
-			next=str[i+1];
-			if(	(cur=='-' && next=='-') ||
-				(cur=='+' && next=='+'))
+			cur = str[i];
+			next = str[i + 1];
+
+			if (('-' == cur && '-' == next) || ('+' == cur && '+' == next))
 			{
-				str[i]='+';
-				for(j=i+1;str[j]!='\0';j++)	str[j]=str[j+1];
-				loop=1;
+				str[i] = '+';
+				for (j = i + 1; '\0' != str[j]; j++)
+					str[j] = str[j + 1];
+				loop = 1;
 			}
-			if(	(cur=='-' && next=='+') ||
-				(cur=='+' && next=='-'))
+
+			if (('-' == cur && '+' == next) || ('+' == cur && '-' == next))
 			{
-				str[i]='-';
-				for(j=i+1;str[j]!='\0';j++)	str[j]=str[j+1];
-				loop=1;
+				str[i] = '-';
+				for (j = i + 1; '\0' != str[j]; j++)
+					str[j] = str[j + 1];
+				loop = 1;
 			}
 		}
 	}
 
-	/* Remove '-', '+' where needed, Convert -123 to +D123 */
-	for(i=0;str[i]!='\0';i++)
+	/* remove '-', '+' where needed, convert -123 to +N123 */
+	for (i = 0; '\0' != str[i]; i++)
 	{
-		cur=str[i];
-		next=str[i+1];
-		if(cur == '+')
+		cur = str[i];
+
+		if ('+' == cur)
 		{
-			/* Plus is the first sign in the expression */
-			if(i==0)
+			/* plus is the first sign in the expression */
+			if (0 == i)
 			{
-				for(j=i;str[j]!='\0';j++)	str[j]=str[j+1];
+				for (j = i; '\0' != str[j]; j++)
+					str[j] = str[j + 1];
 			}
 			else
 			{
-				prev=str[i-1];
-				if(!isdigit(prev) && prev!='.')
+				prev = str[i - 1];
+
+				if (0 == isdigit(prev) && '.' != prev && NULL == strchr("KMGTsmhdw", prev))
 				{
-					for(j=i;str[j]!='\0';j++)	str[j]=str[j+1];
+					for (j = i; '\0' != str[j]; j++)
+						str[j] = str[j + 1];
 				}
 			}
 		}
-		else if(cur == '-')
+		else if ('-' == cur)
 		{
-			/* Minus is the first sign in the expression */
-			if(i==0)
+			/* minus is the first sign in the expression */
+			if (0 == i)
 			{
-				str[i]='N';
+				str[i] = 'N';
 			}
 			else
 			{
-				prev=str[i-1];
-				if(!isdigit(prev) && prev!='.')
+				prev = str[i - 1];
+
+				if (0 == isdigit(prev) && '.' != prev && NULL == strchr("KMGTsmhdw", prev))
 				{
-					str[i]='N';
+					str[i] = 'N';
 				}
 				else
 				{
 					len = (int)strlen(str);
-					for(j=len;j>i;j--)	str[j]=str[j-1];
-					str[i]='+';
-					str[i+1]='N';
-					str[len+1]='\0';
+
+					for (j = len; j > i; j--)
+						str[j] = str[j - 1];
+
+					str[i] = '+';
+					str[i + 1] = 'N';
+					str[len + 1] = '\0';
 					i++;
 				}
 			}
@@ -600,9 +620,9 @@ void	compress_signs(char *str)
  ******************************************************************************/
 size_t	zbx_strlcpy(char *dst, const char *src, size_t siz)
 {
-	char *d = dst;
-	const char *s = src;
-	size_t n = siz;
+	char		*d = dst;
+	const char	*s = src;
+	size_t		n = siz;
 
 	/* copy as many bytes as will fit */
 	if (0 != n)
@@ -643,29 +663,57 @@ size_t	zbx_strlcpy(char *dst, const char *src, size_t siz)
  ******************************************************************************/
 size_t	zbx_strlcat(char *dst, const char *src, size_t siz)
 {
-	char *d = dst;
-	const char *s = src;
-	size_t n = siz;
-	size_t dlen;
+	char		*d = dst;
+	const char	*s = src;
+	size_t		n = siz;
+	size_t		dlen;
 
-	/* Find the end of dst and adjust bytes left but don't go past end */
-	while (n-- != 0 && *d != '\0')
+	/* find the end of dst and adjust bytes left but don't go past end */
+	while (0 != n-- && '\0' != *d)
 		d++;
 	dlen = d - dst;
 	n = siz - dlen;
 
-	if (n == 0)
-		return(dlen + strlen(s));
-	while (*s != '\0') {
-		if (n != 1) {
+	if (0 == n)
+		return dlen + strlen(s);
+
+	while ('\0' != *s)
+	{
+		if (1 != n)
+		{
 			*d++ = *s;
 			n--;
 		}
 		s++;
 	}
+
 	*d = '\0';
 
-	return(dlen + (s - src));	/* count does not include NUL */
+	return dlen + (s - src);	/* count does not include NUL */
+}
+
+/******************************************************************************
+ *                                                                            *
+ * Function: zbx_strlcpy_utf8                                                 *
+ *                                                                            *
+ * Purpose: copies utf-8 string + terminating zero character into specified   *
+ *          buffer                                                            *
+ *                                                                            *
+ * Return value: the number of copied bytes excluding terminating zero        *
+ *               character.                                                   *
+ *                                                                            *
+ * Comments: If the source string is larger than destination buffer then the  *
+ *           string is truncated after last valid utf-8 character rather than *
+ *           byte.                                                            *
+ *                                                                            *
+ ******************************************************************************/
+size_t	zbx_strlcpy_utf8(char *dst, const char *src, size_t size)
+{
+	size = zbx_strlen_utf8_nbytes(src, size - 1);
+	memcpy(dst, src, size);
+	dst[size] = '\0';
+
+	return size;
 }
 
 /******************************************************************************
@@ -728,7 +776,7 @@ char	*zbx_dvsprintf(char *dest, const char *f, va_list args)
  ******************************************************************************/
 char	*__zbx_zbx_dsprintf(char *dest, const char *f, ...)
 {
-	char	*string = NULL;
+	char	*string;
 	va_list args;
 
 	va_start(args, f);
@@ -757,7 +805,6 @@ char	*__zbx_zbx_dsprintf(char *dest, const char *f, ...)
 char	*zbx_strdcat(char *dest, const char *src)
 {
 	size_t	len_dest, len_src;
-	char	*new_dest = NULL;
 
 	if (NULL == src)
 		return dest;
@@ -768,14 +815,11 @@ char	*zbx_strdcat(char *dest, const char *src)
 	len_dest = strlen(dest);
 	len_src = strlen(src);
 
-	new_dest = zbx_malloc(new_dest, len_dest + len_src + 1);
+	dest = zbx_realloc(dest, len_dest + len_src + 1);
 
-	zbx_strlcpy(new_dest, dest, len_dest + 1);
-	zbx_strlcpy(new_dest + len_dest, src, len_src + 1);
+	zbx_strlcpy(dest + len_dest, src, len_src + 1);
 
-	zbx_free(dest);
-
-	return new_dest;
+	return dest;
 }
 
 /******************************************************************************
@@ -842,24 +886,25 @@ int	zbx_check_hostname(const char *hostname)
  *                                                                            *
  * Function: parse_host                                                       *
  *                                                                            *
- * Purpose: return hostname                                                   *
+ * Purpose: parse hostname                                                    *
  *                                                                            *
  *  e.g., Zabbix server                                                       *
  *                                                                            *
  * Parameters: exp - pointer to the first char of hostname                    *
+ *             host - optional pointer to resulted hostname                   *
  *                                                                            *
  *  e.g., {Zabbix server:agent.ping.last(0)}                                  *
  *         ^                                                                  *
  *                                                                            *
- * Return value: return SUCCEED and pointer to just after the end of hostname *
- *               or FAIL and pointer to incorrect char                        *
+ * Return value: return SUCCEED and move exp to the next char after hostname  *
+ *               or FAIL and move exp at the failed character                 *
  *                                                                            *
  * Author: Aleksandrs Saveljevs                                               *
  *                                                                            *
  ******************************************************************************/
 int	parse_host(char **exp, char **host)
 {
-	char	c, *p, *s;
+	char	*p, *s;
 
 	p = *exp;
 
@@ -868,16 +913,20 @@ int	parse_host(char **exp, char **host)
 
 	*exp = s;
 
-	if (p != s)
+	if (p == s)
+		return FAIL;
+
+	if (NULL != host)
 	{
+		char	c;
+
 		c = *s;
 		*s = '\0';
 		*host = strdup(p);
 		*s = c;
-		return SUCCEED;
 	}
-	else
-		return FAIL;
+
+	return SUCCEED;
 }
 
 /******************************************************************************
@@ -889,12 +938,13 @@ int	parse_host(char **exp, char **host)
  *  e.g., system.run[cat /etc/passwd | awk -F: '{ print $1 }']                *
  *                                                                            *
  * Parameters: exp - pointer to the first char of key                         *
+ *             key - pointer to the resulted key                              *
  *                                                                            *
  *  e.g., {host:system.run[cat /etc/passwd | awk -F: '{ print $1 }'].last(0)} *
  *              ^                                                             *
  *                                                                            *
- * Return value: return SUCCEED and pointer to just after the end of key      *
- *               or FAIL and pointer to incorrect char                        *
+ * Return value: return SUCCEED and move exp to the next character after key  *
+ *               or FAIL and move exp to incorrect character                  *
  *                                                                            *
  * Author: Aleksandrs Saveljevs                                               *
  *                                                                            *
@@ -942,7 +992,7 @@ int	parse_key(char **exp, char **key)
 		{
 			switch (state)
 			{
-				/* Init state */
+				/* init state */
 				case 0:
 					if (',' == *s)
 						;
@@ -977,7 +1027,7 @@ int	parse_key(char **exp, char **key)
 					else if (' ' != *s)
 						state = 2;
 					break;
-				/* Quoted */
+				/* quoted */
 				case 1:
 					if ('"' == *s)
 					{
@@ -1008,7 +1058,7 @@ int	parse_key(char **exp, char **key)
 					else if ('\\' == *s && '"' == s[1])
 						s++;
 					break;
-				/* Unquoted */
+				/* unquoted */
 				case 2:
 					if (0 == array && ']' == *s && '[' == s[1])	/* Zapcat */
 					{
@@ -1055,19 +1105,24 @@ succeed:
  *         exp - pointer to the first char of function                        *
  *                last("host:key[key params]",#1)                             *
  *                ^                                                           *
+ *         func - optional pointer to resulted function                       *
+ *         params - optional pointer to resulted function parameters          *
  *                                                                            *
- * Return value: return SUCCEED and pointer to just after the right ')'       *
- *               or FAIL and pointer to incorrect char                        *
+ * Return value: return SUCCEED and move exp to the next char after right ')' *
+ *               or FAIL and move exp to incorrect character                  *
  *                                                                            *
  * Author: Alexander Vladishev                                                *
  *                                                                            *
  ******************************************************************************/
 int	parse_function(char **exp, char **func, char **params)
 {
-	char	*p, *s;
-	int	state;	/* 0 - init
-			 * 1 - function name/params
-			 */
+	char		*p, *s;
+	int		state;		/* 0 - init
+					 * 1 - function name/params
+					 */
+	unsigned char	flags = 0x00;	/* 0x01 - function OK
+					 * 0x02 - params OK
+					 */
 
 	for (p = *exp, s = *exp, state = 0; '\0' != *p; p++)	/* check for function */
 	{
@@ -1091,14 +1146,18 @@ int	parse_function(char **exp, char **func, char **params)
 					 * 3 - end of params
 					 */
 
-			*p = '\0';
-			*func = strdup(s);
-			*p++ = '(';
+			if (NULL != func)
+			{
+				*p = '\0';
+				*func = zbx_strdup(NULL, s);
+				*p++ = '(';
+			}
+			flags |= 0x01;
 
 			for (s = p, state = 0; '\0' != *p; p++)
 			{
 				switch (state) {
-				/* Init state */
+				/* init state */
 				case 0:
 					if (',' == *p)
 						;
@@ -1109,7 +1168,7 @@ int	parse_function(char **exp, char **func, char **params)
 					else if (' ' != *p)
 						state = 2;
 					break;
-				/* Quoted */
+				/* quoted */
 				case 1:
 					if ('"' == *p)
 					{
@@ -1121,7 +1180,7 @@ int	parse_function(char **exp, char **func, char **params)
 					else if ('\\' == *p && '"' == p[1])
 						p++;
 					break;
-				/* Unquoted */
+				/* unquoted */
 				case 2:
 					if (',' == *p)
 						state = 0;
@@ -1136,9 +1195,13 @@ int	parse_function(char **exp, char **func, char **params)
 
 			if (3 == state)
 			{
-				*p = '\0';
-				*params = strdup(s);
-				*p = ')';
+				if (NULL != params)
+				{
+					*p = '\0';
+					*params = zbx_strdup(NULL, s);
+					*p = ')';
+				}
+				flags |= 0x02;
 			}
 			else
 				goto error;
@@ -1149,15 +1212,17 @@ int	parse_function(char **exp, char **func, char **params)
 		break;
 	}
 
-	if (NULL == *func || NULL == *params)
+	if (0x03 != flags)
 		goto error;
 
 	*exp = p + 1;
 
 	return SUCCEED;
 error:
-	zbx_free(*func);
-	zbx_free(*params);
+	if (NULL != func)
+		zbx_free(*func);
+	if (NULL != params)
+		zbx_free(*params);
 
 	*exp = p;
 
@@ -1610,6 +1675,181 @@ char	*get_param_dyn(const char *p, int num)
 
 /******************************************************************************
  *                                                                            *
+ * Function: replace_key_param                                                *
+ *                                                                            *
+ * Purpose: replaces an item key, SNMP OID or their parameters when callback  *
+ *          function returns a new string                                     *
+ *                                                                            *
+ * Comments: auxiliary function for replace_key_params_dyn()                  *
+ *                                                                            *
+ ******************************************************************************/
+static void	replace_key_param(char **data, int key_type, size_t l, size_t *r, int level, int num, int quoted,
+		replace_key_param_f cb, void *cb_data)
+{
+	char	c = (*data)[*r], *param;
+
+	(*data)[*r] = '\0';
+	param = cb(*data + l, key_type, level, num, quoted, cb_data);
+	(*data)[*r] = c;
+
+	if (NULL != param)
+	{
+		(*r)--;
+		zbx_replace_string(data, l, r, param);
+		(*r)++;
+
+		zbx_free(param);
+	}
+}
+
+/******************************************************************************
+ *                                                                            *
+ * Function: replace_key_params_dyn                                           *
+ *                                                                            *
+ * Purpose: replaces an item key, SNMP OID or their parameters by using       *
+ *          callback function                                                 *
+ *                                                                            *
+ * Parameters:                                                                *
+ *      data      - [IN/OUT] item key or SNMP OID                             *
+ *      key_type  - [IN] ZBX_KEY_TYPE_*                                       *
+ *      cb        - [IN] callback function                                    *
+ *      cb_data   - [IN] callback function custom data                        *
+ *      error     - [OUT] error messsage                                      *
+ *      maxerrlen - [IN] error size                                           *
+ *                                                                            *
+ * Return value: SUCCEED - function executed successfully                     *
+ *               FAIL - otherwise, error will contain error message           *
+ *                                                                            *
+ ******************************************************************************/
+int	replace_key_params_dyn(char **data, int key_type, replace_key_param_f cb, void *cb_data, char *error,
+		size_t maxerrlen)
+{
+	typedef enum
+	{
+		ZBX_STATE_NEW,
+		ZBX_STATE_END,
+		ZBX_STATE_UNQUOTED,
+		ZBX_STATE_QUOTED
+	}
+	zbx_parser_state_t;
+
+	size_t			i, l = 0;
+	int			level = 0, num = 0, ret = SUCCEED;
+	zbx_parser_state_t	state = ZBX_STATE_END;
+
+	if (ZBX_KEY_TYPE_ITEM == key_type)
+	{
+		for (i = 0; SUCCEED == is_key_char((*data)[i]) && '\0' != (*data)[i]; i++)
+			;
+
+		if (0 == i)
+			goto clean;
+
+		if ('[' != (*data)[i] && '\0' != (*data)[i])
+			goto clean;
+	}
+	else
+	{
+		for (i = 0; '[' != (*data)[i] && '\0' != (*data)[i]; i++)
+			;
+	}
+
+	replace_key_param(data, key_type, 0, &i, level, num, 0, cb, cb_data);
+
+	for (; '\0' != (*data)[i]; i++)
+	{
+		if (0 == level)
+		{
+			/* first square bracket + Zapcat compatibility */
+			if (ZBX_STATE_END == state && '[' == (*data)[i])
+				state = ZBX_STATE_NEW;
+			else
+				break;
+		}
+
+		switch (state)
+		{
+			case ZBX_STATE_NEW:	/* a new parameter started */
+				switch ((*data)[i])
+				{
+					case ' ':
+						break;
+					case ',':
+						replace_key_param(data, key_type, i, &i, level, num, 0, cb, cb_data);
+						if (1 == level)
+							num++;
+						break;
+					case '[':
+						level++;
+						if (1 == level)
+							num++;
+						break;
+					case ']':
+						replace_key_param(data, key_type, i, &i, level, num, 0, cb, cb_data);
+						level--;
+						state = ZBX_STATE_END;
+						break;
+					case '"':
+						state = ZBX_STATE_QUOTED;
+						l = i;
+						break;
+					default:
+						state = ZBX_STATE_UNQUOTED;
+						l = i;
+				}
+				break;
+			case ZBX_STATE_END:	/* end of parameter */
+				switch ((*data)[i])
+				{
+					case ' ':
+						break;
+					case ',':
+						state = ZBX_STATE_NEW;
+						if (1 == level)
+							num++;
+						break;
+					case ']':
+						level--;
+						break;
+					default:
+						goto clean;
+				}
+				break;
+			case ZBX_STATE_UNQUOTED:	/* an unquoted parameter */
+				if (']' == (*data)[i] || ',' == (*data)[i])
+				{
+					replace_key_param(data, key_type, l, &i, level, num, 0, cb, cb_data);
+
+					i--;
+					state = ZBX_STATE_END;
+				}
+				break;
+			case ZBX_STATE_QUOTED:	/* a quoted parameter */
+				if ('"' == (*data)[i] && '\\' != (*data)[i - 1])
+				{
+					i++; replace_key_param(data, key_type, l, &i, level, num, 1, cb, cb_data); i--;
+
+					state = ZBX_STATE_END;
+				}
+				break;
+		}
+	}
+clean:
+	if (0 == i || '\0' != (*data)[i] || 0 != level)
+	{
+		if (NULL != error)
+		{
+			zbx_snprintf(error, maxerrlen, "Invalid %s at position " ZBX_FS_SIZE_T,
+					(ZBX_KEY_TYPE_ITEM == key_type ? "item key" : "SNMP OID"), (zbx_fs_size_t)i);
+		}
+		ret = FAIL;
+	}
+
+	return ret;
+}
+
+/******************************************************************************
+ *                                                                            *
  * Function: remove_param                                                     *
  *                                                                            *
  * Purpose: remove parameter by index (num) from parameter list (param)       *
@@ -1620,146 +1860,41 @@ char	*get_param_dyn(const char *p, int num)
  *                                                                            *
  * Return value:                                                              *
  *                                                                            *
- * Author: Alexander Vladishev                                                *
- *                                                                            *
- * Comments: delimeter for parameters is ','                                  *
+ * Comments: delimiter for parameters is ','                                  *
  *                                                                            *
  ******************************************************************************/
 void	remove_param(char *p, int num)
 {
-/* 0 - init, 1 - inside quoted param, 2 - inside unquoted param */
-	int	state, idx = 1;
+	int	state = 0;	/* 0 - unquoted parameter, 1 - quoted parameter */
+	int	idx = 1;
 	char	*buf;
 
-	for (buf = p, state = 0; '\0' != *p; p++)
+	for (buf = p; '\0' != *p; p++)
 	{
+		switch (state)
+		{
+			case 0:			/* in unquoted parameter */
+				if (',' == *p)
+				{
+					if (1 == idx && 1 == num)
+						p++;
+					idx++;
+				}
+				else if ('"' == *p)
+					state = 1;
+				break;
+			case 1:			/* in quoted param */
+				if ('"' == *p)
+					state = 0;
+				else if ('\\' == *p && '"' == p[1])
+					p++;
+				break;
+		}
 		if (idx != num)
 			*buf++ = *p;
-
-		switch (state) {
-		/* Init state */
-		case 0:
-			if (',' == *p)
-				idx++;
-			else if ('"' == *p)
-				state = 1;
-			else if (' ' != *p)
-				state = 2;
-			break;
-		/* Quoted */
-		case 1:
-			if ('"' == *p)
-				state = 0;
-			else if ('\\' == *p && '"' == p[1])
-				p++;
-			break;
-		/* Unquoted */
-		case 2:
-			if (',' == *p)
-			{
-				idx++;
-				state = 0;
-			}
-			break;
-		}
 	}
 
 	*buf = '\0';
-}
-
-/******************************************************************************
- *                                                                            *
- * Function: get_string                                                       *
- *                                                                            *
- * Purpose: get current string from the quoted or unquoted string list,       *
- *          delimited by blanks                                               *
- *                                                                            *
- * Parameters:                                                                *
- *      p       - [IN] parameter list, delimited by blanks (' ' or '\t')      *
- *      buf     - [OUT] output buffer                                         *
- *      bufsize - [IN] output buffer size                                     *
- *                                                                            *
- * Return value: pointer to the next string                                   *
- *                                                                            *
- * Author: Alexander Vladishev                                                *
- *                                                                            *
- * Comments: delimeter for parameters is ','                                  *
- *                                                                            *
- ******************************************************************************/
-const char	*get_string(const char *p, char *buf, size_t bufsize)
-{
-/* 0 - init, 1 - inside quoted param, 2 - inside unquoted param */
-	int	state;
-	size_t	buf_i = 0;
-
-	bufsize--;	/* '\0' */
-
-	for (state = 0; '\0' != *p; p++)
-	{
-		switch (state) {
-		/* Init state */
-		case 0:
-			if (' ' == *p || '\t' == *p)
-				/* Skip of leading spaces */;
-			else if ('"' == *p)
-				state = 1;
-			else
-			{
-				state = 2;
-				p--;
-			}
-			break;
-		/* Quoted */
-		case 1:
-			if ('"' == *p)
-			{
-				if (' ' != p[1] && '\t' != p[1] && '\0' != p[1])
-					return NULL;	/* incorrect syntax */
-
-				while (' ' == p[1] || '\t' == p[1])
-					p++;
-
-				buf[buf_i] = '\0';
-				return ++p;
-			}
-			else if ('\\' == *p && ('"' == p[1] || '\\' == p[1]))
-			{
-				p++;
-				if (buf_i < bufsize)
-					buf[buf_i++] = *p;
-			}
-			else if ('\\' == *p && 'n' == p[1])
-			{
-				p++;
-				if (buf_i < bufsize)
-					buf[buf_i++] = '\n';
-			}
-			else if (buf_i < bufsize)
-				buf[buf_i++] = *p;
-			break;
-		/* Unquoted */
-		case 2:
-			if (' ' == *p || '\t' == *p)
-			{
-				while (' ' == *p || '\t' == *p)
-					p++;
-
-				buf[buf_i] = '\0';
-				return p;
-			}
-			else if (buf_i < bufsize)
-				buf[buf_i++] = *p;
-			break;
-		}
-	}
-
-	/* missing terminating '"' character */
-	if (state == 1)
-		return NULL;
-
-	buf[buf_i] = '\0';
-
-	return p;
 }
 
 /******************************************************************************
@@ -1889,149 +2024,6 @@ size_t	zbx_hex2binary(char *io)
 	return (int)(o - io);
 }
 
-#ifdef HAVE_POSTGRESQL
-/******************************************************************************
- *                                                                            *
- * Function: zbx_pg_escape_bytea                                              *
- *                                                                            *
- * Purpose: converts from binary string to the null terminated escaped string *
- *                                                                            *
- * Transformations:                                                           *
- *      '\0' [0x00] -> \\ooo (ooo is an octal number)                         *
- *      '\'' [0x37] -> \'                                                     *
- *      '\\' [0x5c] -> \\\\                                                   *
- *      <= 0x1f || >= 0x7f -> \\ooo                                           *
- *                                                                            *
- * Parameters:                                                                *
- *      input - null terminated hexadecimal string                            *
- *      output - pointer to buffer                                            *
- *      olen - size of returned buffer                                        *
- *                                                                            *
- * Return value:                                                              *
- *                                                                            *
- * Author: Alexander Vladishev                                                *
- *                                                                            *
- ******************************************************************************/
-size_t	zbx_pg_escape_bytea(const u_char *input, size_t ilen, char **output, size_t *olen)
-{
-	const u_char	*i;
-	char		*o;
-	size_t		len;
-
-	assert(input);
-	assert(output);
-	assert(*output);
-	assert(olen);
-
-	len = 1; /* '\0' */
-	i = input;
-	while(i - input < ilen)
-	{
-		if(*i == '\0' || *i <= 0x1f || *i >= 0x7f)
-			len += 5;
-		else if(*i == '\'')
-			len += 2;
-		else if(*i == '\\')
-			len += 4;
-		else
-			len++;
-		i++;
-	}
-
-	if(*olen < len)
-	{
-		*olen = len;
-		*output = zbx_realloc(*output, *olen);
-	}
-	o = *output;
-	i = input;
-
-	while(i - input < ilen)
-	{
-		if(*i == '\0' || *i <= 0x1f || *i >= 0x7f)
-		{
-			*o++ = '\\';
-			*o++ = '\\';
-			*o++ = ((*i >> 6) & 0x7) + 0x30;
-			*o++ = ((*i >> 3) & 0x7) + 0x30;
-			*o++ = (*i & 0x7) + 0x30;
-		}
-		else if (*i == '\'')
-		{
-			*o++ = '\\';
-			*o++ = '\'';
-		}
-		else if (*i == '\\')
-		{
-			*o++ = '\\';
-			*o++ = '\\';
-			*o++ = '\\';
-			*o++ = '\\';
-		}
-		else
-			*o++ = *i;
-		i++;
-	}
-	*o = '\0';
-
-	return len - 1;
-}
-
-/******************************************************************************
- *                                                                            *
- * Function: zbx_pg_unescape_bytea                                            *
- *                                                                            *
- * Purpose: converts the null terminated string into binary buffer            *
- *                                                                            *
- * Transformations:                                                           *
- *      \ooo == a byte whose value = ooo (ooo is an octal number)             *
- *      \x   == x (x is any character)                                        *
- *                                                                            *
- * Parameters:                                                                *
- *      io - null terminated string                                           *
- *                                                                            *
- * Return value: length of the binary buffer                                  *
- *                                                                            *
- * Author: Alexander Vladishev                                                *
- *                                                                            *
- ******************************************************************************/
-size_t	zbx_pg_unescape_bytea(u_char *io)
-{
-	const u_char	*i = io;
-	u_char		*o = io;
-
-	assert(io);
-
-	while(*i != '\0')
-	{
-		switch(*i)
-		{
-			case '\\':
-				i++;
-				if(*i == '\\')
-				{
-					*o++ = *i++;
-				}
-				else
-				{
-					if(*i >= 0x30 && *i <= 0x39 && *(i + 1) >= 0x30 && *(i + 1) <= 0x39 && *(i + 2) >= 0x30 && *(i + 2) <= 0x39)
-					{
-						*o = (*i++ - 0x30) << 6;
-						*o += (*i++ - 0x30) << 3;
-						*o++ += *i++ - 0x30;
-					}
-				}
-				break;
-
-			default:
-				*o++ = *i++;
-		}
-	}
-
-	return o - io;
-}
-#endif
-
 /******************************************************************************
  *                                                                            *
  * Function: zbx_get_next_field                                               *
@@ -2089,9 +2081,9 @@ size_t	zbx_get_next_field(const char **line, char **output, size_t *olen, char s
  *                                                                            *
  * Purpose: check if string is contained in a list of delimited strings       *
  *                                                                            *
- * Parameters: list     - strings a,b,ccc,ddd                                 *
- *             value    - value                                               *
- *             delimiter- delimiter                                           *
+ * Parameters: list      - strings a,b,ccc,ddd                                *
+ *             value     - value                                              *
+ *             delimiter - delimiter                                          *
  *                                                                            *
  * Return value: SUCCEED - string is in the list, FAIL - otherwise            *
  *                                                                            *
@@ -2274,9 +2266,9 @@ char	*zbx_age2str(int age)
 	hours = (int)((double)(age - days * SEC_PER_DAY) / SEC_PER_HOUR);
 	minutes	= (int)((double)(age - days * SEC_PER_DAY - hours * SEC_PER_HOUR) / SEC_PER_MIN);
 
-	if (days)
+	if (0 != days)
 		offset += zbx_snprintf(buffer + offset, sizeof(buffer) - offset, "%dd ", days);
-	if (days || hours)
+	if (0 != days || 0 != hours)
 		offset += zbx_snprintf(buffer + offset, sizeof(buffer) - offset, "%dh ", hours);
 	offset += zbx_snprintf(buffer + offset, sizeof(buffer) - offset, "%dm", minutes);
 
@@ -2383,9 +2375,10 @@ int	cmp_key_id(const char *key_1, const char *key_2)
 {
 	const char	*p, *q;
 
-	for (p = key_1, q = key_2; *p == *q && *q != '\0' && *q != '[' && *q != ','; p++, q++);
+	for (p = key_1, q = key_2; *p == *q && '\0' != *q && '[' != *q; p++, q++)
+		;
 
-	return ((*p == '\0' || *p == '[' || *p == ',') && (*q == '\0' || *q == '[' || *q == ',') ? SUCCEED : FAIL);
+	return ('\0' == *p || '[' == *p) && ('\0' == *q || '[' == *q) ? SUCCEED : FAIL;
 }
 
 const char	*zbx_permission_string(int perm)
@@ -2394,10 +2387,8 @@ const char	*zbx_permission_string(int perm)
 	{
 		case PERM_DENY:
 			return "dn";
-		case PERM_READ_LIST:
-			return "rl";
-		case PERM_READ_ONLY:
-			return "ro";
+		case PERM_READ:
+			return "r";
 		case PERM_READ_WRITE:
 			return "rw";
 		default:
@@ -2405,7 +2396,7 @@ const char	*zbx_permission_string(int perm)
 	}
 }
 
-const char	*zbx_host_type_string(zbx_item_type_t item_type)
+const char	*zbx_agent_type_string(zbx_item_type_t item_type)
 {
 	switch (item_type)
 	{
@@ -2414,11 +2405,11 @@ const char	*zbx_host_type_string(zbx_item_type_t item_type)
 		case ITEM_TYPE_SNMPv1:
 		case ITEM_TYPE_SNMPv2c:
 		case ITEM_TYPE_SNMPv3:
-			return "SNMP";
+			return "SNMP agent";
 		case ITEM_TYPE_IPMI:
-			return "IPMI";
+			return "IPMI agent";
 		case ITEM_TYPE_JMX:
-			return "JMX";
+			return "JMX agent";
 		default:
 			return "generic";
 	}
@@ -2496,6 +2487,8 @@ const char	*zbx_result_string(int result)
 			return "SUCCEED";
 		case FAIL:
 			return "FAIL";
+		case CONFIG_ERROR:
+			return "CONFIG_ERROR";
 		case NOTSUPPORTED:
 			return "NOTSUPPORTED";
 		case NETWORK_ERROR:
@@ -2511,7 +2504,7 @@ const char	*zbx_result_string(int result)
 	}
 }
 
-const char	*zbx_item_logtype_string(zbx_item_logtype_t logtype)
+const char	*zbx_item_logtype_string(unsigned char logtype)
 {
 	switch (logtype)
 	{
@@ -2562,6 +2555,10 @@ const char	*zbx_dservice_type_string(zbx_dservice_type_t service)
 			return "SNMPv3 agent";
 		case SVC_ICMPPING:
 			return "ICMP ping";
+		case SVC_HTTPS:
+			return "HTTPS";
+		case SVC_TELNET:
+			return "Telnet";
 		default:
 			return "unknown";
 	}
@@ -2619,6 +2616,65 @@ const char	*zbx_escalation_status_string(unsigned char status)
 		default:
 			return "unknown";
 	}
+}
+
+const char	*zbx_trigger_value_string(unsigned char value)
+{
+	switch (value)
+	{
+		case TRIGGER_VALUE_PROBLEM:
+			return "PROBLEM";
+		case TRIGGER_VALUE_OK:
+			return "OK";
+		default:
+			return "unknown";
+	}
+}
+
+const char	*zbx_trigger_state_string(unsigned char state)
+{
+	switch (state)
+	{
+		case TRIGGER_STATE_NORMAL:
+			return "Normal";
+		case TRIGGER_STATE_UNKNOWN:
+			return "Unknown";
+		default:
+			return "unknown";
+	}
+}
+
+const char	*zbx_item_state_string(unsigned char state)
+{
+	switch (state)
+	{
+		case ITEM_STATE_NORMAL:
+			return "Normal";
+		case ITEM_STATE_NOTSUPPORTED:
+			return "Not supported";
+		default:
+			return "unknown";
+	}
+}
+
+const char	*zbx_event_value_string(unsigned char source, unsigned char object, unsigned char value)
+{
+	if (EVENT_SOURCE_TRIGGERS == source)
+		return zbx_trigger_value_string(value);
+
+	if (EVENT_SOURCE_INTERNAL == source)
+	{
+		switch (object)
+		{
+			case EVENT_OBJECT_TRIGGER:
+				return zbx_trigger_state_string(value);
+			case EVENT_OBJECT_ITEM:
+			case EVENT_OBJECT_LLDRULE:
+				return zbx_item_state_string(value);
+		}
+	}
+
+	return "unknown";
 }
 
 #ifdef _WINDOWS
@@ -2925,13 +2981,13 @@ size_t	zbx_utf8_char_len(const char *text)
 
 /******************************************************************************
  *                                                                            *
- * Function: zbx_strlen_utf8_n                                                *
+ * Function: zbx_strlen_utf8_nchars                                           *
  *                                                                            *
  * Purpose: calculates number of bytes in utf8 text limited by utf8_maxlen    *
- * characters                                                                 *
+ *          characters                                                        *
  *                                                                            *
  ******************************************************************************/
-size_t	zbx_strlen_utf8_n(const char *text, size_t utf8_maxlen)
+size_t	zbx_strlen_utf8_nchars(const char *text, size_t utf8_maxlen)
 {
 	size_t		sz = 0, csz = 0;
 	const char	*next;
@@ -2949,6 +3005,85 @@ size_t	zbx_strlen_utf8_n(const char *text, size_t utf8_maxlen)
 	}
 
 	return sz;
+}
+
+/******************************************************************************
+ *                                                                            *
+ * Function: zbx_strlen_utf8_nbytes                                           *
+ *                                                                            *
+ * Purpose: calculates number of bytes in utf8 text limited by maxlen bytes   *
+ *                                                                            *
+ ******************************************************************************/
+size_t	zbx_strlen_utf8_nbytes(const char *text, size_t maxlen)
+{
+	size_t	sz;
+
+	sz = strlen(text);
+
+	if (sz > maxlen)
+	{
+		sz = maxlen;
+
+		/* ensure that the string is not cut in the middle of UTF-8 sequence */
+		while (0x80 == (0xc0 & text[sz]) && 0 < sz)
+			sz--;
+	}
+
+	return sz;
+}
+
+/******************************************************************************
+ *                                                                            *
+ * Function: zbx_replace_utf8                                                 *
+ *                                                                            *
+ * Purpose: replace non-ASCII UTF-8 characters with '?' character             *
+ *                                                                            *
+ * Parameters: text - [IN] pointer to the first char                          *
+ *                                                                            *
+ * Author: Aleksandrs Saveljevs                                               *
+ *                                                                            *
+ ******************************************************************************/
+char	*zbx_replace_utf8(const char *text)
+{
+	int	n;
+	char	*out, *p;
+
+	out = p = zbx_malloc(NULL, strlen(text) + 1);
+
+	while ('\0' != *text)
+	{
+		if (0 == (*text & 0x80))		/* ASCII */
+			n = 1;
+		else if (0xc0 == (*text & 0xe0))	/* 11000010-11011111 is a start of 2-byte sequence */
+			n = 2;
+		else if (0xe0 == (*text & 0xf0))	/* 11100000-11101111 is a start of 3-byte sequence */
+			n = 3;
+		else if (0xf0 == (*text & 0xf8))	/* 11110000-11110100 is a start of 4-byte sequence */
+			n = 4;
+		else
+			goto bad;
+
+		if (1 == n)
+			*p++ = *text++;
+		else
+		{
+			*p++ = ZBX_UTF8_REPLACE_CHAR;
+
+			while (0 != n)
+			{
+				if ('\0' == *text)
+					goto bad;
+				n--;
+				text++;
+			}
+		}
+	}
+
+	*p = '\0';
+	return out;
+bad:
+	zbx_free(out);
+	return NULL;
 }
 
 /******************************************************************************
@@ -3048,69 +3183,11 @@ int	zbx_is_utf8(const char *text)
 
 /******************************************************************************
  *                                                                            *
- * Function: zbx_replace_utf8                                                 *
- *                                                                            *
- * Purpose: replace non-ASCII UTF-8 characters with '?' character             *
- *                                                                            *
- * Parameters: text - [IN] pointer to the first char                          *
- *                                                                            *
- * Author: Aleksandrs Saveljevs                                               *
- *                                                                            *
- ******************************************************************************/
-char	*zbx_replace_utf8(const char *text)
-{
-	int	n;
-	char	*out, *p;
-
-	out = p = zbx_malloc(NULL, strlen(text) + 1);
-
-	while ('\0' != *text)
-	{
-		if (0 == (*text & 0x80))		/* ASCII */
-			n = 1;
-		else if (0xc0 == (*text & 0xe0))	/* 11000010-11011111 is a start of 2-byte sequence */
-			n = 2;
-		else if (0xe0 == (*text & 0xf0))	/* 11100000-11101111 is a start of 3-byte sequence */
-			n = 3;
-		else if (0xf0 == (*text & 0xf8))	/* 11110000-11110100 is a start of 4-byte sequence */
-			n = 4;
-		else
-			goto bad;
-
-		if (1 == n)
-			*p++ = *text++;
-		else
-		{
-			*p++ = ZBX_UTF8_REPLACE_CHAR;
-
-			while (0 != n)
-			{
-				if ('\0' == *text)
-					goto bad;
-				n--;
-				text++;
-			}
-		}
-	}
-
-	*p = '\0';
-	return out;
-bad:
-	zbx_free(out);
-	return NULL;
-}
-
-/******************************************************************************
- *                                                                            *
  * Function: zbx_replace_invalid_utf8                                         *
  *                                                                            *
  * Purpose: replace invalid UTF-8 sequences of bytes with '?' character       *
  *                                                                            *
  * Parameters: text - [IN/OUT] pointer to the first char                      *
- *                                                                            *
- * Return value:                                                              *
- *                                                                            *
- * Author: Alexander Vladishev                                                *
  *                                                                            *
  ******************************************************************************/
 void	zbx_replace_invalid_utf8(char *text)
@@ -3229,7 +3306,7 @@ int	is_ascii_string(const char *str)
 {
 	while ('\0' != *str)
 	{
-		if (0 != ((1<<7) & *str)) /* check for range 0..127 */
+		if (0 != ((1 << 7) & *str))	/* check for range 0..127 */
 			return FAIL;
 
 		str++;
@@ -3422,3 +3499,94 @@ void	zbx_replace_string(char **data, size_t l, size_t *r, const char *value)
 
 	memcpy(&(*data)[l], value, sz_value);
 }
+
+/******************************************************************************
+ *                                                                            *
+ * Function: zbx_trim_str_list                                                *
+ *                                                                            *
+ * Purpose: remove whitespace surrounding a string list item delimiters       *
+ *                                                                            *
+ * Parameters: list      - the list (a string containing items separated by   *
+ *                         delimiter)                                         *
+ *             delimiter - the list delimiter                                 *
+ *                                                                            *
+ * Author: Andris Zeila                                                       *
+ *                                                                            *
+ ******************************************************************************/
+void	zbx_trim_str_list(char *list, char delimiter)
+{
+	char	*whitespace = " \t";	/* NB! strchr(3): "terminating null byte is considered part of the string" */
+	char	*out, *in;
+
+	if (NULL == list || '\0' == *list)
+		return;
+
+	out = in = list;
+
+	while ('\0' != *in)
+	{
+		/* trim leading spaces from list item */
+		while ('\0' != *in && NULL != strchr(whitespace, *in))
+			in++;
+
+		/* copy list item */
+		while (delimiter != *in && '\0' != *in)
+			*out++ = *in++;
+
+		/* trim trailing spaces from list item */
+		if (out > list)
+		{
+			while (NULL != strchr(whitespace, *(--out)))
+				;
+			out++;
+		}
+		if (delimiter == *in)
+			*out++ = *in++;
+	}
+	*out = '\0';
+}
+
+/******************************************************************************
+ *                                                                            *
+ * Function: zbx_dyn_escape_shell_single_quote                                *
+ *                                                                            *
+ * Purpose: escape single quote in shell command arguments                    *
+ *                                                                            *
+ * Parameters: arg - [IN] the argument to escape                              *
+ *                                                                            *
+ * Return value: The escaped argument.                                        *
+ *                                                                            *
+ ******************************************************************************/
+char	*zbx_dyn_escape_shell_single_quote(const char *arg)
+{
+	int		len = 1; /* include terminating zero character */
+	const char	*pin;
+	char		*arg_esc, *pout;
+
+	for (pin = arg; '\0' != *pin; pin++)
+	{
+		if ('\'' == *pin)
+			len += 3;
+		len++;
+	}
+
+	pout = arg_esc = zbx_malloc(NULL, len);
+
+	for (pin = arg; '\0' != *pin; pin++)
+	{
+		if ('\'' == *pin)
+		{
+			*pout++ = '\'';
+			*pout++ = '\\';
+			*pout++ = '\'';
+			*pout++ = '\'';
+		}
+		else
+			*pout++ = *pin;
+	}
+
+	*pout = '\0';
+
+	return arg_esc;
+}
+

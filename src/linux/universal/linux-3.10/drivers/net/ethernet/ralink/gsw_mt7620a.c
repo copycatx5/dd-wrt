@@ -45,11 +45,16 @@
 
 #include "ralink_soc_eth.h"
 #include "gsw_mt7620a.h"
+#include "mt7530.h"
 #include "mdio.h"
 
 #define GSW_REG_PHY_TIMEOUT	(5 * HZ)
 
+#ifdef CONFIG_SOC_MT7621_OPENWRT
+#define MT7620A_GSW_REG_PIAC	0x0004
+#else
 #define MT7620A_GSW_REG_PIAC	0x7004
+#endif
 
 #define GSW_NUM_VLANS		16
 #define GSW_NUM_VIDS		4096
@@ -71,37 +76,22 @@
 
 #define GSW_REG_IMR		0x7008
 #define GSW_REG_ISR		0x700c
+#define GSW_REG_GPC1		0x7014
 
+#define SYSC_REG_CHIP_REV_ID	0x0c
 #define SYSC_REG_CFG1		0x14
+#define RST_CTRL_MCM		BIT(2)
+#define SYSC_PAD_RGMII2_MDIO	0x58
+#define SYSC_GPIO_MODE		0x60
 
 #define PORT_IRQ_ST_CHG		0x7f
 
-#define GSW_VLAN_VTCR		0x90
-#define GSW_VLAN_VTCR_VID_M	0xfff
-#define GSW_VLAN_ID(_x)		(0x100 + (4 * (_x)))
-#define GSW_VLAN_ID_VID_S	12
-#define GSW_VLAN_ID_VID_M	0xfff
 
-#define GSW_VAWD1		0x94
-#define GSW_VAWD1_VTAG_EN	BIT(28)
-#define GSW_VAWD1_PORTM_S	16
-#define GSW_VAWD1_PORTM_M	0xff
-
-#define GSW_VAWD2		0x98
-#define GSW_VAWD2_PORTT_S	16
-#define GSW_VAWD2_PORTT_M	0xff
-
-#define GSW_VTIM(_x)		(0x100 + (4 * (_x)))
-#define GSW_VTIM_M		0xfff
-#define GSW_VTIM_S		12
-
-#define GSW_REG_PCR(x)		(0x2004 + (x * 0x100))
-#define GSW_REG_PCR_EG_TAG_S	28
-#define GSW_REG_PCR_EG_TAG_M	0x3
-
-#define SYSCFG1			0x14
-
+#ifdef CONFIG_SOC_MT7621_OPENWRT
+#define ESW_PHY_POLLING		0x0000
+#else
 #define ESW_PHY_POLLING		0x7000
+#endif
 
 #define	PMCR_IPG		BIT(18)
 #define	PMCR_MAC_MODE		BIT(16)
@@ -132,28 +122,12 @@ enum {
 	PORT4_EXT,
 };
 
-struct gsw_port {
-	bool	disable;
-	bool	untag;
-	u16	pvid;
-};
-
-struct gsw_vlan {
-	u8	ports;
-	u16	vid;
-};
-
 struct mt7620_gsw {
 	struct device		*dev;
 	void __iomem		*base;
 	int			irq;
-
-	struct switch_dev	swdev;
-	bool			global_vlan_enable;
-	struct gsw_vlan		vlans[GSW_NUM_VLANS];
-	struct gsw_port		ports[GSW_NUM_PORTS];
-	long unsigned int	autopoll;
 	int			port4;
+	long unsigned int	autopoll;
 };
 
 static inline void gsw_w32(struct mt7620_gsw *gsw, u32 val, unsigned reg)
@@ -201,18 +175,8 @@ static u32 _mt7620_mii_write(struct mt7620_gsw *gsw, u32 phy_addr, u32 phy_regis
 	return 0;
 }
 
-int mt7620_mdio_write(struct mii_bus *bus, int phy_addr, int phy_reg, u16 val)
+static u32 _mt7620_mii_read(struct mt7620_gsw *gsw, int phy_addr, int phy_reg)
 {
-	struct fe_priv *priv = bus->priv;
-	struct mt7620_gsw *gsw = (struct mt7620_gsw *) priv->soc->swpriv;
-
-	return _mt7620_mii_write(gsw, phy_addr, phy_reg, val);
-}
-
-int mt7620_mdio_read(struct mii_bus *bus, int phy_addr, int phy_reg)
-{
-	struct fe_priv *priv = bus->priv;
-	struct mt7620_gsw *gsw = (struct mt7620_gsw *) priv->soc->swpriv;
 	u32 d;
 
 	if (mt7620_mii_busy_wait(gsw))
@@ -229,6 +193,42 @@ int mt7620_mdio_read(struct mii_bus *bus, int phy_addr, int phy_reg)
 	d = gsw_r32(gsw, MT7620A_GSW_REG_PIAC) & 0xffff;
 
 	return d;
+}
+
+int mt7620_mdio_write(struct mii_bus *bus, int phy_addr, int phy_reg, u16 val)
+{
+	struct fe_priv *priv = bus->priv;
+	struct mt7620_gsw *gsw = (struct mt7620_gsw *) priv->soc->swpriv;
+
+	return _mt7620_mii_write(gsw, phy_addr, phy_reg, val);
+}
+
+int mt7620_mdio_read(struct mii_bus *bus, int phy_addr, int phy_reg)
+{
+	struct fe_priv *priv = bus->priv;
+	struct mt7620_gsw *gsw = (struct mt7620_gsw *) priv->soc->swpriv;
+
+	return _mt7620_mii_read(gsw, phy_addr, phy_reg);
+}
+
+static void
+mt7530_mdio_w32(struct mt7620_gsw *gsw, u32 reg, u32 val)
+{
+	_mt7620_mii_write(gsw, 0x1f, 0x1f, (reg >> 6) & 0x3ff);
+	_mt7620_mii_write(gsw, 0x1f, (reg >> 2) & 0xf,  val & 0xffff);
+	_mt7620_mii_write(gsw, 0x1f, 0x10, val >> 16);
+}
+
+static u32
+mt7530_mdio_r32(struct mt7620_gsw *gsw, u32 reg)
+{
+	u16 high, low;
+
+	_mt7620_mii_write(gsw, 0x1f, 0x1f, (reg >> 6) & 0x3ff);
+	low = _mt7620_mii_read(gsw, 0x1f, (reg >> 2) & 0xf);
+	high = _mt7620_mii_read(gsw, 0x1f, 0x10);
+
+	return (high << 16) | (low & 0xffff);
 }
 
 static unsigned char *fe_speed_str(int speed)
@@ -281,7 +281,7 @@ void mt7620_mdio_link_adjust(struct fe_priv *priv, int port)
 	mt7620a_handle_carrier(priv);
 }
 
-static irqreturn_t gsw_interrupt(int irq, void *_priv)
+static irqreturn_t gsw_interrupt_mt7620(int irq, void *_priv)
 {
 	struct fe_priv *priv = (struct fe_priv *) _priv;
 	struct mt7620_gsw *gsw = (struct mt7620_gsw *) priv->soc->swpriv;
@@ -312,6 +312,33 @@ static irqreturn_t gsw_interrupt(int irq, void *_priv)
 	return IRQ_HANDLED;
 }
 
+static irqreturn_t gsw_interrupt_mt7621(int irq, void *_priv)
+{
+	struct fe_priv *priv = (struct fe_priv *) _priv;
+	struct mt7620_gsw *gsw = (struct mt7620_gsw *) priv->soc->swpriv;
+	u32 reg, i;
+
+	reg = mt7530_mdio_r32(gsw, 0x700c);
+
+	for (i = 0; i < 5; i++)
+		if (reg & BIT(i)) {
+			unsigned int link = mt7530_mdio_r32(gsw, 0x3008 + (i * 0x100)) & 0x1;
+
+			if (link != priv->link[i]) {
+				priv->link[i] = link;
+				if (link)
+					netdev_info(priv->netdev, "port %d link up\n", i);
+				else
+					netdev_info(priv->netdev, "port %d link down\n", i);
+			}
+		}
+
+	mt7620a_handle_carrier(priv);
+	mt7530_mdio_w32(gsw, 0x700c, 0x1f);
+
+	return IRQ_HANDLED;
+}
+
 static int mt7620_is_bga(void)
 {
 	u32 bga = rt_sysc_r32(0x0c);
@@ -329,6 +356,9 @@ static void gsw_auto_poll(struct mt7620_gsw *gsw)
 			lsb = phy;
 		msb = phy;
 	}
+
+	if (lsb == msb)
+		lsb--;
 
 	gsw_w32(gsw, PHY_AN_EN | PHY_PRE_EN | PMY_MDC_CONF(5) | (msb << 8) | lsb, ESW_PHY_POLLING);
 }
@@ -374,7 +404,7 @@ void mt7620_port_init(struct fe_priv *priv, struct device_node *np)
 		mask = 2;
 		break;
 	default:
-		dev_err(priv->device, "port %d - invalid phy mode\n", priv->phy->speed[id]);
+		dev_err(priv->device, "port %d - invalid phy mode\n", id);
 		return;
 	}
 
@@ -382,18 +412,19 @@ void mt7620_port_init(struct fe_priv *priv, struct device_node *np)
 	if (!priv->phy->phy_node[id] && !priv->phy->phy_fixed[id])
 		return;
 
-	val = rt_sysc_r32(SYSCFG1);
+	val = rt_sysc_r32(SYSC_REG_CFG1);
 	val &= ~(3 << shift);
 	val |= mask << shift;
-	rt_sysc_w32(val, SYSCFG1);
+	rt_sysc_w32(val, SYSC_REG_CFG1);
 
 	if (priv->phy->phy_fixed[id]) {
 		const __be32 *link = priv->phy->phy_fixed[id];
-		int tx_fc = be32_to_cpup(link++);
-		int rx_fc = be32_to_cpup(link++);
+		int tx_fc, rx_fc;
 		u32 val = 0;
 
 		priv->phy->speed[id] = be32_to_cpup(link++);
+		tx_fc = be32_to_cpup(link++);
+		rx_fc = be32_to_cpup(link++);
 		priv->phy->duplex[id] = be32_to_cpup(link++);
 		priv->link[id] = 1;
 
@@ -438,50 +469,71 @@ void mt7620_port_init(struct fe_priv *priv, struct device_node *np)
 	}
 }
 
-static void gsw_hw_init(struct mt7620_gsw *gsw)
+static void gsw_hw_init_mt7620(struct mt7620_gsw *gsw, struct device_node *np)
 {
 	u32 is_BGA = mt7620_is_bga();
 
 	rt_sysc_w32(rt_sysc_r32(SYSC_REG_CFG1) | BIT(8), SYSC_REG_CFG1);
 	gsw_w32(gsw, gsw_r32(gsw, GSW_REG_CKGCR) & ~(0x3 << 4), GSW_REG_CKGCR);
 
-	/*correct  PHY  setting L3.0 BGA*/
-	_mt7620_mii_write(gsw, 1, 31, 0x4000); //global, page 4
+	if (of_property_read_bool(np, "mediatek,mt7530")) {
+		u32 val;
 
-	_mt7620_mii_write(gsw, 1, 17, 0x7444);
-	if (is_BGA)
-		_mt7620_mii_write(gsw, 1, 19, 0x0114);
-	else
-		_mt7620_mii_write(gsw, 1, 19, 0x0117);
+		/* turn off ephy and set phy base addr to 12 */
+		gsw_w32(gsw, gsw_r32(gsw, GSW_REG_GPC1) | (0x1f << 24) | (0xc << 16), GSW_REG_GPC1);
 
-	_mt7620_mii_write(gsw, 1, 22, 0x10cf);
-	_mt7620_mii_write(gsw, 1, 25, 0x6212);
-	_mt7620_mii_write(gsw, 1, 26, 0x0777);
-	_mt7620_mii_write(gsw, 1, 29, 0x4000);
-	_mt7620_mii_write(gsw, 1, 28, 0xc077);
-	_mt7620_mii_write(gsw, 1, 24, 0x0000);
+		/* set MT7530 central align */
+		val = mt7530_mdio_r32(gsw, 0x7830);
+		val &= ~1;
+		val |= 1<<1;
+		mt7530_mdio_w32(gsw, 0x7830, val);
 
-	_mt7620_mii_write(gsw, 1, 31, 0x3000); //global, page 3
-	_mt7620_mii_write(gsw, 1, 17, 0x4838);
+		val = mt7530_mdio_r32(gsw, 0x7a40);
+		val &= ~(1<<30);
+		mt7530_mdio_w32(gsw, 0x7a40, val);
 
-	_mt7620_mii_write(gsw, 1, 31, 0x2000); //global, page 2
-	if (is_BGA) {
-		_mt7620_mii_write(gsw, 1, 21, 0x0515);
-		_mt7620_mii_write(gsw, 1, 22, 0x0053);
-		_mt7620_mii_write(gsw, 1, 23, 0x00bf);
-		_mt7620_mii_write(gsw, 1, 24, 0x0aaf);
-		_mt7620_mii_write(gsw, 1, 25, 0x0fad);
-		_mt7620_mii_write(gsw, 1, 26, 0x0fc1);
+		mt7530_mdio_w32(gsw, 0x7a78, 0x855);
 	} else {
-		_mt7620_mii_write(gsw, 1, 21, 0x0517);
-		_mt7620_mii_write(gsw, 1, 22, 0x0fd2);
-		_mt7620_mii_write(gsw, 1, 23, 0x00bf);
-		_mt7620_mii_write(gsw, 1, 24, 0x0aab);
-		_mt7620_mii_write(gsw, 1, 25, 0x00ae);
-		_mt7620_mii_write(gsw, 1, 26, 0x0fff);
+		/* EPHY1 fixup - only run if the ephy is enabled */
+
+		/*correct  PHY  setting L3.0 BGA*/
+		_mt7620_mii_write(gsw, 1, 31, 0x4000); //global, page 4
+
+		_mt7620_mii_write(gsw, 1, 17, 0x7444);
+		if (is_BGA)
+			_mt7620_mii_write(gsw, 1, 19, 0x0114);
+		else
+			_mt7620_mii_write(gsw, 1, 19, 0x0117);
+
+		_mt7620_mii_write(gsw, 1, 22, 0x10cf);
+		_mt7620_mii_write(gsw, 1, 25, 0x6212);
+		_mt7620_mii_write(gsw, 1, 26, 0x0777);
+		_mt7620_mii_write(gsw, 1, 29, 0x4000);
+		_mt7620_mii_write(gsw, 1, 28, 0xc077);
+		_mt7620_mii_write(gsw, 1, 24, 0x0000);
+
+		_mt7620_mii_write(gsw, 1, 31, 0x3000); //global, page 3
+		_mt7620_mii_write(gsw, 1, 17, 0x4838);
+
+		_mt7620_mii_write(gsw, 1, 31, 0x2000); //global, page 2
+		if (is_BGA) {
+			_mt7620_mii_write(gsw, 1, 21, 0x0515);
+			_mt7620_mii_write(gsw, 1, 22, 0x0053);
+			_mt7620_mii_write(gsw, 1, 23, 0x00bf);
+			_mt7620_mii_write(gsw, 1, 24, 0x0aaf);
+			_mt7620_mii_write(gsw, 1, 25, 0x0fad);
+			_mt7620_mii_write(gsw, 1, 26, 0x0fc1);
+		} else {
+			_mt7620_mii_write(gsw, 1, 21, 0x0517);
+			_mt7620_mii_write(gsw, 1, 22, 0x0fd2);
+			_mt7620_mii_write(gsw, 1, 23, 0x00bf);
+			_mt7620_mii_write(gsw, 1, 24, 0x0aab);
+			_mt7620_mii_write(gsw, 1, 25, 0x00ae);
+			_mt7620_mii_write(gsw, 1, 26, 0x0fff);
+		}
+		_mt7620_mii_write(gsw, 1, 31, 0x1000); //global, page 1
+		_mt7620_mii_write(gsw, 1, 17, 0xe7f8);
 	}
-	_mt7620_mii_write(gsw, 1, 31, 0x1000); //global, page 1
-	_mt7620_mii_write(gsw, 1, 17, 0xe7f8);
 
 	_mt7620_mii_write(gsw, 1, 31, 0x8000); //local, page 0
 	_mt7620_mii_write(gsw, 0, 30, 0xa000);
@@ -493,6 +545,7 @@ static void gsw_hw_init(struct mt7620_gsw *gsw)
 	_mt7620_mii_write(gsw, 1, 4, 0x05e1);
 	_mt7620_mii_write(gsw, 2, 4, 0x05e1);
 	_mt7620_mii_write(gsw, 3, 4, 0x05e1);
+
 	_mt7620_mii_write(gsw, 1, 31, 0xa000); //local, page 2
 	_mt7620_mii_write(gsw, 0, 16, 0x1111);
 	_mt7620_mii_write(gsw, 1, 16, 0x1010);
@@ -504,13 +557,11 @@ static void gsw_hw_init(struct mt7620_gsw *gsw)
 	/* Set Port6 CPU Port */
 	gsw_w32(gsw, 0x7f7f7fe0, 0x0010);
 
-//	GSW_VAWD2
-
 	/* setup port 4 */
 	if (gsw->port4 == PORT4_EPHY) {
-		u32 val = rt_sysc_r32(SYSCFG1);
+		u32 val = rt_sysc_r32(SYSC_REG_CFG1);
 		val |= 3 << 14;
-		rt_sysc_w32(val, SYSCFG1);
+		rt_sysc_w32(val, SYSC_REG_CFG1);
 		_mt7620_mii_write(gsw, 4, 30, 0xa000);
 		_mt7620_mii_write(gsw, 4, 4, 0x05e1);
 		_mt7620_mii_write(gsw, 4, 16, 0x1313);
@@ -518,434 +569,141 @@ static void gsw_hw_init(struct mt7620_gsw *gsw)
 	}
 }
 
-static int gsw_reset_switch(struct switch_dev *dev)
+static void gsw_hw_init_mt7621(struct mt7620_gsw *gsw, struct device_node *np)
 {
-	struct mt7620_gsw *gsw = container_of(dev, struct mt7620_gsw, swdev);
+	u32	i;
+	u32	val;
 
-	gsw->global_vlan_enable = 0;
-	memset(gsw->ports, 0, sizeof(gsw->ports));
-	memset(gsw->vlans, 0, sizeof(gsw->vlans));
-	gsw_hw_init(gsw);
+	/* Hardware reset Switch */
+	fe_reset(RST_CTRL_MCM);
+        udelay(10000);
 
-	return 0;
-}
+	/* reduce RGMII2 PAD driving strength */
+	rt_sysc_m32(3 << 4, 0, SYSC_PAD_RGMII2_MDIO);
 
-static int gsw_get_vlan_enable(struct switch_dev *dev,
-			   const struct switch_attr *attr,
-			   struct switch_val *val)
-{
-	struct mt7620_gsw *gsw = container_of(dev, struct mt7620_gsw, swdev);
+	/* gpio mux - RGMII1=Normal mode */
+	rt_sysc_m32(BIT(14), 0, SYSC_GPIO_MODE);
 
-	val->value.i = gsw->global_vlan_enable;
+	//GMAC1= RGMII mode
+	rt_sysc_m32(3 << 12, 0, SYSC_REG_CFG1);
 
-	return 0;
-}
+	/* enable MDIO to control MT7530 */
+	rt_sysc_m32(3 << 12, 0, SYSC_GPIO_MODE);
 
-static int gsw_set_vlan_enable(struct switch_dev *dev,
-			   const struct switch_attr *attr,
-			   struct switch_val *val)
-{
-	struct mt7620_gsw *gsw = container_of(dev, struct mt7620_gsw, swdev);
-
-	gsw->global_vlan_enable = val->value.i != 0;
-
-	return 0;
-}
-
-static unsigned gsw_get_pvid(struct mt7620_gsw *gsw, unsigned port)
-{
-	unsigned s, val;
-
-	s = GSW_VTIM_S * (port % 2);
-	val = gsw_r32(gsw, GSW_VTIM(port / 2));
-
-	return (val >> s) & GSW_VTIM_M;
-}
-
-static void gsw_set_pvid(struct mt7620_gsw *gsw, unsigned port, unsigned pvid)
-{
-	unsigned s, val;
-
-	s = GSW_VTIM_S * (port % 2);
-	val = gsw_r32(gsw, GSW_VTIM(port / 2));
-	val &= ~(GSW_VTIM_M << s);
-	val |= (pvid && GSW_VTIM_M) << s;
-	gsw_w32(gsw, val, GSW_VTIM(port / 2));
-}
-
-static int gsw_get_port_bool(struct switch_dev *dev,
-			 const struct switch_attr *attr,
-			 struct switch_val *val)
-{
-	struct mt7620_gsw *gsw = container_of(dev, struct mt7620_gsw, swdev);
-	int idx = val->port_vlan;
-
-	if (idx < 0 || idx >= GSW_NUM_PORTS)
-		return -EINVAL;
-
-	switch (attr->id) {
-	case GSW_ATTR_PORT_UNTAG:
-		return gsw->ports[idx].untag;
+	/* turn off all PHYs */
+	for (i = 0; i <= 4; i++) {
+		val = _mt7620_mii_read(gsw, i, 0x0);
+		val |= (0x1 << 11);
+		_mt7620_mii_write(gsw, i, 0x0, val);
 	}
 
-	return -EINVAL;
-}
+	/* reset the switch */
+	mt7530_mdio_w32(gsw, 0x7000, 0x3);
+	udelay(10);
 
-static int gsw_get_port_pvid(struct switch_dev *dev, int port, int *val)
-{
-	struct mt7620_gsw *gsw = container_of(dev, struct mt7620_gsw, swdev);
-
-	if (port >= GSW_NUM_PORTS)
-		return -EINVAL;
-
-	*val = gsw_get_pvid(gsw, port);
-
-	return 0;
-}
-
-static int gsw_set_port_pvid(struct switch_dev *dev, int port, int val)
-{
-	struct mt7620_gsw *gsw = container_of(dev, struct mt7620_gsw, swdev);
-
-	if (port >= GSW_NUM_PORTS)
-		return -EINVAL;
-
-	gsw->ports[port].pvid = val;
-
-	return 0;
-}
-
-static void gsw_set_vtcr(struct switch_dev *dev, u32 vid)
-{
-	struct mt7620_gsw *gsw = container_of(dev, struct mt7620_gsw, swdev);
-	int retry = 1000;
-
-	gsw_w32(gsw, 0x80000000 | (BIT(vid) & GSW_VLAN_VTCR_VID_M), GSW_VLAN_VTCR);
-	while (retry-- && (gsw_r32(gsw, GSW_VLAN_VTCR) & 0x80000000))
-		;
-}
-
-static void gsw_apply_vtcr(struct switch_dev *dev, u32 vid)
-{
-	struct mt7620_gsw *gsw = container_of(dev, struct mt7620_gsw, swdev);
-	int retry = 1000;
-
-	gsw_w32(gsw, 0x80001000 | (BIT(vid) & GSW_VLAN_VTCR_VID_M), GSW_VLAN_VTCR);
-	while (retry-- && (gsw_r32(gsw, GSW_VLAN_VTCR) & 0x80000000))
-		;
-}
-
-static unsigned gsw_get_vlan_id(struct mt7620_gsw *gsw, unsigned vlan)
-{
-	unsigned s;
-	unsigned val;
-
-	s = GSW_VLAN_ID_VID_S * (vlan % 2);
-	val = gsw_r32(gsw, GSW_VLAN_ID(vlan / 2));
-	val = (val >> s) & GSW_VLAN_ID_VID_M;
-
-	return val;
-}
-
-static void gsw_set_vlan_id(struct mt7620_gsw *gsw, unsigned vlan, unsigned vid)
-{
-	unsigned s;
-	unsigned val;
-
-	s = GSW_VLAN_ID_VID_S * (vlan % 2);
-	val = gsw_r32(gsw, GSW_VLAN_ID(vlan / 2));
-	val &= ~(GSW_VLAN_ID_VID_M << s);
-	val |= (vid << s);
-	gsw_w32(gsw, val, GSW_VLAN_ID(vlan / 2));
-}
-
-static void gsw_vlan_tagging_enable(struct mt7620_gsw *gsw, unsigned vlan, unsigned enable)
-{
-	unsigned val;
-
-	val = gsw_r32(gsw, GSW_VAWD1);
-	if (enable)
-		val |= GSW_VAWD1_VTAG_EN;
-	else
-		val &= ~GSW_VAWD1_VTAG_EN;
-	gsw_w32(gsw, val, GSW_VAWD1);
-}
-
-static unsigned gsw_get_port_member(struct mt7620_gsw *gsw, unsigned vlan)
-{
-	unsigned val;
-
-	gsw_set_vtcr(&gsw->swdev, vlan);
-
-	val = gsw_r32(gsw, GSW_VAWD1);
-	val = (val >> GSW_VAWD1_PORTM_S) & GSW_VAWD1_PORTM_M;
-
-	return val;
-}
-
-static void gsw_set_port_member(struct mt7620_gsw *gsw, unsigned vlan, unsigned member)
-{
-	unsigned val;
-
-	val = gsw_r32(gsw, GSW_VAWD1);
-	val = ~(GSW_VAWD1_PORTM_M << GSW_VAWD1_PORTM_S);
-	val |= (member & GSW_VAWD1_PORTM_M) << GSW_VAWD1_PORTM_S;
-        gsw_w32(gsw, val, GSW_VAWD1);
-}
-
-static unsigned gsw_get_port_tag(struct mt7620_gsw *gsw, unsigned port)
-{
-	unsigned val;
-
-	val = gsw_r32(gsw, GSW_REG_PCR(port));
-	val >>= GSW_REG_PCR_EG_TAG_S;
-	val &= GSW_REG_PCR_EG_TAG_M;
-
-	return !!val;
-}
-
-static void gsw_set_port_untag(struct mt7620_gsw *gsw, unsigned port, unsigned untag)
-{
-	unsigned val;
-
-	val = gsw_r32(gsw, GSW_REG_PCR(port));
-	if (!untag)
-		untag = 0x2;
-	else
-		untag = 0;
-	val &= ~(GSW_REG_PCR_EG_TAG_M << GSW_REG_PCR_EG_TAG_S);
-	val |= (untag & GSW_REG_PCR_EG_TAG_M) << GSW_REG_PCR_EG_TAG_S;
-	gsw_w32(gsw, val, GSW_REG_PCR(port));
-}
-
-static int gsw_get_vlan_ports(struct switch_dev *dev, struct switch_val *val)
-{
-	struct mt7620_gsw *gsw = container_of(dev, struct mt7620_gsw, swdev);
-	int vlan_idx = -1;
-	u32 member;
-	int i;
-
-	val->len = 0;
-
-	if (val->port_vlan < 0 || val->port_vlan >= GSW_NUM_VIDS)
-		return -EINVAL;
-
-	/* valid vlan? */
-	for (i = 0; i < GSW_NUM_VLANS; i++) {
-		if (gsw_get_vlan_id(gsw, i) != val->port_vlan)
-			continue;
-		member = gsw_get_port_member(gsw, i);
-		vlan_idx = i;
-		break;
+	if ((rt_sysc_r32(SYSC_REG_CHIP_REV_ID) & 0xFFFF) == 0x0101) {
+		/* (GE1, Force 1000M/FD, FC ON) */
+		gsw_w32(gsw, 0x2005e30b, 0x100);
+		mt7530_mdio_w32(gsw, 0x3600, 0x5e30b);
+	} else {
+		/* (GE1, Force 1000M/FD, FC ON) */
+		gsw_w32(gsw, 0x2005e33b, 0x100);
+		mt7530_mdio_w32(gsw, 0x3600, 0x5e33b);
 	}
 
-	if (vlan_idx == -1)
-		return -EINVAL;
+	/* (GE2, Link down) */
+	gsw_w32(gsw, 0x8000, 0x200);
 
-	for (i = 0; i < GSW_NUM_PORTS; i++) {
-		struct switch_port *p;
-		int port_mask = 1 << i;
+	//val = 0x117ccf; //Enable Port 6, P5 as GMAC5, P5 disable
+	val = mt7530_mdio_r32(gsw, 0x7804);
+	val &= ~(1<<8); //Enable Port 6
+	val |= (1<<6); //Disable Port 5
+	val |= (1<<13); //Port 5 as GMAC, no Internal PHY
 
-		if (!(member & port_mask))
-			continue;
+	val |= (1<<16);//change HW-TRAP
+	printk("change HW-TRAP to 0x%x\n", val);
+	mt7530_mdio_w32(gsw, 0x7804, val);
 
-		p = &val->value.ports[val->len++];
-		p->id = i;
-		if (gsw_get_port_tag(gsw, i))
-			p->flags = 1 << SWITCH_PORT_FLAG_TAGGED;
-		else
-			p->flags = 0;
+	val = rt_sysc_r32(0x10);
+	val = (val >> 6) & 0x7;
+	if (val >= 6) {
+		/* 25Mhz Xtal - do nothing */
+	} else if(val >=3) {
+		/* 40Mhz */
+
+		/* disable MT7530 core clock */
+		_mt7620_mii_write(gsw, 0, 13, 0x1f);
+		_mt7620_mii_write(gsw, 0, 14, 0x410);
+		_mt7620_mii_write(gsw, 0, 13, 0x401f);
+		_mt7620_mii_write(gsw, 0, 14, 0x0);
+
+		/* disable MT7530 PLL */
+		_mt7620_mii_write(gsw, 0, 13, 0x1f);
+		_mt7620_mii_write(gsw, 0, 14, 0x40d);
+		_mt7620_mii_write(gsw, 0, 13, 0x401f);
+		_mt7620_mii_write(gsw, 0, 14, 0x2020);
+
+		/* for MT7530 core clock = 500Mhz */
+		_mt7620_mii_write(gsw, 0, 13, 0x1f);
+		_mt7620_mii_write(gsw, 0, 14, 0x40e);
+		_mt7620_mii_write(gsw, 0, 13, 0x401f);
+		_mt7620_mii_write(gsw, 0, 14, 0x119);
+
+		/* enable MT7530 PLL */
+		_mt7620_mii_write(gsw, 0, 13, 0x1f);
+		_mt7620_mii_write(gsw, 0, 14, 0x40d);
+		_mt7620_mii_write(gsw, 0, 13, 0x401f);
+		_mt7620_mii_write(gsw, 0, 14, 0x2820);
+
+		udelay(20);
+
+		/* enable MT7530 core clock */
+		_mt7620_mii_write(gsw, 0, 13, 0x1f);
+		_mt7620_mii_write(gsw, 0, 14, 0x410);
+		_mt7620_mii_write(gsw, 0, 13, 0x401f);
+	} else {
+		/* 20Mhz Xtal - TODO */
 	}
 
-	return 0;
+	/* RGMII */
+	_mt7620_mii_write(gsw, 0, 14, 0x1);
+
+	/* set MT7530 central align */
+        val = mt7530_mdio_r32(gsw, 0x7830);
+        val &= ~1;
+        val |= 1<<1;
+        mt7530_mdio_w32(gsw, 0x7830, val);
+
+        val = mt7530_mdio_r32(gsw, 0x7a40);
+        val &= ~(1<<30);
+        mt7530_mdio_w32(gsw, 0x7a40, val);
+
+	mt7530_mdio_w32(gsw, 0x7a78, 0x855);
+	mt7530_mdio_w32(gsw, 0x7b00, 0x102);  //delay setting for 10/1000M
+	mt7530_mdio_w32(gsw, 0x7b04, 0x14);  //delay setting for 10/1000M
+
+	/*Tx Driving*/
+	mt7530_mdio_w32(gsw, 0x7a54, 0x44);  //lower driving
+	mt7530_mdio_w32(gsw, 0x7a5c, 0x44);  //lower driving
+	mt7530_mdio_w32(gsw, 0x7a64, 0x44);  //lower driving
+	mt7530_mdio_w32(gsw, 0x7a6c, 0x44);  //lower driving
+	mt7530_mdio_w32(gsw, 0x7a74, 0x44);  //lower driving
+	mt7530_mdio_w32(gsw, 0x7a7c, 0x44);  //lower driving
+
+	//LANWANPartition();
+
+	/* turn on all PHYs */
+	for (i = 0; i <= 4; i++) {
+		val = _mt7620_mii_read(gsw, i, 0);
+		val &= ~BIT(11);
+		_mt7620_mii_write(gsw, i, 0, val);
+	}
+
+	/* enable irq */
+	val = mt7530_mdio_r32(gsw, 0x7808);
+	val |= 3 << 16;
+	mt7530_mdio_w32(gsw, 0x7808, val);
 }
-
-static int gsw_set_vlan_ports(struct switch_dev *dev, struct switch_val *val)
-{
-	struct mt7620_gsw *gsw = container_of(dev, struct mt7620_gsw, swdev);
-	int ports;
-	int vlan_idx = -1;
-	int i;
-
-	if (val->port_vlan < 0 || val->port_vlan >= GSW_NUM_VIDS ||
-			val->len > GSW_NUM_PORTS)
-		return -EINVAL;
-
-	/* one of the already defined vlans? */
-	for (i = 0; i < GSW_NUM_VLANS; i++) {
-		if (gsw->vlans[i].vid == val->port_vlan &&
-		    gsw->vlans[i].ports) {
-			vlan_idx = i;
-			break;
-		}
-	}
-
-	/* select a free slot */
-	for (i = 0; vlan_idx == -1 && i < GSW_NUM_VLANS; i++) {
-		if (!gsw->vlans[i].ports)
-			vlan_idx = i;
-	}
-
-	/* bail if all slots are in use */
-	if (vlan_idx == -1)
-		return -EINVAL;
-
-	ports = 0;
-	for (i = 0; i < val->len; i++) {
-		struct switch_port *p = &val->value.ports[i];
-		int port_mask = 1 << p->id;
-		bool untagged = !(p->flags & (1 << SWITCH_PORT_FLAG_TAGGED));
-
-		if (p->id >= GSW_NUM_PORTS)
-			return -EINVAL;
-
-		ports |= port_mask;
-		gsw->ports[p->id].untag = untagged;
-	}
-	gsw->vlans[vlan_idx].ports = ports;
-	if (!ports)
-		gsw->vlans[vlan_idx].vid = 0xfff;
-	else
-		gsw->vlans[vlan_idx].vid = val->port_vlan;
-
-	return 0;
-}
-
-static int gsw_apply_config(struct switch_dev *dev)
-{
-	struct mt7620_gsw *gsw = container_of(dev, struct mt7620_gsw, swdev);
-	int i;
-
-	for (i = 0; i < GSW_NUM_VLANS; i++) {
-		gsw_set_vtcr(&gsw->swdev, i);
-		if (gsw->global_vlan_enable) {
-			gsw_set_vlan_id(gsw, i, gsw->vlans[i].vid);
-			gsw_set_port_member(gsw, i, gsw->vlans[i].ports);
-			gsw_vlan_tagging_enable(gsw, i, 1);
-		} else {
-			gsw_set_vlan_id(gsw, i, 0xfff);
-			gsw_set_port_member(gsw, i, 0);
-			gsw_vlan_tagging_enable(gsw, i, 0);
-		}
-		gsw_apply_vtcr(&gsw->swdev, i);
-	}
-
-	for (i = 0; i < GSW_NUM_PORTS; i++) {
-		if (gsw->global_vlan_enable) {
-			gsw_set_port_untag(gsw, i, !gsw->ports[i].untag);
-			gsw_set_pvid(gsw, i, gsw->ports[i].pvid);
-		} else {
-			gsw_set_port_untag(gsw, i, 0);
-			gsw_set_pvid(gsw, i, 0);
-		}
-	}
-
-	if (!gsw->global_vlan_enable)
-		gsw_set_vlan_id(gsw, 0, 0);
-
-	return 0;
-}
-
-static int gsw_get_port_link(struct switch_dev *dev,
-			 int port,
-			 struct switch_port_link *link)
-{
-	struct mt7620_gsw *gsw = container_of(dev, struct mt7620_gsw, swdev);
-	u32 status;
-
-	if (port < 0 || port >= GSW_NUM_PORTS)
-		return -EINVAL;
-
-	status = gsw_r32(gsw, GSW_REG_PORT_STATUS(port));
-	link->link = status & 0x1;
-	link->duplex = (status >> 1) & 1;
-
-	switch ((status >> 2) & 0x3) {
-	case 0:
-		link->speed = SWITCH_PORT_SPEED_10;
-		break;
-	case 1:
-		link->speed = SWITCH_PORT_SPEED_100;
-		break;
-	case 2:
-	case 3: // forced gige speed can be 2 or 3
-		link->speed = SWITCH_PORT_SPEED_1000;
-		break;
-	}
-
-	return 0;
-}
-
-static int gsw_set_port_bool(struct switch_dev *dev,
-			 const struct switch_attr *attr,
-			 struct switch_val *val)
-{
-	struct mt7620_gsw *gsw = container_of(dev, struct mt7620_gsw, swdev);
-	int idx = val->port_vlan;
-
-	if (idx < 0 || idx >= GSW_NUM_PORTS ||
-	    val->value.i < 0 || val->value.i > 1)
-		return -EINVAL;
-
-	switch (attr->id) {
-	case GSW_ATTR_PORT_UNTAG:
-		gsw->ports[idx].untag = val->value.i;
-		break;
-	default:
-		return -EINVAL;
-	}
-
-	return 0;
-}
-
-static const struct switch_attr gsw_global[] = {
-	{
-		.type = SWITCH_TYPE_INT,
-		.name = "enable_vlan",
-		.description = "VLAN mode (1:enabled)",
-		.max = 1,
-		.id = GSW_ATTR_ENABLE_VLAN,
-		.get = gsw_get_vlan_enable,
-		.set = gsw_set_vlan_enable,
-	},
-};
-
-static const struct switch_attr gsw_port[] = {
-	{
-		.type = SWITCH_TYPE_INT,
-		.name = "untag",
-		.description = "Untag (1:strip outgoing vlan tag)",
-		.max = 1,
-		.id = GSW_ATTR_PORT_UNTAG,
-		.get = gsw_get_port_bool,
-		.set = gsw_set_port_bool,
-	},
-};
-
-static const struct switch_attr gsw_vlan[] = {
-};
-
-static const struct switch_dev_ops gsw_ops = {
-	.attr_global = {
-		.attr = gsw_global,
-		.n_attr = ARRAY_SIZE(gsw_global),
-	},
-	.attr_port = {
-		.attr = gsw_port,
-		.n_attr = ARRAY_SIZE(gsw_port),
-	},
-	.attr_vlan = {
-		.attr = gsw_vlan,
-		.n_attr = ARRAY_SIZE(gsw_vlan),
-	},
-	.get_vlan_ports = gsw_get_vlan_ports,
-	.set_vlan_ports = gsw_set_vlan_ports,
-	.get_port_pvid = gsw_get_port_pvid,
-	.set_port_pvid = gsw_set_port_pvid,
-	.get_port_link = gsw_get_port_link,
-	.apply_config = gsw_apply_config,
-	.reset_switch = gsw_reset_switch,
-};
 
 void mt7620_set_mac(struct fe_priv *priv, unsigned char *mac)
 {
@@ -964,11 +722,33 @@ static struct of_device_id gsw_match[] = {
 	{}
 };
 
+int mt7620_gsw_config(struct fe_priv *priv)
+{
+	struct mt7620_gsw *gsw = (struct mt7620_gsw *) priv->soc->swpriv;
+
+	/* is the mt7530 internal or external */
+	if (priv->mii_bus && priv->mii_bus->phy_map[0x1f]) {
+		mt7530_probe(priv->device, gsw->base, NULL, 0);
+		mt7530_probe(priv->device, NULL, priv->mii_bus, 1);
+	} else {
+		mt7530_probe(priv->device, gsw->base, NULL, 1);
+	}
+
+	return 0;
+}
+
+int mt7621_gsw_config(struct fe_priv *priv)
+{
+	if (priv->mii_bus && priv->mii_bus->phy_map[0x1f])
+		mt7530_probe(priv->device, NULL, priv->mii_bus, 1);
+
+	return 0;
+}
+
 int mt7620_gsw_probe(struct fe_priv *priv)
 {
 	struct mt7620_gsw *gsw;
 	struct device_node *np;
-	struct switch_dev *swdev;
 	const char *port4 = NULL;
 
 	np = of_find_matching_node(NULL, gsw_match);
@@ -984,31 +764,14 @@ int mt7620_gsw_probe(struct fe_priv *priv)
 		return -ENOMEM;
 	}
 
-	gsw->irq = irq_of_parse_and_map(np, 0);
-	if (!gsw->irq) {
-		dev_err(priv->device, "no gsw irq resource found\n");
-		return -ENOMEM;
-	}
-
 	gsw->base = of_iomap(np, 0);
 	if (!gsw->base) {
 		dev_err(priv->device, "gsw ioremap failed\n");
+		return -ENOMEM;
 	}
 
 	gsw->dev = priv->device;
 	priv->soc->swpriv = gsw;
-
-	swdev = &gsw->swdev;
-	swdev->of_node = np;
-	swdev->name = "mt7620a-gsw";
-	swdev->alias = "mt7620x";
-	swdev->cpu_port = GSW_PORT6;
-	swdev->ports = GSW_NUM_PORTS;
-	swdev->vlans = GSW_NUM_VLANS;
-	swdev->ops = &gsw_ops;
-
-	if (register_switch(swdev, NULL))
-		dev_err(priv->device, "register_switch failed\n");
 
 	of_property_read_string(np, "ralink,port4", &port4);
 	if (port4 && !strcmp(port4, "ephy"))
@@ -1016,12 +779,23 @@ int mt7620_gsw_probe(struct fe_priv *priv)
 	else if (port4 && !strcmp(port4, "gmac"))
 		gsw->port4 = PORT4_EXT;
 	else
-		WARN_ON(port4);
+		gsw->port4 = PORT4_EPHY;
 
-	gsw_hw_init(gsw);
+	if (IS_ENABLED(CONFIG_SOC_MT7620_OPENWRT))
+		gsw_hw_init_mt7620(gsw, np);
+	else
+		gsw_hw_init_mt7621(gsw, np);
 
-	gsw_w32(gsw, ~PORT_IRQ_ST_CHG, GSW_REG_IMR);
-	request_irq(gsw->irq, gsw_interrupt, 0, "gsw", priv);
+	gsw->irq = irq_of_parse_and_map(np, 0);
+	if (gsw->irq) {
+		if (IS_ENABLED(CONFIG_SOC_MT7620_OPENWRT)) {
+			request_irq(gsw->irq, gsw_interrupt_mt7620, 0, "gsw", priv);
+			gsw_w32(gsw, ~PORT_IRQ_ST_CHG, GSW_REG_IMR);
+		} else {
+			request_irq(gsw->irq, gsw_interrupt_mt7621, 0, "gsw", priv);
+			mt7530_mdio_w32(gsw, 0x7008, 0x1f);
+		}
+	}
 
 	return 0;
 }

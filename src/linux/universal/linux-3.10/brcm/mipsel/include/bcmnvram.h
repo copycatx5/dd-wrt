@@ -1,7 +1,7 @@
 /*
  * NVRAM variable manipulation
  *
- * Copyright (C) 2014, Broadcom Corporation. All Rights Reserved.
+ * Copyright (C) 2015, Broadcom Corporation. All Rights Reserved.
  * 
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -15,7 +15,7 @@
  * OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN
  * CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  *
- * $Id: bcmnvram.h 359636 2012-09-28 18:23:08Z $
+ * $Id: bcmnvram.h 496107 2014-08-11 09:29:41Z $
  */
 
 #ifndef _bcmnvram_h_
@@ -76,6 +76,15 @@ extern void nvram_exit(void *sih);
 extern char * nvram_get(const char *name);
 
 /*
+ * Get the value of an NVRAM variable. The pointer returned may be
+ * invalid after a set.
+ * @param	name	name of variable to get
+ * @param	bit	bit value to get
+ * @return	value of variable or NULL if undefined
+ */
+extern char * nvram_get_bitflag(const char *name, const int bit);
+
+/*
  * Read the reset GPIO value from the nvram and set the GPIO
  * as input
  */
@@ -127,6 +136,17 @@ extern int nvram_nmatch(char *match,const char *fmt,...);
 extern int nvram_set(const char *name, const char *value);
 
 /*
+ * Set the value of an NVRAM variable. The name and value strings are
+ * copied into private storage. Pointers to previously set values
+ * may become invalid. The new value may be immediately
+ * retrieved but will not be permanently stored until a commit.
+ * @param	name	name of variable to set
+ * @param	bit	bit value to set
+ * @param	value	value of variable
+ * @return	0 on success and errno on failure
+ */
+extern int nvram_set_bitflag(const char *name, const int bit, const int value);
+/*
  * Unset an NVRAM variable. Pointers to previously set values
  * remain valid until a set.
  * @param	name	name of variable to unset
@@ -168,6 +188,17 @@ uint8 nvram_calc_crc(struct nvram_header * nvh);
 #define NVRAM_VERSION		1
 #define NVRAM_HEADER_SIZE	20
 
+/* For CFE builds this gets passed in thru the makefile */
+#if defined(CONFIG_ARM)
+#define NVSIZE                 0x20000
+#define MAX_NVRAM_SPACE		NVSIZE
+#define DEF_NVRAM_SPACE		0x10000
+#else
+#define MAX_NVRAM_SPACE		NVRAM_SPACE
+#define DEF_NVRAM_SPACE		0x10000
+#endif
+
+
 #if !defined(CONFIG_BCM80211AC) && !defined(CONFIG_ARM) && !defined(HAVE_NORTHSTAR)
 #if defined(CONFIG_NVRAM_60K)
 #define NVRAM_SPACE		0xf000
@@ -200,7 +231,6 @@ uint8 nvram_calc_crc(struct nvram_header * nvh);
 #define VAR_NAME_VALUE(var) #var "="  VALUE(var)
 #pragma message (VAR_NAME_VALUE(NVRAM_SPACE))
 
-#define MAX_NVRAM_SPACE		NVRAM_SPACE
 #define ROM_ENVRAM_SPACE	0x1000
 #define NVRAM_LZMA_MAGIC	0x4c5a4d41	/* 'LZMA' */
 

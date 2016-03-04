@@ -1,21 +1,20 @@
 ---
 -- Utility functions for manipulating and comparing IP addresses.
 --
--- @copyright Same as Nmap--See http://nmap.org/book/man-legal.html
+-- @copyright Same as Nmap--See https://nmap.org/book/man-legal.html
 
+local bin = require "bin"
+local bit = require "bit"
+local stdnse = require "stdnse"
+local string = require "string"
+local table = require "table"
 local type     = type
-local table    = table
-local string   = string
 local ipairs   = ipairs
 local tonumber = tonumber
-
-local stdnse   = require "stdnse"
-local bit      = require "bit"
-local bin      = require "bin"
-
-module ( "ipOps" )
+local unittest = require "unittest"
 
 
+_ENV = stdnse.module("ipOps", stdnse.seeall)
 
 ---
 -- Checks to see if the supplied IP address is part of a non-routable
@@ -31,6 +30,7 @@ module ( "ipOps" )
 -- * IPv4 Reserved for Future Use (RFC 1112, Section 4)
 -- * IPv4 Multicast Local Network Control Block (RFC 3171, Section 3)
 -- * IPv6 Unspecified and Loopback (RFC3513)
+-- * IPv6 Site-Local (RFC3513, deprecated in RFC3879)
 -- * IPv6 Unique Local Unicast (RFC4193)
 -- * IPv6 Link Local Unicast (RFC4291)
 -- @param ip  String representing an IPv4 or IPv6 address.  Shortened notation
@@ -49,7 +49,7 @@ isPrivate = function( ip )
   if ip:match( ":" ) then
 
     local is_private
-    local ipv6_private = { "::/127", "FC00::/7", "FE80::/10" }
+    local ipv6_private = { "::/127", "FC00::/7", "FE80::/10", "FEC0::/10" }
 
     for _, range in ipairs( ipv6_private ) do
       is_private, err = ip_in_range( ip, range )
@@ -152,15 +152,15 @@ todword = function( ip )
 end
 
 ---
--- Converts the supplied IPv4 address from a DWORD value into a dotted string. 
+-- Converts the supplied IPv4 address from a DWORD value into a dotted string.
 --
--- For example, the address (((a*256+b)*256+c)*256+d) becomes a.b.c.d. 
+-- For example, the address (((a*256+b)*256+c)*256+d) becomes a.b.c.d.
 --
---@param ip DWORD representing an IPv4 address. 
---@return The string representing the address. 
+--@param ip DWORD representing an IPv4 address.
+--@return The string representing the address.
 fromdword = function( ip )
   if type( ip ) ~= "number" then
-    stdnse.print_debug(1, "Error in ipOps.todword: Expected IPv4 address.")
+    stdnse.debug1("Error in ipOps.fromdword: Expected 32-bit number.")
     return nil
   end
 
@@ -180,7 +180,7 @@ end
 -- @usage
 -- local a, b, c, d;
 -- local t, err = ipOps.get_parts_as_number( "139.104.32.123" )
--- if t then a, b, c, d = unpack( t ) end
+-- if t then a, b, c, d = table.unpack( t ) end
 -- @param ip  String representing an IPv4 or IPv6 address.  Shortened notation
 -- is permitted.
 -- @return   Array of numbers for each part of the supplied IP address (or
@@ -212,15 +212,18 @@ end
 
 
 ---
--- Compares two IP addresses. When comparing addresses from different families,
+-- Compares two IP addresses.
+--
+-- When comparing addresses from different families,
 -- IPv4 addresses will sort before IPv6 addresses.
--- @param left   String representing an IPv4 or IPv6 address.  Shortened
--- notation is permitted.
--- @param op     A comparison operator which may be one of the following
--- strings: <code>"eq"</code>, <code>"ge"</code>, <code>"le"</code>,
--- <code>"gt"</code> or <code>"lt"</code> (respectively ==, >=, <=, >, <).
--- @param right  String representing an IPv4 or IPv6 address.  Shortened
--- notation is permitted.
+-- @param left String representing an IPv4 or IPv6 address.  Shortened
+--             notation is permitted.
+-- @param op A comparison operator which may be one of the following strings:
+--           <code>"eq"</code>, <code>"ge"</code>, <code>"le"</code>,
+--           <code>"gt"</code> or <code>"lt"</code> (respectively ==, >=, <=,
+--           >, <).
+-- @param right String representing an IPv4 or IPv6 address.  Shortened
+--              notation is permitted.
 -- @usage
 -- if ipOps.compare_ip( "2001::DEAD:0:0:0", "eq", "2001:0:0:0:DEAD::" ) then
 --   ...
@@ -337,7 +340,7 @@ expand_ip = function( ip, family )
 
   if not ip:match( ":" ) then
     -- ipv4: missing octets should be "0" appended
-    if ip:match( "[^\.0-9]" ) then
+    if ip:match( "[^%.0-9]" ) then
       return nil, err4
     end
     local octets = {}
@@ -352,7 +355,7 @@ expand_ip = function( ip, family )
     if family == "inet6" then
       return ( table.concat( { 0,0,0,0,0,"ffff",
         stdnse.tohex( 256*octets[1]+octets[2] ),
-        stdnse.tohex( 256*octets[3]+octets[4] ) 
+        stdnse.tohex( 256*octets[3]+octets[4] )
         }, ":" ) )
     else
       return ( table.concat( octets, "." ) )
@@ -363,7 +366,7 @@ expand_ip = function( ip, family )
     return nil, "Error in ipOps.expand_ip: Cannot convert IPv6 address to IPv4"
   end
 
-  if ip:match( "[^\.:%x]" ) then
+  if ip:match( "[^%.:%x]" ) then
     return nil, ( err4:gsub( "IPv4", "IPv6" ) )
   end
 
@@ -372,16 +375,16 @@ expand_ip = function( ip, family )
 
   -- get a table of each hexadectet
   local hexadectets = {}
-  for hdt in string.gmatch( ip, "[\.z%x]+" ) do
+  for hdt in string.gmatch( ip, "[%.z%x]+" ) do
     hexadectets[#hexadectets+1] = hdt
   end
 
   -- deal with IPv4in6 (last hexadectet only)
   local t = {}
-  if hexadectets[#hexadectets]:match( "[\.]+" ) then
+  if hexadectets[#hexadectets]:match( "[%.]+" ) then
     hexadectets[#hexadectets], err = expand_ip( hexadectets[#hexadectets] )
     if err then return nil, ( err:gsub( "IPv4", "IPv4in6" ) ) end
-    t = stdnse.strsplit( "[\.]+", hexadectets[#hexadectets] )
+    t = stdnse.strsplit( "[%.]+", hexadectets[#hexadectets] )
     for i, v in ipairs( t ) do
       t[i] = tonumber( v, 10 )
     end
@@ -392,7 +395,7 @@ expand_ip = function( ip, family )
   -- deal with :: and check for invalid address
   local z_done = false
   for index, value in ipairs( hexadectets ) do
-    if value:match( "[\.]+" ) then
+    if value:match( "[%.]+" ) then
       -- shouldn't have dots at this point
       return nil, ( err4:gsub( "IPv4", "IPv6" ) )
     elseif value == "z" and z_done then
@@ -442,9 +445,9 @@ get_ips_from_range = function( range )
 
   local first, last, prefix
   if range:match( "/" ) then
-    first, prefix = range:match( "([%x%d:\.]+)/(%d+)" )
+    first, prefix = range:match( "([%x%d:%.]+)/(%d+)" )
   elseif range:match( "-" ) then
-    first, last = range:match( "([%x%d:\.]+)%s*\-%s*([%x%d:\.]+)" )
+    first, last = range:match( "([%x%d:%.]+)%s*%-%s*([%x%d:%.]+)" )
   end
 
   local err = {}
@@ -475,14 +478,14 @@ end
 ---
 -- Calculates the last IP address of a range of addresses given an IP address in
 -- the range and prefix length for that range.
--- @param ip      String representing an IPv4 or IPv6 address.  Shortened
--- notation is permitted.
--- @param prefix  Number or a string representing a decimal number corresponding
--- to a prefix length.
+-- @param ip String representing an IPv4 or IPv6 address.  Shortened notation
+--           is permitted.
+-- @param prefix Number or a string representing a decimal number corresponding
+--               to a prefix length.
 -- @usage
 -- last = ipOps.get_last_ip( "192.0.0.0", 26 )
--- @return        String representing the last IP address of the range denoted
--- by the supplied parameters (or <code>nil</code> in case of an error).
+-- @return String representing the last IP address of the range denoted by the
+--         supplied parameters (or <code>nil</code> in case of an error).
 -- @return String error message in case of an error.
 get_last_ip = function( ip, prefix )
 
@@ -504,7 +507,7 @@ get_last_ip = function( ip, prefix )
 end
 
 ---
--- Converts an IP address into an opaque string.
+-- Converts an IP address into an opaque string (big-endian)
 -- @param ip  String representing an IPv4 or IPv6 address.
 -- @param family (optional) Address family to convert to. "ipv6" converts IPv4
 -- addresses to IPv4-mapped IPv6.
@@ -537,17 +540,39 @@ ip_to_str = function( ip, family )
   return table.concat( t )
 end
 
+---
+-- Converts an opaque string (big-endian) into an IP address
+--
+-- @param ip Opaque string representing an IP address. If length 4, then IPv4
+--           is assumed. If length 16, then IPv6 is assumed.
+-- @return IP address in readable notation (or <code>nil</code> in case of an
+--         error)
+-- @return String error message in case of an error
+str_to_ip = function (ip)
+  if #ip == 4 then
+    local _, a, b, c, d = bin.unpack("C4", ip)
+    return ("%d.%d.%d.%d"):format(a, b, c, d)
+  elseif #ip == 16 then
+    local _, a, b, c, d, e, f, g, h = bin.unpack(">S8", ip)
+    local full = ("%x:%x:%x:%x:%x:%x:%x:%x"):format(a, b, c, d, e, f, g, h)
+    full = full:gsub(":[:0]+", "::", 1) -- Collapse the first (should be longest?) series of :0:
+    full = full:gsub("^0::", "::", 1) -- handle special case of ::1
+    return full
+  else
+    return nil, "Invalid length"
+  end
+end
 
 ---
 -- Converts an IP address into a string representing the address as binary
 -- digits.
--- @param ip  String representing an IPv4 or IPv6 address.  Shortened notation
--- is permitted.
+-- @param ip String representing an IPv4 or IPv6 address.  Shortened notation
+--           is permitted.
 -- @usage
 -- bit_string = ipOps.ip_to_bin( "2001::" )
--- @return    String representing the supplied IP address as 32 or 128 binary
--- digits (or <code>nil</code> in case of an error).
--- @return    String error message in case of an error.
+-- @return String representing the supplied IP address as 32 or 128 binary
+--         digits (or <code>nil</code> in case of an error).
+-- @return String error message in case of an error.
 ip_to_bin = function( ip )
   local err
 
@@ -630,8 +655,7 @@ end
 -- Converts a string of hexadecimal digits into the corresponding string of
 -- binary digits.
 --
--- Each hex digit results in four bits. This function is really just a wrapper
--- around <code>stdnse.tobinary</code>.
+-- Each hex digit results in four bits.
 -- @param hex  String representing a hexadecimal number.
 -- @usage
 -- bin_string = ipOps.hex_to_bin( "F00D" )
@@ -644,11 +668,121 @@ hex_to_bin = function( hex )
     return nil, "Error in ipOps.hex_to_bin: Expected string representing a hexadecimal number."
   end
 
-  local t, mask, binchar = {}, "0000"
-  for hexchar in string.gmatch( hex, "%x" ) do
-      binchar = stdnse.tobinary( tonumber( hexchar, 16 ) )
-      t[#t+1] = mask:sub( 1, # mask  - # binchar  ) .. binchar
-  end
-  return table.concat( t )
-
+  local d = bin.pack("H", hex)
+  local _, b = bin.unpack("B" .. #d, d)
+  return b:sub(1, #hex * 4)
 end
+
+--Ignore the rest if we are not testing.
+if not unittest.testing() then
+  return _ENV
+end
+
+test_suite = unittest.TestSuite:new()
+test_suite:add_test(unittest.is_true(isPrivate("192.168.123.123")), "192.168.123.123 is private")
+test_suite:add_test(unittest.is_false(isPrivate("1.1.1.1")), "1.1.1.1 is not private")
+test_suite:add_test(unittest.equal(todword("65.66.67.68"),0x41424344), "todword")
+test_suite:add_test(unittest.equal(fromdword(0xffffffff),"255.255.255.255"), "fromdword")
+test_suite:add_test(unittest.equal(str_to_ip("\x01\x02\x03\x04"),"1.2.3.4"), "str_to_ip (ipv4)")
+test_suite:add_test(unittest.equal(str_to_ip("\0\x01\xbe\xef\0\0\0\0\0\0\x02\x03\0\0\0\x01"),"1:beef::203:0:1"), "str_to_ip (ipv6)")
+test_suite:add_test(unittest.equal(str_to_ip(("\0"):rep(15) .. "\x01"),"::1"), "str_to_ip (ipv6)")
+test_suite:add_test(function()
+  local parts, err = get_parts_as_number("8.255.0.1")
+  if parts == nil then return false, err end
+  if parts[1] == 8 and parts[2] == 255 and parts[3] == 0 and parts[4] == 1 then
+    return true
+  end
+  return false, string.format("Expected {8, 255, 0, 1}, got {%d, %d, %d, %d}", table.unpack(parts))
+end, "get_parts_as_number")
+
+do
+  local low_ip4 = "192.168.1.10"
+  local high_ip4 = "192.168.10.1"
+  local low_ip6 = "2001::DEAD:0:0:9"
+  local high_ip6 = "2001::DEAF:0:0:9"
+  for _, op in ipairs({
+    {low_ip4, "eq", low_ip4, unittest.is_true, "IPv4"},
+    {low_ip6, "eq", low_ip6, unittest.is_true, "IPv6"},
+    {high_ip4, "eq", low_ip4, unittest.is_false, "IPv4"},
+    {high_ip6, "eq", low_ip6, unittest.is_false, "IPv6"},
+    {low_ip4, "eq", low_ip6, unittest.is_false, "mixed"},
+    {low_ip4, "ne", low_ip4, unittest.is_false, "IPv4"},
+    {low_ip6, "ne", low_ip6, unittest.is_false, "IPv6"},
+    {high_ip4, "ne", low_ip4, unittest.is_true, "IPv4"},
+    {high_ip6, "ne", low_ip6, unittest.is_true, "IPv6"},
+    {low_ip4, "ne", low_ip6, unittest.is_true, "mixed"},
+    {low_ip4, "ge", low_ip4, unittest.is_true, "IPv4, equal"},
+    {low_ip6, "ge", low_ip6, unittest.is_true, "IPv6, equal"},
+    {high_ip4, "ge", low_ip4, unittest.is_true, "IPv4"},
+    {high_ip6, "ge", low_ip6, unittest.is_true, "IPv6"},
+    {low_ip4, "ge", high_ip4, unittest.is_false, "IPv4"},
+    {low_ip6, "ge", high_ip6, unittest.is_false, "IPv6"},
+    {low_ip6, "ge", low_ip4, unittest.is_true, "mixed"},
+    {low_ip4, "ge", low_ip6, unittest.is_false, "mixed"},
+    {low_ip4, "le", low_ip4, unittest.is_true, "IPv4, equal"},
+    {low_ip6, "le", low_ip6, unittest.is_true, "IPv6, equal"},
+    {high_ip4, "le", low_ip4, unittest.is_false, "IPv4"},
+    {high_ip6, "le", low_ip6, unittest.is_false, "IPv6"},
+    {low_ip4, "le", high_ip4, unittest.is_true, "IPv4"},
+    {low_ip6, "le", high_ip6, unittest.is_true, "IPv6"},
+    {low_ip6, "le", low_ip4, unittest.is_false, "mixed"},
+    {low_ip4, "le", low_ip6, unittest.is_true, "mixed"},
+    {low_ip4, "gt", low_ip4, unittest.is_false, "IPv4, equal"},
+    {low_ip6, "gt", low_ip6, unittest.is_false, "IPv6, equal"},
+    {high_ip4, "gt", low_ip4, unittest.is_true, "IPv4"},
+    {high_ip6, "gt", low_ip6, unittest.is_true, "IPv6"},
+    {low_ip4, "gt", high_ip4, unittest.is_false, "IPv4"},
+    {low_ip6, "gt", high_ip6, unittest.is_false, "IPv6"},
+    {low_ip6, "gt", low_ip4, unittest.is_true, "mixed"},
+    {low_ip4, "gt", low_ip6, unittest.is_false, "mixed"},
+    {low_ip4, "lt", low_ip4, unittest.is_false, "IPv4, equal"},
+    {low_ip6, "lt", low_ip6, unittest.is_false, "IPv6, equal"},
+    {high_ip4, "lt", low_ip4, unittest.is_false, "IPv4"},
+    {high_ip6, "lt", low_ip6, unittest.is_false, "IPv6"},
+    {low_ip4, "lt", high_ip4, unittest.is_true, "IPv4"},
+    {low_ip6, "lt", high_ip6, unittest.is_true, "IPv6"},
+    {low_ip6, "lt", low_ip4, unittest.is_false, "mixed"},
+    {low_ip4, "lt", low_ip6, unittest.is_true, "mixed"},
+    }) do
+    test_suite:add_test(op[4](compare_ip(op[1], op[2], op[3])),
+      string.format("compare_ip(%s, %s, %s) (%s)", op[1], op[2], op[3], op[5]))
+  end
+end
+
+do
+  for _, op in ipairs({
+    {"192.168.13.1", "192/8", unittest.is_true, "IPv4 CIDR"},
+    {"193.168.13.1", "192/8", unittest.is_false, "IPv4 CIDR"},
+    {"2001:db8::9", "2001:db8/32", unittest.is_true, "IPv6 CIDR"},
+    {"2001:db7::9", "2001:db8/32", unittest.is_false, "IPv6 CIDR"},
+    {"192.168.13.1", "192.168.10.33-192.168.80.80", unittest.is_true, "IPv4 range"},
+    {"193.168.13.1", "192.168.1.1 - 192.168.5.0", unittest.is_false, "IPv4 range"},
+    {"2001:db8::9", "2001:db8::1-2001:db8:1::1", unittest.is_true, "IPv6 range"},
+    {"2001:db8::9", "2001:db8:10::1-2001:db8:11::1", unittest.is_false, "IPv6 range"},
+    {"193.168.1.1", "192.168.1.1 - 2001:db8::1", unittest.is_nil, "mixed"},
+    {"2001:db8::1", "192.168.1.1 - 2001:db8::1", unittest.is_nil, "mixed"},
+    }) do
+    test_suite:add_test(op[3](ip_in_range(op[1], op[2])),
+      string.format("ip_in_range(%s, %s) (%s)", op[1], op[2], op[4]))
+  end
+end
+
+do
+  for _, op in ipairs({
+    {"192.168", nil, "192.168.0.0", "IPv4 trunc"},
+    {"192.0.2.3", nil, "192.0.2.3", "IPv4"},
+    {"192.168", "inet6", "0:0:0:0:0:ffff:c0a8:0", "IPv4 trunc to IPv6"},
+    {"2001:db8::9", nil, "2001:db8:0:0:0:0:0:9", "IPv6"},
+    {"::ffff:192.0.2.128", "inet6", "0:0:0:0:0:ffff:c000:280", "IPv4-mapped to IPv6"},
+    -- TODO: Perhaps we should support extracting IPv4 from IPv4-mapped addresses?
+    --{"::ffff:192.0.2.128", "inet4", "192.0.2.128", "IPv4-mapped to IPv4"},
+    --{"::ffff:c000:0280", "inet4", "192.0.2.128", "IPv4-mapped to IPv4"},
+    }) do
+    test_suite:add_test(unittest.equal(expand_ip(op[1], op[2]), op[3]),
+      string.format("expand_ip(%s, %s) (%s)", op[1], op[2], op[4]))
+  end
+  test_suite:add_test(unittest.is_nil(expand_ip("2001:db8::1", "ipv4")),
+      "IPv6 to IPv4")
+end
+
+return _ENV;

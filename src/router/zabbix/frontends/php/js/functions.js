@@ -1,6 +1,6 @@
 /*
 ** Zabbix
-** Copyright (C) 2001-2013 Zabbix SIA
+** Copyright (C) 2001-2015 Zabbix SIA
 **
 ** This program is free software; you can redistribute it and/or modify
 ** it under the terms of the GNU General Public License as published by
@@ -144,31 +144,28 @@ function add_logexpr() {
 	tr.appendChild(td);
 	td.appendChild(document.createTextNode(expr_v));
 
-	var input = IE ? document.createElement('<input name="expressions[' + logexpr_count + '][value]" />') : document.createElement('input');
-	input.setAttribute('type', 'hidden');
-	input.setAttribute('value', expression);
-	!IE ? input.setAttribute('name', 'expressions[' + logexpr_count + '][value]') : '';
+	jQuery(td).append(jQuery('<input>', {
+		name: 'expressions[' + logexpr_count + '][value]',
+		type: 'hidden',
+		value: expression
+	}));
 
-	td.appendChild(input);
-
-	var input = IE ? document.createElement('<input name="expressions[' + logexpr_count + '][view]" />') : document.createElement('input');
-	input.setAttribute('type', 'hidden');
-	input.setAttribute('value', expr_v);
-	!IE ? input.setAttribute('name', 'expressions[' + logexpr_count + '][view]') : '';
-
-	td.appendChild(input);
+	jQuery(td).append(jQuery('<input>', {
+		name: 'expressions[' + logexpr_count + '][view]',
+		type: 'hidden',
+		value: expr_v
+	}));
 
 	var td = document.createElement('td');
 	tr.appendChild(td);
 
 	td.appendChild(document.createTextNode(expr_t.options[expr_t.selectedIndex].text));
 
-	var input = IE ? document.createElement('<input name="expressions[' + logexpr_count + '][type]" />') : document.createElement('input');
-	input.setAttribute('type', 'hidden');
-	input.setAttribute('value', expr_t.value);
-	!IE ? input.setAttribute('name', 'expressions[' + logexpr_count + '][type]') : '';
-
-	td.appendChild(input);
+	jQuery(td).append(jQuery('<input>', {
+		name: 'expressions[' + logexpr_count + '][type]',
+		type: 'hidden',
+		value: expr_t.value
+	}));
 
 	// optional
 	var td = document.createElement('td');
@@ -577,7 +574,7 @@ function create_page_menu(e, id) {
 
 // triggers js menu
 function create_mon_trigger_menu(e, args, items) {
-	var tr_menu = [[t('Triggers'), null, null, {'outer' : ['pum_oheader'], 'inner' : ['pum_iheader']}], [t('Events'), 'events.php?triggerid=' + args[0].triggerid + '&nav_time=' + args[0].lastchange, null]];
+	var tr_menu = [[t('Triggers'), null, null, {'outer' : ['pum_oheader'], 'inner' : ['pum_iheader']}], [t('Events'), 'events.php?triggerid=' + args[0].triggerid + '&nav_time=' + args[0].lastchange + '&source=0', null]];
 	if (args.length > 1 && !is_null(args[1])) {
 		tr_menu.push(args[1]);
 	}
@@ -860,6 +857,38 @@ function objectSize(obj) {
 }
 
 /**
+ * Replace placeholders like %<number>$s with arguments.
+ * Can be used like usual sprintf but only for %<number>$s placeholders.
+ *
+ * @param string
+ *
+ * @return string
+ */
+function sprintf(string) {
+	var placeHolders,
+		position,
+		replace;
+
+	if (typeof string !== 'string') {
+		throw Error('Invalid input type. String required, got ' + typeof string);
+	}
+
+	placeHolders = string.match(/%\d\$s/g);
+	for (var l = placeHolders.length - 1; l >= 0; l--) {
+		position = placeHolders[l][1];
+		replace = arguments[position];
+
+		if (typeof replace === 'undefined') {
+			throw Error('Placeholder for non-existing parameter');
+		}
+
+		string = string.replace(placeHolders[l], replace)
+	}
+
+	return string;
+}
+
+/**
  * Optimization:
  *
  * 86400 = 24 * 60 * 60
@@ -867,34 +896,35 @@ function objectSize(obj) {
  * 2592000 = 30 * 86400
  * 604800 = 7 * 86400
  *
- * @param int timestamp
- * @param boolean isTsDouble
- * @param boolean isExtend
+ * @param int  timestamp
+ * @param bool isTsDouble
+ * @param bool isExtend
  *
  * @return string
  */
 function formatTimestamp(timestamp, isTsDouble, isExtend) {
 	timestamp = timestamp || 0;
+
 	var years = 0,
-		months = 0,
-		weeks = 0;
+		months = 0;
 
 	if (isExtend) {
 		years = parseInt(timestamp / 31536000);
 		months = parseInt((timestamp - years * 31536000) / 2592000);
-		//weeks = parseInt((timestamp - years * 31536000 - months * 2592000) / 604800);
 	}
 
-	var days = parseInt((timestamp - years * 31536000 - months * 2592000 - weeks * 604800) / 86400);
-	var hours = parseInt((timestamp - years * 31536000 - months * 2592000 - weeks * 604800 - days * 86400) / 3600);
-	//var minutes = parseInt((timestamp - years * 31536000 - months * 2592000 - weeks * 604800 - days * 86400 - hours * 3600) / 60);
+	var days = parseInt((timestamp - years * 31536000 - months * 2592000) / 86400),
+		hours = parseInt((timestamp - years * 31536000 - months * 2592000 - days * 86400) / 3600);
+
+	// due to imprecise calculations it is possible that the remainder contains 12 whole months but no whole years
+	if (months == 12) {
+		years++;
+		months = 0;
+	}
 
 	if (isTsDouble) {
 		if (months.toString().length == 1) {
 			months = '0' + months;
-		}
-		if (weeks.toString().length == 1) {
-			weeks = '0' + weeks;
 		}
 		if (days.toString().length == 1) {
 			days = '0' + days;
@@ -902,21 +932,236 @@ function formatTimestamp(timestamp, isTsDouble, isExtend) {
 		if (hours.toString().length == 1) {
 			hours = '0' + hours;
 		}
-		/*if (minutes.toString().length == 1) {
-			minutes = '0' + minutes;
-		}*/
 	}
 
 	var str = (years == 0) ? '' : years + locale['S_YEAR_SHORT'] + ' ';
 	str += (months == 0) ? '' : months + locale['S_MONTH_SHORT'] + ' ';
-	str += (weeks == 0) ? '' : weeks + locale['S_WEEK_SHORT'] + ' ';
 	str += (isExtend && isTsDouble)
 		? days + locale['S_DAY_SHORT'] + ' '
-		: (days == 0)
-			? ''
-			: days + locale['S_DAY_SHORT'] + ' ';
+		: ((days == 0) ? '' : days + locale['S_DAY_SHORT'] + ' ');
 	str += (hours == 0) ? '' : hours + locale['S_HOUR_SHORT'] + ' ';
-	//str += (minutes == 0) ? '' : minutes + locale['S_MINUTE_SHORT'] + ' ';
 
 	return str;
+}
+
+/**
+ * Splitting string using slashes with escape backslash support.
+ *
+ * @param string $path
+ *
+ * @return array
+ */
+function splitPath(path) {
+	var items = [],
+		s = '',
+		escapes = '';
+
+	for (var i = 0, size = path.length; i < size; i++) {
+		if (path[i] === '/') {
+			if (escapes === '') {
+				items[items.length] = s;
+				s = '';
+			}
+			else {
+				if (escapes.length % 2 == 0) {
+					s += stripslashes(escapes);
+					items[items.length] = s;
+					s = escapes = '';
+				}
+				else {
+					s += stripslashes(escapes) + path[i];
+					escapes = '';
+				}
+			}
+		}
+		else if (path[i] === '\\') {
+			escapes += path[i];
+		}
+		else {
+			s += stripslashes(escapes) + path[i];
+			escapes = '';
+		}
+	}
+
+	if (escapes !== '') {
+		s += stripslashes(escapes);
+	}
+
+	items[items.length] = s;
+
+	return items;
+}
+
+/**
+ * Removing unescaped backslashes from string.
+ * Analog of PHP stripslashes().
+ *
+ * @param string str
+ *
+ * @return string
+ */
+function stripslashes(str) {
+	return str.replace(/\\(.?)/g, function(s, chars) {
+		if (chars == '\\') {
+			return '\\';
+		}
+		else if (chars == '') {
+			return '';
+		}
+		else {
+			return chars;
+		}
+	});
+}
+
+/**
+ * Execute script.
+ *
+ * @param string hostId			host id
+ * @param string scriptId		script id
+ * @param string confirmation	confirmation text
+ */
+function executeScript(hostId, scriptId, confirmation) {
+	var execute = function() {
+		if (!empty(hostId)) {
+			openWinCentered('scripts_exec.php?hostid=' + hostId + '&scriptid=' + scriptId, 'Tools', 560, 470,
+				'titlebar=no, resizable=yes, scrollbars=yes, dialog=no'
+			);
+		}
+	};
+
+	if (confirmation.length > 0) {
+		var scriptDialog = jQuery('#scriptDialog');
+
+		if (scriptDialog.length == 0) {
+			scriptDialog = jQuery('<div>', {
+				id: 'scriptDialog',
+				css: {
+					display: 'none',
+					'white-space': 'normal'
+				}
+			});
+
+			jQuery('body').append(scriptDialog);
+		}
+
+		scriptDialog
+			.text(confirmation)
+			.dialog({
+				buttons: [
+					{text: t('Execute'), click: function() {
+						jQuery(this).dialog('destroy');
+						execute();
+					}},
+					{text: t('Cancel'), click: function() {
+						jQuery(this).dialog('destroy');
+					}}
+				],
+				draggable: true,
+				modal: true,
+				width: (scriptDialog.outerWidth() + 20 > 600) ? 600 : 'inherit',
+				resizable: false,
+				minWidth: 200,
+				minHeight: 100,
+				title: t('Execution confirmation'),
+				close: function() {
+					jQuery(this).dialog('destroy');
+				}
+			});
+
+		if (empty(hostId)) {
+			jQuery('.ui-dialog-buttonset button:first').prop('disabled', true).addClass('ui-state-disabled');
+			jQuery('.ui-dialog-buttonset button:last').addClass('main').focus();
+		}
+		else {
+			jQuery('.ui-dialog-buttonset button:first').addClass('main');
+		}
+	}
+	else {
+		execute();
+	}
+}
+
+/**
+ * Makes all elements which are not supported for printing view to disappear by including css file.
+ *
+ * @param bool show
+ */
+function printLess(show) {
+	if (!jQuery('#printLess').length) {
+		jQuery('<link rel="stylesheet" type="text/css" id="printLess">')
+			.appendTo('head')
+			.attr('href', './styles/print.css');
+
+		jQuery('.header_l.left, .header_r.right').each(function(i, obj) {
+			if (jQuery(this).find('input, form, select, .menu_icon').length) {
+				jQuery(this).addClass('hide-all-children');
+			}
+		});
+
+		jQuery('body')
+			.prepend('<div class="printless">&laquo;BACK</div>')
+			.click(function() {
+				printLess(false);
+			});
+	}
+
+	jQuery('#printLess').prop('disabled', !show);
+}
+
+/**
+ * Display jQuery model window.
+ *
+ * @param string title					modal window title
+ * @param string text					window message
+ * @param array  buttons				window buttons
+ * @param array  buttons[]['text']		button text
+ * @param object buttons[]['click']		button click action
+ */
+function showModalWindow(title, text, buttons) {
+	var modalWindow = jQuery('#modalWindow');
+
+	if (modalWindow.length == 0) {
+		modalWindow = jQuery('<div>', {
+			id: 'modalWindow',
+			css: {
+				padding: '10px',
+				display: 'none',
+				'white-space': 'normal'
+			}
+		});
+
+		jQuery('body').append(modalWindow);
+	}
+
+	modalWindow
+		.text(text)
+		.dialog({
+			title: title,
+			buttons: buttons,
+			draggable: true,
+			modal: true,
+			resizable: false,
+			width: 'inherit',
+			minWidth: 200,
+			minHeight: 120,
+			close: function() {
+				jQuery(this).dialog('destroy');
+			}
+		});
+}
+
+/**
+ * Disable setup step button
+ *
+ * @param buttonId
+ */
+function disableSetupStepButton(buttonId) {
+	jQuery(buttonId).
+		addClass('ui-state-disabled').
+		addClass('ui-button-disabled').
+		attr('disabled', 'disabled').
+		attr('aria-disabled', 'true');
+
+	jQuery('.info_bar .ok').remove();
 }

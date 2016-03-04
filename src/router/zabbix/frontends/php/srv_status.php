@@ -1,7 +1,7 @@
 <?php
 /*
 ** Zabbix
-** Copyright (C) 2001-2013 Zabbix SIA
+** Copyright (C) 2001-2015 Zabbix SIA
 **
 ** This program is free software; you can redistribute it and/or modify
 ** it under the terms of the GNU General Public License as published by
@@ -25,38 +25,32 @@ require_once dirname(__FILE__).'/include/services.inc.php';
 
 $page['title'] = _('IT services');
 $page['file'] = 'srv_status.php';
-$page['scripts'] = array();
 $page['hist_arg'] = array();
 
 define('ZBX_PAGE_DO_REFRESH', 1);
 
-include_once('include/page_header.php');
+require_once dirname(__FILE__).'/include/page_header.php';
+
+$periods = array(
+	'today' => _('Today'),
+	'week' => _('This week'),
+	'month' => _('This month'),
+	'year' => _('This year'),
+	24 => _('Last 24 hours'),
+	24 * 7 => _('Last 7 days'),
+	24 * 30 => _('Last 30 days'),
+	24 * DAY_IN_YEAR => _('Last 365 days')
+);
+
 
 // VAR	TYPE	OPTIONAL	FLAGS	VALIDATION	EXCEPTION
 $fields = array(
 	'serviceid' =>	array(T_ZBX_INT, O_OPT, P_SYS|P_NZERO, DB_ID,	null),
 	'showgraph' =>	array(T_ZBX_INT, O_OPT, P_SYS,	IN('1'),		'isset({serviceid})'),
-	'period' =>		array(T_ZBX_STR, O_OPT, P_SYS,	null,			null),
-	'fullscreen' => array(T_ZBX_INT, O_OPT, P_SYS,	IN('0,1'),		null),
-	// ajax
-	'favobj' =>		array(T_ZBX_STR, O_OPT, P_ACT,	IN('"hat"'),	null),
-	'favref' =>		array(T_ZBX_STR, O_OPT, P_ACT,	NOT_EMPTY,		'isset({favobj})'),
-	'favstate' =>	array(T_ZBX_INT, O_OPT, P_ACT,	NOT_EMPTY,		'isset({favobj})')
+	'period' =>		array(T_ZBX_STR, O_OPT, P_SYS,	IN('"'.implode('","', array_keys($periods)).'"'),	null),
+	'fullscreen' => array(T_ZBX_INT, O_OPT, P_SYS,	IN('0,1'),		null)
 );
 check_fields($fields);
-
-/*
- * Ajax
- */
-if (isset($_REQUEST['favobj'])) {
-	if ($_REQUEST['favobj'] == 'hat') {
-		CProfile::update('web.srv_status.hats.'.$_REQUEST['favref'].'.state', $_REQUEST['favstate'], PROFILE_TYPE_INT);
-	}
-}
-if ($page['type'] == PAGE_TYPE_JS || $page['type'] == PAGE_TYPE_HTML_BLOCK) {
-	include_once('include/page_footer.php');
-	exit();
-}
 
 if (isset($_REQUEST['serviceid']) && isset($_REQUEST['showgraph'])) {
 	$service = API::Service()->get(array(
@@ -74,16 +68,6 @@ if (isset($_REQUEST['serviceid']) && isset($_REQUEST['showgraph'])) {
 	}
 }
 else {
-	$periods = array(
-		'today' => _('Today'),
-		'week' => _('This week'),
-		'month' => _('This month'),
-		'year' => _('This year'),
-		24 => _('Last 24 hours'),
-		24 * 7 => _('Last 7 days'),
-		24 * 30 => _('Last 30 days'),
-		24 * DAY_IN_YEAR => _('Last 365 days')
-	);
 	$period = get_request('period', 7 * 24);
 	$period_end = time();
 
@@ -121,8 +105,7 @@ else {
 
 	// expand trigger descriptions
 	$triggers = zbx_objectValues($services, 'trigger');
-
-	$triggers = CTriggerHelper::batchExpandDescription($triggers);
+	$triggers = CMacrosResolverHelper::resolveTriggerNames($triggers);
 
 	foreach ($services as &$service) {
 		if ($service['trigger']) {
@@ -138,7 +121,6 @@ else {
 			'to' => $period_end
 		))
 	));
-
 	// expand problem trigger descriptions
 	foreach ($slaData as &$serviceSla) {
 		foreach ($serviceSla['problems'] as &$problemTrigger) {
@@ -186,4 +168,5 @@ else {
 		error(_('Cannot format Tree. Check logic structure in service links.'));
 	}
 }
-include_once('include/page_footer.php');
+
+require_once dirname(__FILE__).'/include/page_footer.php';

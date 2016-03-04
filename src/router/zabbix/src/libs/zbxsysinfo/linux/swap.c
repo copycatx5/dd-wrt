@@ -1,6 +1,6 @@
 /*
 ** Zabbix
-** Copyright (C) 2001-2013 Zabbix SIA
+** Copyright (C) 2001-2015 Zabbix SIA
 **
 ** This program is free software; you can redistribute it and/or modify
 ** it under the terms of the GNU General Public License as published by
@@ -20,27 +20,24 @@
 #include "common.h"
 #include "sysinfo.h"
 
-int	SYSTEM_SWAP_SIZE(const char *cmd, const char *param, unsigned flags, AGENT_RESULT *result)
+int	SYSTEM_SWAP_SIZE(AGENT_REQUEST *request, AGENT_RESULT *result)
 {
 	struct sysinfo	info;
-	char		swapdev[32], mode[32];
+	char		*swapdev, *mode;
 
-	if (num_param(param) > 2)
+	if (2 < request->nparam)
 		return SYSINFO_RET_FAIL;
 
-	if (0 != get_param(param, 1, swapdev, sizeof(swapdev)))
-		*swapdev = '\0';
+	swapdev = get_rparam(request, 0);
+	mode = get_rparam(request, 1);
 
-	if ('\0' != *swapdev && 0 != strcmp(swapdev, "all"))	/* default parameter */
+	if (NULL != swapdev && '\0' != *swapdev && 0 != strcmp(swapdev, "all"))	/* default parameter */
 		return SYSINFO_RET_FAIL;
-
-	if (0 != get_param(param, 2, mode, sizeof(mode)))
-		*mode = '\0';
 
 	if (0 != sysinfo(&info))
 		return SYSINFO_RET_FAIL;
 
-	if ('\0' == *mode || 0 == strcmp(mode, "free"))
+	if (NULL == mode || '\0' == *mode || 0 == strcmp(mode, "free"))
 		SET_UI64_RESULT(result, info.freeswap * (zbx_uint64_t)info.mem_unit);
 	else if (0 == strcmp(mode, "total"))
 		SET_UI64_RESULT(result, info.totalswap * (zbx_uint64_t)info.mem_unit);
@@ -112,12 +109,12 @@ static int	get_swap_dev_stat(const char *swapdev, swap_stat_t *result)
 	int		ret = SYSINFO_RET_FAIL;
 	char		line[MAX_STRING_LEN];
 	int		rdev_major, rdev_minor;
-	struct stat	dev_st;
+	zbx_stat_t	dev_st;
 	FILE		*f;
 
 	assert(result);
 
-	if (-1 == stat(swapdev, &dev_st))
+	if (-1 == zbx_stat(swapdev, &dev_st))
 		return ret;
 
 	if (NULL == (f = fopen(INFO_FILE_NAME, "r")))
@@ -163,12 +160,12 @@ static int	get_swap_pages(swap_stat_t *result)
 #else
 			if (0x00 == (0x01 & st) && 0 == strncmp(line, "pswpin ", 7))
 			{
-				ZBX_STR2UINT64(result->rpag, line + 7);
+				sscanf(line + 7, ZBX_FS_UI64, &result->rpag);
 				st |= 0x01;
 			}
 			else if (0x00 == (0x02 & st) && 0 == strncmp(line, "pswpout ", 8))
 			{
-				ZBX_STR2UINT64(result->wpag, line + 8);
+				sscanf(line + 8, ZBX_FS_UI64, &result->wpag);
 				st |= 0x02;
 			}
 
@@ -200,7 +197,7 @@ static int	get_swap_stat(const char *swapdev, swap_stat_t *result)
 
 	memset(result, 0, sizeof(swap_stat_t));
 
-	if (0 == strcmp(swapdev, "all"))
+	if (NULL == swapdev || '\0' == *swapdev || 0 == strcmp(swapdev, "all"))
 	{
 		ret = get_swap_pages(result);
 		swapdev = NULL;
@@ -239,28 +236,27 @@ static int	get_swap_stat(const char *swapdev, swap_stat_t *result)
 	return ret;
 }
 
-int	SYSTEM_SWAP_IN(const char *cmd, const char *param, unsigned flags, AGENT_RESULT *result)
+int	SYSTEM_SWAP_IN(AGENT_REQUEST *request, AGENT_RESULT *result)
 {
-	char		swapdev[MAX_STRING_LEN], mode[32];
+	char		*swapdev, *mode;
 	swap_stat_t	ss;
 
-	if (num_param(param) > 2)
+	if (2 < request->nparam)
 		return SYSINFO_RET_FAIL;
 
-	if (0 != get_param(param, 1, swapdev, sizeof(swapdev)))
-		*swapdev = '\0';
-
-	if ('\0' == *swapdev)	/* default parameter */
-		strscpy(swapdev, "all");
-
-	if (0 != get_param(param, 2, mode, sizeof(mode)))
-		*mode = '\0';
+	swapdev = get_rparam(request, 0);
+	mode = get_rparam(request, 1);
 
 	if (SYSINFO_RET_OK != get_swap_stat(swapdev, &ss))
 		return SYSINFO_RET_FAIL;
 
-	if (('\0' == *mode || 0 == strcmp(mode, "pages")) && 0 == strcmp(swapdev, "all"))	/* default parameter */
+	if (NULL == mode || '\0' == *mode || 0 == strcmp(mode, "pages"))
+	{
+		if (NULL != swapdev && '\0' != *swapdev && 0 != strcmp(swapdev, "all"))
+			return SYSINFO_RET_FAIL;
+
 		SET_UI64_RESULT(result, ss.rpag);
+	}
 	else if (0 == strcmp(mode, "sectors"))
 		SET_UI64_RESULT(result, ss.rsect);
 	else if (0 == strcmp(mode, "count"))
@@ -271,28 +267,27 @@ int	SYSTEM_SWAP_IN(const char *cmd, const char *param, unsigned flags, AGENT_RES
 	return SYSINFO_RET_OK;
 }
 
-int	SYSTEM_SWAP_OUT(const char *cmd, const char *param, unsigned flags, AGENT_RESULT *result)
+int	SYSTEM_SWAP_OUT(AGENT_REQUEST *request, AGENT_RESULT *result)
 {
-	char		swapdev[MAX_STRING_LEN], mode[32];
+	char		*swapdev, *mode;
 	swap_stat_t	ss;
 
-	if (num_param(param) > 2)
+	if (2 < request->nparam)
 		return SYSINFO_RET_FAIL;
 
-	if (0 != get_param(param, 1, swapdev, sizeof(swapdev)))
-		*swapdev = '\0';
-
-	if ('\0' == *swapdev)	/* default parameter */
-		strscpy(swapdev, "all");
-
-	if (0 != get_param(param, 2, mode, sizeof(mode)))
-		*mode = '\0';
+	swapdev = get_rparam(request, 0);
+	mode = get_rparam(request, 1);
 
 	if (SYSINFO_RET_OK != get_swap_stat(swapdev, &ss))
 		return SYSINFO_RET_FAIL;
 
-	if (('\0' == *mode || 0 == strcmp(mode, "pages")) && 0 == strcmp(swapdev, "all"))	/* default parameter */
+	if (NULL == mode || '\0' == *mode || 0 == strcmp(mode, "pages"))
+	{
+		if (NULL != swapdev && '\0' != *swapdev && 0 != strcmp(swapdev, "all"))
+			return SYSINFO_RET_FAIL;
+
 		SET_UI64_RESULT(result, ss.wpag);
+	}
 	else if (0 == strcmp(mode, "sectors"))
 		SET_UI64_RESULT(result, ss.wsect);
 	else if (0 == strcmp(mode, "count"))

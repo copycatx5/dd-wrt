@@ -283,15 +283,15 @@ static PyMethodDef idmap_methods[] = {
 void initidmap(void)
 {
 	PyObject *m;
-	PyObject *dep_samba_dcerpc_security;
 	PyObject *dep_talloc;
-
-	dep_samba_dcerpc_security = PyImport_ImportModule("samba.dcerpc.security");
-	if (dep_samba_dcerpc_security == NULL)
-		return;
+	PyObject *dep_samba_dcerpc_security;
 
 	dep_talloc = PyImport_ImportModule("talloc");
 	if (dep_talloc == NULL)
+		return;
+
+	dep_samba_dcerpc_security = PyImport_ImportModule("samba.dcerpc.security");
+	if (dep_samba_dcerpc_security == NULL)
 		return;
 
 	dom_sid_Type = (PyTypeObject *)PyObject_GetAttrString(dep_samba_dcerpc_security, "dom_sid");
@@ -321,14 +321,14 @@ void initidmap(void)
 	if (m == NULL)
 		return;
 
-	PyModule_AddObject(m, "ID_TYPE_BOTH", PyInt_FromLong(ID_TYPE_BOTH));
+	PyModule_AddObject(m, "ID_UNKNOWN", PyInt_FromLong(ID_UNKNOWN));
 	PyModule_AddObject(m, "ID_MAPPED", PyInt_FromLong(ID_MAPPED));
 	PyModule_AddObject(m, "ID_TYPE_UID", PyInt_FromLong(ID_TYPE_UID));
+	PyModule_AddObject(m, "ID_TYPE_BOTH", PyInt_FromLong(ID_TYPE_BOTH));
 	PyModule_AddObject(m, "ID_EXPIRED", PyInt_FromLong(ID_EXPIRED));
+	PyModule_AddObject(m, "ID_TYPE_GID", PyInt_FromLong(ID_TYPE_GID));
 	PyModule_AddObject(m, "ID_UNMAPPED", PyInt_FromLong(ID_UNMAPPED));
 	PyModule_AddObject(m, "ID_TYPE_NOT_SPECIFIED", PyInt_FromLong(ID_TYPE_NOT_SPECIFIED));
-	PyModule_AddObject(m, "ID_TYPE_GID", PyInt_FromLong(ID_TYPE_GID));
-	PyModule_AddObject(m, "ID_UNKNOWN", PyInt_FromLong(ID_UNKNOWN));
 	Py_INCREF((PyObject *)(void *)&unixid_Type);
 	PyModule_AddObject(m, "unixid", (PyObject *)(void *)&unixid_Type);
 	Py_INCREF((PyObject *)(void *)&id_map_Type);

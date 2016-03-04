@@ -25,7 +25,7 @@
 
 #include "screenshotr.h"
 #include "device_link_service.h"
-#include "debug.h"
+#include "common/debug.h"
 
 #define SCREENSHOTR_VERSION_INT1 300
 #define SCREENSHOTR_VERSION_INT2 0
@@ -58,22 +58,7 @@ static screenshotr_error_t screenshotr_error(device_link_service_error_t err)
 	return SCREENSHOTR_E_UNKNOWN_ERROR;
 }
 
-/**
- * Connects to the screenshotr service on the specified device.
- *
- * @param device The device to connect to.
- * @param service The service descriptor returned by lockdownd_start_service.
- * @param client Pointer that will be set to a newly allocated
- *     screenshotr_client_t upon successful return.
- *
- * @note This service is only available if a developer disk image has been
- *     mounted.
- *
- * @return SCREENSHOTR_E_SUCCESS on success, SCREENSHOTR_E_INVALID ARG if one
- *     or more parameters are invalid, or SCREENSHOTR_E_CONN_FAILED if the
- *     connection to the device could not be established.
- */
-screenshotr_error_t screenshotr_client_new(idevice_t device, lockdownd_service_descriptor_t service,
+LIBIMOBILEDEVICE_API screenshotr_error_t screenshotr_client_new(idevice_t device, lockdownd_service_descriptor_t service,
 					   screenshotr_client_t * client)
 {
 	if (!device || !service || service->port == 0 || !client || *client)
@@ -101,16 +86,14 @@ screenshotr_error_t screenshotr_client_new(idevice_t device, lockdownd_service_d
 	return ret;
 }
 
-/**
- * Disconnects a screenshotr client from the device and frees up the
- * screenshotr client data.
- *
- * @param client The screenshotr client to disconnect and free.
- *
- * @return SCREENSHOTR_E_SUCCESS on success, or SCREENSHOTR_E_INVALID_ARG
- *     if client is NULL.
- */
-screenshotr_error_t screenshotr_client_free(screenshotr_client_t client)
+LIBIMOBILEDEVICE_API screenshotr_error_t screenshotr_client_start_service(idevice_t device, screenshotr_client_t * client, const char* label)
+{
+	screenshotr_error_t err = SCREENSHOTR_E_UNKNOWN_ERROR;
+	service_client_factory_start_service(device, SCREENSHOTR_SERVICE_NAME, (void**)client, label, SERVICE_CONSTRUCTOR(screenshotr_client_new), &err);
+	return err;
+}
+
+LIBIMOBILEDEVICE_API screenshotr_error_t screenshotr_client_free(screenshotr_client_t client)
 {
 	if (!client)
 		return SCREENSHOTR_E_INVALID_ARG;
@@ -120,21 +103,7 @@ screenshotr_error_t screenshotr_client_free(screenshotr_client_t client)
 	return err;
 }
 
-/**
- * Get a screen shot from the connected device.
- *
- * @param client The connection screenshotr service client.
- * @param imgdata Pointer that will point to a newly allocated buffer
- *     containing TIFF image data upon successful return. It is up to the
- *     caller to free the memory.
- * @param imgsize Pointer to a uint64_t that will be set to the size of the
- *     buffer imgdata points to upon successful return.
- *
- * @return SCREENSHOTR_E_SUCCESS on success, SCREENSHOTR_E_INVALID_ARG if
- *     one or more parameters are invalid, or another error code if an
- *     error occured.
- */
-screenshotr_error_t screenshotr_take_screenshot(screenshotr_client_t client, char **imgdata, uint64_t *imgsize)
+LIBIMOBILEDEVICE_API screenshotr_error_t screenshotr_take_screenshot(screenshotr_client_t client, char **imgdata, uint64_t *imgsize)
 {
 	if (!client || !client->parent || !imgdata)
 		return SCREENSHOTR_E_INVALID_ARG;
@@ -142,7 +111,7 @@ screenshotr_error_t screenshotr_take_screenshot(screenshotr_client_t client, cha
 	screenshotr_error_t res = SCREENSHOTR_E_UNKNOWN_ERROR;
 
 	plist_t dict = plist_new_dict();
-	plist_dict_insert_item(dict, "MessageType", plist_new_string("ScreenShotRequest"));
+	plist_dict_set_item(dict, "MessageType", plist_new_string("ScreenShotRequest"));
 
 	res = screenshotr_error(device_link_service_send_process_message(client->parent, dict));
 	plist_free(dict);

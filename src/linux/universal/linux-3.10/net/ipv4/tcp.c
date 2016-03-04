@@ -280,13 +280,8 @@
 #include <asm/uaccess.h>
 #include <asm/ioctls.h>
 
-#ifdef CONFIG_BCM47XX
-#include <typedefs.h>
-#include <bcmdefs.h>
-#else
 #define BCMFASTPATH
 #define BCMFASTPATH_HOST
-#endif
 
 
 int sysctl_tcp_fin_timeout __read_mostly = TCP_FIN_TIMEOUT;
@@ -1074,7 +1069,7 @@ int tcp_sendmsg(struct kiocb *iocb, struct sock *sk, struct msghdr *msg,
 	if (unlikely(tp->repair)) {
 		if (tp->repair_queue == TCP_RECV_QUEUE) {
 			copied = tcp_send_rcvq(sk, msg, size);
-			goto out;
+			goto out_nopush;
 		}
 
 		err = -EINVAL;
@@ -1247,6 +1242,7 @@ wait_for_memory:
 out:
 	if (copied)
 		tcp_push(sk, flags, mss_now, tp->nonagle);
+out_nopush:
 	release_sock(sk);
 	return copied + copied_syn;
 

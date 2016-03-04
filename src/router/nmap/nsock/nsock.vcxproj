@@ -1,5 +1,5 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
-<Project DefaultTargets="Build" ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+<Project DefaultTargets="Build" ToolsVersion="12.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup Label="ProjectConfigurations">
     <ProjectConfiguration Include="DebugNoPcap|Win32">
       <Configuration>DebugNoPcap</Configuration>
@@ -31,22 +31,27 @@
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='ReleaseNoPcap|Win32'" Label="Configuration">
     <ConfigurationType>StaticLibrary</ConfigurationType>
     <CharacterSet>MultiByte</CharacterSet>
+    <PlatformToolset>v120_xp</PlatformToolset>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='DebugNoPcap|Win32'" Label="Configuration">
     <ConfigurationType>StaticLibrary</ConfigurationType>
     <CharacterSet>MultiByte</CharacterSet>
+    <PlatformToolset>v120_xp</PlatformToolset>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="Configuration">
     <ConfigurationType>StaticLibrary</ConfigurationType>
     <CharacterSet>MultiByte</CharacterSet>
+    <PlatformToolset>v120_xp</PlatformToolset>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Static|Win32'" Label="Configuration">
     <ConfigurationType>StaticLibrary</ConfigurationType>
     <CharacterSet>MultiByte</CharacterSet>
+    <PlatformToolset>v120_xp</PlatformToolset>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
     <ConfigurationType>StaticLibrary</ConfigurationType>
     <CharacterSet>MultiByte</CharacterSet>
+    <PlatformToolset>v120_xp</PlatformToolset>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
   <ImportGroup Label="ExtensionSettings">
@@ -88,13 +93,13 @@
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>
       <Optimization>Disabled</Optimization>
-      <AdditionalIncludeDirectories>..\nbase\;include;..\mswin32\pcap-include;..\mswin32;..\;..\mswin32\OpenSSL\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>..\nbase\;include;..\mswin32\pcap-include;..\mswin32;..\;..\..\nmap-mswin32-aux\OpenSSL\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <PreprocessorDefinitions>WIN32;_LIB;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <MinimalRebuild>true</MinimalRebuild>
       <ExceptionHandling>
       </ExceptionHandling>
       <BasicRuntimeChecks>EnableFastChecks</BasicRuntimeChecks>
-      <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
+      <RuntimeLibrary>MultiThreadedDebugDLL</RuntimeLibrary>
       <PrecompiledHeader>
       </PrecompiledHeader>
       <WarningLevel>Level3</WarningLevel>
@@ -108,11 +113,10 @@
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <ClCompile>
       <AdditionalOptions>/D "_CRT_SECURE_NO_DEPRECATE" %(AdditionalOptions)</AdditionalOptions>
-      <AdditionalIncludeDirectories>..\nbase\;include;..\mswin32\pcap-include;..\mswin32;..\;..\mswin32\OpenSSL\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>..\nbase\;include;..\mswin32\pcap-include;..\mswin32;..\;..\..\nmap-mswin32-aux\OpenSSL\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <PreprocessorDefinitions>WIN32;_LIB;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ExceptionHandling>
       </ExceptionHandling>
-      <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
       <PrecompiledHeader>
       </PrecompiledHeader>
       <WarningLevel>Level3</WarningLevel>
@@ -126,7 +130,7 @@
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Static|Win32'">
     <ClCompile>
       <AdditionalOptions>/D "_CRT_SECURE_NO_DEPRECATE" %(AdditionalOptions)</AdditionalOptions>
-      <AdditionalIncludeDirectories>..\nbase\;include;..\mswin32\pcap-include;..\mswin32;..\;..\mswin32\OpenSSL\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>..\nbase\;include;..\mswin32\pcap-include;..\mswin32;..\;..\..\nmap-mswin32-aux\OpenSSL\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <PreprocessorDefinitions>WIN32;_LIB;%(PreprocessorDefinitions);DISABLE_NSOCK_PCAP</PreprocessorDefinitions>
       <ExceptionHandling>
       </ExceptionHandling>
@@ -145,13 +149,13 @@
     <ClCompile>
       <AdditionalOptions>/D "DISABLE_NSOCK_PCAP" %(AdditionalOptions)</AdditionalOptions>
       <Optimization>Disabled</Optimization>
-      <AdditionalIncludeDirectories>..\nbase\;include;..\mswin32\pcap-include;..\mswin32;..\;..\mswin32\OpenSSL\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>..\nbase\;include;..\mswin32\pcap-include;..\mswin32;..\;..\..\nmap-mswin32-aux\OpenSSL\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <PreprocessorDefinitions>WIN32;_LIB;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <MinimalRebuild>true</MinimalRebuild>
       <ExceptionHandling>
       </ExceptionHandling>
       <BasicRuntimeChecks>EnableFastChecks</BasicRuntimeChecks>
-      <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
+      <RuntimeLibrary>MultiThreadedDebugDLL</RuntimeLibrary>
       <PrecompiledHeader>
       </PrecompiledHeader>
       <WarningLevel>Level3</WarningLevel>
@@ -166,11 +170,10 @@
     <ClCompile>
       <AdditionalOptions>/D "_CRT_SECURE_NO_DEPRECATE"
 /D "DISABLE_NSOCK_PCAP" %(AdditionalOptions)</AdditionalOptions>
-      <AdditionalIncludeDirectories>..\nbase\;include;..\mswin32\pcap-include;..\mswin32;..\;..\mswin32\OpenSSL\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>..\nbase\;include;..\mswin32\pcap-include;..\mswin32;..\;..\..\nmap-mswin32-aux\OpenSSL\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <PreprocessorDefinitions>WIN32;_LIB;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ExceptionHandling>
       </ExceptionHandling>
-      <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
       <PrecompiledHeader>
       </PrecompiledHeader>
       <WarningLevel>Level3</WarningLevel>
@@ -183,31 +186,40 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="src\engine_epoll.c" />
+    <ClCompile Include="src\engine_kqueue.c" />
+    <ClCompile Include="src\engine_poll.c" />
     <ClCompile Include="src\engine_select.c" />
     <ClCompile Include="src\error.c" />
     <ClCompile Include="src\filespace.c" />
-    <ClCompile Include="src\gh_list.c" />
+    <ClCompile Include="src\gh_heap.c" />
     <ClCompile Include="src\netutils.c" />
     <ClCompile Include="src\nsock_connect.c" />
     <ClCompile Include="src\nsock_core.c" />
     <ClCompile Include="src\nsock_engines.c" />
     <ClCompile Include="src\nsock_event.c" />
     <ClCompile Include="src\nsock_iod.c" />
+    <ClCompile Include="src\nsock_log.c" />
     <ClCompile Include="src\nsock_pcap.c" />
     <ClCompile Include="src\nsock_pool.c" />
+    <ClCompile Include="src\nsock_proxy.c" />
     <ClCompile Include="src\nsock_read.c" />
     <ClCompile Include="src\nsock_ssl.c" />
     <ClCompile Include="src\nsock_timers.c" />
     <ClCompile Include="src\nsock_write.c" />
+    <ClCompile Include="src\proxy_http.c" />
+    <ClCompile Include="src\proxy_socks4.c" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="src\error.h" />
     <ClInclude Include="src\filespace.h" />
+    <ClInclude Include="src\gh_heap.h" />
     <ClInclude Include="src\gh_list.h" />
     <ClInclude Include="src\netutils.h" />
     <ClInclude Include="include\nsock.h" />
     <ClInclude Include="src\nsock_internal.h" />
+    <ClInclude Include="src\nsock_log.h" />
     <ClInclude Include="src\nsock_pcap.h" />
+    <ClInclude Include="src\nsock_proxy.h" />
     <ClInclude Include="src\nsock_ssl.h" />
     <ClInclude Include="include\nsock_winconfig.h" />
   </ItemGroup>

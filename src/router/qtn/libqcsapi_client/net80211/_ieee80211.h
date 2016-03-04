@@ -262,6 +262,28 @@ enum ieee80211_ba_type {
 	IEEE80211_BA_IMMEDIATE = 1,
 };
 
+/* power index definition */
+enum ieee80211_power_index_beamforming {
+	PWR_IDX_BF_OFF = 0,
+	PWR_IDX_BF_ON = 1,
+	PWR_IDX_BF_MAX = 2
+};
+
+enum ieee80211_power_index_spatial_stream {
+	PWR_IDX_1SS = 0,
+	PWR_IDX_2SS = 1,
+	PWR_IDX_3SS = 2,
+	PWR_IDX_4SS = 3,
+	PWR_IDX_SS_MAX = 4
+};
+
+enum ieee80211_power_index_bandwidth {
+	PWR_IDX_20M = 0,
+	PWR_IDX_40M = 1,
+	PWR_IDX_80M = 2,
+	PWR_IDX_BW_MAX = 3
+};
+
 /*
  * Channels are specified by frequency and attributes.
  */
@@ -270,13 +292,11 @@ struct ieee80211_channel {
 	u_int32_t ic_flags;	/* see below */
 	u_int8_t ic_ieee;	/* IEEE channel number */
 	int8_t ic_maxregpower;	/* maximum regulatory tx power in dBm */
-	int8_t ic_maxpower;	/* maximum tx power in dBm for the current bandwidth*/
+	int8_t ic_maxpower;	/* maximum tx power in dBm for the current bandwidth with beam-forming off */
 	int8_t ic_minpower;	/* minimum tx power in dBm */
 	int8_t ic_maxpower_normal;	/* backup max tx power for short-range workaround */
 	int8_t ic_minpower_normal;	/* backup min tx power for short-range workaround */
-	int8_t ic_maxpower_20M;	/* maximum tx power in dBm for 20MHz bandwidth */
-	int8_t ic_maxpower_40M;	/* maximum tx power in dBm for 40MHz bandwidth */
-	int8_t ic_maxpower_80M;	/* maximum tx power in dBm for 80MHz bandwidth */
+	int8_t ic_maxpower_table[PWR_IDX_BF_MAX][PWR_IDX_SS_MAX][PWR_IDX_BW_MAX];	/* the maximum powers for different cases */
 	u_int32_t ic_radardetected; /* number that radar signal has been detected on this channel */
 	u_int8_t ic_center_f_80MHz;
 	u_int8_t ic_center_f_160MHz;
@@ -314,6 +334,10 @@ struct ieee80211_channel {
 #define IEEE80211_CHAN_DFS_CAC_DONE	0x00200000     /* Status: CAC completed */
 #define IEEE80211_CHAN_VHT80	0x00400000	/* VHT 80 */
 #define IEEE80211_CHAN_DFS_OCAC_DONE	0x00800000	/* Status: Off-channel CAC completed */
+#define IEEE80211_CHAN_DFS_CAC_IN_PROGRESS	0x01000000	/* Status: Valid CAC is in progress */
+
+#define IEEE80211_DEFAULT_2_4_GHZ_CHANNEL	1
+#define IEEE80211_DEFAULT_5_GHZ_CHANNEL		36
 
 #define IEEE80211_MAX_2_4_GHZ_CHANNELS	13
 #define IEEE80211_MAX_5_GHZ_CHANNELS	30
@@ -321,6 +345,13 @@ struct ieee80211_channel {
 #define CHIPID_2_4_GHZ					0
 #define CHIPID_5_GHZ					1
 #define CHIPID_DUAL                                     2
+
+/*11AC - 40MHZ flags */
+#define IEEE80211_CHAN_VHT40U	IEEE80211_CHAN_HT40U	/* VHT 40 with ext channel above */
+#define IEEE80211_CHAN_VHT40D	IEEE80211_CHAN_HT40D	/* VHT 40 with ext channel below */
+#define IEEE80211_CHAN_VHT40	IEEE80211_CHAN_HT40	/* VHT 40 with ext channel above/below */
+/*11AC - 20MHZ flags */
+#define IEEE80211_CHAN_VHT20	IEEE80211_CHAN_HT20	/* VHT 20 channel */
 
 /* below are channel ext attributes(ic_ext_flags) */
 /* 11AC - 80MHZ flags */
@@ -375,12 +406,20 @@ struct ieee80211_channel {
 	 IEEE80211_CHAN_HT40)
 
 #define IEEE80211_CHAN_11AC \
-        (IEEE80211_CHAN_5GHZ |IEEE80211_CHAN_OFDM |  IEEE80211_CHAN_VHT80 )
+        (IEEE80211_CHAN_5GHZ |IEEE80211_CHAN_OFDM |  IEEE80211_CHAN_VHT20 )
+#define IEEE80211_CHAN_11AC_VHT40 \
+	(IEEE80211_CHAN_5GHZ |IEEE80211_CHAN_OFDM |  IEEE80211_CHAN_VHT20 | \
+	 IEEE80211_CHAN_VHT40)
+#define IEEE80211_CHAN_11AC_VHT80 \
+	(IEEE80211_CHAN_5GHZ |IEEE80211_CHAN_OFDM |  IEEE80211_CHAN_VHT20 | \
+	 IEEE80211_CHAN_VHT40 | IEEE80211_CHAN_VHT80 )
 
 #define	IEEE80211_CHAN_ALL \
 	(IEEE80211_CHAN_2GHZ | IEEE80211_CHAN_5GHZ | IEEE80211_CHAN_HT20 | \
 	 IEEE80211_CHAN_HT40U | IEEE80211_CHAN_HT40D | IEEE80211_CHAN_HT40| \
-	 IEEE80211_CHAN_CCK | IEEE80211_CHAN_OFDM | IEEE80211_CHAN_DYN)
+	 IEEE80211_CHAN_CCK | IEEE80211_CHAN_OFDM | IEEE80211_CHAN_DYN| \
+	 IEEE80211_CHAN_VHT20 | IEEE80211_CHAN_VHT40 | IEEE80211_CHAN_VHT80)
+
 #define	IEEE80211_CHAN_ALLTURBO \
 	(IEEE80211_CHAN_ALL | IEEE80211_CHAN_TURBO | IEEE80211_CHAN_STURBO)
 
@@ -390,6 +429,8 @@ struct ieee80211_channel {
 
 #define	IEEE80211_IS_CHAN_CACDONE(_c) \
 	(((_c)->ic_flags & IEEE80211_CHAN_DFS_CAC_DONE) != 0)
+#define	IEEE80211_IS_CHAN_CAC_IN_PROGRESS(_c) \
+	(((_c)->ic_flags & IEEE80211_CHAN_DFS_CAC_IN_PROGRESS) != 0)
 
 #define IEEE80211_IS_CHAN_FHSS(_c) \
 	(((_c)->ic_flags & IEEE80211_CHAN_FHSS) == IEEE80211_CHAN_FHSS)
@@ -453,9 +494,39 @@ struct ieee80211_channel {
 	(IEEE80211_IS_CHAN_11NA((_c)) && IEEE80211_IS_CHAN_HT40PLUS((_c)))
 #define	IEEE80211_IS_CHAN_11NA_HT40MINUS(_c) \
 	(IEEE80211_IS_CHAN_11NA((_c)) && IEEE80211_IS_CHAN_HT40MINUS((_c)))
-#define IEEE80211_IS_CHAN_ANYN(_c)  1
+#define IEEE80211_IS_CHAN_ANYN(_c) 1
 	//(((_c)->ic_flags & IEEE80211_CHAN_ANYN))
 
+#define	IEEE80211_IS_CHAN_VHT40PLUS(_c) \
+	(((_c)->ic_flags & IEEE80211_CHAN_VHT40U) == IEEE80211_CHAN_VHT40U)
+#define	IEEE80211_IS_CHAN_VHT40MINUS(_c) \
+	(((_c)->ic_flags & IEEE80211_CHAN_VHT40D) == IEEE80211_CHAN_VHT40D)
+#define IEEE80211_IS_CHAN_VHT40(_c) \
+	(IEEE80211_IS_CHAN_VHT40PLUS(_c) || IEEE80211_IS_CHAN_VHT40MINUS(_c))
+#define IEEE80211_IS_CHAN_11AC_VHT40PLUS(_c) \
+	(IEEE80211_IS_CHAN_11AC(_c) && IEEE80211_IS_CHAN_VHT40PLUS(_c))
+#define IEEE80211_IS_CHAN_11AC_VHT40MINUS(_c) \
+	(IEEE80211_IS_CHAN_11AC(_c) && IEEE80211_IS_CHAN_VHT40MINUS(_c))
+
+#define IEEE80211_IS_CHAN_VHT80_EDGEPLUS(_c) \
+	(((_c)->ic_ext_flags & IEEE80211_CHAN_VHT80_LL) == IEEE80211_CHAN_VHT80_LL)
+#define IEEE80211_IS_CHAN_VHT80_CNTRPLUS(_c) \
+	(((_c)->ic_ext_flags & IEEE80211_CHAN_VHT80_LU) == IEEE80211_CHAN_VHT80_LU)
+#define IEEE80211_IS_CHAN_VHT80_CNTRMINUS(_c) \
+	(((_c)->ic_ext_flags & IEEE80211_CHAN_VHT80_UL) == IEEE80211_CHAN_VHT80_UL)
+#define IEEE80211_IS_CHAN_VHT80_EDGEMINUS(_c) \
+	(((_c)->ic_ext_flags & IEEE80211_CHAN_VHT80_UU) == IEEE80211_CHAN_VHT80_UU)
+#define IEEE80211_IS_CHAN_VHT80(_c) \
+	(IEEE80211_IS_CHAN_VHT80_EDGEPLUS(_c) || IEEE80211_IS_CHAN_VHT80_EDGEMINUS(_c) || \
+	 IEEE80211_IS_CHAN_VHT80_CNTRPLUS(_c) || IEEE80211_IS_CHAN_VHT80_CNTRMINUS(_c))
+#define IEEE80211_IS_CHAN_11AC_VHT80_EDGEPLUS(_c) \
+	(IEEE80211_IS_CHAN_11AC(_c) && IEEE80211_IS_CHAN_VHT80_EDGEPLUS(_c))
+#define IEEE80211_IS_CHAN_11AC_VHT80_CNTRPLUS(_c) \
+	(IEEE80211_IS_CHAN_11AC(_c) && IEEE80211_IS_CHAN_VHT80_CNTRPLUS(_c))
+#define IEEE80211_IS_CHAN_11AC_VHT80_CNTRMINUS(_c) \
+	(IEEE80211_IS_CHAN_11AC(_c) && IEEE80211_IS_CHAN_VHT80_CNTRMINUS(_c))
+#define IEEE80211_IS_CHAN_11AC_VHT80_EDGEMINUS(_c) \
+	(IEEE80211_IS_CHAN_11AC(_c) && IEEE80211_IS_CHAN_VHT80_EDGEMINUS(_c))
 
 /* mode specific macros */
 
@@ -477,6 +548,31 @@ struct ieee80211_channel {
 #define	IEEE80211_FH_CHANPAT(chan)	((chan) % IEEE80211_FH_CHANMOD)
 
 #define IEEE80211_HTCAP_TXBF_CAP_LEN	4
+
+/* Peer RTS config */
+#define IEEE80211_PEER_RTS_OFF		0
+#define IEEE80211_PEER_RTS_PMP		1
+#define IEEE80211_PEER_RTS_DYN		2
+#define IEEE80211_PEER_RTS_MAX		2
+#define IEEE80211_PEER_RTS_DEFAULT	IEEE80211_PEER_RTS_DYN
+
+/* Dynamic WMM */
+#define IEEE80211_DYN_WMM_OFF			0
+#define IEEE80211_DYN_WMM_ON			1
+#define IEEE80211_DYN_WMM_DEFAULT		IEEE80211_DYN_WMM_ON
+
+#define IEEE80211_DYN_WMM_LOCAL_AIFS_DELTA	-2
+#define IEEE80211_DYN_WMM_LOCAL_CWMIN_DELTA	-2
+#define IEEE80211_DYN_WMM_LOCAL_CWMAX_DELTA	-3
+#define IEEE80211_DYN_WMM_LOCAL_AIFS_MIN	{3, 3, 2, 1}
+#define IEEE80211_DYN_WMM_LOCAL_CWMIN_MIN	{2, 4, 2, 2}
+#define IEEE80211_DYN_WMM_LOCAL_CWMAX_MIN	{4, 6, 3, 3}
+#define IEEE80211_DYN_WMM_BSS_AIFS_DELTA	2
+#define IEEE80211_DYN_WMM_BSS_CWMIN_DELTA	2
+#define IEEE80211_DYN_WMM_BSS_CWMAX_DELTA	3
+#define IEEE80211_DYN_WMM_BSS_AIFS_MAX		{4, 5, 4, 3}
+#define IEEE80211_DYN_WMM_BSS_CWMIN_MAX		{4, 6, 4, 3}
+#define IEEE80211_DYN_WMM_BSS_CWMAX_MAX		{6, 8, 6, 5}
 
 /*
  * 802.11 rate set.
@@ -568,6 +664,9 @@ struct ieee80211_channel {
 /* rate table index = (MCS set index << 3) + MCS index */
 #define IEEE80211_HT_RATE_TABLE_IDX(_s,_i) \
 		(((_s) << 3) + (_i))
+
+/* Supported rate label */
+#define IEEE80211_RATE_11MBPS	22
 
 #if 0
 /* integer portion of HT rates */
@@ -1102,6 +1201,7 @@ struct ieee80211_meas_report_ctrl {
 			u_int8_t qtn_cca_report;
 			u_int32_t sp_fail;
 			u_int32_t lp_fail;
+			u_int16_t others_time;
 		} qtn_cca;
 		struct _rep_chan_load {
 			u_int8_t op_class;
@@ -1245,5 +1345,7 @@ struct ieee80211_neighbor_report_response {
 #define IEEE80211_BINTVAL_SANITISE(_bi) \
 	(IEEE80211_BINTVAL_VALID(_bi) ? \
 	 (_bi) : IEEE80211_BINTVAL_DEFAULT)
+
+#define IEEE80211_SCAN_TBL_LEN_MAX_DFLT	2000
 
 #endif /* _NET80211__IEEE80211_H_ */

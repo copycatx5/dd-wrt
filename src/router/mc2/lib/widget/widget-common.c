@@ -1,7 +1,7 @@
 /*
    Widgets for the Midnight Commander
 
-   Copyright (C) 1994-2014
+   Copyright (C) 1994-2015
    Free Software Foundation, Inc.
 
    Authors:
@@ -359,6 +359,9 @@ mouse_get_local (const Gpm_Event * global, const Widget * w)
     Gpm_Event local;
 
     local.buttons = global->buttons;
+#ifdef HAVE_LIBGPM
+    local.modifiers = 0;
+#endif
     local.x = global->x - w->x;
     local.y = global->y - w->y;
     local.type = global->type;

@@ -1,7 +1,7 @@
 <?php
 /*
 ** Zabbix
-** Copyright (C) 2001-2013 Zabbix SIA
+** Copyright (C) 2001-2015 Zabbix SIA
 **
 ** This program is free software; you can redistribute it and/or modify
 ** it under the terms of the GNU General Public License as published by
@@ -30,8 +30,8 @@ require_once dirname(__FILE__).'/include/page_header.php';
 
 // VAR	TYPE	OPTIONAL	FLAGS	VALIDATION	EXCEPTION
 $fields = array(
-	'nodeid' =>			array(T_ZBX_INT, O_OPT,	null,	DB_ID,			'(isset({form})&&({form}=="update"))'),
-	'new_nodeid' =>		array(T_ZBX_STR, O_OPT, null,	DB_ID.NOT_ZERO,	'isset({save})', _('ID')),
+	'nodeid' =>			array(T_ZBX_INT, O_OPT,	P_SYS,	DB_ID,			'(isset({form})&&({form}=="update"))'),
+	'new_nodeid' =>		array(T_ZBX_INT, O_OPT, null,	DB_ID.NOT_ZERO,	'isset({save})', _('ID')),
 	'name' =>			array(T_ZBX_STR, O_OPT, null,	NOT_EMPTY,		'isset({save})'),
 	'ip' =>				array(T_ZBX_IP,	 O_OPT, null,	null,			'isset({save})'),
 	'nodetype' =>		array(T_ZBX_INT, O_OPT, null,	IN(ZBX_NODE_CHILD.','.ZBX_NODE_MASTER.','.ZBX_NODE_LOCAL),
@@ -50,16 +50,23 @@ check_fields($fields);
 /*
  * Permissions
  */
-$available_nodes = get_accessible_nodes_by_user($USER_DETAILS, PERM_READ_LIST);
+$available_nodes = get_accessible_nodes_by_user(CWebUser::$data, PERM_READ);
 if (count($available_nodes) == 0) {
 	access_deny();
+}
+$node = null;
+if (get_request('nodeid')) {
+	$node = get_node_by_nodeid($_REQUEST['nodeid']);
+	if (!$node) {
+		access_deny();
+	}
 }
 
 /*
  * Actions
  */
 if (isset($_REQUEST['save'])) {
-	if (isset($_REQUEST['nodeid'])) {
+	if (get_request('nodeid')) {
 		$nodeid = get_request('nodeid');
 
 		DBstart();
@@ -84,8 +91,6 @@ if (isset($_REQUEST['save'])) {
 	}
 }
 elseif (isset($_REQUEST['delete'])) {
-	$node = get_node_by_nodeid($_REQUEST['nodeid']);
-
 	DBstart();
 	$result = delete_node($_REQUEST['nodeid']);
 	$result = DBend($result);
@@ -106,10 +111,7 @@ if (isset($_REQUEST['form'])) {
 		'nodeid' => get_request('nodeid'),
 		'masterNode' => DBfetch(DBselect('SELECT n.name FROM nodes n WHERE n.masterid IS NULL AND n.nodetype='.ZBX_NODE_MASTER))
 	);
-
-	if (isset($_REQUEST['nodeid']) && !isset($_REQUEST['form_refresh'])) {
-		$node = get_node_by_nodeid($data['nodeid']);
-
+	if (get_request('nodeid') && !isset($_REQUEST['form_refresh'])) {
 		$data['new_nodeid'] = $node['nodeid'];
 		$data['name'] = $node['name'];
 		$data['ip'] = $node['ip'];

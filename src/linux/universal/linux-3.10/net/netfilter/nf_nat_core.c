@@ -455,7 +455,6 @@ unsigned int nf_nat_packet(struct nf_conn *ct,
 
 		/* We are aiming to look like inverse of other direction. */
 		nf_ct_invert_tuplepr(&target, &ct->tuplehash[!dir].tuple);
-		ddtb_ip_conntrack_add(skb, hooknum, ct, ctinfo, &target);
 
 		l3proto = __nf_nat_l3proto_find(target.src.l3num);
 		l4proto = __nf_nat_l4proto_find(target.src.l3num,
@@ -486,6 +485,39 @@ static int nf_nat_proto_remove(struct nf_conn *i, void *data)
 		return 0;
 
 	return i->status & IPS_NAT_MASK ? 1 : 0;
+}
+
+static int nf_nat_proto_clean(struct nf_conn *ct, void *data)
+{
+	struct nf_conn_nat *nat = nfct_nat(ct);
+
+	if (nf_nat_proto_remove(ct, data))
+		return 1;
+
+	if (!nat || !nat->ct)
+		return 0;
+
+	/* This netns is being destroyed, and conntrack has nat null binding.
+	 * Remove it from bysource hash, as the table will be freed soon.
+	 *
+	 * Else, when the conntrack is destoyed, nf_nat_cleanup_conntrack()
+	 * will delete entry from already-freed table.
+	 */
+	if (!del_timer(&ct->timeout))
+		return 1;
+
+	spin_lock_bh(&nf_nat_lock);
+	hlist_del_rcu(&nat->bysource);
+	ct->status &= ~IPS_NAT_DONE_MASK;
+	nat->ct = NULL;
+	spin_unlock_bh(&nf_nat_lock);
+
+	add_timer(&ct->timeout);
+
+	/* don't delete conntrack.  Although that would make things a lot
+	 * simpler, we'd end up flushing all conntracks on nat rmmod.
+	 */
+	return 0;
 }
 
 static void nf_nat_l4proto_clean(u8 l3proto, u8 l4proto)
@@ -750,7 +782,7 @@ static void __net_exit nf_nat_net_exit(struct net *net)
 {
 	struct nf_nat_proto_clean clean = {};
 
-	nf_ct_iterate_cleanup(net, &nf_nat_proto_remove, &clean);
+	nf_ct_iterate_cleanup(net, nf_nat_proto_clean, &clean);
 	synchronize_rcu();
 	nf_ct_free_hashtable(net->ct.nat_bysource, net->ct.nat_htable_size);
 }

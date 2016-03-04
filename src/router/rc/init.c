@@ -29,20 +29,20 @@
 #define SHELL "/bin/login"
 #define	_PATH_CONSOLE	"/dev/console"
 
-#define start_service(a) sysprintf("startservice %s",a);
-#define start_service_force(a) sysprintf("startservice %s -f",a);
-#define start_service_f(a) sysprintf("startservice_f %s",a);
-#define start_service_force_f(a) sysprintf("startservice_f %s -f",a);
-#define start_services() system("startservices");
-#define start_single_service() system("start_single_service");
-#define stop_service(a) sysprintf("stopservice %s",a);
-#define stop_service_force(a) sysprintf("stopservice %s -f",a);
-#define stop_running(a) sysprintf("stop_running");
-#define stop_service_f(a) sysprintf("stopservice_f %s",a);
-#define stop_service_force_f(a) sysprintf("stopservice_f %s -f",a);
-#define stop_services() system("stopservices");
-#define startstop(a) sysprintf("startstop %s",a);
-#define startstop_f(a) sysprintf("startstop_f %s",a);
+#define start_service(a) eval("startservice",a);
+#define start_service_force(a) eval("startservice",a,"-f");
+#define start_service_f(a) eval("startservice_f",a);
+#define start_service_force_f(a) eval("startservice_f",a,"-f");
+#define start_services() eval("startservices");
+#define start_single_service() eval("start_single_service");
+#define stop_service(a) eval("stopservice",a);
+#define stop_service_force(a) eval("stopservice","-f",a);
+#define stop_running(a) eval("stop_running");
+#define stop_service_f(a) eval("stopservice_f",a);
+#define stop_service_force_f(a) eval("stopservice_f",a,"-f");
+#define stop_services() eval("stopservices");
+#define startstop(a) eval("startstop",a);
+#define startstop_f(a) eval("startstop_f",a);
 
 static void set_term(int fd)
 {
@@ -142,9 +142,6 @@ pid_t ddrun_shell(int timeout, int nowait)
 		"LD_LIBRARY_PATH=/usr/lib:/lib:/jffs/usr/lib:/jffs/lib:/opt/lib:/opt/usr/lib",
 		"SHELL=" SHELL,
 		"USER=root",
-#ifdef HAVE_QTN
-		"QCSAPI_RPC_TARGET=169.254.39.2",
-#endif
 		tz,
 		NULL
 	};
@@ -177,7 +174,6 @@ pid_t ddrun_shell(int timeout, int nowait)
 		 * Pass on TZ 
 		 */
 		snprintf(tz, sizeof(tz), "TZ=%s", getenv("TZ"));
-
 		/* 
 		 * Now run it.  The new program will take over this PID, so
 		 * nothing further in init.c should be run. 
@@ -232,6 +228,9 @@ void shutdown_system(void)
 #ifdef HAVE_LAGUNA
 	start_service("deconfigurewifi");
 #endif
+	fprintf(stderr, "send dhcp lease release signal\n");
+	killall("udhcpc", SIGUSR2);
+	sleep(1);
 	fprintf(stderr, "Sending SIGTERM to all processes\n");
 	kill(-1, SIGTERM);
 	sync();
@@ -241,8 +240,31 @@ void shutdown_system(void)
 	kill(-1, SIGKILL);
 	sync();
 	sleep(1);
-	system("/bin/umount -a -r");
-
+	char dev[32];
+	char mpoint[128];
+	char fstype[32];
+	char flags[64];
+	int a, b;
+	FILE *fp = fopen("/proc/mounts", "rb");
+	while (!feof(fp) && fscanf(fp, "%s %s %s %s %d %d", dev, mpoint, fstype, flags, &a, &b) == 6) {
+		if (!strcmp(fstype, "proc"))
+			continue;
+		if (!strcmp(fstype, "sysfs"))
+			continue;
+		if (!strcmp(fstype, "debugfs"))
+			continue;
+		if (!strcmp(fstype, "ramfs"))
+			continue;
+		if (!strcmp(fstype, "tmpfs"))
+			continue;
+		if (!strcmp(fstype, "devpts"))
+			continue;
+		if (!strcmp(fstype, "usbfs"))
+			continue;
+		fprintf(stderr, "unmounting %s\n", mpoint);
+		eval("umount", "-r", "-f", mpoint);
+	}
+	fclose(fp);
 }
 
 static int fatal_signals[] = {
@@ -395,7 +417,7 @@ static int noconsole = 0;
 
 static void set_tcp_params(void)
 {
-	system("/etc/preinit");	// sets default values for ip_conntrack
+	eval("/etc/preinit");	// sets default values for ip_conntrack
 
 	FILE *fp = fopen("/proc/sys/net/ipv4/tcp_available_congestion_control", "rb");
 	if (fp == NULL) {
@@ -417,7 +439,7 @@ static void set_tcp_params(void)
 		writeproc("/proc/sys/net/ipv4/tcp_vegas_beta", "3");
 	} else {
 		fclose(fp);
-		writeproc("/proc/sys/net/ipv4/tcp_congestion_control", nvram_default_get("tcp_congestion_control", "vegas"));
+		writeproc("/proc/sys/net/ipv4/tcp_congestion_control", nvram_default_get("tcp_congestion_control", "westwood"));
 	}
 
 }
@@ -446,6 +468,7 @@ int main(int argc, char **argv)
 	fprintf(stderr, "starting Architecture code for " ARCHITECTURE "\n");
 	start_service("devinit");	//init /dev /proc etc.
 	start_service("sysinit");
+	start_service("post_sysinit");
 #ifndef HAVE_MICRO
 	if (console_init())
 		noconsole = 1;
@@ -497,35 +520,13 @@ int main(int argc, char **argv)
 	boardflags = strtoul(nvram_safe_get("boardflags"), NULL, 0);
 	nvram_set("wanup", "0");
 
-#ifndef HAVE_RB500
-	switch (brand) {
-	case ROUTER_WRT600N:
-	case ROUTER_WRT610N:
-	case ROUTER_ASUS_WL500GD:
-	case ROUTER_ASUS_WL550GE:
-	case ROUTER_MOTOROLA:
-	case ROUTER_RT480W:
-	case ROUTER_WRT350N:
-	case ROUTER_BUFFALO_WZRG144NH:
-	case ROUTER_DELL_TRUEMOBILE_2300_V2:
-		start_service("config_vlan");
-		break;
-	default:
-		if (check_vlan_support()) {
-			start_service("config_vlan");
-		}
-		break;
-
-	}
-#endif
-
 	set_ip_forward('1');
 	set_tcp_params();
 #ifdef HAVE_JFFS2
-	start_service("jffs2");
+	start_service_force("jffs2");
 #endif
 #ifdef HAVE_MMC
-	start_service("mmc");
+	start_service_force("mmc");
 #endif
 
 	start_service("mkfiles");
@@ -556,30 +557,34 @@ int main(int argc, char **argv)
 #ifndef HAVE_ERC
 #ifndef HAVE_CORENET
 #ifdef HAVE_TMK
-	fprintf(fp, "KMT-WAS %s (c) 2014 KMT GmbH\nRelease: " BUILD_DATE " (SVN revision: %s)\n", DIST, SVN_REVISION);
+	fprintf(fp, "KMT-WAS %s (c) 2016 KMT GmbH\nRelease: " BUILD_DATE " (SVN revision: %s)\n", DIST, SVN_REVISION);
 #elif HAVE_SANSFIL
-	fprintf(fp, "SANSFIL %s (c) 2014 NewMedia-NET GmbH\nRelease: " BUILD_DATE " (SVN revision: %s)\n", DIST, SVN_REVISION);
+	fprintf(fp, "SANSFIL %s (c) 2016 NewMedia-NET GmbH\nRelease: " BUILD_DATE " (SVN revision: %s)\n", DIST, SVN_REVISION);
 #elif HAVE_KORENRON
-	fprintf(fp, "KORENRON %s (c) 2014 NewMedia-NET GmbH\nRelease: " BUILD_DATE " (SVN revision: %s)\n", DIST, SVN_REVISION);
+	fprintf(fp, "KORENRON %s (c) 2016 NewMedia-NET GmbH\nRelease: " BUILD_DATE " (SVN revision: %s)\n", DIST, SVN_REVISION);
+#elif HAVE_TESTEM
+	fprintf(fp, "TESTEM %s (c) 2016 NewMedia-NET GmbH\nRelease: " BUILD_DATE " (SVN revision: %s)\n", DIST, SVN_REVISION);
+#elif HAVE_HOBBIT
+	fprintf(fp, "HQ-NDS %s (c) 2016 NewMedia-NET GmbH\nRelease: " BUILD_DATE " (SVN revision: %s)\n", DIST, SVN_REVISION);
 #elif HAVE_ONNET
 #ifdef HAVE_ONNET_BLANK
-	fprintf(fp, "Enterprise AP %s (c) 2014 NewMedia-NET GmbH\nRelease: " BUILD_DATE " (SVN revision: %s)\n", DIST, SVN_REVISION);
+	fprintf(fp, "Enterprise AP %s (c) 2016 NewMedia-NET GmbH\nRelease: " BUILD_DATE " (SVN revision: %s)\n", DIST, SVN_REVISION);
 #elif HAVE_UNFY
 	//fprintf(fp, "UNIFY %s (c) 2013 \nRelease: " BUILD_DATE " (SVN revision: %s)\n", DIST, SVN_REVISION);
-	fprintf(fp, "Firmware %s (c) 2013 \nRelease: " BUILD_DATE " (SVN revision: %s)\n", DIST, SVN_REVISION);
+	fprintf(fp, "Firmware %s (c) 2016 \nRelease: " BUILD_DATE " (SVN revision: %s)\n", DIST, SVN_REVISION);
 #else
-	fprintf(fp, "OTAi %s (c) 2014 NewMedia-NET GmbH\nRelease: " BUILD_DATE " (SVN revision: %s)\n", DIST, SVN_REVISION);
+	fprintf(fp, "OTAi %s (c) 2016 NewMedia-NET GmbH\nRelease: " BUILD_DATE " (SVN revision: %s)\n", DIST, SVN_REVISION);
 #endif
 #elif HAVE_HDWIFI
-	fprintf(fp, "HDWIFI %s (c) 2014 NewMedia-NET GmbH\nRelease: " BUILD_DATE " (SVN revision: %s)\n", DIST, SVN_REVISION);
+	fprintf(fp, "HDWIFI %s (c) 2016 NewMedia-NET GmbH\nRelease: " BUILD_DATE " (SVN revision: %s)\n", DIST, SVN_REVISION);
 #else
 #ifdef DIST
 	if (strlen(DIST) > 0)
-		fprintf(fp, "DD-WRT v24-sp2 %s (c) 2014 NewMedia-NET GmbH\nRelease: " BUILD_DATE " (SVN revision: %s)\n", DIST, SVN_REVISION);
+		fprintf(fp, "DD-WRT v3.0-r%s %s (c) 2016 NewMedia-NET GmbH\nRelease: " BUILD_DATE "\n", SVN_REVISION, DIST);
 	else
-		fprintf(fp, "DD-WRT v24-sp2 custom (c) 2014 NewMedia-NET GmbH\nRelease: " BUILD_DATE " (SVN revision: %s)\n", SVN_REVISION);
+		fprintf(fp, "DD-WRT v3.0-r%s custom (c) 2016 NewMedia-NET GmbH\nRelease: " BUILD_DATE "\n", SVN_REVISION);
 #else
-	fprintf(fp, "DD-WRT v24-sp2 custom (c) 2014 NewMedia-NET GmbH\nRelease: " BUILD_DATE " (SVN revision: %s)\n", SVN_REVISION);
+	fprintf(fp, "DD-WRT v3.0-r%s custom (c) 2016 NewMedia-NET GmbH\nRelease: " BUILD_DATE "\n", SVN_REVISION);
 #endif
 #endif
 #endif
@@ -671,9 +676,6 @@ int main(int argc, char **argv)
 			killall("udhcpc", SIGKILL);
 			setenv("PATH", "/sbin:/bin:/usr/sbin:/usr/bin:/jffs/sbin:/jffs/bin:/jffs/usr/sbin:/jffs/usr/bin:/mmc/sbin:/mmc/bin:/mmc/usr/sbin:/mmc/usr/bin:/opt/bin:/opt/sbin:/opt/usr/bin:/opt/usr/sbin", 1);
 			setenv("LD_LIBRARY_PATH", "/lib:/usr/lib:/jffs/lib:/jffs/usr/lib:/mmc/lib:/mmc/usr/lib:/opt/lib:/opt/usr/lib", 1);
-#ifdef HAVE_QTN
-			setenv("QCSAPI_RPC_TARGET", "169.254.39.2", 1);
-#endif
 
 			cprintf("STOP SERVICES\n");
 
@@ -695,6 +697,9 @@ int main(int argc, char **argv)
 #endif
 #ifdef HAVE_EMF
 			stop_service("emf");
+#endif
+#ifdef HAVE_IPVS
+			stop_service("ipvs");
 #endif
 #ifdef HAVE_VLANTAGGING
 			stop_service("bridging");
@@ -730,9 +735,7 @@ int main(int argc, char **argv)
 			cprintf("START\n");
 			setenv("PATH", "/sbin:/bin:/usr/sbin:/usr/bin:/jffs/sbin:/jffs/bin:/jffs/usr/sbin:/jffs/usr/bin:/mmc/sbin:/mmc/bin:/mmc/usr/sbin:/mmc/usr/sbin:/opt/sbin:/opt/bin:/opt/usr/sbin:/opt/usr/sbin", 1);
 			setenv("LD_LIBRARY_PATH", "/lib:/usr/lib:/jffs/lib:/jffs/usr/lib:/mmc/lib:/mmc/usr/lib:/opt/lib:/opt/usr/lib", 1);
-#ifdef HAVE_QTN
-			setenv("QCSAPI_RPC_TARGET", "169.254.39.2", 1);
-#endif
+			update_timezone();
 #ifdef HAVE_IPV6
 			start_service_f("ipv6");
 #endif
@@ -741,12 +744,15 @@ int main(int argc, char **argv)
 #endif
 			start_service_force("setup_vlans");
 #if !defined(HAVE_MADWIFI) && !defined(HAVE_RT2880)
-			start_service("wlconf");
+//                      start_service("wlconf"); // doesnt make any sense. its already triggered by start lan
 #endif
 #ifdef HAVE_VLANTAGGING
 			start_service("bridging");
 #endif
-			start_service("lan");
+			start_service_force("lan");
+#ifdef HAVE_IPVS
+			start_service("ipvs");
+#endif
 #ifdef HAVE_BONDING
 			start_service("bonding");
 #endif
@@ -765,9 +771,6 @@ int main(int argc, char **argv)
 			start_service("vlantagging");
 			start_service("bridgesif");
 #endif
-#ifdef HAVE_EMF
-			start_service("emf");
-#endif
 			start_service_force("wan_boot");
 			start_service_f("ttraff");
 
@@ -776,7 +779,6 @@ int main(int argc, char **argv)
 			cprintf("set led release wan control\n");
 			SET_LED(RELEASE_WAN_CONTROL);
 
-#ifndef HAVE_ERC
 #ifdef HAVE_RADIOOFF
 			if (nvram_match("radiooff_button", "1")
 			    && nvram_match("radiooff_boot_off", "1")) {
@@ -786,22 +788,28 @@ int main(int argc, char **argv)
 			} else
 #endif
 			{
+				start_service_force("radio_off");
 				start_service_force("radio_on");
+
 			}
-#endif
 			start_service_f("radio_timer");
+#ifdef HAVE_EMF
+			start_service("emf");
+#endif
 
 			cprintf("run rc file\n");
 #ifdef HAVE_REGISTER
+#ifndef HAVE_ERC
 			if (isregistered_real())
+#endif
 #endif
 			{
 				startstop_f("run_rc_startup");
 // start init scripts                           
-				system("/etc/init.d/rcS");
-				system("/opt/etc/init.d/rcS");
-				system("/jffs/etc/init.d/rcS");
-				system("/mmc/etc/init.d/rcS");
+				eval("/etc/init.d/rcS");
+				eval("/opt/etc/init.d/rcS");
+				eval("/jffs/etc/init.d/rcS");
+				eval("/mmc/etc/init.d/rcS");
 				// startup script
 				// (siPath impl)
 				cprintf("start modules\n");
@@ -827,7 +835,6 @@ int main(int argc, char **argv)
 #ifdef HAVE_SYSLOG
 			startstop_f("syslog");
 #endif
-
 			system("/etc/postinit&");
 			start_service_f("httpd");
 			led_control(LED_DIAG, LED_OFF);

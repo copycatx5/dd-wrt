@@ -2,7 +2,7 @@
  * rlm_sql.c		SQL Module
  * 		Main SQL module file. Most ICRADIUS code is located in sql.c
  *
- * Version:	$Id: 0b85d3308c92d8dec92dffe1bc5eed9f46dd940a $
+ * Version:	$Id: dc4b9c672b738e725ebb1a8757c9a890d044080b $
  *
  *   This program is free software; you can redistribute it and/or modify
  *   it under the terms of the GNU General Public License as published by
@@ -24,7 +24,7 @@
  */
 
 #include <freeradius-devel/ident.h>
-RCSID("$Id: 0b85d3308c92d8dec92dffe1bc5eed9f46dd940a $")
+RCSID("$Id: dc4b9c672b738e725ebb1a8757c9a890d044080b $")
 
 #include <freeradius-devel/radiusd.h>
 #include <freeradius-devel/modules.h>
@@ -429,6 +429,24 @@ static size_t sql_escape_func(char *out, size_t outlen, const char *in)
 	size_t len = 0;
 
 	while (in[0]) {
+		size_t utf8_len;
+
+		/*
+		 *	Allow all multi-byte UTF8 characters.
+		 */
+		utf8_len = fr_utf8_char((uint8_t const *) in);
+		if (utf8_len > 1) {
+			if (outlen <= utf8_len) break;
+
+			memcpy(out, in, utf8_len);
+			in += utf8_len;
+			out += utf8_len;
+
+			outlen -= utf8_len;
+			len += utf8_len;
+			continue;
+		}
+
 		/*
 		 *	Non-printable characters get replaced with their
 		 *	mime-encoded equivalents.
@@ -803,8 +821,6 @@ static int rlm_sql_detach(void *instance)
 	paircompare_unregister(PW_SQL_GROUP, sql_groupcmp);
 
 	if (inst->config) {
-		int i;
-
 		if (inst->sqlpool) {
 			sql_poolfree(inst);
 		}

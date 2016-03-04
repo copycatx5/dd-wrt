@@ -434,7 +434,7 @@ void ej_sas_show_wireless_single(webs_t wp, char *prefix)
 	int argc = 1;
 	char *argv[] = { "3" };
 	char *stage_visible_css = "display: none;";
-	char frequencies[16];
+	char frequencies[128];
 
 	if (ej_sas_stage_is_visible(wp, argc, argv) == 0) {
 		stage_visible_css = "";
@@ -520,12 +520,11 @@ void ej_sas_show_wireless_single(webs_t wp, char *prefix)
 		sprintf(wl_relayd, "%s_relayd_gw_ipaddr", prefix);
 		sscanf(nvram_safe_get(wl_relayd), "%d.%d.%d.%d", &ip[0], &ip[1], &ip[2], &ip[3]);
 		sprintf(wl_relayd, "%s_relayd_gw_auto", prefix);
-		websWrite(wp, "\
-	<div id=\"%s_relayd_gw_ipaddr\" class=\"setting\"%s>\n\
-	          <input type=\"hidden\" name=\"%s_relayd_gw_ipaddr\" value=\"4\">\n\
-	          <div class=\"label\"><script type=\"text/javascript\">Capture(share.gateway)</script></div>\n\
-	          <input size=\"3\" maxlength=\"3\" name=\"%s_relayd_gw_ipaddr_0\" value=\"%d\" onblur=\"valid_range(this,0,255,'IP')\" class=\"num\">.<input size=\"3\" maxlength=\"3\" name=\"%s_relayd_gw_ipaddr_1\" value=\"%d\" onblur=\"valid_range(this,0,255,'IP')\" class=\"num\">.<input size=\"3\" maxlength=\"3\" name=\"%s_relayd_gw_ipaddr_2\" value=\"%d\" onblur=\"valid_range(this,0,255,'IP')\" class=\"num\">.<input size=\"3\" maxlength=\"3\" name=\"%s_relayd_gw_ipaddr_3\" value=\"%d\" onblur=\"valid_range(this,1,254,'IP')\" class=\"num\">\n\
-       </div>\n", prefix, nvram_selmatch(wp, wl_relayd, "1") ? " style=\"display: none; visibility: hidden;\"" : "", prefix, prefix, ip[0], prefix, ip[1], prefix, ip[2], prefix, ip[3]);
+		websWrite(wp, "<div id=\"%s_relayd_gw_ipaddr\" class=\"setting\"%s>\n"
+			  "<input type=\"hidden\" name=\"%s_relayd_gw_ipaddr\" value=\"4\">\n"
+			  "<div class=\"label\"><script type=\"text/javascript\">Capture(share.gateway)</script></div>\n"
+			  "<input size=\"3\" maxlength=\"3\" name=\"%s_relayd_gw_ipaddr_0\" value=\"%d\" onblur=\"valid_range(this,0,255,'IP')\" class=\"num\">.<input size=\"3\" maxlength=\"3\" name=\"%s_relayd_gw_ipaddr_1\" value=\"%d\" onblur=\"valid_range(this,0,255,'IP')\" class=\"num\">.<input size=\"3\" maxlength=\"3\" name=\"%s_relayd_gw_ipaddr_2\" value=\"%d\" onblur=\"valid_range(this,0,255,'IP')\" class=\"num\">.<input size=\"3\" maxlength=\"3\" name=\"%s_relayd_gw_ipaddr_3\" value=\"%d\" onblur=\"valid_range(this,1,254,'IP')\" class=\"num\">\n"
+			  "</div>\n", prefix, nvram_selmatch(wp, wl_relayd, "1") ? " style=\"display: none; visibility: hidden;\"" : "", prefix, prefix, ip[0], prefix, ip[1], prefix, ip[2], prefix, ip[3]);
 	}
 #endif
 
@@ -682,6 +681,7 @@ void ej_sas_show_wireless_single(webs_t wp, char *prefix)
 			|| nvram_selnmatch(wp, "n2-only", "%s_net_mode", prefix)
 			|| nvram_selnmatch(wp, "n5-only", "%s_net_mode", prefix)
 			|| nvram_selnmatch(wp, "ac-only", "%s_net_mode", prefix)
+			|| nvram_selnmatch(wp, "acn-mixed", "%s_net_mode", prefix)
 			|| nvram_selnmatch(wp, "na-only", "%s_net_mode", prefix))) {
 
 			sas_show_channel(wp, prefix, prefix, 1);
@@ -689,12 +689,6 @@ void ej_sas_show_wireless_single(webs_t wp, char *prefix)
 			websWrite(wp, "<div class=\"setting\">\n");
 			websWrite(wp, "<div class=\"label\"><script type=\"text/javascript\">Capture(wl_basic.channel_width)</script></div>\n");
 			websWrite(wp, "<select name=\"%s_nbw\">\n", prefix);
-#ifdef HAVE_RT2880
-			websWrite(wp,
-				  "<script type=\"text/javascript\">\n//<![CDATA[\n document.write(\"<option value=\\\"20\\\" %s >20 MHz</option>\");\n//]]>\n</script>\n",
-				  nvram_selnmatch(wp, "20", "%s_nbw", prefix) ? "selected=\\\"selected\\\"" : "");
-			websWrite(wp, "<option value=\"40\" %s>40 MHz</option>", nvram_selnmatch(wp, "40", "%s_nbw", prefix) ? "selected=\\\"selected\\\"" : "");
-#else
 			websWrite(wp,
 				  "<script type=\"text/javascript\">\n//<![CDATA[\n document.write(\"<option value=\\\"0\\\" %s >\" + share.auto + \"</option>\");\n//]]>\n</script>\n",
 				  nvram_selnmatch(wp, "0", "%s_nbw", prefix) ? "selected=\\\"selected\\\"" : "");
@@ -704,7 +698,6 @@ void ej_sas_show_wireless_single(webs_t wp, char *prefix)
 				websWrite(wp, "<option value=\"80\" %s>80 MHz</option>\n", nvram_nmatch("80", "%s_nbw", prefix) ? "selected=\\\"selected\\\"" : "");
 
 			}
-#endif
 			websWrite(wp, "</select>\n");
 			websWrite(wp, "</div>\n");
 
@@ -856,6 +849,7 @@ void sas_show_netmode(webs_t wp, char *prefix)
 	}
 
 	if (has_ac(prefix) && has_5ghz(prefix)) {
+		websWrite(wp, "document.write(\"<option value=\\\"acn-mixed\\\" %s>\" + wl_basic.acn + \"</option>\");\n", nvram_selmatch(wp, wl_net_mode, "acn-mixed") ? "selected=\\\"selected\\\"" : "");
 		websWrite(wp, "document.write(\"<option value=\\\"ac-only\\\" %s>\" + wl_basic.ac + \"</option>\");\n", nvram_selmatch(wp, wl_net_mode, "ac-only") ? "selected=\\\"selected\\\"" : "");
 	}
 #else
@@ -1000,6 +994,8 @@ void sas_show_channel(webs_t wp, char *dev, char *prefix, int type)
 
 		if (!strcmp(prefix, "wl1"))
 			instance = 1;
+		else if (!strcmp(prefix, "wl2"))
+			instance = 2;
 
 		unsigned int chanlist[128];
 		char *ifn = get_wl_instance_name(instance);
@@ -1037,6 +1033,7 @@ void sas_show_channel(webs_t wp, char *dev, char *prefix, int type)
 			if (nvram_selmatch(wp, wl_net_mode, "a-only")
 			    || nvram_selmatch(wp, wl_net_mode, "na-only")
 			    || nvram_selmatch(wp, wl_net_mode, "n5-only")
+			    || nvram_selmatch(wp, wl_net_mode, "acn-mixed")
 			    || nvram_selmatch(wp, wl_net_mode, "ac-only")
 			    || (net_is_a && nvram_selmatch(wp, wl_net_mode, "mixed"))) {
 				if (chanlist[i] < 25)
@@ -1046,7 +1043,7 @@ void sas_show_channel(webs_t wp, char *dev, char *prefix, int type)
 					showit = 0;
 			}
 
-			if ((nvram_selmatch(wp, wl_net_mode, "na-only") || nvram_selmatch(wp, wl_net_mode, "ac-only")
+			if ((nvram_selmatch(wp, wl_net_mode, "na-only") || nvram_selmatch(wp, wl_net_mode, "ac-only") || nvram_selmatch(wp, wl_net_mode, "acn-mixed")
 			     || (net_is_a && nvram_selmatch(wp, wl_net_mode, "mixed"))
 			     || nvram_selmatch(wp, wl_net_mode, "n5-only"))
 			    && nvram_selmatch(wp, wl_nbw, "40")) {
@@ -1966,13 +1963,13 @@ void ej_sas_show_dhcpd_settings(webs_t wp, int argc, char_t ** argv)
 		websWrite(wp,
 			  "<input class=\"num\" name=\"dhcp_start\" size=\"3\" maxlength=\"3\" onblur=\"valid_range(this,1,254,idx.dhcp_start)\" value=\"%s\" %s />",
 			  nvram_selget(wp, "dhcp_start"), nvram_selmatch(wp, "lan_proto", "static")
-			  ? "disabled style=\"background: #e0e0e0\"" : "");
+			  ? "disabled class=\"off\"" : "");
 		websWrite(wp, "</div>\n");
 
 		websWrite(wp, "<div class=\"setting\">\n");
 		websWrite(wp,
 			  "<div class=\"label\"><script type=\"text/javascript\">Capture(idx.dhcp_maxusers)</script></div><input class=\"num\" name=\"dhcp_num\"size=\"3\" maxlength=\"3\" onblur=\"valid_range(this,0,999,idx.dhcp_maxusers)\" value=\"%s\" %s/></div>\n",
-			  nvram_selget(wp, "dhcp_num"), nvram_selmatch(wp, "lan_proto", "static") ? "disabled style=\"background: #e0e0e0\"" : "");
+			  nvram_selget(wp, "dhcp_num"), nvram_selmatch(wp, "lan_proto", "static") ? "disabled class=\"off\"" : "");
 	}
 
 	websWrite(wp, "</fieldset><br style=\"%s\"/>\n", stage_visible_css);

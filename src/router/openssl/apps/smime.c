@@ -1,5 +1,6 @@
 /* smime.c */
-/* Written by Dr Stephen N Henson (steve@openssl.org) for the OpenSSL
+/*
+ * Written by Dr Stephen N Henson (steve@openssl.org) for the OpenSSL
  * project.
  */
 /* ====================================================================
@@ -10,7 +11,7 @@
  * are met:
  *
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer. 
+ *    notice, this list of conditions and the following disclaimer.
  *
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in
@@ -451,7 +452,7 @@ int MAIN(int argc, char **argv)
 		BIO_printf (bio_err, "-rc2-128       encrypt with RC2-128\n");
 #endif
 #ifndef OPENSSL_NO_AES
-		BIO_printf (bio_err, "-aes128, -aes192, -aes256\n");
+		BIO_printf (bio_err, "-aes128, -aes192, -aes256, -aes512\n");
 		BIO_printf (bio_err, "               encrypt PEM output with cbc aes\n");
 #endif
 #ifndef OPENSSL_NO_CAMELLIA
@@ -481,6 +482,7 @@ int MAIN(int argc, char **argv)
 		BIO_printf (bio_err, "-text          include or delete text MIME headers\n");
 		BIO_printf (bio_err, "-CApath dir    trusted certificates directory\n");
 		BIO_printf (bio_err, "-CAfile file   trusted certificates file\n");
+		BIO_printf (bio_err,"-no_alt_chains only ever use the first certificate chain found\n");
 		BIO_printf (bio_err, "-crl_check     check revocation status of signer's certificate using CRLs\n");
 		BIO_printf (bio_err, "-crl_check_all check revocation status of signer's certificate chain using CRLs\n");
 #ifndef OPENSSL_NO_ENGINE

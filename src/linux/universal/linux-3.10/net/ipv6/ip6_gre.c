@@ -359,6 +359,7 @@ static void ip6gre_tunnel_uninit(struct net_device *dev)
 	struct ip6gre_net *ign = net_generic(net, ip6gre_net_id);
 
 	ip6gre_tunnel_unlink(ign, netdev_priv(dev));
+	ip6_tnl_dst_reset(netdev_priv(dev));
 	dev_put(dev);
 }
 
@@ -391,7 +392,7 @@ static void ip6gre_err(struct sk_buff *skb, struct inet6_skb_parm *opt,
 
 	t = ip6gre_tunnel_lookup(skb->dev, &ipv6h->daddr, &ipv6h->saddr,
 				flags & GRE_KEY ?
-				*(((__be32 *)p) + (grehlen / 4) - 1) : 0,
+				net_hdr_word(((__be32 *)p) + (grehlen / 4) - 1) : 0,
 				p[1]);
 	if (t == NULL)
 		return;
@@ -483,11 +484,11 @@ static int ip6gre_rcv(struct sk_buff *skb)
 			offset += 4;
 		}
 		if (flags&GRE_KEY) {
-			key = *(__be32 *)(h + offset);
+			key = net_hdr_word(h + offset);
 			offset += 4;
 		}
 		if (flags&GRE_SEQ) {
-			seqno = ntohl(*(__be32 *)(h + offset));
+			seqno = ntohl(net_hdr_word(h + offset));
 			offset += 4;
 		}
 	}
@@ -512,11 +513,11 @@ static int ip6gre_rcv(struct sk_buff *skb)
 
 		skb->protocol = gre_proto;
 		/* WCCP version 1 and 2 protocol decoding.
-		 * - Change protocol to IP
+		 * - Change protocol to IPv6
 		 * - When dealing with WCCPv2, Skip extra 4 bytes in GRE header
 		 */
 		if (flags == 0 && gre_proto == htons(ETH_P_WCCP)) {
-			skb->protocol = htons(ETH_P_IP);
+			skb->protocol = htons(ETH_P_IPV6);
 			if ((*(h + offset) & 0xF0) != 0x40)
 				offset += 4;
 		}
@@ -747,7 +748,7 @@ static netdev_tx_t ip6gre_xmit2(struct sk_buff *skb,
 
 		if (tunnel->parms.o_flags&GRE_SEQ) {
 			++tunnel->o_seqno;
-			*ptr = htonl(tunnel->o_seqno);
+			net_hdr_word(ptr) = htonl(tunnel->o_seqno);
 			ptr--;
 		}
 		if (tunnel->parms.o_flags&GRE_KEY) {
@@ -787,7 +788,7 @@ static inline int ip6gre_xmit_ipv4(struct sk_buff *skb, struct net_device *dev)
 		encap_limit = t->parms.encap_limit;
 
 	memcpy(&fl6, &t->fl.u.ip6, sizeof(fl6));
-	fl6.flowi6_proto = IPPROTO_IPIP;
+	fl6.flowi6_proto = IPPROTO_GRE;
 
 	dsfield = ipv4_get_dsfield(iph);
 
@@ -837,11 +838,11 @@ static inline int ip6gre_xmit_ipv6(struct sk_buff *skb, struct net_device *dev)
 		encap_limit = t->parms.encap_limit;
 
 	memcpy(&fl6, &t->fl.u.ip6, sizeof(fl6));
-	fl6.flowi6_proto = IPPROTO_IPV6;
+	fl6.flowi6_proto = IPPROTO_GRE;
 
 	dsfield = ipv6_get_dsfield(ipv6h);
 	if (t->parms.flags & IP6_TNL_F_USE_ORIG_TCLASS)
-		fl6.flowlabel |= (*(__be32 *) ipv6h & IPV6_TCLASS_MASK);
+		fl6.flowlabel |= net_hdr_word(ipv6h) & IPV6_TCLASS_MASK;
 	if (t->parms.flags & IP6_TNL_F_USE_ORIG_FLOWLABEL)
 		fl6.flowlabel |= (*(__be32 *) ipv6h & IPV6_FLOWLABEL_MASK);
 	if (t->parms.flags & IP6_TNL_F_USE_ORIG_FWMARK)
@@ -961,8 +962,6 @@ static void ip6gre_tnl_link_config(struct ip6_tnl *t, int set_mtu)
 		dev->flags |= IFF_POINTOPOINT;
 	else
 		dev->flags &= ~IFF_POINTOPOINT;
-
-	dev->iflink = p->link;
 
 	/* Precalculate GRE options length */
 	if (t->parms.o_flags&(GRE_CSUM|GRE_KEY|GRE_SEQ)) {
@@ -1267,6 +1266,8 @@ static int ip6gre_tunnel_init(struct net_device *dev)
 	if (!dev->tstats)
 		return -ENOMEM;
 
+	dev->iflink = tunnel->parms.link;
+
 	return 0;
 }
 
@@ -1281,7 +1282,6 @@ static void ip6gre_fb_tunnel_init(struct net_device *dev)
 
 	dev_hold(dev);
 }
-
 
 static struct inet6_protocol ip6gre_protocol __read_mostly = {
 	.handler     = ip6gre_rcv,
@@ -1458,6 +1458,8 @@ static int ip6gre_tap_init(struct net_device *dev)
 	if (!dev->tstats)
 		return -ENOMEM;
 
+	dev->iflink = tunnel->parms.link;
+
 	return 0;
 }
 
@@ -1539,13 +1541,11 @@ static int ip6gre_changelink(struct net_device *dev, struct nlattr *tb[],
 			return -EEXIST;
 	} else {
 		t = nt;
-
-		ip6gre_tunnel_unlink(ign, t);
-		ip6gre_tnl_change(t, &p, !tb[IFLA_MTU]);
-		ip6gre_tunnel_link(ign, t);
-		netdev_state_change(dev);
 	}
 
+	ip6gre_tunnel_unlink(ign, t);
+	ip6gre_tnl_change(t, &p, !tb[IFLA_MTU]);
+	ip6gre_tunnel_link(ign, t);
 	return 0;
 }
 

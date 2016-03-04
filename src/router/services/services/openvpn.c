@@ -42,7 +42,7 @@ void start_openvpnserver(void)
 
 	if (nvram_invmatch("openvpn_enable", "1"))
 		return;
-
+	update_timezone();
 	if ((freediskSpace("/jffs") > 16384)
 	    || (nvram_match("enable_jffs2", "1")
 		&& nvram_match("jffs_mounted", "1")
@@ -71,33 +71,30 @@ void start_openvpnserver(void)
 			write_nvram("/jffs/etc/openvpn/ccd/DEFAULT", "openvpn_ccddef");
 			chmod("/jffs/etc/openvpn/ccd/DEFAULT", 0700);
 		}
-//                      if (strlen(nvram_safe_get("openvpn_clcon")) > 0) 
-//                              write_nvram("/jffs/etc/openvpn/clcon.sh", "openvpn_clcon");
-//                      if (strlen(nvram_safe_get("openvpn_cldiscon")) > 0) 
-//                              write_nvram("/jffs/etc/openvpn/cldiscon.sh", "openvpn_cldiscon");
 	} else {
 		write_nvram("/tmp/openvpn/ccd/DEFAULT", "openvpn_ccddef");
-//              write_nvram("/tmp/openvpn/clcon.sh", "openvpn_clcon");
-//              write_nvram("/tmp/openvpn/cldiscon.sh", "openvpn_cldiscon");
 		chmod("/tmp/openvpn/ccd/DEFAULT", 0700);
 	}
 
-/*	fp = fopen("/jffs/etc/openvpn/clcon.sh", "wb");
+	// client connect scripts (!= ccd )
+	FILE *fp = fopen("/tmp/openvpn/clcon.sh", "wb");
 	if (fp == NULL)
 		return;
 	fprintf(fp, "#!/bin/sh\n");
-	fclose(fp)
-	
-	fp = fopen("/jffs/etc/openvpn/cldiscon.sh", "wb");
-	if (fp == NULL)
-		return;
-	fprintf(fp, "#!/bin/sh\n");
-	fclose(fp)
-	
-	chmod("/jffs/etc/openvpn/clcon.sh", 0700);
-	chmod("/jffs/etc/openvpn/cldiscon.sh", 0700); */
+	fprintf(fp, "%s\n", nvram_safe_get("openvpn_clcon"));
+	fclose(fp);
 
-	FILE *fp = fopen("/tmp/openvpn/openvpn.conf", "wb");
+	fp = fopen("/tmp/openvpn/cldiscon.sh", "wb");
+	if (fp == NULL)
+		return;
+	fprintf(fp, "#!/bin/sh\n");
+	fprintf(fp, "%s\n", nvram_safe_get("openvpn_cldiscon"));
+	fclose(fp);
+	chmod("/tmp/openvpn/clcon.sh", 0700);
+	chmod("/tmp/openvpn/cldiscon.sh", 0700);
+
+	fp = fopen("/tmp/openvpn/openvpn.conf", "wb");
+
 	if (fp == NULL)
 		return;
 	if (nvram_invmatch("openvpn_static", ""))
@@ -126,15 +123,15 @@ void start_openvpnserver(void)
 			"topology subnet\n"
 			"script-security 2\n"
 			"port %s\n" "proto %s\n" "cipher %s\n" "auth %s\n", nvram_safe_get("openvpn_port"), nvram_safe_get("openvpn_proto"), nvram_safe_get("openvpn_cipher"), nvram_safe_get("openvpn_auth"));
-		if (jffs == 1) {	//  use usb/jffs for ccd if available
+		fprintf(fp, "client-connect /tmp/openvpn/clcon.sh\n");
+		fprintf(fp, "client-disconnect /tmp/openvpn/cldiscon.sh\n");
+		if (jffs == 1)	//  use usb/jffs for ccd if available
 			fprintf(fp, "client-config-dir /jffs/etc/openvpn/ccd\n");
-//                              fprintf(fp, "client-connect /jffs/etc/openvpn/clcon.sh\n");
-//                              fprintf(fp, "client-disconnect /jffs/etc/openvpn/cldiscon.sh\n");
-		} else {
+		else
 			fprintf(fp, "client-config-dir /tmp/openvpn/ccd\n");
-//                      fprintf(fp, "client-connect /tmp/openvpn/clcon.sh\n");
-//                      fprintf(fp, "client-disconnect /tmp/openvpn/cldiscon.sh\n");
-		}
+		if (nvram_invmatch("openvpn_scramble", "off"))
+			fprintf(fp, "scramble %s\n",	//scramble XOR patch for reordering packet content to protect against DPI 
+				nvram_safe_get("openvpn_scramble"));
 		if (nvram_invmatch("openvpn_lzo", "off"))
 			fprintf(fp, "comp-lzo %s\n",	//yes/no/adaptive/disable 
 				nvram_safe_get("openvpn_lzo"));
@@ -167,7 +164,9 @@ void start_openvpnserver(void)
 		if (nvram_match("openvpn_tuntap", "tun")) {
 			fprintf(fp, "server %s %s\n", nvram_safe_get("openvpn_net"), nvram_safe_get("openvpn_tunmask"));
 			fprintf(fp, "dev tun2\n");
+#ifdef HAVE_IPV6
 			fprintf(fp, "tun-ipv6\n");	//enable ipv6 support.
+#endif
 		} else if (nvram_match("openvpn_tuntap", "tap") && nvram_match("openvpn_proxy", "0")) {
 			fprintf(fp, "server-bridge %s %s %s %s\n", nvram_safe_get("openvpn_gateway"), nvram_safe_get("openvpn_mask"), nvram_safe_get("openvpn_startip"), nvram_safe_get("openvpn_endip"));
 			fprintf(fp, "dev tap2\n");
@@ -180,7 +179,7 @@ void start_openvpnserver(void)
 		if (strlen(nvram_safe_get("openvpn_crl")) > 0)
 			fprintf(fp, "crl-verify /tmp/openvpn/ca.crl\n");
 		/* for QOS */
-		if (nvram_invmatch("wshaper_enable", "0"))
+		if (nvram_match("wshaper_enable", "1"))
 			fprintf(fp, "passtos\n");
 	} else
 		write_nvram("/tmp/openvpn/cert.pem", "openvpn_client");
@@ -210,27 +209,19 @@ void start_openvpnserver(void)
 	if (nvram_match("block_multicast", "0")	//block multicast on bridged vpns
 	    && nvram_match("openvpn_tuntap", "tap"))
 		fprintf(fp, "insmod ebtables\n" "insmod ebtable_filter\n" "insmod ebtable_nat\n" "insmod ebt_pkttype\n"
-/*			"ebtables -D FORWARD -o tap2 --pkttype-type multicast -j DROP\n"
-			"ebtables -D OUTPUT -o tap2 --pkttype-type multicast -j DROP\n"
-			"ebtables -A FORWARD -o tap2 --pkttype-type multicast -j DROP\n"
-			"ebtables -A OUTPUT -o tap2 --pkttype-type multicast -j DROP\n");	*/
 			"ebtables -t nat -D POSTROUTING -o tap2 --pkttype-type multicast -j DROP\n" "ebtables -t nat -I POSTROUTING -o tap2 --pkttype-type multicast -j DROP\n");
 
 	if (nvram_match("openvpn_dhcpbl", "1")	//block dhcp on bridged vpns
 	    && nvram_match("openvpn_tuntap", "tap")
 	    && nvram_match("openvpn_proxy", "0"))
 		fprintf(fp, "insmod ebtables\n" "insmod ebt_ip\n" "insmod ebtable_filter\n" "insmod ebtable_nat\n"
-/*			"ebtables -D INPUT -i tap2 -p ipv4 --ip-proto udp --ip-sport 67:68 --ip-dport 67:68 -j DROP\n"
-			"ebtables -D FORWARD -i tap2 -p ipv4 --ip-proto udp --ip-sport 67:68 --ip-dport 67:68 -j DROP\n"
-			"ebtables -D FORWARD -o tap2 -p ipv4 --ip-proto udp --ip-sport 67:68 --ip-dport 67:68 -j DROP\n"
-			"ebtables -I INPUT -i tap2 -p ipv4 --ip-proto udp --ip-sport 67:68 --ip-dport 67:68 -j DROP\n"
-			"ebtables -I FORWARD -i tap2 -p ipv4 --ip-proto udp --ip-sport 67:68 --ip-dport 67:68 -j DROP\n"
-			"ebtables -I FORWARD -o tap2 -p ipv4 --ip-proto udp --ip-sport 67:68 --ip-dport 67:68 -j DROP\n"	*/
 			"ebtables -t nat -D PREROUTING -i tap2 -p ipv4 --ip-proto udp --ip-sport 67:68 --ip-dport 67:68 -j DROP\n"
 			"ebtables -t nat -D POSTROUTING -o tap2 -p ipv4 --ip-proto udp --ip-sport 67:68 --ip-dport 67:68 -j DROP\n"
 			"ebtables -t nat -I PREROUTING -i tap2 -p ipv4 --ip-proto udp --ip-sport 67:68 --ip-dport 67:68 -j DROP\n"
 			"ebtables -t nat -I POSTROUTING -o tap2 -p ipv4 --ip-proto udp --ip-sport 67:68 --ip-dport 67:68 -j DROP\n");
-	fprintf(fp, "startservice set_routes -f\n" "stopservice wshaper\n" "startservice wshaper\n");
+	fprintf(fp, "startservice set_routes -f\n");
+	/* "stopservice wshaper\n" disable wshaper, causes fw race condition
+	 * "startservice wshaper\n");*/
 	fclose(fp);
 
 	fp = fopen("/tmp/openvpn/route-down.sh", "wb");
@@ -281,8 +272,8 @@ void start_openvpnserver(void)
 	else
 		eval("/tmp/openvpnserver", "--config", "/tmp/openvpn/openvpn.conf", "--route-up", "/tmp/openvpn/route-up.sh", "--down-pre", "/tmp/openvpn/route-down.sh", "--daemon");
 
-	eval("stopservice", "wshaper");
-	eval("startservice", "wshaper");
+//      eval("stopservice", "wshaper"); disable wshaper, causes fw race condition
+//      eval("startservice", "wshaper");
 }
 
 void stop_openvpnserver(void)
@@ -299,8 +290,8 @@ void stop_openvpnserver(void)
 	}
 #endif
 	if (stop_process("openvpnserver", "OpenVPN daemon (Server)")) {
-		eval("stopservice", "wshaper");
-		eval("startservice", "wshaper");
+//              eval("stopservice", "wshaper");
+//              eval("startservice", "wshaper");
 		//remove ebtables rules on shutdown     
 		system("/usr/sbin/ebtables -t nat -D POSTROUTING -o tap2 --pkttype-type multicast -j DROP");
 		system("/usr/sbin/ebtables -t nat -D POSTROUTING -o tap2 -p ipv4 --ip-proto udp --ip-sport 67:68 --ip-dport 67:68 -j DROP");
@@ -364,7 +355,22 @@ void start_openvpn(void)
 	write_nvram("/tmp/openvpncl/static.key", "openvpncl_static");
 	chmod("/tmp/openvpn/client.key", 0600);
 
-	FILE *fp = fopen("/tmp/openvpncl/openvpn.conf", "wb");
+	FILE *fp;
+	char ovpniface[10];
+#ifdef HAVE_ERC
+	sprintf(ovpniface, "%s0", nvram_safe_get("openvpncl_tuntap"));
+#else
+	sprintf(ovpniface, "%s1", nvram_safe_get("openvpncl_tuntap"));
+#endif
+
+	if (nvram_match("openvpncl_upauth", "1")) {
+		fp = fopen("/tmp/openvpncl/credentials", "wb");
+		fprintf(fp, "%s\n", nvram_safe_get("openvpncl_user"));
+		fprintf(fp, "%s\n", nvram_safe_get("openvpncl_pass"));
+		fclose(fp);
+	}
+
+	fp = fopen("/tmp/openvpncl/openvpn.conf", "wb");
 	if (fp == NULL)
 		return;
 	if (nvram_invmatch("openvpncl_static", ""))
@@ -382,11 +388,19 @@ void start_openvpn(void)
 	fprintf(fp,
 		"management 127.0.0.1 16\n"
 		"management-log-cache 100\n" "verb 3\n" "mute 3\n" "syslog\n" "writepid /var/run/openvpncl.pid\n" "client\n" "resolv-retry infinite\n" "nobind\n" "persist-key\n" "persist-tun\n" "script-security 2\n");
-	fprintf(fp, "dev %s1\n", nvram_safe_get("openvpncl_tuntap"));
+	fprintf(fp, "dev %s\n", ovpniface);
 	fprintf(fp, "proto %s\n", nvram_safe_get("openvpncl_proto"));
 	fprintf(fp, "cipher %s\n", nvram_safe_get("openvpncl_cipher"));
 	fprintf(fp, "auth %s\n", nvram_safe_get("openvpncl_auth"));
+	if (nvram_match("openvpncl_upauth", "1"))
+		fprintf(fp, "auth-user-pass %s\n", "/tmp/openvpncl/credentials");
 	fprintf(fp, "remote %s %s\n", nvram_safe_get("openvpncl_remoteip"), nvram_safe_get("openvpncl_remoteport"));
+	if (nvram_invmatch("openvpncl_scramble", "off")) {
+		if (nvram_match("openvpncl_scramble", "obfuscate"))
+			fprintf(fp, "scramble %s %s\n", nvram_safe_get("openvpncl_scramble"), nvram_safe_get("openvpncl_scrmblpw"));
+		else
+			fprintf(fp, "scramble %s\n", nvram_safe_get("openvpncl_scramble"));
+	}
 	if (nvram_invmatch("openvpncl_lzo", "off"))
 		fprintf(fp, "comp-lzo %s\n",	//yes/no/adaptive/disable 
 			nvram_safe_get("openvpncl_lzo"));
@@ -419,7 +433,7 @@ void start_openvpn(void)
 	if (nvram_invmatch("openvpncl_tlscip", "0"))
 		fprintf(fp, "tls-cipher %s\n", nvram_safe_get("openvpncl_tlscip"));
 	/* for QOS */
-	if (nvram_invmatch("wshaper_enable", "0"))
+	if (nvram_match("wshaper_enable", "1"))
 		fprintf(fp, "passtos\n");
 
 	fprintf(fp, "%s\n", nvram_safe_get("openvpncl_config"));
@@ -444,22 +458,22 @@ void start_openvpn(void)
 	if (nvram_match("openvpncl_tuntap", "tap")
 	    && nvram_match("openvpncl_bridge", "1")
 	    && nvram_match("openvpncl_nat", "0")) {
-		fprintf(fp, "brctl addif br0 tap1\n" "ifconfig tap1 0.0.0.0 up\n");	//non promisc for performance reasons
-	} else {
+		fprintf(fp, "brctl addif br0 %s\n" "ifconfig %s 0.0.0.0 up\n", ovpniface, ovpniface);	//non promisc for performance reasons
 		if (nvram_match("openvpncl_tuntap", "tap")
 		    && strlen(nvram_safe_get("openvpncl_ip")) > 0)
-			fprintf(fp, "ifconfig tap1 %s netmask %s up\n", nvram_safe_get("openvpncl_ip"), nvram_safe_get("openvpncl_mask"));
+			fprintf(fp, "ifconfig %s %s netmask %s up\n", ovpniface, nvram_safe_get("openvpncl_ip"), nvram_safe_get("openvpncl_mask"));
 	}
 	if (nvram_match("openvpncl_nat", "1"))
-		fprintf(fp, "iptables -I POSTROUTING -t nat -o %s1 -j MASQUERADE\n", nvram_safe_get("openvpncl_tuntap"));
+		fprintf(fp, "iptables -D POSTROUTING -t nat -o %s -j MASQUERADE\n" "iptables -I POSTROUTING -t nat -o %s -j MASQUERADE\n", ovpniface, ovpniface);
 	if (nvram_match("openvpncl_sec", "0"))
-		fprintf(fp, "iptables -I INPUT -i %s1 -j ACCEPT\n", nvram_safe_get("openvpncl_tuntap"));
+		fprintf(fp, "iptables -D INPUT -i %s -j ACCEPT\n" "iptables -I INPUT -i %s -j ACCEPT\n", ovpniface, ovpniface);
 	else {
 		if (nvram_match("openvpncl_tuntap", "tun"))	//only needed with tun
 			fprintf(fp,
-				"iptables -I INPUT -i %s1 -j ACCEPT\n"
-				"iptables -I FORWARD -i %s1 -j ACCEPT\n"
-				"iptables -I FORWARD -o %s1 -j ACCEPT\n", nvram_safe_get("openvpncl_tuntap"), nvram_safe_get("openvpncl_tuntap"), nvram_safe_get("openvpncl_tuntap"));
+				"iptables -D INPUT -i %s -j ACCEPT\n"
+				"iptables -D FORWARD -i %s -j ACCEPT\n"
+				"iptables -D FORWARD -o %s -j ACCEPT\n"
+				"iptables -I INPUT -i %s -j ACCEPT\n" "iptables -I FORWARD -i %s -j ACCEPT\n" "iptables -I FORWARD -o %s -j ACCEPT\n", ovpniface, ovpniface, ovpniface, ovpniface, ovpniface, ovpniface);
 	}
 	if (strlen(nvram_safe_get("openvpncl_route")) > 0) {	//policy based routing
 		write_nvram("/tmp/openvpncl/policy_ips", "openvpncl_route");
@@ -468,19 +482,20 @@ void start_openvpn(void)
 /*		if (nvram_match("openvpncl_tuntap", "tap"))
 			fprintf(fp, "ip route add default via $route_vpn_gateway table 10\n"); //needs investigation cause in TAP mode no gateway is received
 		else */
-		fprintf(fp, "ip route add default via $route_vpn_gateway table 10\n");
+		if (!nvram_match("openvpncl_tuntap", "tap"))
+			fprintf(fp, "ip route add default via $route_vpn_gateway table 10\n");
 		fprintf(fp, "ip route flush cache\n" "echo $ifconfig_remote >>/tmp/gateway.txt\n" "echo $route_vpn_gateway >>/tmp/gateway.txt\n" "echo $ifconfig_local >>/tmp/gateway.txt\n");
 	}
-	if (nvram_match("block_multicast", "0")	//block multicast on bridged vpns
+	if (nvram_match("block_multicast", "0")	//block multicast on bridged vpns, when wan multicast is enabled
 	    && nvram_match("openvpncl_tuntap", "tap")
 	    && nvram_match("openvpncl_bridge", "1")) {
 		fprintf(fp, "insmod ebtables\n" "insmod ebtable_filter\n" "insmod ebtable_nat\n" "insmod ebt_pkttype\n"
 //                      "ebtables -I FORWARD -o tap1 --pkttype-type multicast -j DROP\n"
 //                      "ebtables -I OUTPUT -o tap1 --pkttype-type multicast -j DROP\n"
-			"ebtables -t nat -D POSTROUTING -o tap1 --pkttype-type multicast -j DROP\n" "ebtables -t nat -I POSTROUTING -o tap1 --pkttype-type multicast -j DROP\n");
+			"ebtables -t nat -D POSTROUTING -o %s --pkttype-type multicast -j DROP\n" "ebtables -t nat -I POSTROUTING -o %s --pkttype-type multicast -j DROP\n", ovpniface, ovpniface);
 	}
-	if (nvram_match("wshaper_enable", "1"))
-		fprintf(fp, "stopservice wshaper\n" "startservice wshaper\n");
+/*	if (nvram_match("wshaper_enable", "1"))
+		fprintf(fp, "stopservice wshaper\n" "startservice wshaper\n");*/
 	fclose(fp);
 
 	fp = fopen("/tmp/openvpncl/route-down.sh", "wb");
@@ -499,16 +514,14 @@ void start_openvpn(void)
 	if (nvram_match("openvpncl_tuntap", "tap")
 	    && nvram_match("openvpncl_bridge", "1")
 	    && nvram_match("openvpncl_nat", "0"))
-		fprintf(fp, "brctl delif br0 tap1\n" "ifconfig tap1 down\n");
+		fprintf(fp, "brctl delif br0 %s\n" "ifconfig %s down\n", ovpniface, ovpniface);
 	else if (nvram_match("openvpncl_tuntap", "tap")
 		 && strlen(nvram_safe_get("openvpncl_ip")) > 0)
-		fprintf(fp, "ifconfig tap1 down\n");
+		fprintf(fp, "ifconfig %s down\n", ovpniface);
 	if (nvram_match("openvpncl_nat", "1"))
-		fprintf(fp, "iptables -D INPUT -i %s1 -j ACCEPT\n" "iptables -D POSTROUTING -t nat -o %s1 -j MASQUERADE\n", nvram_safe_get("openvpncl_tuntap"), nvram_safe_get("openvpncl_tuntap"));
+		fprintf(fp, "iptables -D INPUT -i %s -j ACCEPT\n" "iptables -D POSTROUTING -t nat -o %s -j MASQUERADE\n", ovpniface, ovpniface);
 	else {
-		fprintf(fp,
-			"iptables -D INPUT -i %s1 -j ACCEPT\n"
-			"iptables -D FORWARD -i %s1 -j ACCEPT\n" "iptables -D FORWARD -o %s1 -j ACCEPT\n", nvram_safe_get("openvpncl_tuntap"), nvram_safe_get("openvpncl_tuntap"), nvram_safe_get("openvpncl_tuntap"));
+		fprintf(fp, "iptables -D INPUT -i %s -j ACCEPT\n" "iptables -D FORWARD -i %s -j ACCEPT\n" "iptables -D FORWARD -o %s -j ACCEPT\n", ovpniface, ovpniface, ovpniface);
 	}
 	if (strlen(nvram_safe_get("openvpncl_route")) > 0) {	//policy based routing
 		write_nvram("/tmp/openvpncl/policy_ips", "openvpncl_route");
@@ -517,9 +530,11 @@ void start_openvpn(void)
 /*	if (nvram_match("block_multicast", "0") //block multicast on bridged vpns
 		&& nvram_match("openvpncl_tuntap", "tap")
 		&& nvram_match("openvpncl_bridge", "1")) {
-		fprintf(fp, "ebtables -t nat -D POSTROUTING -o tap1 --pkttype-type multicast -j DROP\n"
+		fprintf(fp, 
+-			"ebtables -t nat -D POSTROUTING -o %s --pkttype-type multicast -j DROP\n"
+-			"ebtables -t nat -D PREROUTING -i %s --pkttype-type multicast -j DROP\n"
 			"if [ `ebtables -t nat -L|grep -e '-j' -c` -ne 0 ]\n"
-			"then rmmod ebtable_nat\n" "\t rmmod ebtables\n");
+			"then rmmod ebtable_nat\n" "\t rmmod ebtables\n", ovpniface, ovpniface);
 		} */
 	fclose(fp);
 
@@ -530,11 +545,10 @@ void start_openvpn(void)
 		eval("openvpn", "--config", "/tmp/openvpncl/openvpn.conf", "--route-up", "/tmp/openvpncl/route-up.sh", "--down-pre", "/tmp/openvpncl/route-down.sh", "--daemon", "--engine", "cryptodev");
 	else
 		eval("openvpn", "--config", "/tmp/openvpncl/openvpn.conf", "--route-up", "/tmp/openvpncl/route-up.sh", "--down-pre", "/tmp/openvpncl/route-down.sh", "--daemon");
-
-	if (nvram_match("wshaper_enable", "1")) {
+/*	if (nvram_match("wshaper_enable", "1")) { disable wshaper, causes fw race condition
 		eval("stopservice", "wshaper");
 		eval("startservice", "wshaper");
-	}
+	}*/
 
 	return;
 }
@@ -542,10 +556,10 @@ void start_openvpn(void)
 void stop_openvpn(void)
 {
 	if (stop_process("openvpn", "OpenVPN daemon (Client)")) {
-		if (nvram_match("wshaper_enable", "1")) {
+/*		if (nvram_match("wshaper_enable", "1")) {disable wshaper, causes fw race condition
 			stop_wshaper();
 			start_wshaper();
-		}
+		}*/
 		//remove ebtables rules on shutdown  
 		system("/usr/sbin/ebtables -t nat -D POSTROUTING -o tap1 --pkttype-type multicast -j DROP");
 		unlink("/tmp/openvpncl/ca.crt");
@@ -577,10 +591,10 @@ void stop_openvpn_wandone(void)
 		return;
 
 	if (stop_process("openvpn", "OpenVPN daemon (Client)")) {
-		if (nvram_match("wshaper_enable", "1")) {
+/*		if (nvram_match("wshaper_enable", "1")) {disable wshaper, causes fw race condition
 			stop_wshaper();
 			start_wshaper();
-		}
+		}*/
 		//remove ebtables rules on shutdown     
 		system("/usr/sbin/ebtables -t nat -D POSTROUTING -o tap1 --pkttype-type multicast -j DROP");
 		unlink("/tmp/openvpncl/ca.crt");

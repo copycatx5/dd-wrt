@@ -626,7 +626,7 @@ struct spoolss_UNIDRVEXTRA {
 	enum spoolss_DM_NupDirection dwNupDirection;
 	enum spoolss_DM_NupBorderFlags dwNupBorderFlags;
 	enum spoolss_DM_BookletFlags dwBookletFlags;
-}/* [gensize,public] */;
+}/* [public,gensize] */;
 
 struct spoolss_JTEXP {
 	uint32_t dwSize;
@@ -634,7 +634,7 @@ struct spoolss_JTEXP {
 	uint32_t dwVersion;/* [value(0)] */
 	uint32_t wJTHdrSize;/* [value(16)] */
 	uint32_t wCoreMFOSize;
-	const char *ModelName;/* [unique,charset(UTF16)] */
+	const char *ModelName;/* [charset(UTF16),unique] */
 	const char ** FeatureOptionPairs;/* [flag(LIBNDR_FLAG_STR_NULLTERM|LIBNDR_FLAG_ALIGN2)] */
 };
 
@@ -650,7 +650,7 @@ union spoolss_DeviceModeExtraDataPostScript {
 	struct spoolss_PSDRVEXTRA400 psdrvextra400;/* [case(0x0400)] */
 	struct spoolss_PSDRVEXTRA500 psdrvextra500;/* [case(0x0501)] */
 	struct spoolss_PSDRVEXTRA psdrvextra;/* [case(0x0600)] */
-	DATA_BLOB psblob;/* [default,flag(LIBNDR_FLAG_REMAINING)] */
+	DATA_BLOB psblob;/* [flag(LIBNDR_FLAG_REMAINING),default] */
 }/* [nodiscriminant] */;
 
 union spoolss_DeviceModeExtraDataUniDriver {
@@ -1145,8 +1145,8 @@ struct spoolss_DeviceMode {
 	uint32_t reserved2;
 	uint32_t panningwidth;
 	uint32_t panningheight;
-	DATA_BLOB driverextra_data;/* [subcontext_size(__driverextra_length),subcontext(0),flag(LIBNDR_FLAG_REMAINING)] */
-}/* [gensize,public] */;
+	DATA_BLOB driverextra_data;/* [subcontext(0),subcontext_size(__driverextra_length),flag(LIBNDR_FLAG_REMAINING)] */
+}/* [public,gensize] */;
 
 /* bitmap spoolss_EnumPrinterFlags */
 #define PRINTER_ENUM_DEFAULT ( 0x00000001 )
@@ -1191,23 +1191,23 @@ struct spoolss_PrinterInfo1 {
 	uint32_t flags;
 	const char * description;/* [relative,flag(LIBNDR_FLAG_STR_NULLTERM|LIBNDR_FLAG_ALIGN2)] */
 	const char * name;/* [relative,flag(LIBNDR_FLAG_STR_NULLTERM|LIBNDR_FLAG_ALIGN2)] */
-	const char * comment;/* [relative,flag(LIBNDR_FLAG_STR_NULLTERM|LIBNDR_FLAG_ALIGN2)] */
-}/* [gensize,public] */;
+	const char * comment;/* [flag(LIBNDR_FLAG_STR_NULLTERM|LIBNDR_FLAG_ALIGN2),relative] */
+}/* [public,gensize] */;
 
 struct spoolss_PrinterInfo2 {
 	const char * servername;/* [relative,flag(LIBNDR_FLAG_STR_NULLTERM|LIBNDR_FLAG_ALIGN2)] */
 	const char * printername;/* [relative,flag(LIBNDR_FLAG_STR_NULLTERM|LIBNDR_FLAG_ALIGN2)] */
-	const char * sharename;/* [relative,flag(LIBNDR_FLAG_STR_NULLTERM|LIBNDR_FLAG_ALIGN2)] */
+	const char * sharename;/* [flag(LIBNDR_FLAG_STR_NULLTERM|LIBNDR_FLAG_ALIGN2),relative] */
 	const char * portname;/* [relative,flag(LIBNDR_FLAG_STR_NULLTERM|LIBNDR_FLAG_ALIGN2)] */
-	const char * drivername;/* [relative,flag(LIBNDR_FLAG_STR_NULLTERM|LIBNDR_FLAG_ALIGN2)] */
+	const char * drivername;/* [flag(LIBNDR_FLAG_STR_NULLTERM|LIBNDR_FLAG_ALIGN2),relative] */
 	const char * comment;/* [relative,flag(LIBNDR_FLAG_STR_NULLTERM|LIBNDR_FLAG_ALIGN2)] */
 	const char * location;/* [relative,flag(LIBNDR_FLAG_STR_NULLTERM|LIBNDR_FLAG_ALIGN2)] */
 	struct spoolss_DeviceMode *devmode;/* [relative,subcontext(0),flag(LIBNDR_FLAG_ALIGN4)] */
 	const char * sepfile;/* [relative,flag(LIBNDR_FLAG_STR_NULLTERM|LIBNDR_FLAG_ALIGN2)] */
 	const char * printprocessor;/* [relative,flag(LIBNDR_FLAG_STR_NULLTERM|LIBNDR_FLAG_ALIGN2)] */
 	const char * datatype;/* [relative,flag(LIBNDR_FLAG_STR_NULLTERM|LIBNDR_FLAG_ALIGN2)] */
-	const char * parameters;/* [relative,flag(LIBNDR_FLAG_STR_NULLTERM|LIBNDR_FLAG_ALIGN2)] */
-	struct spoolss_security_descriptor *secdesc;/* [relative,subcontext(0),flag(LIBNDR_FLAG_ALIGN4)] */
+	const char * parameters;/* [flag(LIBNDR_FLAG_STR_NULLTERM|LIBNDR_FLAG_ALIGN2),relative] */
+	struct spoolss_security_descriptor *secdesc;/* [flag(LIBNDR_FLAG_ALIGN4),subcontext(0),relative] */
 	uint32_t attributes;
 	uint32_t priority;/* [range(0,99)] */
 	uint32_t defaultpriority;
@@ -1216,21 +1216,21 @@ struct spoolss_PrinterInfo2 {
 	uint32_t status;
 	uint32_t cjobs;
 	uint32_t averageppm;
-}/* [gensize,public,nopush] */;
+}/* [gensize,nopush,public] */;
 
 struct spoolss_PrinterInfo3 {
 	struct spoolss_security_descriptor *secdesc;/* [relative,subcontext(0),flag(LIBNDR_FLAG_ALIGN4)] */
 }/* [gensize,public] */;
 
 struct spoolss_PrinterInfo4 {
-	const char * printername;/* [relative,flag(LIBNDR_FLAG_STR_NULLTERM|LIBNDR_FLAG_ALIGN2)] */
+	const char * printername;/* [flag(LIBNDR_FLAG_STR_NULLTERM|LIBNDR_FLAG_ALIGN2),relative] */
 	const char * servername;/* [relative,flag(LIBNDR_FLAG_STR_NULLTERM|LIBNDR_FLAG_ALIGN2)] */
 	uint32_t attributes;
 }/* [gensize,public] */;
 
 struct spoolss_PrinterInfo5 {
 	const char * printername;/* [relative,flag(LIBNDR_FLAG_STR_NULLTERM|LIBNDR_FLAG_ALIGN2)] */
-	const char * portname;/* [relative,flag(LIBNDR_FLAG_STR_NULLTERM|LIBNDR_FLAG_ALIGN2)] */
+	const char * portname;/* [flag(LIBNDR_FLAG_STR_NULLTERM|LIBNDR_FLAG_ALIGN2),relative] */
 	uint32_t attributes;
 	uint32_t device_not_selected_timeout;
 	uint32_t transmission_retry_timeout;
@@ -1238,7 +1238,7 @@ struct spoolss_PrinterInfo5 {
 
 struct spoolss_PrinterInfo6 {
 	uint32_t status;
-}/* [gensize,public] */;
+}/* [public,gensize] */;
 
 /* bitmap spoolss_DsPrintAction */
 #define DSPRINT_PUBLISH ( 0x00000001 )
@@ -1250,10 +1250,10 @@ struct spoolss_PrinterInfo6 {
 struct spoolss_PrinterInfo7 {
 	const char * guid;/* [relative,flag(LIBNDR_FLAG_STR_NULLTERM|LIBNDR_FLAG_ALIGN2)] */
 	uint32_t action;
-}/* [gensize,public] */;
+}/* [public,gensize] */;
 
 struct spoolss_DeviceModeInfo {
-	struct spoolss_DeviceMode *devmode;/* [relative,subcontext(0),flag(LIBNDR_FLAG_ALIGN4)] */
+	struct spoolss_DeviceMode *devmode;/* [flag(LIBNDR_FLAG_ALIGN4),relative,subcontext(0)] */
 };
 
 union spoolss_PrinterInfo {
@@ -1267,21 +1267,21 @@ union spoolss_PrinterInfo {
 	struct spoolss_PrinterInfo7 info7;/* [case(7)] */
 	struct spoolss_DeviceModeInfo info8;/* [case(8)] */
 	struct spoolss_DeviceModeInfo info9;/* [case(9)] */
-}/* [gensize,relative_base,nodiscriminant,public,flag(LIBNDR_FLAG_RELATIVE_REVERSE)] */;
+}/* [relative_base,public,flag(LIBNDR_FLAG_RELATIVE_REVERSE),gensize,nodiscriminant] */;
 
 struct spoolss_DevmodeContainer {
 	uint32_t _ndr_size;/* [value(_ndr_size_spoolss_DeviceMode(devmode,ndr->flags))] */
-	struct spoolss_DeviceMode *devmode;/* [unique,subcontext_size(_ndr_size),subcontext(4)] */
+	struct spoolss_DeviceMode *devmode;/* [subcontext_size(_ndr_size),subcontext(4),unique] */
 };
 
 struct spoolss_JobInfo1 {
 	uint32_t job_id;
 	const char * printer_name;/* [relative,flag(LIBNDR_FLAG_STR_NULLTERM|LIBNDR_FLAG_ALIGN2)] */
-	const char * server_name;/* [relative,flag(LIBNDR_FLAG_STR_NULLTERM|LIBNDR_FLAG_ALIGN2)] */
-	const char * user_name;/* [relative,flag(LIBNDR_FLAG_STR_NULLTERM|LIBNDR_FLAG_ALIGN2)] */
-	const char * document_name;/* [relative,flag(LIBNDR_FLAG_STR_NULLTERM|LIBNDR_FLAG_ALIGN2)] */
-	const char * data_type;/* [relative,flag(LIBNDR_FLAG_STR_NULLTERM|LIBNDR_FLAG_ALIGN2)] */
-	const char * text_status;/* [relative,flag(LIBNDR_FLAG_STR_NULLTERM|LIBNDR_FLAG_ALIGN2)] */
+	const char * server_name;/* [flag(LIBNDR_FLAG_STR_NULLTERM|LIBNDR_FLAG_ALIGN2),relative] */
+	const char * user_name;/* [flag(LIBNDR_FLAG_STR_NULLTERM|LIBNDR_FLAG_ALIGN2),relative] */
+	const char * document_name;/* [flag(LIBNDR_FLAG_STR_NULLTERM|LIBNDR_FLAG_ALIGN2),relative] */
+	const char * data_type;/* [flag(LIBNDR_FLAG_STR_NULLTERM|LIBNDR_FLAG_ALIGN2),relative] */
+	const char * text_status;/* [flag(LIBNDR_FLAG_STR_NULLTERM|LIBNDR_FLAG_ALIGN2),relative] */
 	uint32_t status;
 	uint32_t priority;/* [range(0,99)] */
 	uint32_t position;
@@ -1292,18 +1292,18 @@ struct spoolss_JobInfo1 {
 
 struct spoolss_JobInfo2 {
 	uint32_t job_id;
-	const char * printer_name;/* [relative,flag(LIBNDR_FLAG_STR_NULLTERM|LIBNDR_FLAG_ALIGN2)] */
-	const char * server_name;/* [relative,flag(LIBNDR_FLAG_STR_NULLTERM|LIBNDR_FLAG_ALIGN2)] */
+	const char * printer_name;/* [flag(LIBNDR_FLAG_STR_NULLTERM|LIBNDR_FLAG_ALIGN2),relative] */
+	const char * server_name;/* [flag(LIBNDR_FLAG_STR_NULLTERM|LIBNDR_FLAG_ALIGN2),relative] */
 	const char * user_name;/* [relative,flag(LIBNDR_FLAG_STR_NULLTERM|LIBNDR_FLAG_ALIGN2)] */
 	const char * document_name;/* [relative,flag(LIBNDR_FLAG_STR_NULLTERM|LIBNDR_FLAG_ALIGN2)] */
-	const char * notify_name;/* [relative,flag(LIBNDR_FLAG_STR_NULLTERM|LIBNDR_FLAG_ALIGN2)] */
+	const char * notify_name;/* [flag(LIBNDR_FLAG_STR_NULLTERM|LIBNDR_FLAG_ALIGN2),relative] */
 	const char * data_type;/* [relative,flag(LIBNDR_FLAG_STR_NULLTERM|LIBNDR_FLAG_ALIGN2)] */
 	const char * print_processor;/* [relative,flag(LIBNDR_FLAG_STR_NULLTERM|LIBNDR_FLAG_ALIGN2)] */
 	const char * parameters;/* [relative,flag(LIBNDR_FLAG_STR_NULLTERM|LIBNDR_FLAG_ALIGN2)] */
 	const char * driver_name;/* [relative,flag(LIBNDR_FLAG_STR_NULLTERM|LIBNDR_FLAG_ALIGN2)] */
 	struct spoolss_DeviceMode *devmode;/* [relative,subcontext(0),flag(LIBNDR_FLAG_ALIGN4)] */
 	const char * text_status;/* [relative,flag(LIBNDR_FLAG_STR_NULLTERM|LIBNDR_FLAG_ALIGN2)] */
-	struct spoolss_security_descriptor *secdesc;/* [relative,subcontext(0),flag(LIBNDR_FLAG_ALIGN4)] */
+	struct spoolss_security_descriptor *secdesc;/* [subcontext(0),relative,flag(LIBNDR_FLAG_ALIGN4)] */
 	uint32_t status;
 	uint32_t priority;/* [range(0,99)] */
 	uint32_t position;
@@ -1314,28 +1314,28 @@ struct spoolss_JobInfo2 {
 	struct spoolss_Time submitted;
 	uint32_t time;
 	uint32_t pages_printed;
-}/* [gensize,public] */;
+}/* [public,gensize] */;
 
 struct spoolss_JobInfo3 {
 	uint32_t job_id;
 	uint32_t next_job_id;
 	uint32_t reserved;
-}/* [gensize,public] */;
+}/* [public,gensize] */;
 
 struct spoolss_JobInfo4 {
 	uint32_t job_id;
-	const char * printer_name;/* [relative,flag(LIBNDR_FLAG_STR_NULLTERM|LIBNDR_FLAG_ALIGN2)] */
+	const char * printer_name;/* [flag(LIBNDR_FLAG_STR_NULLTERM|LIBNDR_FLAG_ALIGN2),relative] */
 	const char * server_name;/* [relative,flag(LIBNDR_FLAG_STR_NULLTERM|LIBNDR_FLAG_ALIGN2)] */
 	const char * user_name;/* [relative,flag(LIBNDR_FLAG_STR_NULLTERM|LIBNDR_FLAG_ALIGN2)] */
-	const char * document_name;/* [relative,flag(LIBNDR_FLAG_STR_NULLTERM|LIBNDR_FLAG_ALIGN2)] */
-	const char * notify_name;/* [relative,flag(LIBNDR_FLAG_STR_NULLTERM|LIBNDR_FLAG_ALIGN2)] */
-	const char * data_type;/* [relative,flag(LIBNDR_FLAG_STR_NULLTERM|LIBNDR_FLAG_ALIGN2)] */
-	const char * print_processor;/* [relative,flag(LIBNDR_FLAG_STR_NULLTERM|LIBNDR_FLAG_ALIGN2)] */
+	const char * document_name;/* [flag(LIBNDR_FLAG_STR_NULLTERM|LIBNDR_FLAG_ALIGN2),relative] */
+	const char * notify_name;/* [flag(LIBNDR_FLAG_STR_NULLTERM|LIBNDR_FLAG_ALIGN2),relative] */
+	const char * data_type;/* [flag(LIBNDR_FLAG_STR_NULLTERM|LIBNDR_FLAG_ALIGN2),relative] */
+	const char * print_processor;/* [flag(LIBNDR_FLAG_STR_NULLTERM|LIBNDR_FLAG_ALIGN2),relative] */
 	const char * parameters;/* [relative,flag(LIBNDR_FLAG_STR_NULLTERM|LIBNDR_FLAG_ALIGN2)] */
-	const char * driver_name;/* [relative,flag(LIBNDR_FLAG_STR_NULLTERM|LIBNDR_FLAG_ALIGN2)] */
-	struct spoolss_DeviceMode *devmode;/* [relative,subcontext(0),flag(LIBNDR_FLAG_ALIGN4)] */
-	const char * text_status;/* [relative,flag(LIBNDR_FLAG_STR_NULLTERM|LIBNDR_FLAG_ALIGN2)] */
-	struct spoolss_security_descriptor *secdesc;/* [relative,subcontext(0),flag(LIBNDR_FLAG_ALIGN4)] */
+	const char * driver_name;/* [flag(LIBNDR_FLAG_STR_NULLTERM|LIBNDR_FLAG_ALIGN2),relative] */
+	struct spoolss_DeviceMode *devmode;/* [subcontext(0),relative,flag(LIBNDR_FLAG_ALIGN4)] */
+	const char * text_status;/* [flag(LIBNDR_FLAG_STR_NULLTERM|LIBNDR_FLAG_ALIGN2),relative] */
+	struct spoolss_security_descriptor *secdesc;/* [flag(LIBNDR_FLAG_ALIGN4),relative,subcontext(0)] */
 	uint32_t status;
 	uint32_t priority;/* [range(0,99)] */
 	uint32_t position;
@@ -1347,19 +1347,19 @@ struct spoolss_JobInfo4 {
 	uint32_t time;
 	uint32_t pages_printed;
 	uint32_t size_high;
-}/* [gensize,public] */;
+}/* [public,gensize] */;
 
 union spoolss_JobInfo {
 	struct spoolss_JobInfo1 info1;/* [case] */
 	struct spoolss_JobInfo2 info2;/* [case(2)] */
 	struct spoolss_JobInfo3 info3;/* [case(3)] */
 	struct spoolss_JobInfo4 info4;/* [case(4)] */
-}/* [gensize,relative_base,nodiscriminant,public,flag(LIBNDR_FLAG_RELATIVE_REVERSE)] */;
+}/* [gensize,nodiscriminant,relative_base,public,flag(LIBNDR_FLAG_RELATIVE_REVERSE)] */;
 
 struct spoolss_SetJobInfo1 {
 	uint32_t job_id;
-	const char *printer_name;/* [unique,charset(UTF16)] */
-	const char *server_name;/* [unique,charset(UTF16)] */
+	const char *printer_name;/* [charset(UTF16),unique] */
+	const char *server_name;/* [charset(UTF16),unique] */
 	const char *user_name;/* [unique,charset(UTF16)] */
 	const char *document_name;/* [unique,charset(UTF16)] */
 	const char *data_type;/* [unique,charset(UTF16)] */
@@ -1374,12 +1374,12 @@ struct spoolss_SetJobInfo1 {
 
 struct spoolss_SetJobInfo2 {
 	uint32_t job_id;
-	const char *printer_name;/* [unique,charset(UTF16)] */
-	const char *server_name;/* [unique,charset(UTF16)] */
-	const char *user_name;/* [unique,charset(UTF16)] */
-	const char *document_name;/* [unique,charset(UTF16)] */
+	const char *printer_name;/* [charset(UTF16),unique] */
+	const char *server_name;/* [charset(UTF16),unique] */
+	const char *user_name;/* [charset(UTF16),unique] */
+	const char *document_name;/* [charset(UTF16),unique] */
 	const char *notify_name;/* [unique,charset(UTF16)] */
-	const char *data_type;/* [unique,charset(UTF16)] */
+	const char *data_type;/* [charset(UTF16),unique] */
 	const char *print_processor;/* [unique,charset(UTF16)] */
 	const char *parameters;/* [unique,charset(UTF16)] */
 	const char *driver_name;/* [unique,charset(UTF16)] */
@@ -1401,16 +1401,16 @@ struct spoolss_SetJobInfo2 {
 struct spoolss_SetJobInfo4 {
 	uint32_t job_id;
 	const char *printer_name;/* [unique,charset(UTF16)] */
-	const char *server_name;/* [unique,charset(UTF16)] */
-	const char *user_name;/* [unique,charset(UTF16)] */
-	const char *document_name;/* [unique,charset(UTF16)] */
-	const char *notify_name;/* [unique,charset(UTF16)] */
-	const char *data_type;/* [unique,charset(UTF16)] */
+	const char *server_name;/* [charset(UTF16),unique] */
+	const char *user_name;/* [charset(UTF16),unique] */
+	const char *document_name;/* [charset(UTF16),unique] */
+	const char *notify_name;/* [charset(UTF16),unique] */
+	const char *data_type;/* [charset(UTF16),unique] */
 	const char *print_processor;/* [unique,charset(UTF16)] */
 	const char *parameters;/* [unique,charset(UTF16)] */
-	const char *driver_name;/* [unique,charset(UTF16)] */
+	const char *driver_name;/* [charset(UTF16),unique] */
 	uint32_t _devmode_ptr;
-	const char *text_status;/* [unique,charset(UTF16)] */
+	const char *text_status;/* [charset(UTF16),unique] */
 	uint32_t _secdesc_ptr;
 	uint32_t status;
 	uint32_t priority;/* [range(0,99)] */
@@ -1428,7 +1428,7 @@ struct spoolss_SetJobInfo4 {
 union spoolss_SetJobInfo {
 	struct spoolss_SetJobInfo1 *info1;/* [unique,case] */
 	struct spoolss_SetJobInfo2 *info2;/* [unique,case(2)] */
-	struct spoolss_JobInfo3 *info3;/* [unique,case(3)] */
+	struct spoolss_JobInfo3 *info3;/* [case(3),unique] */
 	struct spoolss_SetJobInfo4 *info4;/* [unique,case(4)] */
 }/* [public] */;
 
@@ -1484,8 +1484,8 @@ enum spoolss_PrinterControl
 ;
 
 struct spoolss_SetPrinterInfo0 {
-	const char *servername;/* [unique,charset(UTF16)] */
-	const char *printername;/* [unique,charset(UTF16)] */
+	const char *servername;/* [charset(UTF16),unique] */
+	const char *printername;/* [charset(UTF16),unique] */
 	uint32_t cjobs;
 	uint32_t total_jobs;
 	uint32_t total_bytes;
@@ -1517,7 +1517,7 @@ struct spoolss_SetPrinterInfo0 {
 
 struct spoolss_SetPrinterInfo1 {
 	uint32_t flags;
-	const char *description;/* [unique,charset(UTF16)] */
+	const char *description;/* [charset(UTF16),unique] */
 	const char *name;/* [unique,charset(UTF16)] */
 	const char *comment;/* [unique,charset(UTF16)] */
 };
@@ -1528,13 +1528,13 @@ struct spoolss_SetPrinterInfo2 {
 	const char *sharename;/* [unique,charset(UTF16)] */
 	const char *portname;/* [unique,charset(UTF16)] */
 	const char *drivername;/* [unique,charset(UTF16)] */
-	const char *comment;/* [unique,charset(UTF16)] */
-	const char *location;/* [unique,charset(UTF16)] */
+	const char *comment;/* [charset(UTF16),unique] */
+	const char *location;/* [charset(UTF16),unique] */
 	uint32_t devmode_ptr;
 	const char *sepfile;/* [unique,charset(UTF16)] */
-	const char *printprocessor;/* [unique,charset(UTF16)] */
+	const char *printprocessor;/* [charset(UTF16),unique] */
 	const char *datatype;/* [unique,charset(UTF16)] */
-	const char *parameters;/* [unique,charset(UTF16)] */
+	const char *parameters;/* [charset(UTF16),unique] */
 	uint32_t secdesc_ptr;
 	uint32_t attributes;
 	uint32_t priority;/* [range(0,99)] */
@@ -1557,7 +1557,7 @@ struct spoolss_SetPrinterInfo4 {
 };
 
 struct spoolss_SetPrinterInfo5 {
-	const char *printername;/* [unique,charset(UTF16)] */
+	const char *printername;/* [charset(UTF16),unique] */
 	const char *portname;/* [unique,charset(UTF16)] */
 	uint32_t attributes;
 	uint32_t device_not_selected_timeout;
@@ -1569,7 +1569,7 @@ struct spoolss_SetPrinterInfo6 {
 };
 
 struct spoolss_SetPrinterInfo7 {
-	const char *guid;/* [unique,charset(UTF16)] */
+	const char *guid;/* [charset(UTF16),unique] */
 	uint32_t action;
 };
 
@@ -1582,16 +1582,16 @@ struct spoolss_SetPrinterInfo9 {
 };
 
 union spoolss_SetPrinterInfo {
-	struct spoolss_SetPrinterInfo0 *info0;/* [unique,case(0)] */
-	struct spoolss_SetPrinterInfo1 *info1;/* [unique,case] */
-	struct spoolss_SetPrinterInfo2 *info2;/* [unique,case(2)] */
+	struct spoolss_SetPrinterInfo0 *info0;/* [case(0),unique] */
+	struct spoolss_SetPrinterInfo1 *info1;/* [case,unique] */
+	struct spoolss_SetPrinterInfo2 *info2;/* [case(2),unique] */
 	struct spoolss_SetPrinterInfo3 *info3;/* [unique,case(3)] */
-	struct spoolss_SetPrinterInfo4 *info4;/* [unique,case(4)] */
+	struct spoolss_SetPrinterInfo4 *info4;/* [case(4),unique] */
 	struct spoolss_SetPrinterInfo5 *info5;/* [unique,case(5)] */
 	struct spoolss_SetPrinterInfo6 *info6;/* [unique,case(6)] */
 	struct spoolss_SetPrinterInfo7 *info7;/* [unique,case(7)] */
-	struct spoolss_SetPrinterInfo8 *info8;/* [unique,case(8)] */
-	struct spoolss_SetPrinterInfo9 *info9;/* [unique,case(9)] */
+	struct spoolss_SetPrinterInfo8 *info8;/* [case(8),unique] */
+	struct spoolss_SetPrinterInfo9 *info9;/* [case(9),unique] */
 }/* [switch_type(uint32)] */;
 
 struct spoolss_SetPrinterInfoCtr {
@@ -1605,7 +1605,7 @@ struct spoolss_StringArray {
 }/* [public] */;
 
 struct spoolss_AddDriverInfo1 {
-	const char *driver_name;/* [unique,charset(UTF16)] */
+	const char *driver_name;/* [charset(UTF16),unique] */
 };
 
 enum spoolss_DriverOSVersion
@@ -1630,7 +1630,7 @@ enum spoolss_DriverOSVersion
 struct spoolss_AddDriverInfo2 {
 	enum spoolss_DriverOSVersion version;
 	const char *driver_name;/* [unique,charset(UTF16)] */
-	const char *architecture;/* [unique,charset(UTF16)] */
+	const char *architecture;/* [charset(UTF16),unique] */
 	const char *driver_path;/* [unique,charset(UTF16)] */
 	const char *data_file;/* [unique,charset(UTF16)] */
 	const char *config_file;/* [unique,charset(UTF16)] */
@@ -1639,13 +1639,13 @@ struct spoolss_AddDriverInfo2 {
 struct spoolss_AddDriverInfo3 {
 	enum spoolss_DriverOSVersion version;
 	const char *driver_name;/* [unique,charset(UTF16)] */
-	const char *architecture;/* [unique,charset(UTF16)] */
-	const char *driver_path;/* [unique,charset(UTF16)] */
-	const char *data_file;/* [unique,charset(UTF16)] */
+	const char *architecture;/* [charset(UTF16),unique] */
+	const char *driver_path;/* [charset(UTF16),unique] */
+	const char *data_file;/* [charset(UTF16),unique] */
 	const char *config_file;/* [unique,charset(UTF16)] */
-	const char *help_file;/* [unique,charset(UTF16)] */
-	const char *monitor_name;/* [unique,charset(UTF16)] */
-	const char *default_datatype;/* [unique,charset(UTF16)] */
+	const char *help_file;/* [charset(UTF16),unique] */
+	const char *monitor_name;/* [charset(UTF16),unique] */
+	const char *default_datatype;/* [charset(UTF16),unique] */
 	uint32_t _ndr_size_dependent_files;/* [value(((ndr_size_spoolss_StringArray(dependent_files,ndr->flags)-4)/2))] */
 	struct spoolss_StringArray *dependent_files;/* [unique] */
 };
@@ -1653,11 +1653,11 @@ struct spoolss_AddDriverInfo3 {
 struct spoolss_AddDriverInfo4 {
 	enum spoolss_DriverOSVersion version;
 	const char *driver_name;/* [unique,charset(UTF16)] */
-	const char *architecture;/* [unique,charset(UTF16)] */
-	const char *driver_path;/* [unique,charset(UTF16)] */
-	const char *data_file;/* [unique,charset(UTF16)] */
-	const char *config_file;/* [unique,charset(UTF16)] */
-	const char *help_file;/* [unique,charset(UTF16)] */
+	const char *architecture;/* [charset(UTF16),unique] */
+	const char *driver_path;/* [charset(UTF16),unique] */
+	const char *data_file;/* [charset(UTF16),unique] */
+	const char *config_file;/* [charset(UTF16),unique] */
+	const char *help_file;/* [charset(UTF16),unique] */
 	const char *monitor_name;/* [unique,charset(UTF16)] */
 	const char *default_datatype;/* [unique,charset(UTF16)] */
 	uint32_t _ndr_size_dependent_files;/* [value(((ndr_size_spoolss_StringArray(dependent_files,ndr->flags)-4)/2))] */
@@ -1671,9 +1671,9 @@ struct spoolss_AddDriverInfo4 {
 
 struct spoolss_AddDriverInfo5 {
 	enum spoolss_DriverOSVersion version;
-	const char *driver_name;/* [unique,charset(UTF16)] */
+	const char *driver_name;/* [charset(UTF16),unique] */
 	const char *architecture;/* [unique,charset(UTF16)] */
-	const char *driver_path;/* [unique,charset(UTF16)] */
+	const char *driver_path;/* [charset(UTF16),unique] */
 	const char *data_file;/* [unique,charset(UTF16)] */
 	const char *config_file;/* [unique,charset(UTF16)] */
 	uint32_t driver_attributes;
@@ -1683,12 +1683,12 @@ struct spoolss_AddDriverInfo5 {
 
 struct spoolss_AddDriverInfo6 {
 	enum spoolss_DriverOSVersion version;
-	const char *driver_name;/* [unique,charset(UTF16)] */
+	const char *driver_name;/* [charset(UTF16),unique] */
 	const char *architecture;/* [unique,charset(UTF16)] */
 	const char *driver_path;/* [unique,charset(UTF16)] */
-	const char *data_file;/* [unique,charset(UTF16)] */
-	const char *config_file;/* [unique,charset(UTF16)] */
-	const char *help_file;/* [unique,charset(UTF16)] */
+	const char *data_file;/* [charset(UTF16),unique] */
+	const char *config_file;/* [charset(UTF16),unique] */
+	const char *help_file;/* [charset(UTF16),unique] */
 	const char *monitor_name;/* [unique,charset(UTF16)] */
 	const char *default_datatype;/* [unique,charset(UTF16)] */
 	uint32_t _ndr_size_dependent_files;/* [value(((ndr_size_spoolss_StringArray(dependent_files,ndr->flags)-4)/2))] */
@@ -1699,19 +1699,19 @@ struct spoolss_AddDriverInfo6 {
 	uint64_t driver_version;
 	const char *manufacturer_name;/* [unique,charset(UTF16)] */
 	const char *manufacturer_url;/* [unique,charset(UTF16)] */
-	const char *hardware_id;/* [unique,charset(UTF16)] */
-	const char *provider;/* [unique,charset(UTF16)] */
+	const char *hardware_id;/* [charset(UTF16),unique] */
+	const char *provider;/* [charset(UTF16),unique] */
 };
 
 struct spoolss_AddDriverInfo8 {
 	enum spoolss_DriverOSVersion version;
-	const char *driver_name;/* [unique,charset(UTF16)] */
-	const char *architecture;/* [unique,charset(UTF16)] */
+	const char *driver_name;/* [charset(UTF16),unique] */
+	const char *architecture;/* [charset(UTF16),unique] */
 	const char *driver_path;/* [unique,charset(UTF16)] */
-	const char *data_file;/* [unique,charset(UTF16)] */
+	const char *data_file;/* [charset(UTF16),unique] */
 	const char *config_file;/* [unique,charset(UTF16)] */
-	const char *help_file;/* [unique,charset(UTF16)] */
-	const char *monitor_name;/* [unique,charset(UTF16)] */
+	const char *help_file;/* [charset(UTF16),unique] */
+	const char *monitor_name;/* [charset(UTF16),unique] */
 	const char *default_datatype;/* [unique,charset(UTF16)] */
 	uint32_t _ndr_size_dependent_files;/* [value(((ndr_size_spoolss_StringArray(dependent_files,ndr->flags)-4)/2))] */
 	struct spoolss_StringArray *dependent_files;/* [unique] */
@@ -1719,11 +1719,11 @@ struct spoolss_AddDriverInfo8 {
 	struct spoolss_StringArray *previous_names;/* [unique] */
 	NTTIME driver_date;
 	uint64_t driver_version;
-	const char *manufacturer_name;/* [unique,charset(UTF16)] */
-	const char *manufacturer_url;/* [unique,charset(UTF16)] */
+	const char *manufacturer_name;/* [charset(UTF16),unique] */
+	const char *manufacturer_url;/* [charset(UTF16),unique] */
 	const char *hardware_id;/* [unique,charset(UTF16)] */
 	const char *provider;/* [unique,charset(UTF16)] */
-	const char *print_processor;/* [unique,charset(UTF16)] */
+	const char *print_processor;/* [charset(UTF16),unique] */
 	const char *vendor_setup;/* [unique,charset(UTF16)] */
 	uint32_t _ndr_size_color_profiles;/* [value(((ndr_size_spoolss_StringArray(color_profiles,ndr->flags)-4)/2))] */
 	struct spoolss_StringArray *color_profiles;/* [unique] */
@@ -1736,12 +1736,12 @@ struct spoolss_AddDriverInfo8 {
 };
 
 union spoolss_AddDriverInfo {
-	struct spoolss_AddDriverInfo1 *info1;/* [unique,case] */
+	struct spoolss_AddDriverInfo1 *info1;/* [case,unique] */
 	struct spoolss_AddDriverInfo2 *info2;/* [unique,case(2)] */
-	struct spoolss_AddDriverInfo3 *info3;/* [unique,case(3)] */
+	struct spoolss_AddDriverInfo3 *info3;/* [case(3),unique] */
 	struct spoolss_AddDriverInfo4 *info4;/* [unique,case(4)] */
 	struct spoolss_AddDriverInfo6 *info6;/* [unique,case(6)] */
-	struct spoolss_AddDriverInfo8 *info8;/* [unique,case(8)] */
+	struct spoolss_AddDriverInfo8 *info8;/* [case(8),unique] */
 }/* [switch_type(uint32)] */;
 
 struct spoolss_AddDriverInfoCtr {
@@ -1751,25 +1751,25 @@ struct spoolss_AddDriverInfoCtr {
 
 struct spoolss_DriverInfo1 {
 	const char * driver_name;/* [relative,flag(LIBNDR_FLAG_STR_NULLTERM|LIBNDR_FLAG_ALIGN2)] */
-}/* [gensize,public] */;
+}/* [public,gensize] */;
 
 struct spoolss_DriverInfo2 {
 	enum spoolss_DriverOSVersion version;
-	const char * driver_name;/* [relative,flag(LIBNDR_FLAG_STR_NULLTERM|LIBNDR_FLAG_ALIGN2)] */
-	const char * architecture;/* [relative,flag(LIBNDR_FLAG_STR_NULLTERM|LIBNDR_FLAG_ALIGN2)] */
-	const char * driver_path;/* [relative,flag(LIBNDR_FLAG_STR_NULLTERM|LIBNDR_FLAG_ALIGN2)] */
+	const char * driver_name;/* [flag(LIBNDR_FLAG_STR_NULLTERM|LIBNDR_FLAG_ALIGN2),relative] */
+	const char * architecture;/* [flag(LIBNDR_FLAG_STR_NULLTERM|LIBNDR_FLAG_ALIGN2),relative] */
+	const char * driver_path;/* [flag(LIBNDR_FLAG_STR_NULLTERM|LIBNDR_FLAG_ALIGN2),relative] */
 	const char * data_file;/* [relative,flag(LIBNDR_FLAG_STR_NULLTERM|LIBNDR_FLAG_ALIGN2)] */
 	const char * config_file;/* [relative,flag(LIBNDR_FLAG_STR_NULLTERM|LIBNDR_FLAG_ALIGN2)] */
 }/* [gensize,public] */;
 
 struct spoolss_DriverInfo3 {
 	enum spoolss_DriverOSVersion version;
-	const char * driver_name;/* [relative,flag(LIBNDR_FLAG_STR_NULLTERM|LIBNDR_FLAG_ALIGN2)] */
+	const char * driver_name;/* [flag(LIBNDR_FLAG_STR_NULLTERM|LIBNDR_FLAG_ALIGN2),relative] */
 	const char * architecture;/* [relative,flag(LIBNDR_FLAG_STR_NULLTERM|LIBNDR_FLAG_ALIGN2)] */
-	const char * driver_path;/* [relative,flag(LIBNDR_FLAG_STR_NULLTERM|LIBNDR_FLAG_ALIGN2)] */
-	const char * data_file;/* [relative,flag(LIBNDR_FLAG_STR_NULLTERM|LIBNDR_FLAG_ALIGN2)] */
-	const char * config_file;/* [relative,flag(LIBNDR_FLAG_STR_NULLTERM|LIBNDR_FLAG_ALIGN2)] */
-	const char * help_file;/* [relative,flag(LIBNDR_FLAG_STR_NULLTERM|LIBNDR_FLAG_ALIGN2)] */
+	const char * driver_path;/* [flag(LIBNDR_FLAG_STR_NULLTERM|LIBNDR_FLAG_ALIGN2),relative] */
+	const char * data_file;/* [flag(LIBNDR_FLAG_STR_NULLTERM|LIBNDR_FLAG_ALIGN2),relative] */
+	const char * config_file;/* [flag(LIBNDR_FLAG_STR_NULLTERM|LIBNDR_FLAG_ALIGN2),relative] */
+	const char * help_file;/* [flag(LIBNDR_FLAG_STR_NULLTERM|LIBNDR_FLAG_ALIGN2),relative] */
 	const char ** dependent_files;/* [relative,flag(LIBNDR_FLAG_STR_NULLTERM|LIBNDR_FLAG_ALIGN2)] */
 	const char * monitor_name;/* [relative,flag(LIBNDR_FLAG_STR_NULLTERM|LIBNDR_FLAG_ALIGN2)] */
 	const char * default_datatype;/* [relative,flag(LIBNDR_FLAG_STR_NULLTERM|LIBNDR_FLAG_ALIGN2)] */
@@ -1778,37 +1778,37 @@ struct spoolss_DriverInfo3 {
 struct spoolss_DriverInfo4 {
 	enum spoolss_DriverOSVersion version;
 	const char * driver_name;/* [relative,flag(LIBNDR_FLAG_STR_NULLTERM|LIBNDR_FLAG_ALIGN2)] */
-	const char * architecture;/* [relative,flag(LIBNDR_FLAG_STR_NULLTERM|LIBNDR_FLAG_ALIGN2)] */
-	const char * driver_path;/* [relative,flag(LIBNDR_FLAG_STR_NULLTERM|LIBNDR_FLAG_ALIGN2)] */
-	const char * data_file;/* [relative,flag(LIBNDR_FLAG_STR_NULLTERM|LIBNDR_FLAG_ALIGN2)] */
-	const char * config_file;/* [relative,flag(LIBNDR_FLAG_STR_NULLTERM|LIBNDR_FLAG_ALIGN2)] */
-	const char * help_file;/* [relative,flag(LIBNDR_FLAG_STR_NULLTERM|LIBNDR_FLAG_ALIGN2)] */
-	const char ** dependent_files;/* [relative,flag(LIBNDR_FLAG_STR_NULLTERM|LIBNDR_FLAG_ALIGN2)] */
+	const char * architecture;/* [flag(LIBNDR_FLAG_STR_NULLTERM|LIBNDR_FLAG_ALIGN2),relative] */
+	const char * driver_path;/* [flag(LIBNDR_FLAG_STR_NULLTERM|LIBNDR_FLAG_ALIGN2),relative] */
+	const char * data_file;/* [flag(LIBNDR_FLAG_STR_NULLTERM|LIBNDR_FLAG_ALIGN2),relative] */
+	const char * config_file;/* [flag(LIBNDR_FLAG_STR_NULLTERM|LIBNDR_FLAG_ALIGN2),relative] */
+	const char * help_file;/* [flag(LIBNDR_FLAG_STR_NULLTERM|LIBNDR_FLAG_ALIGN2),relative] */
+	const char ** dependent_files;/* [flag(LIBNDR_FLAG_STR_NULLTERM|LIBNDR_FLAG_ALIGN2),relative] */
 	const char * monitor_name;/* [relative,flag(LIBNDR_FLAG_STR_NULLTERM|LIBNDR_FLAG_ALIGN2)] */
 	const char * default_datatype;/* [relative,flag(LIBNDR_FLAG_STR_NULLTERM|LIBNDR_FLAG_ALIGN2)] */
 	const char ** previous_names;/* [relative,flag(LIBNDR_FLAG_STR_NULLTERM|LIBNDR_FLAG_ALIGN2)] */
-}/* [gensize,public] */;
+}/* [public,gensize] */;
 
 struct spoolss_DriverInfo5 {
 	enum spoolss_DriverOSVersion version;
-	const char * driver_name;/* [relative,flag(LIBNDR_FLAG_STR_NULLTERM|LIBNDR_FLAG_ALIGN2)] */
+	const char * driver_name;/* [flag(LIBNDR_FLAG_STR_NULLTERM|LIBNDR_FLAG_ALIGN2),relative] */
 	const char * architecture;/* [relative,flag(LIBNDR_FLAG_STR_NULLTERM|LIBNDR_FLAG_ALIGN2)] */
 	const char * driver_path;/* [relative,flag(LIBNDR_FLAG_STR_NULLTERM|LIBNDR_FLAG_ALIGN2)] */
-	const char * data_file;/* [relative,flag(LIBNDR_FLAG_STR_NULLTERM|LIBNDR_FLAG_ALIGN2)] */
-	const char * config_file;/* [relative,flag(LIBNDR_FLAG_STR_NULLTERM|LIBNDR_FLAG_ALIGN2)] */
+	const char * data_file;/* [flag(LIBNDR_FLAG_STR_NULLTERM|LIBNDR_FLAG_ALIGN2),relative] */
+	const char * config_file;/* [flag(LIBNDR_FLAG_STR_NULLTERM|LIBNDR_FLAG_ALIGN2),relative] */
 	uint32_t driver_attributes;
 	uint32_t config_version;
 	uint32_t driver_version;
-}/* [gensize,public] */;
+}/* [public,gensize] */;
 
 struct spoolss_DriverInfo6 {
 	enum spoolss_DriverOSVersion version;
-	const char * driver_name;/* [relative,flag(LIBNDR_FLAG_STR_NULLTERM|LIBNDR_FLAG_ALIGN2)] */
+	const char * driver_name;/* [flag(LIBNDR_FLAG_STR_NULLTERM|LIBNDR_FLAG_ALIGN2),relative] */
 	const char * architecture;/* [relative,flag(LIBNDR_FLAG_STR_NULLTERM|LIBNDR_FLAG_ALIGN2)] */
-	const char * driver_path;/* [relative,flag(LIBNDR_FLAG_STR_NULLTERM|LIBNDR_FLAG_ALIGN2)] */
+	const char * driver_path;/* [flag(LIBNDR_FLAG_STR_NULLTERM|LIBNDR_FLAG_ALIGN2),relative] */
 	const char * data_file;/* [relative,flag(LIBNDR_FLAG_STR_NULLTERM|LIBNDR_FLAG_ALIGN2)] */
-	const char * config_file;/* [relative,flag(LIBNDR_FLAG_STR_NULLTERM|LIBNDR_FLAG_ALIGN2)] */
-	const char * help_file;/* [relative,flag(LIBNDR_FLAG_STR_NULLTERM|LIBNDR_FLAG_ALIGN2)] */
+	const char * config_file;/* [flag(LIBNDR_FLAG_STR_NULLTERM|LIBNDR_FLAG_ALIGN2),relative] */
+	const char * help_file;/* [flag(LIBNDR_FLAG_STR_NULLTERM|LIBNDR_FLAG_ALIGN2),relative] */
 	const char ** dependent_files;/* [relative,flag(LIBNDR_FLAG_STR_NULLTERM|LIBNDR_FLAG_ALIGN2)] */
 	const char * monitor_name;/* [relative,flag(LIBNDR_FLAG_STR_NULLTERM|LIBNDR_FLAG_ALIGN2)] */
 	const char * default_datatype;/* [relative,flag(LIBNDR_FLAG_STR_NULLTERM|LIBNDR_FLAG_ALIGN2)] */
@@ -1816,10 +1816,10 @@ struct spoolss_DriverInfo6 {
 	NTTIME driver_date;
 	uint64_t driver_version;
 	const char * manufacturer_name;/* [relative,flag(LIBNDR_FLAG_STR_NULLTERM|LIBNDR_FLAG_ALIGN2)] */
-	const char * manufacturer_url;/* [relative,flag(LIBNDR_FLAG_STR_NULLTERM|LIBNDR_FLAG_ALIGN2)] */
+	const char * manufacturer_url;/* [flag(LIBNDR_FLAG_STR_NULLTERM|LIBNDR_FLAG_ALIGN2),relative] */
 	const char * hardware_id;/* [relative,flag(LIBNDR_FLAG_STR_NULLTERM|LIBNDR_FLAG_ALIGN2)] */
-	const char * provider;/* [relative,flag(LIBNDR_FLAG_STR_NULLTERM|LIBNDR_FLAG_ALIGN2)] */
-}/* [gensize,public] */;
+	const char * provider;/* [flag(LIBNDR_FLAG_STR_NULLTERM|LIBNDR_FLAG_ALIGN2),relative] */
+}/* [public,gensize] */;
 
 struct spoolss_DriverInfo7 {
 	uint32_t size;
@@ -1835,20 +1835,20 @@ struct spoolss_DriverInfo8 {
 	const char * architecture;/* [relative,flag(LIBNDR_FLAG_STR_NULLTERM|LIBNDR_FLAG_ALIGN2)] */
 	const char * driver_path;/* [relative,flag(LIBNDR_FLAG_STR_NULLTERM|LIBNDR_FLAG_ALIGN2)] */
 	const char * data_file;/* [relative,flag(LIBNDR_FLAG_STR_NULLTERM|LIBNDR_FLAG_ALIGN2)] */
-	const char * config_file;/* [relative,flag(LIBNDR_FLAG_STR_NULLTERM|LIBNDR_FLAG_ALIGN2)] */
+	const char * config_file;/* [flag(LIBNDR_FLAG_STR_NULLTERM|LIBNDR_FLAG_ALIGN2),relative] */
 	const char * help_file;/* [relative,flag(LIBNDR_FLAG_STR_NULLTERM|LIBNDR_FLAG_ALIGN2)] */
 	const char ** dependent_files;/* [relative,flag(LIBNDR_FLAG_STR_NULLTERM|LIBNDR_FLAG_ALIGN2)] */
 	const char * monitor_name;/* [relative,flag(LIBNDR_FLAG_STR_NULLTERM|LIBNDR_FLAG_ALIGN2)] */
-	const char * default_datatype;/* [relative,flag(LIBNDR_FLAG_STR_NULLTERM|LIBNDR_FLAG_ALIGN2)] */
+	const char * default_datatype;/* [flag(LIBNDR_FLAG_STR_NULLTERM|LIBNDR_FLAG_ALIGN2),relative] */
 	const char ** previous_names;/* [relative,flag(LIBNDR_FLAG_STR_NULLTERM|LIBNDR_FLAG_ALIGN2)] */
 	NTTIME driver_date;
 	uint64_t driver_version;
-	const char * manufacturer_name;/* [relative,flag(LIBNDR_FLAG_STR_NULLTERM|LIBNDR_FLAG_ALIGN2)] */
+	const char * manufacturer_name;/* [flag(LIBNDR_FLAG_STR_NULLTERM|LIBNDR_FLAG_ALIGN2),relative] */
 	const char * manufacturer_url;/* [relative,flag(LIBNDR_FLAG_STR_NULLTERM|LIBNDR_FLAG_ALIGN2)] */
 	const char * hardware_id;/* [relative,flag(LIBNDR_FLAG_STR_NULLTERM|LIBNDR_FLAG_ALIGN2)] */
-	const char * provider;/* [relative,flag(LIBNDR_FLAG_STR_NULLTERM|LIBNDR_FLAG_ALIGN2)] */
-	const char * print_processor;/* [relative,flag(LIBNDR_FLAG_STR_NULLTERM|LIBNDR_FLAG_ALIGN2)] */
-	const char * vendor_setup;/* [relative,flag(LIBNDR_FLAG_STR_NULLTERM|LIBNDR_FLAG_ALIGN2)] */
+	const char * provider;/* [flag(LIBNDR_FLAG_STR_NULLTERM|LIBNDR_FLAG_ALIGN2),relative] */
+	const char * print_processor;/* [flag(LIBNDR_FLAG_STR_NULLTERM|LIBNDR_FLAG_ALIGN2),relative] */
+	const char * vendor_setup;/* [flag(LIBNDR_FLAG_STR_NULLTERM|LIBNDR_FLAG_ALIGN2),relative] */
 	const char ** color_profiles;/* [relative,flag(LIBNDR_FLAG_STR_NULLTERM|LIBNDR_FLAG_ALIGN2)] */
 	const char * inf_path;/* [relative,flag(LIBNDR_FLAG_STR_NULLTERM|LIBNDR_FLAG_ALIGN2)] */
 	uint32_t printer_driver_attributes;
@@ -1877,7 +1877,7 @@ enum spoolss_DriverFileType
 ;
 
 struct spoolss_DriverFileInfo {
-	const char * file_name;/* [relative,flag(LIBNDR_FLAG_STR_NULLTERM|LIBNDR_FLAG_ALIGN2)] */
+	const char * file_name;/* [flag(LIBNDR_FLAG_STR_NULLTERM|LIBNDR_FLAG_ALIGN2),relative] */
 	enum spoolss_DriverFileType file_type;
 	uint32_t file_version;
 }/* [public] */;
@@ -1890,14 +1890,14 @@ struct spoolss_DriverInfo101 {
 	uint32_t file_count;
 	const char * monitor_name;/* [relative,flag(LIBNDR_FLAG_STR_NULLTERM|LIBNDR_FLAG_ALIGN2)] */
 	const char * default_datatype;/* [relative,flag(LIBNDR_FLAG_STR_NULLTERM|LIBNDR_FLAG_ALIGN2)] */
-	const char ** previous_names;/* [relative,flag(LIBNDR_FLAG_STR_NULLTERM|LIBNDR_FLAG_ALIGN2)] */
+	const char ** previous_names;/* [flag(LIBNDR_FLAG_STR_NULLTERM|LIBNDR_FLAG_ALIGN2),relative] */
 	NTTIME driver_date;
 	uint64_t driver_version;
 	const char * manufacturer_name;/* [relative,flag(LIBNDR_FLAG_STR_NULLTERM|LIBNDR_FLAG_ALIGN2)] */
 	const char * manufacturer_url;/* [relative,flag(LIBNDR_FLAG_STR_NULLTERM|LIBNDR_FLAG_ALIGN2)] */
-	const char * hardware_id;/* [relative,flag(LIBNDR_FLAG_STR_NULLTERM|LIBNDR_FLAG_ALIGN2)] */
-	const char * provider;/* [relative,flag(LIBNDR_FLAG_STR_NULLTERM|LIBNDR_FLAG_ALIGN2)] */
-}/* [gensize,nopush,public,nopull] */;
+	const char * hardware_id;/* [flag(LIBNDR_FLAG_STR_NULLTERM|LIBNDR_FLAG_ALIGN2),relative] */
+	const char * provider;/* [flag(LIBNDR_FLAG_STR_NULLTERM|LIBNDR_FLAG_ALIGN2),relative] */
+}/* [gensize,nopush,nopull,public] */;
 
 union spoolss_DriverInfo {
 	struct spoolss_DriverInfo1 info1;/* [case] */
@@ -1909,7 +1909,7 @@ union spoolss_DriverInfo {
 	struct spoolss_DriverInfo7 info7;/* [case(7)] */
 	struct spoolss_DriverInfo8 info8;/* [case(8)] */
 	struct spoolss_DriverInfo101 info101;/* [case(101)] */
-}/* [gensize,relative_base,nodiscriminant,public,flag(LIBNDR_FLAG_RELATIVE_REVERSE)] */;
+}/* [flag(LIBNDR_FLAG_RELATIVE_REVERSE),relative_base,public,gensize,nodiscriminant] */;
 
 struct spoolss_DriverDirectoryInfo1 {
 	const char * directory_name;/* [flag(LIBNDR_FLAG_STR_NULLTERM|LIBNDR_FLAG_ALIGN2)] */
@@ -1917,28 +1917,28 @@ struct spoolss_DriverDirectoryInfo1 {
 
 union spoolss_DriverDirectoryInfo {
 	struct spoolss_DriverDirectoryInfo1 info1;/* [case] */
-}/* [gensize,relative_base,nodiscriminant,public,flag(LIBNDR_FLAG_RELATIVE_REVERSE)] */;
+}/* [public,relative_base,flag(LIBNDR_FLAG_RELATIVE_REVERSE),nodiscriminant,gensize] */;
 
 struct spoolss_PrintProcessorInfo1 {
 	const char * print_processor_name;/* [relative,flag(LIBNDR_FLAG_STR_NULLTERM|LIBNDR_FLAG_ALIGN2)] */
-}/* [gensize,public] */;
+}/* [public,gensize] */;
 
 union spoolss_PrintProcessorInfo {
 	struct spoolss_PrintProcessorInfo1 info1;/* [case] */
-}/* [relative_base,public,nodiscriminant,flag(LIBNDR_FLAG_RELATIVE_REVERSE)] */;
+}/* [nodiscriminant,public,relative_base,flag(LIBNDR_FLAG_RELATIVE_REVERSE)] */;
 
 struct spoolss_PrintProcessorDirectoryInfo1 {
 	const char * directory_name;/* [flag(LIBNDR_FLAG_STR_NULLTERM|LIBNDR_FLAG_ALIGN2)] */
-}/* [gensize,public] */;
+}/* [public,gensize] */;
 
 union spoolss_PrintProcessorDirectoryInfo {
 	struct spoolss_PrintProcessorDirectoryInfo1 info1;/* [case] */
-}/* [gensize,relative_base,nodiscriminant,public,flag(LIBNDR_FLAG_RELATIVE_REVERSE)] */;
+}/* [nodiscriminant,gensize,flag(LIBNDR_FLAG_RELATIVE_REVERSE),public,relative_base] */;
 
 struct spoolss_DocumentInfo1 {
 	const char *document_name;/* [unique,charset(UTF16)] */
 	const char *output_file;/* [unique,charset(UTF16)] */
-	const char *datatype;/* [unique,charset(UTF16)] */
+	const char *datatype;/* [charset(UTF16),unique] */
 };
 
 union spoolss_DocumentInfo {
@@ -1952,7 +1952,7 @@ struct spoolss_OSVersion {
 	uint32_t build;
 	uint32_t platform_id;/* [value(2)] */
 	const char * extra_string;/* [subcontext_size(256),subcontext(0),flag(LIBNDR_FLAG_STR_NULLTERM|LIBNDR_FLAG_ALIGN2)] */
-}/* [gensize,public] */;
+}/* [public,gensize] */;
 
 struct spoolss_OSVersionEx {
 	uint32_t _ndr_size;/* [value(ndr_size_spoolss_OSVersionEx(r,ndr->flags))] */
@@ -1960,21 +1960,21 @@ struct spoolss_OSVersionEx {
 	uint32_t minor;
 	uint32_t build;
 	uint32_t platform_id;/* [value(2)] */
-	const char * extra_string;/* [subcontext_size(256),subcontext(0),flag(LIBNDR_FLAG_STR_NULLTERM|LIBNDR_FLAG_ALIGN2)] */
+	const char * extra_string;/* [flag(LIBNDR_FLAG_STR_NULLTERM|LIBNDR_FLAG_ALIGN2),subcontext_size(256),subcontext(0)] */
 	uint16_t service_pack_major;
 	uint16_t service_pack_minor;
 	uint16_t suite_mask;
 	uint8_t product_type;
 	uint8_t reserved;
-}/* [gensize,public] */;
+}/* [public,gensize] */;
 
 union spoolss_PrinterData {
 	const char * string;/* [flag(LIBNDR_FLAG_STR_NULLTERM|LIBNDR_FLAG_ALIGN2),case(REG_SZ)] */
-	DATA_BLOB binary;/* [flag(LIBNDR_FLAG_REMAINING),case(REG_BINARY)] */
+	DATA_BLOB binary;/* [case(REG_BINARY),flag(LIBNDR_FLAG_REMAINING)] */
 	uint32_t value;/* [case(REG_DWORD)] */
 	const char ** string_array;/* [flag(LIBNDR_FLAG_STR_NULLTERM|LIBNDR_FLAG_ALIGN2),case(REG_MULTI_SZ)] */
 	DATA_BLOB data;/* [flag(LIBNDR_FLAG_REMAINING),default] */
-}/* [nodiscriminant,public] */;
+}/* [public,nodiscriminant] */;
 
 enum spoolss_FormFlags
 #ifndef USE_UINT_ENUMS
@@ -2005,7 +2005,7 @@ struct spoolss_FormArea {
 
 struct spoolss_FormInfo1 {
 	enum spoolss_FormFlags flags;
-	const char * form_name;/* [relative,flag(LIBNDR_FLAG_STR_NULLTERM|LIBNDR_FLAG_ALIGN2)] */
+	const char * form_name;/* [flag(LIBNDR_FLAG_STR_NULLTERM|LIBNDR_FLAG_ALIGN2),relative] */
 	struct spoolss_FormSize size;
 	struct spoolss_FormArea area;
 }/* [gensize,public] */;
@@ -2017,12 +2017,12 @@ struct spoolss_FormInfo1 {
 
 struct spoolss_FormInfo2 {
 	enum spoolss_FormFlags flags;
-	const char * form_name;/* [relative,flag(LIBNDR_FLAG_STR_NULLTERM|LIBNDR_FLAG_ALIGN2)] */
+	const char * form_name;/* [flag(LIBNDR_FLAG_STR_NULLTERM|LIBNDR_FLAG_ALIGN2),relative] */
 	struct spoolss_FormSize size;
 	struct spoolss_FormArea area;
-	const char * keyword;/* [relative,flag(LIBNDR_FLAG_STR_ASCII|LIBNDR_FLAG_STR_NULLTERM)] */
+	const char * keyword;/* [flag(LIBNDR_FLAG_STR_ASCII|LIBNDR_FLAG_STR_NULLTERM),relative] */
 	uint32_t string_type;
-	const char * mui_dll;/* [relative,flag(LIBNDR_FLAG_STR_NULLTERM|LIBNDR_FLAG_ALIGN2)] */
+	const char * mui_dll;/* [flag(LIBNDR_FLAG_STR_NULLTERM|LIBNDR_FLAG_ALIGN2),relative] */
 	uint32_t ressource_id;
 	const char * display_name;/* [relative,flag(LIBNDR_FLAG_STR_NULLTERM|LIBNDR_FLAG_ALIGN2)] */
 	uint16_t lang_id;
@@ -2032,7 +2032,7 @@ struct spoolss_FormInfo2 {
 union spoolss_FormInfo {
 	struct spoolss_FormInfo1 info1;/* [case] */
 	struct spoolss_FormInfo2 info2;/* [case(2)] */
-}/* [gensize,relative_base,nodiscriminant,public,flag(LIBNDR_FLAG_RELATIVE_REVERSE)] */;
+}/* [public,relative_base,flag(LIBNDR_FLAG_RELATIVE_REVERSE),nodiscriminant,gensize] */;
 
 struct spoolss_AddFormInfo1 {
 	enum spoolss_FormFlags flags;
@@ -2055,13 +2055,13 @@ struct spoolss_AddFormInfo2 {
 };
 
 union spoolss_AddFormInfo {
-	struct spoolss_AddFormInfo1 *info1;/* [unique,case] */
+	struct spoolss_AddFormInfo1 *info1;/* [case,unique] */
 	struct spoolss_AddFormInfo2 *info2;/* [unique,case(2)] */
 }/* [switch_type(uint32)] */;
 
 struct spoolss_PortInfo1 {
-	const char * port_name;/* [relative,flag(LIBNDR_FLAG_STR_NULLTERM|LIBNDR_FLAG_ALIGN2)] */
-}/* [gensize,public] */;
+	const char * port_name;/* [flag(LIBNDR_FLAG_STR_NULLTERM|LIBNDR_FLAG_ALIGN2),relative] */
+}/* [public,gensize] */;
 
 /* bitmap spoolss_PortType */
 #define SPOOLSS_PORT_TYPE_WRITE ( 0x00000001 )
@@ -2070,8 +2070,8 @@ struct spoolss_PortInfo1 {
 #define SPOOLSS_PORT_TYPE_NET_ATTACHED ( 0x00000008 )
 
 struct spoolss_PortInfo2 {
-	const char * port_name;/* [relative,flag(LIBNDR_FLAG_STR_NULLTERM|LIBNDR_FLAG_ALIGN2)] */
-	const char * monitor_name;/* [relative,flag(LIBNDR_FLAG_STR_NULLTERM|LIBNDR_FLAG_ALIGN2)] */
+	const char * port_name;/* [flag(LIBNDR_FLAG_STR_NULLTERM|LIBNDR_FLAG_ALIGN2),relative] */
+	const char * monitor_name;/* [flag(LIBNDR_FLAG_STR_NULLTERM|LIBNDR_FLAG_ALIGN2),relative] */
 	const char * description;/* [relative,flag(LIBNDR_FLAG_STR_NULLTERM|LIBNDR_FLAG_ALIGN2)] */
 	uint32_t port_type;
 	uint32_t reserved;
@@ -2129,7 +2129,7 @@ enum spoolss_PortSeverity
 
 struct spoolss_PortInfo3 {
 	enum spoolss_PortStatus status;
-	const char * status_string;/* [relative,flag(LIBNDR_FLAG_STR_NULLTERM|LIBNDR_FLAG_ALIGN2)] */
+	const char * status_string;/* [flag(LIBNDR_FLAG_STR_NULLTERM|LIBNDR_FLAG_ALIGN2),relative] */
 	enum spoolss_PortSeverity severity;
 }/* [gensize,public] */;
 
@@ -2143,51 +2143,51 @@ union spoolss_PortInfo {
 	struct spoolss_PortInfo2 info2;/* [case(2)] */
 	struct spoolss_PortInfo3 info3;/* [case(3)] */
 	struct spoolss_PortInfoFF infoFF;/* [case(0xff)] */
-}/* [relative_base,public,nodiscriminant,flag(LIBNDR_FLAG_RELATIVE_REVERSE)] */;
+}/* [nodiscriminant,relative_base,public,flag(LIBNDR_FLAG_RELATIVE_REVERSE)] */;
 
 struct spoolss_MonitorInfo1 {
-	const char * monitor_name;/* [relative,flag(LIBNDR_FLAG_STR_NULLTERM|LIBNDR_FLAG_ALIGN2)] */
+	const char * monitor_name;/* [flag(LIBNDR_FLAG_STR_NULLTERM|LIBNDR_FLAG_ALIGN2),relative] */
 }/* [gensize,public] */;
 
 struct spoolss_MonitorInfo2 {
 	const char * monitor_name;/* [relative,flag(LIBNDR_FLAG_STR_NULLTERM|LIBNDR_FLAG_ALIGN2)] */
-	const char * environment;/* [relative,flag(LIBNDR_FLAG_STR_NULLTERM|LIBNDR_FLAG_ALIGN2)] */
-	const char * dll_name;/* [relative,flag(LIBNDR_FLAG_STR_NULLTERM|LIBNDR_FLAG_ALIGN2)] */
-}/* [gensize,public] */;
+	const char * environment;/* [flag(LIBNDR_FLAG_STR_NULLTERM|LIBNDR_FLAG_ALIGN2),relative] */
+	const char * dll_name;/* [flag(LIBNDR_FLAG_STR_NULLTERM|LIBNDR_FLAG_ALIGN2),relative] */
+}/* [public,gensize] */;
 
 union spoolss_MonitorInfo {
 	struct spoolss_MonitorInfo1 info1;/* [case] */
 	struct spoolss_MonitorInfo2 info2;/* [case(2)] */
-}/* [relative_base,public,nodiscriminant,flag(LIBNDR_FLAG_RELATIVE_REVERSE)] */;
+}/* [flag(LIBNDR_FLAG_RELATIVE_REVERSE),relative_base,public,nodiscriminant] */;
 
 struct spoolss_SetPortInfo1 {
 	const char *port_name;/* [unique,charset(UTF16)] */
 }/* [gensize,public] */;
 
 struct spoolss_SetPortInfo2 {
-	const char *port_name;/* [unique,charset(UTF16)] */
-	const char *monitor_name;/* [unique,charset(UTF16)] */
-	const char *description;/* [unique,charset(UTF16)] */
+	const char *port_name;/* [charset(UTF16),unique] */
+	const char *monitor_name;/* [charset(UTF16),unique] */
+	const char *description;/* [charset(UTF16),unique] */
 	uint32_t port_type;
 	uint32_t reserved;
-}/* [gensize,public] */;
+}/* [public,gensize] */;
 
 struct spoolss_SetPortInfo3 {
 	enum spoolss_PortStatus status;
-	const char *status_string;/* [unique,charset(UTF16)] */
+	const char *status_string;/* [charset(UTF16),unique] */
 	enum spoolss_PortSeverity severity;
 }/* [gensize,public] */;
 
 struct spoolss_SetPortInfoFF {
-	const char *port_name;/* [unique,charset(UTF16)] */
+	const char *port_name;/* [charset(UTF16),unique] */
 	DATA_BLOB monitor_data;
-}/* [gensize,public] */;
+}/* [public,gensize] */;
 
 union spoolss_SetPortInfo {
-	struct spoolss_SetPortInfo1 *info1;/* [unique,case] */
+	struct spoolss_SetPortInfo1 *info1;/* [case,unique] */
 	struct spoolss_SetPortInfo2 *info2;/* [unique,case(2)] */
-	struct spoolss_SetPortInfo3 *info3;/* [unique,case(3)] */
-	struct spoolss_SetPortInfoFF *infoFF;/* [unique,case(0xff)] */
+	struct spoolss_SetPortInfo3 *info3;/* [case(3),unique] */
+	struct spoolss_SetPortInfoFF *infoFF;/* [case(0xff),unique] */
 }/* [switch_type(uint32)] */;
 
 struct spoolss_SetPortInfoContainer {
@@ -2196,12 +2196,12 @@ struct spoolss_SetPortInfoContainer {
 };
 
 struct spoolss_PrintProcDataTypesInfo1 {
-	const char * name_array;/* [relative,flag(LIBNDR_FLAG_STR_NULLTERM|LIBNDR_FLAG_ALIGN2)] */
-}/* [gensize,public] */;
+	const char * name_array;/* [flag(LIBNDR_FLAG_STR_NULLTERM|LIBNDR_FLAG_ALIGN2),relative] */
+}/* [public,gensize] */;
 
 union spoolss_PrintProcDataTypesInfo {
 	struct spoolss_PrintProcDataTypesInfo1 info1;/* [case] */
-}/* [relative_base,public,nodiscriminant,flag(LIBNDR_FLAG_RELATIVE_REVERSE)] */;
+}/* [nodiscriminant,public,relative_base,flag(LIBNDR_FLAG_RELATIVE_REVERSE)] */;
 
 /* bitmap spoolss_PrinterChangeFlags */
 #define PRINTER_CHANGE_ADD_PRINTER ( 0x00000001 )
@@ -2376,7 +2376,7 @@ struct spoolss_NotifyOptionType {
 	uint32_t u2;
 	uint32_t u3;
 	uint32_t count;
-	union spoolss_Field *fields;/* [unique,switch_is(type),size_is(count)] */
+	union spoolss_Field *fields;/* [unique,size_is(count),switch_is(type)] */
 };
 
 /* bitmap spoolssNotifyOptionFlags */
@@ -2391,7 +2391,7 @@ struct spoolss_NotifyOption {
 
 struct spoolss_NotifyString {
 	uint32_t size;
-	const char *string;/* [unique,charset(UTF16),size_is(size/2)] */
+	const char *string;/* [size_is(size/2),unique,charset(UTF16)] */
 };
 
 enum spoolss_NotifyTable
@@ -2473,9 +2473,9 @@ struct spoolss_UserLevel3 {
 };
 
 union spoolss_UserLevel {
-	struct spoolss_UserLevel1 *level1;/* [unique,case] */
+	struct spoolss_UserLevel1 *level1;/* [case,unique] */
 	struct spoolss_UserLevel2 *level2;/* [unique,case(2)] */
-	struct spoolss_UserLevel3 *level3;/* [unique,case(3)] */
+	struct spoolss_UserLevel3 *level3;/* [case(3),unique] */
 }/* [switch_type(uint32)] */;
 
 struct spoolss_UserLevelCtr {
@@ -2497,10 +2497,10 @@ struct spoolss_PrinterEnumValues {
 	enum winreg_Type type;
 	DATA_BLOB *data;/* [relative,subcontext_size(data_length),subcontext(0),flag(LIBNDR_FLAG_REMAINING|ndr_spoolss_PrinterEnumValues_align(r->type))] */
 	uint32_t data_length;/* [value(data?data->length:0)] */
-}/* [relative_base,gensize,public] */;
+}/* [gensize,relative_base,public] */;
 
 union spoolss_KeyNames {
-	const char ** string_array;/* [default,flag(LIBNDR_FLAG_STR_NULLTERM|LIBNDR_FLAG_ALIGN2)] */
+	const char ** string_array;/* [flag(LIBNDR_FLAG_STR_NULLTERM|LIBNDR_FLAG_ALIGN2),default] */
 }/* [nodiscriminant] */;
 
 /* bitmap spoolss_DeleteDriverFlags */
@@ -2621,7 +2621,7 @@ struct spoolss_EnumPrinters {
 
 	struct {
 		uint32_t *count;/* [ref] */
-		union spoolss_PrinterInfo **info;/* [ref,switch_is(level),size_is(,*count)] */
+		union spoolss_PrinterInfo **info;/* [switch_is(level),size_is(,*count),ref] */
 		uint32_t *needed;/* [ref] */
 		WERROR result;
 	} out;
@@ -2631,7 +2631,7 @@ struct spoolss_EnumPrinters {
 
 struct spoolss_OpenPrinter {
 	struct {
-		const char *printername;/* [unique,charset(UTF16)] */
+		const char *printername;/* [charset(UTF16),unique] */
 		const char *datatype;/* [unique,charset(UTF16)] */
 		struct spoolss_DevmodeContainer devmode_ctr;
 		uint32_t access_mask;
@@ -2670,7 +2670,7 @@ struct spoolss_GetJob {
 	} in;
 
 	struct {
-		union spoolss_JobInfo *info;/* [unique,subcontext_size(offered),subcontext(4),switch_is(level)] */
+		union spoolss_JobInfo *info;/* [subcontext_size(offered),switch_is(level),subcontext(4),unique] */
 		uint32_t *needed;/* [ref] */
 		WERROR result;
 	} out;
@@ -2723,7 +2723,7 @@ struct spoolss_EnumJobs {
 
 	struct {
 		uint32_t *count;/* [ref] */
-		union spoolss_JobInfo **info;/* [ref,switch_is(level),size_is(,*count)] */
+		union spoolss_JobInfo **info;/* [switch_is(level),size_is(,*count),ref] */
 		uint32_t *needed;/* [ref] */
 		WERROR result;
 	} out;
@@ -2784,7 +2784,7 @@ struct spoolss_GetPrinter {
 	} in;
 
 	struct {
-		union spoolss_PrinterInfo *info;/* [unique,subcontext_size(offered),subcontext(4),switch_is(level)] */
+		union spoolss_PrinterInfo *info;/* [unique,subcontext_size(offered),switch_is(level),subcontext(4)] */
 		uint32_t *needed;/* [ref] */
 		WERROR result;
 	} out;
@@ -2807,8 +2807,8 @@ struct spoolss_AddPrinterDriver {
 
 struct _spoolss_EnumPrinterDrivers {
 	struct {
-		const char *server;/* [unique,charset(UTF16)] */
-		const char *environment;/* [unique,charset(UTF16)] */
+		const char *server;/* [charset(UTF16),unique] */
+		const char *environment;/* [charset(UTF16),unique] */
 		uint32_t level;
 		DATA_BLOB *buffer;/* [unique] */
 		uint32_t offered;
@@ -2839,7 +2839,7 @@ struct __spoolss_EnumPrinterDrivers {
 
 struct spoolss_EnumPrinterDrivers {
 	struct {
-		const char *server;/* [unique,charset(UTF16)] */
+		const char *server;/* [charset(UTF16),unique] */
 		const char *environment;/* [unique,charset(UTF16)] */
 		uint32_t level;
 		DATA_BLOB *buffer;/* [unique] */
@@ -2848,7 +2848,7 @@ struct spoolss_EnumPrinterDrivers {
 
 	struct {
 		uint32_t *count;/* [ref] */
-		union spoolss_DriverInfo **info;/* [ref,switch_is(level),size_is(,*count)] */
+		union spoolss_DriverInfo **info;/* [switch_is(level),ref,size_is(,*count)] */
 		uint32_t *needed;/* [ref] */
 		WERROR result;
 	} out;
@@ -2866,7 +2866,7 @@ struct spoolss_GetPrinterDriver {
 	} in;
 
 	struct {
-		union spoolss_DriverInfo *info;/* [unique,subcontext_size(offered),subcontext(4),switch_is(level)] */
+		union spoolss_DriverInfo *info;/* [subcontext_size(offered),switch_is(level),subcontext(4),unique] */
 		uint32_t *needed;/* [ref] */
 		WERROR result;
 	} out;
@@ -2876,15 +2876,15 @@ struct spoolss_GetPrinterDriver {
 
 struct spoolss_GetPrinterDriverDirectory {
 	struct {
-		const char *server;/* [unique,charset(UTF16)] */
-		const char *environment;/* [unique,charset(UTF16)] */
+		const char *server;/* [charset(UTF16),unique] */
+		const char *environment;/* [charset(UTF16),unique] */
 		uint32_t level;
 		DATA_BLOB *buffer;/* [unique] */
 		uint32_t offered;
 	} in;
 
 	struct {
-		union spoolss_DriverDirectoryInfo *info;/* [unique,subcontext_size(offered),subcontext(4),switch_is(level)] */
+		union spoolss_DriverDirectoryInfo *info;/* [unique,subcontext(4),switch_is(level),subcontext_size(offered)] */
 		uint32_t *needed;/* [ref] */
 		WERROR result;
 	} out;
@@ -2894,7 +2894,7 @@ struct spoolss_GetPrinterDriverDirectory {
 
 struct spoolss_DeletePrinterDriver {
 	struct {
-		const char *server;/* [unique,charset(UTF16)] */
+		const char *server;/* [charset(UTF16),unique] */
 		const char *architecture;/* [charset(UTF16)] */
 		const char *driver;/* [charset(UTF16)] */
 	} in;
@@ -2908,7 +2908,7 @@ struct spoolss_DeletePrinterDriver {
 
 struct spoolss_AddPrintProcessor {
 	struct {
-		const char *server;/* [unique,charset(UTF16)] */
+		const char *server;/* [charset(UTF16),unique] */
 		const char *architecture;/* [charset(UTF16)] */
 		const char *path_name;/* [charset(UTF16)] */
 		const char *print_processor_name;/* [charset(UTF16)] */
@@ -2964,7 +2964,7 @@ struct spoolss_EnumPrintProcessors {
 
 	struct {
 		uint32_t *count;/* [ref] */
-		union spoolss_PrintProcessorInfo **info;/* [ref,switch_is(level),size_is(,*count)] */
+		union spoolss_PrintProcessorInfo **info;/* [switch_is(level),size_is(,*count),ref] */
 		uint32_t *needed;/* [ref] */
 		WERROR result;
 	} out;
@@ -2982,7 +2982,7 @@ struct spoolss_GetPrintProcessorDirectory {
 	} in;
 
 	struct {
-		union spoolss_PrintProcessorDirectoryInfo *info;/* [unique,subcontext_size(offered),subcontext(4),switch_is(level)] */
+		union spoolss_PrintProcessorDirectoryInfo *info;/* [subcontext(4),switch_is(level),subcontext_size(offered),unique] */
 		uint32_t *needed;/* [ref] */
 		WERROR result;
 	} out;
@@ -3088,12 +3088,12 @@ struct spoolss_AddJob {
 		struct policy_handle *handle;/* [ref] */
 		uint32_t level;
 		uint32_t offered;
-		uint8_t *buffer;/* [unique,size_is(offered)] */
+		uint8_t *buffer;/* [size_is(offered),unique] */
 	} in;
 
 	struct {
 		uint32_t *needed;/* [ref] */
-		uint8_t *buffer;/* [unique,size_is(offered)] */
+		uint8_t *buffer;/* [size_is(offered),unique] */
 		WERROR result;
 	} out;
 
@@ -3122,7 +3122,7 @@ struct spoolss_GetPrinterData {
 
 	struct {
 		enum winreg_Type *type;/* [ref] */
-		uint8_t *data;/* [ref,size_is(offered)] */
+		uint8_t *data;/* [size_is(offered),ref] */
 		uint32_t *needed;/* [ref] */
 		WERROR result;
 	} out;
@@ -3135,7 +3135,7 @@ struct spoolss_SetPrinterData {
 		struct policy_handle *handle;/* [ref] */
 		const char *value_name;/* [charset(UTF16)] */
 		enum winreg_Type type;
-		uint8_t *data;/* [ref,size_is(offered)] */
+		uint8_t *data;/* [size_is(offered),ref] */
 		uint32_t offered;
 	} in;
 
@@ -3268,7 +3268,7 @@ struct spoolss_EnumForms {
 
 	struct {
 		uint32_t *count;/* [ref] */
-		union spoolss_FormInfo **info;/* [ref,switch_is(level),size_is(,*count)] */
+		union spoolss_FormInfo **info;/* [ref,size_is(,*count),switch_is(level)] */
 		uint32_t *needed;/* [ref] */
 		WERROR result;
 	} out;
@@ -3317,7 +3317,7 @@ struct spoolss_EnumPorts {
 
 	struct {
 		uint32_t *count;/* [ref] */
-		union spoolss_PortInfo **info;/* [ref,switch_is(level),size_is(,*count)] */
+		union spoolss_PortInfo **info;/* [size_is(,*count),ref,switch_is(level)] */
 		uint32_t *needed;/* [ref] */
 		WERROR result;
 	} out;
@@ -3327,7 +3327,7 @@ struct spoolss_EnumPorts {
 
 struct _spoolss_EnumMonitors {
 	struct {
-		const char *servername;/* [unique,charset(UTF16)] */
+		const char *servername;/* [charset(UTF16),unique] */
 		uint32_t level;
 		DATA_BLOB *buffer;/* [unique] */
 		uint32_t offered;
@@ -3366,7 +3366,7 @@ struct spoolss_EnumMonitors {
 
 	struct {
 		uint32_t *count;/* [ref] */
-		union spoolss_MonitorInfo **info;/* [ref,switch_is(level),size_is(,*count)] */
+		union spoolss_MonitorInfo **info;/* [size_is(,*count),ref,switch_is(level)] */
 		uint32_t *needed;/* [ref] */
 		WERROR result;
 	} out;
@@ -3400,7 +3400,7 @@ struct spoolss_DeletePort {
 	struct {
 		const char *server_name;/* [unique,charset(UTF16)] */
 		uint32_t ptr;
-		const char *port_name;/* [ref,charset(UTF16)] */
+		const char *port_name;/* [charset(UTF16),ref] */
 	} in;
 
 	struct {
@@ -3511,8 +3511,8 @@ struct spoolss_DeletePrintProvidor {
 
 struct _spoolss_EnumPrintProcDataTypes {
 	struct {
-		const char *servername;/* [unique,charset(UTF16)] */
-		const char *print_processor_name;/* [unique,charset(UTF16)] */
+		const char *servername;/* [charset(UTF16),unique] */
+		const char *print_processor_name;/* [charset(UTF16),unique] */
 		uint32_t level;
 		DATA_BLOB *buffer;/* [unique] */
 		uint32_t offered;
@@ -3544,7 +3544,7 @@ struct __spoolss_EnumPrintProcDataTypes {
 struct spoolss_EnumPrintProcDataTypes {
 	struct {
 		const char *servername;/* [unique,charset(UTF16)] */
-		const char *print_processor_name;/* [unique,charset(UTF16)] */
+		const char *print_processor_name;/* [charset(UTF16),unique] */
 		uint32_t level;
 		DATA_BLOB *buffer;/* [unique] */
 		uint32_t offered;
@@ -3552,7 +3552,7 @@ struct spoolss_EnumPrintProcDataTypes {
 
 	struct {
 		uint32_t *count;/* [ref] */
-		union spoolss_PrintProcDataTypesInfo **info;/* [ref,switch_is(level),size_is(,*count)] */
+		union spoolss_PrintProcDataTypesInfo **info;/* [switch_is(level),ref,size_is(,*count)] */
 		uint32_t *needed;/* [ref] */
 		WERROR result;
 	} out;
@@ -3563,7 +3563,7 @@ struct spoolss_EnumPrintProcDataTypes {
 struct spoolss_ResetPrinter {
 	struct {
 		struct policy_handle *handle;/* [ref] */
-		const char *data_type;/* [unique,charset(UTF16)] */
+		const char *data_type;/* [charset(UTF16),unique] */
 		struct spoolss_DevmodeContainer *devmode_ctr;/* [ref] */
 	} in;
 
@@ -3577,7 +3577,7 @@ struct spoolss_ResetPrinter {
 struct spoolss_GetPrinterDriver2 {
 	struct {
 		struct policy_handle *handle;/* [ref] */
-		const char *architecture;/* [unique,charset(UTF16)] */
+		const char *architecture;/* [charset(UTF16),unique] */
 		uint32_t level;
 		DATA_BLOB *buffer;/* [unique] */
 		uint32_t offered;
@@ -3586,7 +3586,7 @@ struct spoolss_GetPrinterDriver2 {
 	} in;
 
 	struct {
-		union spoolss_DriverInfo *info;/* [unique,subcontext_size(offered),subcontext(4),switch_is(level)] */
+		union spoolss_DriverInfo *info;/* [switch_is(level),subcontext(4),subcontext_size(offered),unique] */
 		uint32_t *needed;/* [ref] */
 		uint32_t *server_major_version;/* [ref] */
 		uint32_t *server_minor_version;/* [ref] */
@@ -3679,10 +3679,10 @@ struct spoolss_ReplyClosePrinter {
 
 struct spoolss_AddPortEx {
 	struct {
-		const char *servername;/* [unique,charset(UTF16)] */
+		const char *servername;/* [charset(UTF16),unique] */
 		struct spoolss_SetPortInfoContainer *port_ctr;/* [ref] */
 		struct spoolss_PortVarContainer *port_var_ctr;/* [ref] */
-		const char *monitor_name;/* [unique,charset(UTF16)] */
+		const char *monitor_name;/* [charset(UTF16),unique] */
 	} in;
 
 	struct {
@@ -3721,7 +3721,7 @@ struct spoolss_RemoteFindFirstPrinterChangeNotifyEx {
 		struct policy_handle *handle;/* [ref] */
 		uint32_t flags;
 		uint32_t options;
-		const char *local_machine;/* [unique,charset(UTF16)] */
+		const char *local_machine;/* [charset(UTF16),unique] */
 		uint32_t printer_local;
 		struct spoolss_NotifyOption *notify_options;/* [unique] */
 	} in;
@@ -3775,8 +3775,8 @@ struct spoolss_44 {
 
 struct spoolss_OpenPrinterEx {
 	struct {
-		const char *printername;/* [unique,charset(UTF16)] */
-		const char *datatype;/* [unique,charset(UTF16)] */
+		const char *printername;/* [charset(UTF16),unique] */
+		const char *datatype;/* [charset(UTF16),unique] */
 		struct spoolss_DevmodeContainer devmode_ctr;
 		uint32_t access_mask;
 		uint32_t level;
@@ -3793,7 +3793,7 @@ struct spoolss_OpenPrinterEx {
 
 struct spoolss_AddPrinterEx {
 	struct {
-		const char *server;/* [unique,charset(UTF16)] */
+		const char *server;/* [charset(UTF16),unique] */
 		struct spoolss_SetPrinterInfoCtr *info_ctr;/* [ref] */
 		struct spoolss_DevmodeContainer *devmode_ctr;/* [ref] */
 		struct sec_desc_buf *secdesc_ctr;/* [ref] */
@@ -3810,7 +3810,7 @@ struct spoolss_AddPrinterEx {
 
 struct spoolss_SetPort {
 	struct {
-		const char *servername;/* [unique,charset(UTF16)] */
+		const char *servername;/* [charset(UTF16),unique] */
 		const char *port_name;/* [unique,charset(UTF16)] */
 		struct spoolss_SetPortInfoContainer *port_ctr;/* [ref] */
 	} in;
@@ -3831,7 +3831,7 @@ struct spoolss_EnumPrinterData {
 	} in;
 
 	struct {
-		const char *value_name;/* [charset(UTF16),size_is(value_offered/2)] */
+		const char *value_name;/* [size_is(value_offered/2),charset(UTF16)] */
 		uint32_t *value_needed;/* [ref] */
 		enum winreg_Type *type;/* [ref] */
 		uint8_t *data;/* [ref,flag(LIBNDR_PRINT_ARRAY_HEX),size_is(data_offered)] */
@@ -3885,7 +3885,7 @@ struct spoolss_SetPrinterDataEx {
 		const char *key_name;/* [charset(UTF16)] */
 		const char *value_name;/* [charset(UTF16)] */
 		enum winreg_Type type;
-		uint8_t *data;/* [ref,size_is(offered)] */
+		uint8_t *data;/* [size_is(offered),ref] */
 		uint32_t offered;
 	} in;
 
@@ -3906,7 +3906,7 @@ struct spoolss_GetPrinterDataEx {
 
 	struct {
 		enum winreg_Type *type;/* [ref] */
-		uint8_t *data;/* [ref,size_is(offered)] */
+		uint8_t *data;/* [size_is(offered),ref] */
 		uint32_t *needed;/* [ref] */
 		WERROR result;
 	} out;
@@ -3969,7 +3969,7 @@ struct spoolss_EnumPrinterKey {
 
 	struct {
 		uint32_t *_ndr_size;/* [ref] */
-		union spoolss_KeyNames *key_buffer;/* [subcontext_size(*_ndr_size*2),ref,subcontext(0),switch_is(*_ndr_size)] */
+		union spoolss_KeyNames *key_buffer;/* [ref,subcontext_size(*_ndr_size*2),switch_is(*_ndr_size),subcontext(0)] */
 		uint32_t *needed;/* [ref] */
 		WERROR result;
 	} out;
@@ -4031,9 +4031,9 @@ struct spoolss_DeletePrinterDriverEx {
 struct spoolss_AddPerMachineConnection {
 	struct {
 		const char *server;/* [unique,charset(UTF16)] */
-		const char *printername;/* [ref,charset(UTF16)] */
-		const char *printserver;/* [ref,charset(UTF16)] */
-		const char *provider;/* [ref,charset(UTF16)] */
+		const char *printername;/* [charset(UTF16),ref] */
+		const char *printserver;/* [charset(UTF16),ref] */
+		const char *provider;/* [charset(UTF16),ref] */
 	} in;
 
 	struct {
@@ -4046,7 +4046,7 @@ struct spoolss_AddPerMachineConnection {
 struct spoolss_DeletePerMachineConnection {
 	struct {
 		const char *server;/* [unique,charset(UTF16)] */
-		const char *printername;/* [ref,charset(UTF16)] */
+		const char *printername;/* [charset(UTF16),ref] */
 	} in;
 
 	struct {
@@ -4086,7 +4086,7 @@ struct spoolss_XcvData {
 
 struct spoolss_AddPrinterDriverEx {
 	struct {
-		const char *servername;/* [unique,charset(UTF16)] */
+		const char *servername;/* [charset(UTF16),unique] */
 		struct spoolss_AddDriverInfoCtr *info_ctr;/* [ref] */
 		uint32_t flags;
 	} in;
@@ -4199,7 +4199,7 @@ struct spoolss_GetCorePrinterDrivers {
 		const char *servername;/* [unique,charset(UTF16)] */
 		const char *architecture;/* [ref,charset(UTF16)] */
 		uint32_t core_driver_size;
-		const char *core_driver_dependencies;/* [ref,charset(UTF16),size_is(core_driver_size)] */
+		const char *core_driver_dependencies;/* [charset(UTF16),ref,size_is(core_driver_size)] */
 		uint32_t core_printer_driver_count;
 	} in;
 
@@ -4221,17 +4221,17 @@ struct spoolss_67 {
 
 struct spoolss_GetPrinterDriverPackagePath {
 	struct {
-		const char *servername;/* [unique,charset(UTF16)] */
+		const char *servername;/* [charset(UTF16),unique] */
 		const char *architecture;/* [ref,charset(UTF16)] */
 		const char *language;/* [unique,charset(UTF16)] */
 		const char *package_id;/* [ref,charset(UTF16)] */
 		uint32_t driver_package_cab_size;
-		const char *driver_package_cab;/* [unique,charset(UTF16),size_is(driver_package_cab_size)] */
+		const char *driver_package_cab;/* [unique,size_is(driver_package_cab_size),charset(UTF16)] */
 	} in;
 
 	struct {
 		uint32_t *required;/* [ref] */
-		const char *driver_package_cab;/* [unique,charset(UTF16),size_is(driver_package_cab_size)] */
+		const char *driver_package_cab;/* [unique,size_is(driver_package_cab_size),charset(UTF16)] */
 		WERROR result;
 	} out;
 

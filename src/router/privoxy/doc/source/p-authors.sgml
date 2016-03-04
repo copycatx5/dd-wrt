@@ -3,7 +3,7 @@
 
  Purpose     :  Entity included in other project documents.
 
- $Id: p-authors.sgml,v 2.54 2013/02/27 16:53:58 fabiankeil Exp $
+ $Id: p-authors.sgml,v 2.73 2016/01/16 12:29:40 fabiankeil Exp $
 
  Copyright (C) 2001-2013 Privoxy Developers http://www.privoxy.org/
  See LICENSE.
@@ -53,7 +53,7 @@ Current Privoxy Team:
  Karsten Hopp
  Alexander Lazic
  Daniel Leite
- Gábor Lipták
+ Gï¿½bor Liptï¿½k
  Adam Lock
  Guy Laroche
  Justin McMurtry
@@ -63,7 +63,7 @@ Current Privoxy Team:
  Haroon Rafique
  Georg Sauthoff
  Thomas Steudten
- Jörg Strohmayer
+ Jï¿½rg Strohmayer
  Rodney Stromlund
  Sviatoslav Sviridov
  Sarantis Paskalis
@@ -73,10 +73,12 @@ Current Privoxy Team:
 <![%p-authors-formal;[
 <para>
  Thanks to the many people who have tested Privoxy, reported bugs, provided
- patches, made suggestions or contributed in some way. These include (in
- alphabetical order):
+ patches, made suggestions, donated or contributed in some other way.
+ These include (in alphabetical order):
 </para>
 <literallayout>
+ Rustam Abdullaev
+ Anatoly Arzhnikov
  Ken Arromdee
  Natxo Asenjo
  Devin Bayer
@@ -87,10 +89,14 @@ Current Privoxy Team:
  Reiner Buehl
  Andrew J. Caines
  Clifford Caoile
+ Edward Carrel
+ Pak Chan
  Wan-Teh Chang
+ Sam Chen
  Ramkumar Chinchani
  Billy Crook
- Frédéric Crozat
+ Frï¿½dï¿½ric Crozat
+ Matthew Daley
  Michael T. Davis
  Markus Dittrich
  Mattes Dolak
@@ -102,12 +108,15 @@ Current Privoxy Team:
  Matthew Fischer
  Dean Gaudet
  Stephen Gildea
+ John McGowan
  Lizik Grelier
  Daniel Griscom
- Felix Gröbert
+ Felix Grï¿½bert
+ Bernard Guillot
  Jeff H.
  Tim H.
  Aaron Hamid
+ Basil Hussain
  Darel Henman
  Magnus Holmgren
  Eric M. Hopper
@@ -119,7 +128,10 @@ Current Privoxy Team:
  Julien Joubert
  Ralf Jungblut
  Petr Kadlec
+ Robert Klemme
  Steven Kolins
+ Korda
+ Stefan Kurtz
  Zeno Kugy
  David Laight
  Bert van Leeuwen
@@ -132,18 +144,25 @@ Current Privoxy Team:
  Raphael Marichez
  Francois Marier
  Angelina Matson
+ Jonathan McKenzie
  David Mediavilla
  Raphael Moll
+ Mathew Murphy
  Amuro Namie
+ Mark Nelson
  Adam Piggott
- Petr Písar
+ Petr Pï¿½sar
  Dan Price
+ Kai Raven
  Roberto Ragusa
- Félix Rauch
+ Fï¿½lix Rauch
+ Chris John Riley
  Maynard Riley
  Andreas Rutkauskas
  Bart Schelstraete
+ Gregory Seidman
  Chung-chieh Shan
+ Benjamin C. Wiley Sittler
  Simon South
  Dan Stahlke
  Oliver Stoeneberg
@@ -151,13 +170,19 @@ Current Privoxy Team:
  Spinor S.
  Peter Thoenen
  Martin Thomas
+ Reuben Thomas
+ Guybrush Threepwood
+ Joel Verhagen
  Bobby G. Vinyard
  Jochen Voss
+ David Wagner
  Glenn Washburn
  Song Weijia
- Jörg Weinmann
+ Jï¿½rg Weinmann
  Darren Wiebe
  Anduin Withers
+ Yang Xia
+ Jarry Xu
  Oliver Yeoh
  Jamie Zawinski
 </literallayout>

@@ -272,24 +272,12 @@ do_upgrade_post(char *url, webs_t stream, int len, char *boundary)	// jimmy,
 	 * restore defaults on reboot of a Sveasoft firmware. 
 	 */
 	if (nvram_match("sv_restore_defaults", "1")) {
-		system2("rm -f /usr/local/nvram/nvram.bin");
+		unlink("/usr/local/nvram/nvram.bin");
 	}
 	/*
 	 * Slurp anything remaining in the request 
 	 */
-	while (len--) {
-#ifdef HAVE_HTTPS
-		if (do_ssl) {
-			wfgets(buf, 1, stream);
-		} else {
-			(void)fgetc(stream);
-		}
-#else
-		(void)fgetc(stream);
-#endif
-
-	}
-#endif
+	wfgets(buf, len, stream);
 	fprintf(stderr, "upgrade done()\n");
-
+#endif
 }

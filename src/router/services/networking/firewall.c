@@ -387,7 +387,7 @@ static void parse_upnp_forward()
 
 	if (nvram_match("upnp_clear", "1")) {	// tofu10
 		nvram_unset("upnp_clear");
-		for (i = 0; i < 50; ++i) {
+		for (i = 0; i < 1000; ++i) {
 			sprintf(name, "forward_port%d", i);
 			nvram_unset(name);
 		}
@@ -516,7 +516,11 @@ static void create_spec_forward(char *proto, char *src, char *wanaddr, char *fro
 		    )
 			save2file("-A PREROUTING -i %s -p %s -m %s --dport %s -j DNAT --to-destination %s:%s\n", wan_iface, proto, proto, from, ip, to);
 #endif
-		snprintf(buff, sizeof(buff), "-A FORWARD -p %s -m %s -s %s -d %s --dport %s -j %s\n", proto, proto, src, ip, to, log_accept);
+		if (!strcmp(nvram_get("lan_ipaddr"), ip)) {
+			snprintf(buff, sizeof(buff), "-I INPUT -p %s -m %s -s %s -d %s --dport %s -j %s\n", proto, proto, src, ip, to, log_accept);
+		} else {
+			snprintf(buff, sizeof(buff), "-A FORWARD -p %s -m %s -s %s -d %s --dport %s -j %s\n", proto, proto, src, ip, to, log_accept);
+		}
 	} else {
 		save2file("-A PREROUTING -p %s -m %s -d %s --dport %s -j DNAT --to-destination %s:%s\n", proto, proto, wanaddr, from, ip, to);
 #if defined (HAVE_PPTP) || defined (HAVE_L2TP) || defined (HAVE_PPPOEDUAL)
@@ -524,7 +528,11 @@ static void create_spec_forward(char *proto, char *src, char *wanaddr, char *fro
 		    )
 			save2file("-A PREROUTING -i %s -p %s -m %s --dport %s -j DNAT --to-destination %s:%s\n", wan_iface, proto, proto, from, ip, to);
 #endif
-		snprintf(buff, sizeof(buff), "-A FORWARD -p %s -m %s -d %s --dport %s -j %s\n", proto, proto, ip, to, log_accept);
+		if (!strcmp(nvram_get("lan_ipaddr"), ip)) {
+			snprintf(buff, sizeof(buff), "-I INPUT -p %s -m %s -d %s --dport %s -j %s\n", proto, proto, ip, to, log_accept);
+		} else {
+			snprintf(buff, sizeof(buff), "-A FORWARD -p %s -m %s -d %s --dport %s -j %s\n", proto, proto, ip, to, log_accept);
+		}
 	}
 	count += strlen(buff) + 1;
 	suspense = realloc(suspense, count);
@@ -608,13 +616,32 @@ static void nat_prerouting(void)
 
 	getIfLists(vifs, 256);
 
+	if (nvram_match("dns_redirect", "1") && nvram_match("dnsmasq_enable", "1")) {
+		save2file("-A PREROUTING -i %s -p udp --dport 53 -j DNAT --to %s\n", nvram_safe_get("lan_ifname"), nvram_safe_get("lan_ipaddr"));
+		save2file("-A PREROUTING -i %s -p tcp --dport 53 -j DNAT --to %s\n", nvram_safe_get("lan_ifname"), nvram_safe_get("lan_ipaddr"));
+	}
+	foreach(var, vifs, next) {
+		if (strcmp(get_wan_face(), var)
+		    && strcmp(nvram_safe_get("lan_ifname"), var)) {
+			if (nvram_nmatch("1", "%s_dns_redirect", var)) {
+				char *target = nvram_nget("%s_dns_ipaddr", var);
+				if (target && strlen(target) && sv_valid_ipaddr(target) && strcmp(target, "0.0.0.0")) {
+					save2file("-A PREROUTING -i %s -p udp --dport 53 -j DNAT --to %s\n", var, target);
+					save2file("-A PREROUTING -i %s -p tcp --dport 53 -j DNAT --to %s\n", var, target);
+				} else {
+					save2file("-A PREROUTING -i %s -p udp --dport 53 -j DNAT --to %s\n", var, nvram_safe_get("lan_ipaddr"));
+					save2file("-A PREROUTING -i %s -p tcp --dport 53 -j DNAT --to %s\n", var, nvram_safe_get("lan_ipaddr"));
+				}
+			}
+		}
+	}
+
 	/*
 	 * Block ads on all http requests
 	 */
 #ifdef HAVE_PRIVOXY
 	if (nvram_match("privoxy_transp_enable", "1") && nvram_match("privoxy_enable", "1")) {
 
-		getIfLists(vifs, 256);
 		char vif_ip[32];
 		foreach(var, vifs, next) {
 			if (strcmp(get_wan_face(), var)
@@ -626,9 +653,9 @@ static void nat_prerouting(void)
 				}
 			}
 		}
+
 		/* no gui setting yet - redirect all except this IP */
-		if( strlen(nvram_safe_get("privoxy_transp_exclude")) )
-		{
+		if (strlen(nvram_safe_get("privoxy_transp_exclude"))) {
 			save2file("-A PREROUTING -p tcp -s %s --dport 80 -j ACCEPT \n", nvram_safe_get("privoxy_transp_exclude"));
 		}
 		/* block access from privoxy to webif */
@@ -649,13 +676,13 @@ static void nat_prerouting(void)
 	/*
 	 * Enable remote Web GUI management 
 	 */
+	char tmp[1024];
 	if (remotemanage) {
 		if (remote_any) {
 			save2file("-A PREROUTING -p tcp -d %s --dport %s " "-j DNAT --to-destination %s:%d\n", wanaddr, nvram_safe_get("http_wanport"), lan_ip, web_lanport);
 		} else {
 			sscanf(remote_ip, "%s %s", from, to);
-
-			wordlist = range(from, get_complete_ip(from, to));
+			wordlist = range(from, get_complete_ip(from, to), tmp);
 
 			foreach(var, wordlist, next) {
 				save2file("-A PREROUTING -p tcp -s %s -d %s --dport %s " "-j DNAT --to-destination %s:%d\n", var, wanaddr, nvram_safe_get("http_wanport"), lan_ip, web_lanport);
@@ -672,7 +699,7 @@ static void nat_prerouting(void)
 		} else {
 			sscanf(remote_ip, "%s %s", from, to);
 
-			wordlist = range(from, get_complete_ip(from, to));
+			wordlist = range(from, get_complete_ip(from, to), tmp);
 
 			foreach(var, wordlist, next) {
 				save2file("-A PREROUTING -p tcp -s %s -d %s --dport %s " "-j DNAT --to-destination %s:%s\n", var, wanaddr, nvram_safe_get("sshd_wanport"), lan_ip, nvram_safe_get("sshd_port"));
@@ -691,7 +718,7 @@ static void nat_prerouting(void)
 		} else {
 			sscanf(remote_ip, "%s %s", from, to);
 
-			wordlist = range(from, get_complete_ip(from, to));
+			wordlist = range(from, get_complete_ip(from, to), tmp);
 
 			foreach(var, wordlist, next) {
 				save2file("-A PREROUTING -p tcp -s %s -d %s --dport %s " "-j DNAT --to-destination %s:23\n", var, wanaddr, nvram_safe_get("telnet_wanport"), lan_ip);
@@ -753,11 +780,6 @@ static int wanactive(void)
 
 static void nat_postrouting(void)
 {
-#ifdef HAVE_PPPOESERVER
-	if (nvram_match("pppoeserver_enabled", "1")
-	    && wanactive())
-		save2file("-A POSTROUTING -s %s/%s -j SNAT --to-source=%s\n", nvram_safe_get("pppoeserver_remotenet"), nvram_safe_get("pppoeserver_remotemask"), wanaddr);
-#endif
 	if (has_gateway()) {
 
 		// added for logic test
@@ -838,7 +860,15 @@ static void nat_postrouting(void)
 		if (nvram_match("block_loopback", "0"))
 			writeproc("/proc/sys/net/ipv4/conf/br0/loop", "1");
 
+		if (!nvram_match("wan_proto", "pptp") && !nvram_match("wan_proto", "l2tp") && nvram_match("wshaper_enable", "0")) {
+			//eval("iptables", "-t", "raw", "-A", "PREROUTING", "-p", "tcp", "-j", "CT", "--helper", "ddtb");       //this speeds up networking alot on slow systems 
+			//eval("iptables", "-t", "raw", "-A", "PREROUTING", "-p", "udp", "-j", "CT", "--helper", "ddtb");       //this speeds up networking alot on slow systems 
+		}
 	} else {
+		if (!nvram_match("wan_proto", "pptp") && !nvram_match("wan_proto", "l2tp") && nvram_match("wshaper_enable", "0")) {
+			//eval("iptables", "-t", "raw", "-A", "PREROUTING", "-p", "tcp", "-j", "CT", "--helper", "ddtb");       //this speeds up networking alot on slow systems 
+			//eval("iptables", "-t", "raw", "-A", "PREROUTING", "-p", "udp", "-j", "CT", "--helper", "ddtb");       //this speeds up networking alot on slow systems 
+		}
 		eval("iptables", "-t", "raw", "-A", "PREROUTING", "-j", "NOTRACK");	//this speeds up networking alot on slow systems 
 		/* the following code must be used in future kernel versions, not yet used. we still need to test it */
 //              eval("iptables", "-t", "raw", "-A", "PREROUTING", "-j", "CT","--notrack");      //this speeds up networking alot on slow systems 
@@ -1094,8 +1124,7 @@ static void macgrp_chain(int seq, unsigned int mark, int urlenable)
 	if (strcmp(wordlist, "") == 0)
 		return;
 
-	insmod("ipt_mac");
-	insmod("xt_mac");
+	insmod("ipt_mac xt_mac");
 
 	if (mark == MARK_DROP) {
 		foreach(var, wordlist, next) {
@@ -1123,8 +1152,9 @@ static void ipgrp_chain(int seq, unsigned int mark, int urlenable)
 	char var1[256], *wordlist1, *next1;
 	char var2[256], *wordlist2, *next2;
 	char from[100], to[100];
+	char tmp[1024];
 	int a1 = 0, a2 = 0;
-	static char s1[32], s2[32];
+	char s1[32], s2[32];
 
 	wordlist1 = nvram_nget("filter_ip_grp%d", seq);
 	if (strcmp(wordlist1, "") == 0)
@@ -1156,7 +1186,7 @@ static void ipgrp_chain(int seq, unsigned int mark, int urlenable)
 			/*
 			 * The return value of range() is global string array 
 			 */
-			wordlist2 = range(from, to);
+			wordlist2 = range(from, to, tmp);
 		} else if (sscanf(var1, "%d", &a1) == 1) {
 			if (a1 == 0)	/* unset */
 				continue;
@@ -1352,14 +1382,13 @@ static void advgrp_chain(int seq, unsigned int mark, int urlenable)
 
 				for (i = 0; i < strlen(realname); i++)
 					realname[i] = tolower(realname[i]);
-				insmod("ipt_layer7");
-				insmod("xt_layer7");
+				insmod("ipt_layer7 xt_layer7");
 
 				save2file("-A advgrp_%d -m layer7 --l7proto %s -j %s\n", seq, realname, log_drop);
 			}
 #ifdef HAVE_OPENDPI
 			if (!strcmp(protocol, "dpi")) {
-				insmod("/lib/opendpi/xt_opendpi.ko");
+				eval("insmod", "xt_opendpi", "bt_hash_size=2", "bt_hash_timeout=3600");
 				save2file("-A advgrp_%d -m ndpi --%s -j %s\n", seq, realname, log_drop);
 			}
 #endif
@@ -1395,17 +1424,15 @@ static void advgrp_chain(int seq, unsigned int mark, int urlenable)
 					proto = "xdcc";
 				if (proto)	//avoid null pointer, if realname isnt matched
 				{
-					insmod("ipt_ipp2p");
-					insmod("xt_ipp2p");
+					insmod("ipt_ipp2p xt_ipp2p");
 					save2file("-A advgrp_%d -m ipp2p --%s -j %s\n", seq, proto, log_drop);
 					if (!strcmp(proto, "bit")) {
 						/* bittorrent detection enhanced */
 #ifdef HAVE_OPENDPI
-						insmod("/lib/opendpi/xt_opendpi.ko");
+						eval("insmod", "xt_opendpi", "bt_hash_size=2", "bt_hash_timeout=3600");
 						save2file("-A advgrp_%d -m ndpi --bittorrent -j %s\n", seq, log_drop);
 #else
-						insmod("ipt_layer7");
-						insmod("xt_layer7");
+						insmod("ipt_layer7 xt_layer7");
 #ifdef HAVE_MICRO
 						save2file("-A advgrp_%d -m layer7 --l7proto bt -j %s\n", seq, log_drop);
 #else
@@ -1424,10 +1451,7 @@ static void advgrp_chain(int seq, unsigned int mark, int urlenable)
 	 * p2p catchall 
 	 */
 	if (nvram_nmatch("1", "filter_p2p_grp%d", seq)) {
-		insmod("ipt_layer7");
-		insmod("xt_layer7");
-		insmod("ipt_ipp2p");
-		insmod("xt_ipp2p");
+		insmod("ipt_layer7 xt_layer7 ipt_ipp2p xt_ipp2p");
 		save2file("-A advgrp_%d -m ipp2p --edk -j %s\n", seq, log_drop);
 		save2file("-A advgrp_%d -m ipp2p --dc -j %s\n", seq, log_drop);
 		save2file("-A advgrp_%d -m ipp2p --gnu -j %s\n", seq, log_drop);
@@ -1443,7 +1467,7 @@ static void advgrp_chain(int seq, unsigned int mark, int urlenable)
 
 		/* p2p detection enhanced */
 #ifdef HAVE_OPENDPI
-		insmod("/lib/opendpi/xt_opendpi.ko");
+		eval("insmod", "xt_opendpi", "bt_hash_size=2", "bt_hash_timeout=3600");
 		/*commonly used protocols, decending */
 		save2file("-A advgrp_%d -m ndpi --bittorrent -j %s\n", seq, log_drop);
 /*  disable till pattern works
@@ -1760,7 +1784,7 @@ static void parse_trigger_out(char *wordlist)
 #ifdef HAVE_VLANTAGGING
 static void add_bridges(char *chain, int forward)
 {
-	static char word[256];
+	char word[256];
 	char *next, *wordlist;
 	char *wan = get_wan_face();
 	wordlist = nvram_safe_get("bridges");
@@ -1908,9 +1932,10 @@ static void filter_input(void)
 	/*
 	 * Wolf mod - accept protocol 41 for IPv6 tunneling 
 	 */
+#ifdef HAVE_IPV6
 	if (nvram_match("ipv6_enable", "1"))
 		save2file("-A INPUT -p 41 -j %s\n", log_accept);
-
+#endif
 	/*
 	 * Sveasoft mod - accept OSPF protocol broadcasts 
 	 */
@@ -2124,9 +2149,10 @@ static void filter_forward(void)
 		filter_web_urls = nvram_nget("filter_web_url%d", i);
 		filter_rule = nvram_nget("filter_rule%d", i);
 
-		if (filter_web_hosts && strcmp(filter_web_hosts, "") 
-		  || filter_web_urls && strcmp(filter_web_urls, "") 
-		  || filter_rule && !strcmp(filter_rule, "STAT:1") ) {
+		if (filter_web_hosts && strcmp(filter_web_hosts, "")
+		    || (filter_web_urls && strcmp(filter_web_urls, ""))
+		    || (filter_rule && !strncmp(filter_rule, "$STAT:1", 7))
+		    || (filter_rule && !strncmp(filter_rule, "$STAT:2", 7))) {
 			filter_host_url = 1;
 		}
 	}
@@ -2340,7 +2366,7 @@ static void filter_forward(void)
 			if (nvram_nmatch("1", "%s_isolation", var)) {
 				save2file("-I FORWARD -i %s -d %s/%s -m state --state NEW -j %s\n", var, nvram_safe_get("lan_ipaddr"), nvram_safe_get("lan_netmask"), log_drop);
 				save2file("-A FORWARD -i br0 -o %s -m state --state NEW -j %s\n", var, log_drop);
-				if (nvram_nmatch("1", "privoxy_transp_enable")) {
+				if (nvram_match("privoxy_transp_enable", "1")) {
 					save2file("-I INPUT -i %s -d %s/%s -p tcp --dport 8118 -j %s\n", var, nvram_safe_get("lan_ipaddr"), nvram_safe_get("lan_netmask"), log_accept);
 				}
 			}
@@ -2376,14 +2402,11 @@ static void mangle_table(void)
 	save2file("*mangle\n" ":PREROUTING ACCEPT [0:0]\n" ":OUTPUT ACCEPT [0:0]\n");
 
 	if (wanactive() && nvram_match("block_loopback", "0")) {
-		insmod("ipt_mark");
-		insmod("xt_mark");
-		insmod("ipt_CONNMARK");
-		insmod("xt_CONNMARK");
+		insmod("ipt_mark xt_mark ipt_CONNMARK xt_CONNMARK xt_connmark");
 
 		save2file("-A PREROUTING -i ! %s -d %s -j MARK --set-mark %s\n", get_wan_face(), get_wan_ipaddr(), get_NFServiceMark("FORWARD", 1));
 
-		save2file("-A PREROUTING -j CONNMARK --save\n");
+		save2file("-A PREROUTING -j CONNMARK --save-mark\n");
 	}
 
 	/*
@@ -2486,6 +2509,28 @@ static void filter_table(void)
 			filter_output();
 			filter_forward();
 		}
+	} else {
+		char dev[16];
+		char var[80];
+		char vifs[256];
+		char *next;
+		getIfLists(vifs, 256);
+		foreach(var, vifs, next) {
+			if (strcmp(get_wan_face(), var)
+			    && strcmp(nvram_safe_get("lan_ifname"), var)) {
+				if (nvram_nmatch("1", "%s_isolation", var)) {
+					save2file("-A INPUT -i %s -p udp --dport 67 -j %s\n", var, log_accept);
+					save2file("-A INPUT -i %s -p udp --dport 53 -j %s\n", var, log_accept);
+					save2file("-A INPUT -i %s -p tcp --dport 53 -j %s\n", var, log_accept);
+					save2file("-A INPUT -i %s -m state --state NEW -j %s\n", var, log_drop);
+				}
+				if (nvram_nmatch("0", "%s_bridged", var)) {
+					save2file("-A INPUT -i %s -j %s\n", var, log_accept);
+				}
+
+			}
+		}
+	  
 	}
 
 	/*
@@ -2580,6 +2625,75 @@ void set_gprules(char *iface)
 #endif
 
 int isregistered_real(void);
+#ifdef HAVE_IPV6
+void start_firewall6(void)
+{
+
+	if (nvram_match("ipv6_enable", "0"))
+		return;
+
+	fprintf(stderr, "start firewall6\n");
+
+	insmod("nf_defrag_ipv6 nf_log_ipv6 ip6_tables nf_conntrack_ipv6 ip6table_filter");
+
+	eval("ip6tables", "-F", "INPUT");
+	eval("ip6tables", "-F", "FORWARD");
+	eval("ip6tables", "-F", "OUTPUT");
+	eval("ip6tables", "-A", "INPUT", "-m", "state", "--state", "RELATED,ESTABLISHED", "-j", "ACCEPT");
+	eval("ip6tables", "-A", "INPUT", "-p", "icmpv6", "-j", "ACCEPT");
+	eval("ip6tables", "-A", "INPUT", "-s", "fe80::/64", "-j", "ACCEPT");
+	eval("ip6tables", "-A", "INPUT", "-i", "br0", "-j", "ACCEPT");
+
+	if (nvram_match("ipv6_typ", "ipv6rd") || nvram_match("ipv6_typ", "ipv6in4") || nvram_match("ipv6_typ", "ipv6to4")) {
+
+		eval("iptables", "-I", "INPUT", "-p", "41", "-j", "ACCEPT");
+
+		eval("ip6tables", "-A", "FORWARD", "-p", "tcp", "-m", "tcp", "--tcp-flags", "SYN,RST", "SYN", "-j", "TCPMSS", "--clamp-mss-to-pmtu");
+
+	}
+
+	/* accept ICMP requests from the remote tunnel endpoint */
+	if (nvram_match("ipv6_typ", "ipv6in4")) {
+		char *ip = nvram_safe_get("ipv6_tun_end_ipv4");
+		if (*ip && strcmp(ip, "0.0.0.0") != 0)
+			eval("iptables", "-I", "INPUT", "-p", "icmp", "-s", ip, "-j", "ACCEPT");
+	}
+
+	if (nvram_match("ipv6_typ", "ipv6in4") || nvram_match("ipv6_typ", "ipv6native"))
+		eval("ip6tables", "-A", "INPUT", "-p", "udp", "--dport", "546", "-j", "ACCEPT");
+
+	eval("ip6tables", "-A", "INPUT", "-j", "DROP");
+
+	eval("ip6tables", "-A", "FORWARD", "-m", "state", "--state", "RELATED,ESTABLISHED", "-j", "ACCEPT");
+
+	if (nvram_match("ipv6_typ", "ipv6native") || nvram_match("ipv6_typ", "ipv6pd")) {
+		if (nvram_match("wan_proto", "disabled")) {
+			eval("ip6tables", "-A", "FORWARD", "-o", nvram_safe_get("lan_ifname"), "-j", "ACCEPT");
+		} else {
+			eval("ip6tables", "-A", "FORWARD", "-o", get_wan_face(), "-j", "ACCEPT");
+		}
+	}
+
+	if (nvram_match("ipv6_typ", "ipv6in4"))
+		eval("ip6tables", "-A", "FORWARD", "-o", "ip6tun", "-j", "ACCEPT");
+
+	eval("ip6tables", "-A", "FORWARD", "-p", "icmpv6", "--icmpv6-type", "echo-request", "-m", "limit", "--limit", "2/s", "-j", "ACCEPT");
+
+	eval("ip6tables", "-A", "FORWARD", "-j", "DROP");
+
+}
+#endif
+
+void start_loadfwmodules(void)
+{
+	insmod("iptable_raw iptable_mangle nf_conntrack_h323 xt_NFLOG"
+	       " xt_length xt_REDIRECT xt_CT xt_limit xt_TCPMSS"
+	       " xt_connbytes xt_connlimit"
+	       " xt_CLASSIFY xt_recent"
+	       " xt_conntrack xt_state"
+	       " xt_string" " xt_LOG xt_iprange xt_tcpmss" " xt_NETMAP compat_xtables" " ipt_MASQUERADE iptable_filter nf_reject_ipv4" " ipt_REJECT nf_nat_h323" " ipt_TRIGGER nf_nat_masquerade_ipv4 ipt_ah");
+
+}
 
 #ifdef DEVELOPE_ENV
 int main(void)
@@ -2593,6 +2707,7 @@ void start_firewall(void)
 	char name[NAME_MAX];
 	struct stat statbuff;
 	int log_level = 0;
+	start_loadfwmodules();
 	system("cat /proc/net/ip_conntrack_flush");
 
 #ifndef	HAVE_80211AC
@@ -2743,7 +2858,9 @@ void start_firewall(void)
 
 	// unlink(IPTABLES_SAVE_FILE);
 #endif
-
+#ifdef HAVE_IPV6
+	start_firewall6();
+#endif
 	/*
 	 * begin Sveasoft add 
 	 */
@@ -2752,7 +2869,9 @@ void start_firewall(void)
 	 */
 	cprintf("Exec RC Filewall\n");
 #ifdef HAVE_REGISTER
+#ifndef HAVE_ERC
 	if (isregistered_real())
+#endif
 #endif
 	{
 		runStartup("/jffs/etc/config", ".prewall");	// if available
@@ -2799,9 +2918,11 @@ void start_firewall(void)
 	} else
 		perror("/proc/sys/net/ipv4/ip_forward");
 	cprintf("start ipv6\n");
+#ifdef HAVE_IPV6
 	if (nvram_match("ipv6_enable", "1")) {
 		writeproc("/proc/sys/net/ipv6/conf/all/forwarding", "1");
 	}
+#endif
 #ifdef HAVE_GGEW
 	char *wordlist = nvram_safe_get("ral");
 	char var[256], *next;
@@ -2851,6 +2972,16 @@ void start_firewall(void)
 	cprintf("done\n");
 }
 
+#ifdef HAVE_IPV6
+void stop_firewall6(void)
+{
+	if (nvram_match("ipv6_enable", "0"))
+		return;
+
+	eval("ip", "-6", "addr", "flush", "scope", "global");
+}
+#endif
+
 void stop_firewall(void)
 {
 	eval("iptables", "-t", "raw", "-F");
@@ -2891,6 +3022,9 @@ void stop_firewall(void)
 		rmmod("xt_mac");
 	}
 	cprintf("done\n");
+#ifdef HAVE_IPV6
+	stop_firewall6();
+#endif
 	return;
 }
 

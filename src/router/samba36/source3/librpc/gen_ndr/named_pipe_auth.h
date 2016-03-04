@@ -16,7 +16,7 @@
 #define NAMED_PIPE_AUTH_MAGIC	( "NPAM" )
 struct named_pipe_auth_req_info4 {
 	const char *client_name;/* [unique,charset(UTF8)] */
-	const char *client_addr;/* [unique,charset(DOS)] */
+	const char *client_addr;/* [charset(DOS),unique] */
 	uint16_t client_port;
 	const char *server_name;/* [unique,charset(UTF8)] */
 	const char *server_addr;/* [unique,charset(DOS)] */
@@ -30,7 +30,7 @@ union named_pipe_auth_req_info {
 
 struct named_pipe_auth_req {
 	uint32_t length;/* [value(ndr_size_named_pipe_auth_req(r,ndr->flags)-4),flag(LIBNDR_FLAG_BIGENDIAN)] */
-	const char *magic;/* [value(NAMED_PIPE_AUTH_MAGIC),charset(DOS)] */
+	const char *magic;/* [charset(DOS),value(NAMED_PIPE_AUTH_MAGIC)] */
 	uint32_t level;
 	union named_pipe_auth_req_info info;/* [switch_is(level)] */
 }/* [gensize,public] */;
@@ -46,12 +46,12 @@ union named_pipe_auth_rep_info {
 }/* [switch_type(uint32)] */;
 
 struct named_pipe_auth_rep {
-	uint32_t length;/* [value(ndr_size_named_pipe_auth_rep(r,ndr->flags)-4),flag(LIBNDR_FLAG_BIGENDIAN)] */
+	uint32_t length;/* [flag(LIBNDR_FLAG_BIGENDIAN),value(ndr_size_named_pipe_auth_rep(r,ndr->flags)-4)] */
 	const char *magic;/* [value(NAMED_PIPE_AUTH_MAGIC),charset(DOS)] */
 	uint32_t level;
 	union named_pipe_auth_rep_info info;/* [switch_is(level)] */
 	NTSTATUS status;
-}/* [gensize,public] */;
+}/* [public,gensize] */;
 
 #endif /* _HEADER_named_pipe_auth */
 #endif /* _PIDL_HEADER_named_pipe_auth */

@@ -17,6 +17,7 @@
 
 /*** inline functions ****************************************************************************/
 
+/* difference or zero */
 static inline off_t
 mcview_offset_doz (off_t a, off_t b)
 {
@@ -45,17 +46,9 @@ mcview_dimen_doz (screen_dimen a, screen_dimen b)
 
 /* --------------------------------------------------------------------------------------------- */
 
-static inline screen_dimen
-mcview_dimen_min (screen_dimen a, screen_dimen b)
-{
-    return (a < b) ? a : b;
-}
-
-/* --------------------------------------------------------------------------------------------- */
-
-/* {{{ Simple Primitive Functions for mcview_t }}} */
+/* {{{ Simple Primitive Functions for WView }}} */
 static inline gboolean
-mcview_is_in_panel (mcview_t * view)
+mcview_is_in_panel (WView * view)
 {
     return (view->dpy_frame_size != 0);
 }
@@ -63,7 +56,7 @@ mcview_is_in_panel (mcview_t * view)
 /* --------------------------------------------------------------------------------------------- */
 
 static inline gboolean
-mcview_may_still_grow (mcview_t * view)
+mcview_may_still_grow (WView * view)
 {
     return (view->growbuf_in_use && !view->growbuf_finished);
 }
@@ -82,7 +75,7 @@ mcview_already_loaded (off_t offset, off_t idx, size_t size)
 /* --------------------------------------------------------------------------------------------- */
 
 static inline gboolean
-mcview_get_byte_file (mcview_t * view, off_t byte_index, int *retval)
+mcview_get_byte_file (WView * view, off_t byte_index, int *retval)
 {
 #ifdef HAVE_ASSERT_H
     assert (view->datasource == DS_FILE);
@@ -103,7 +96,7 @@ mcview_get_byte_file (mcview_t * view, off_t byte_index, int *retval)
 /* --------------------------------------------------------------------------------------------- */
 
 static inline gboolean
-mcview_get_byte (mcview_t * view, off_t offset, int *retval)
+mcview_get_byte (WView * view, off_t offset, int *retval)
 {
     switch (view->datasource)
     {
@@ -116,17 +109,18 @@ mcview_get_byte (mcview_t * view, off_t offset, int *retval)
         return mcview_get_byte_string (view, offset, retval);
     case DS_NONE:
         return mcview_get_byte_none (view, offset, retval);
-    }
+    default:
 #ifdef HAVE_ASSERT_H
-    assert (!"Unknown datasource type");
+        assert (!"Unknown datasource type");
 #endif
-    return -1;
+        return FALSE;
+    }
 }
 
 /* --------------------------------------------------------------------------------------------- */
 
 static inline gboolean
-mcview_get_byte_indexed (mcview_t * view, off_t base, off_t ofs, int *retval)
+mcview_get_byte_indexed (WView * view, off_t base, off_t ofs, int *retval)
 {
     if (base <= OFFSETTYPE_MAX - ofs)
     {
@@ -140,7 +134,7 @@ mcview_get_byte_indexed (mcview_t * view, off_t base, off_t ofs, int *retval)
 /* --------------------------------------------------------------------------------------------- */
 
 static inline int
-mcview_count_backspaces (mcview_t * view, off_t offset)
+mcview_count_backspaces (WView * view, off_t offset)
 {
     int backspaces = 0;
     int c;
@@ -153,7 +147,7 @@ mcview_count_backspaces (mcview_t * view, off_t offset)
 /* --------------------------------------------------------------------------------------------- */
 
 static inline gboolean
-mcview_is_nroff_sequence (mcview_t * view, off_t offset)
+mcview_is_nroff_sequence (WView * view, off_t offset)
 {
     int c0, c1, c2;
 

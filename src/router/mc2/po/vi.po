@@ -8,11 +8,10 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Midnight Commander\n"
 "Report-Msgid-Bugs-To: http://www.midnight-commander.org/\n"
-"POT-Creation-Date: 2014-04-01 14:47+0300\n"
-"PO-Revision-Date: 2014-02-19 09:12+0000\n"
-"Last-Translator: aborodin <aborodin@vmail.ru>\n"
-"Language-Team: Vietnamese (http://www.transifex.com/projects/p/mc/language/"
-"vi/)\n"
+"POT-Creation-Date: 2015-11-06 14:43+0300\n"
+"PO-Revision-Date: 2015-06-04 08:38+0000\n"
+"Last-Translator: Piotr Drąg <piotrdrag@gmail.com>\n"
+"Language-Team: Vietnamese (http://www.transifex.com/mc/mc/language/vi/)\n"
 "Language: vi\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
@@ -333,6 +332,9 @@ msgstr ""
 msgid "Colon"
 msgstr ""
 
+msgid "Semicolon"
+msgstr ""
+
 msgid "Exclamation mark"
 msgstr ""
 
@@ -429,6 +431,27 @@ msgstr ""
 "Kích thước màn hình %dx%d không được hỗ trợ.\n"
 "Hãy kiểm tra biến môi trường TERM.\n"
 
+msgid "Cannot create pipe descriptor"
+msgstr ""
+
+msgid "Cannot parse command for pipe"
+msgstr ""
+
+msgid "Cannot create pipe streams"
+msgstr ""
+
+#, c-format
+msgid ""
+"Unexpected error in select() reading data from a child process:\n"
+"%s"
+msgstr ""
+
+#, c-format
+msgid ""
+"Unexpected error in waitpid():\n"
+"%s"
+msgstr ""
+
 msgid "Warning"
 msgstr "Cảnh báo"
 
@@ -445,7 +468,15 @@ msgstr ""
 msgid "Directory cache expired for %s"
 msgstr "Cache thư mục hết hạn cho %s"
 
+#, c-format
+msgid "%s: %s: %s %3d%% %<PRIuMAX> %s"
+msgstr ""
+
 msgid "bytes transferred"
+msgstr ""
+
+#, c-format
+msgid "%s: %s: %s %<PRIuMAX> %s"
 msgstr ""
 
 msgid "Starting linear transfer..."
@@ -527,6 +558,13 @@ msgstr "Tiến trình nền sau:"
 
 msgid "Error"
 msgstr "Lỗi"
+
+#, c-format
+msgid "%d: %s"
+msgstr ""
+
+msgid "&Abort"
+msgstr "&Dừng"
 
 msgid "Displays the current version"
 msgstr "Hiển thị số phiên bản hiện thời"
@@ -621,7 +659,7 @@ msgid ""
 "   Editor:       editnormal, editbold, editmarked, editwhitespace,\n"
 "                 editlinestate, editbg, editframe, editframeactive\n"
 "                 editframedrag\n"
-"   Viewer:       viewbold, viewunderline, viewselected\n"
+"   Viewer:       viewnormal,viewbold, viewunderline, viewselected\n"
 "   Help:         helpnormal, helpitalic, helpbold, helplink, helpslink\n"
 msgstr ""
 
@@ -636,7 +674,7 @@ msgid ""
 "   color16 to color255, or rgb000 to rgb555 and gray0 to gray23\n"
 "\n"
 "Attributes:\n"
-"   bold, underline, reverse, blink; append more with '+'\n"
+"   bold, italic, underline, reverse, blink; append more with '+'\n"
 msgstr ""
 
 msgid "Color options"
@@ -673,7 +711,13 @@ msgstr ""
 msgid "No arguments given to the viewer."
 msgstr ""
 
-msgid "Two files are required to evoke the diffviewer."
+msgid "Two files are required to envoke the diffviewer."
+msgstr ""
+
+msgid "Background protocol error"
+msgstr ""
+
+msgid "Reading failed"
 msgstr ""
 
 msgid "Background process error"
@@ -683,12 +727,6 @@ msgid "Unknown error in child"
 msgstr ""
 
 msgid "Child died unexpectedly"
-msgstr ""
-
-msgid "Background protocol error"
-msgstr ""
-
-msgid "Reading failed"
 msgstr ""
 
 msgid ""
@@ -845,7 +883,17 @@ msgid "< Reload Current Syntax >"
 msgstr "< Nạp lại cú pháp hiện thời >"
 
 #, c-format
+msgid "Loading: %3d%%"
+msgstr ""
+
+msgid "Loading..."
+msgstr ""
+
+#, c-format
 msgid "Cannot open %s for reading"
+msgstr ""
+
+msgid "Load file"
 msgstr ""
 
 #, c-format
@@ -873,6 +921,14 @@ msgstr ""
 #, c-format
 msgid "Cannot open pipe for reading: %s"
 msgstr ""
+
+#, c-format
+msgid "Searching %s: %3d%%"
+msgstr ""
+
+#, c-format
+msgid "Searching %s"
+msgstr "Tìm %s"
 
 msgid "File has hard-links. Detach before saving?"
 msgstr ""
@@ -920,6 +976,9 @@ msgid "Save As"
 msgstr ""
 
 msgid "Block is large, you may not be able to undo this action"
+msgstr ""
+
+msgid "Collect completions"
 msgstr ""
 
 msgid "&Quick save"
@@ -1441,7 +1500,7 @@ msgid ""
 "written for the Midnight Commander."
 msgstr ""
 
-msgid "Copyright (C) 1996-2014 the Free Software Foundation"
+msgid "Copyright (C) 1996-2015 the Free Software Foundation"
 msgstr ""
 
 msgid "About"
@@ -1469,6 +1528,78 @@ msgid "ButtonBar|Delete"
 msgstr ""
 
 msgid "ButtonBar|PullDn"
+msgstr ""
+
+msgid "Breton"
+msgstr ""
+
+msgid "Czech"
+msgstr ""
+
+msgid "Welsh"
+msgstr ""
+
+msgid "Danish"
+msgstr ""
+
+msgid "German"
+msgstr ""
+
+msgid "Greek"
+msgstr ""
+
+msgid "English"
+msgstr ""
+
+msgid "British English"
+msgstr ""
+
+msgid "Canadian English"
+msgstr ""
+
+msgid "American English"
+msgstr ""
+
+msgid "Esperanto"
+msgstr ""
+
+msgid "Spanish"
+msgstr ""
+
+msgid "Faroese"
+msgstr ""
+
+msgid "French"
+msgstr ""
+
+msgid "Italian"
+msgstr ""
+
+msgid "Dutch"
+msgstr ""
+
+msgid "Norwegian"
+msgstr ""
+
+msgid "Polish"
+msgstr ""
+
+msgid "Portuguese"
+msgstr ""
+
+msgid "Romanian"
+msgstr ""
+
+msgid "Russian"
+msgstr ""
+
+msgid "Slovak"
+msgstr ""
+
+msgid "Swedish"
+msgstr ""
+
+msgid "Ukrainian"
 msgstr ""
 
 msgid "&Add word"
@@ -1556,6 +1687,12 @@ msgid ""
 "%s"
 msgstr ""
 
+msgid "< Default >"
+msgstr ""
+
+msgid "Skins"
+msgstr ""
+
 msgid "Other 8 bit"
 msgstr "8 bit khác"
 
@@ -1640,12 +1777,6 @@ msgstr ""
 msgid "Configure options"
 msgstr "Tùy chọn cấu hình"
 
-msgid "< Default >"
-msgstr ""
-
-msgid "Skins"
-msgstr ""
-
 msgid "Skin:"
 msgstr ""
 
@@ -1728,14 +1859,17 @@ msgstr ""
 msgid "&Full file list"
 msgstr "&Đầy đủ"
 
-msgid "&Brief file list"
-msgstr "&Thu gọn"
+msgid "&Brief file list:"
+msgstr ""
 
 msgid "&Long file list"
 msgstr "&Mở rộng"
 
 msgid "&User defined:"
 msgstr "&Người dùng tự xác định:"
+
+msgid "columns"
+msgstr ""
 
 msgid "User &mini status"
 msgstr ""
@@ -1973,15 +2107,6 @@ msgstr ""
 msgid "Set expression for filtering filenames"
 msgstr ""
 
-msgid "&Files only"
-msgstr ""
-
-msgid "&Using shell patterns"
-msgstr "&Sử dụng mẫu (pattern) của shell"
-
-msgid "&Case sensitive"
-msgstr ""
-
 #, c-format
 msgid "Link %s to:"
 msgstr "Tạo liên kết tới %s:"
@@ -2020,12 +2145,6 @@ msgid "Create a new Directory"
 msgstr "Tạo thư mục mới"
 
 msgid "Enter directory name:"
-msgstr ""
-
-msgid "Select"
-msgstr ""
-
-msgid "Unselect"
 msgstr ""
 
 msgid "Extension file edit"
@@ -2105,6 +2224,9 @@ msgstr ""
 msgid ""
 "Enter device (without /dev/) to undelete\n"
 "files on: (F1 for details)"
+msgstr ""
+
+msgid "Directory scanning"
 msgstr ""
 
 msgid "Setup"
@@ -2225,9 +2347,6 @@ msgid ""
 "Cannot create target symlink \"%s\"\n"
 "%s"
 msgstr ""
-
-msgid "&Abort"
-msgstr "&Dừng"
 
 msgid "Ski&p all"
 msgstr ""
@@ -2445,13 +2564,8 @@ msgid ""
 "%s"
 msgstr ""
 
-msgid "Directory scanning"
-msgstr ""
-
 #, c-format
-msgid ""
-"%s\n"
-"Directories: %zd, total size: %s"
+msgid "Directories: %zd, total size: %s"
 msgstr ""
 
 msgid "Cannot operate on \"..\"!"
@@ -2559,6 +2673,12 @@ msgstr "Nguồn"
 msgid "Target"
 msgstr "Đích"
 
+msgid "Deleting"
+msgstr ""
+
+msgid "&Using shell patterns"
+msgstr "&Sử dụng mẫu (pattern) của shell"
+
 msgid "to:"
 msgstr "vào:"
 
@@ -2650,10 +2770,6 @@ msgstr "Kết thúc"
 msgid "Finished (ignored %zd directory)"
 msgid_plural "Finished (ignored %zd directories)"
 msgstr[0] ""
-
-#, c-format
-msgid "Searching %s"
-msgstr "Tìm %s"
 
 msgid "Searching"
 msgstr "Tìm"
@@ -2773,31 +2889,31 @@ msgid "Free space: %s/%s (%d%%)"
 msgstr ""
 
 #, c-format
-msgid "Type:      %s"
+msgid "Type:       %s"
 msgstr ""
 
 msgid "non-local vfs"
 msgstr "không phải vfs cục bộ"
 
 #, c-format
-msgid "Device:    %s"
-msgstr "Thiết bị:     %s"
+msgid "Device:     %s"
+msgstr ""
 
 #, c-format
 msgid "Filesystem: %s"
 msgstr "Hệ thống tập tin: %s"
 
 #, c-format
-msgid "Accessed:  %s"
-msgstr "Truy cập:     %s"
+msgid "Accessed:   %s"
+msgstr ""
 
 #, c-format
-msgid "Modified:  %s"
-msgstr "Sửa đổi:      %s"
+msgid "Modified:   %s"
+msgstr ""
 
 #. TRANSLATORS: Time of last status change as in stat(2) man.
 #, c-format
-msgid "Changed:   %s"
+msgid "Changed:    %s"
 msgstr ""
 
 #, c-format
@@ -2805,8 +2921,8 @@ msgid "Dev. type: major %lu, minor %lu"
 msgstr "Dạng thiết bị: major %lu, minor %lu"
 
 #, c-format
-msgid "Size:      %s"
-msgstr "Kích thước:   %s"
+msgid "Size:       %s"
+msgstr ""
 
 #, c-format
 msgid " (%ld block)"
@@ -2814,20 +2930,20 @@ msgid_plural " (%ld blocks)"
 msgstr[0] " (%ld khối)"
 
 #, c-format
-msgid "Owner:     %s/%s"
-msgstr "Chủ sở hữu:   %s/%s"
+msgid "Owner:      %s/%s"
+msgstr ""
 
 #, c-format
-msgid "Links:     %d"
-msgstr "Liên kết:     %d"
+msgid "Links:      %d"
+msgstr ""
 
 #, c-format
-msgid "Mode:      %s (%04o)"
-msgstr "Quyền hạn:    %s (%04o)"
+msgid "Mode:       %s (%04o)"
+msgstr ""
 
 #, c-format
-msgid "Location:  %Xh:%Xh"
-msgstr "Vị trí:       %Xh:%Xh"
+msgid "Location:   %Xh:%Xh"
+msgstr ""
 
 msgid "&Equal split"
 msgstr "&Kích thước bằng nhau"
@@ -3204,6 +3320,18 @@ msgstr ""
 msgid "Unknown tag on display format:"
 msgstr ""
 
+msgid "&Files only"
+msgstr ""
+
+msgid "&Case sensitive"
+msgstr ""
+
+msgid "Select"
+msgstr ""
+
+msgid "Unselect"
+msgstr ""
+
 msgid "Do you really want to execute?"
 msgstr ""
 
@@ -3334,12 +3462,6 @@ msgstr ""
 
 #, c-format
 msgid "The %%var macro has no variable"
-msgstr ""
-
-#, c-format
-msgid ""
-"Cannot open file%s\n"
-"%s"
 msgstr ""
 
 #, c-format
@@ -3807,9 +3929,6 @@ msgstr ""
 msgid "sftp: Invalid host name."
 msgstr ""
 
-msgid "sftp: Invalid port value."
-msgstr ""
-
 #, c-format
 msgid "sftp: %s"
 msgstr ""
@@ -3984,13 +4103,7 @@ msgid ""
 "Save modified file?"
 msgstr ""
 
-msgid "Cannot spawn child process"
-msgstr ""
-
-msgid "Empty output from child filter"
-msgstr "Bộ lọc con trả lại kết quả rỗng"
-
-msgid "&Line number (decimal)"
+msgid "&Line number"
 msgstr ""
 
 msgid "Pe&rcents"
@@ -4037,6 +4150,12 @@ msgstr "Định dạng"
 
 #, c-format
 msgid ""
+"Failed to read data from child stdout:\n"
+"%s"
+msgstr ""
+
+#, c-format
+msgid ""
 "Error while closing the file:\n"
 "%s\n"
 "Data may have been written or not"
@@ -4066,9 +4185,6 @@ msgid ""
 "%s"
 msgstr ""
 
-msgid "Seeking to search result"
-msgstr ""
-
 msgid "Search done"
 msgstr ""
 
@@ -4077,6 +4193,3 @@ msgstr ""
 
 msgid "Cannot fetch a local copy of /ftp://some.host/editme.txt"
 msgstr ""
-
-#~ msgid "&Select"
-#~ msgstr "&Lựa chọn"

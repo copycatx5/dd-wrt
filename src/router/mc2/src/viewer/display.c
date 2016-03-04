@@ -2,7 +2,7 @@
    Internal file viewer for the Midnight Commander
    Function for whow info on display
 
-   Copyright (C) 1994-2014
+   Copyright (C) 1994-2015
    Free Software Foundation, Inc.
 
    Written by:
@@ -76,7 +76,7 @@ static enum ruler_type
 /** Define labels and handlers for functional keys */
 
 static void
-mcview_set_buttonbar (mcview_t * view)
+mcview_set_buttonbar (WView * view)
 {
     WDialog *h = WIDGET (view)->owner;
     WButtonBar *b = find_buttonbar (h);
@@ -126,7 +126,27 @@ mcview_set_buttonbar (mcview_t * view)
 /* --------------------------------------------------------------------------------------------- */
 
 static void
-mcview_display_status (mcview_t * view)
+mcview_display_percent (WView * view, off_t p)
+{
+    int percent;
+
+    percent = mcview_calc_percent (view, p);
+    if (percent >= 0)
+    {
+        const screen_dimen top = view->status_area.top;
+        const screen_dimen right = view->status_area.left + view->status_area.width;
+
+        widget_move (view, top, right - 4);
+        tty_printf ("%3d%%", percent);
+        /* avoid cursor wrapping in NCurses-base MC */
+        widget_move (view, top, right - 1);
+    }
+}
+
+/* --------------------------------------------------------------------------------------------- */
+
+static void
+mcview_display_status (WView * view)
 {
     const screen_dimen top = view->status_area.top;
     const screen_dimen left = view->status_area.left;
@@ -171,7 +191,7 @@ mcview_display_status (mcview_t * view)
     else
         tty_print_string (str_fit_to_term (file_label, width - 5, J_LEFT_FIT));
     if (width > 26)
-        mcview_percent (view, view->hex_mode ? view->hex_cursor : view->dpy_end);
+        mcview_display_percent (view, view->hex_mode ? view->hex_cursor : view->dpy_end);
 }
 
 /* --------------------------------------------------------------------------------------------- */
@@ -179,7 +199,7 @@ mcview_display_status (mcview_t * view)
 /* --------------------------------------------------------------------------------------------- */
 
 void
-mcview_update (mcview_t * view)
+mcview_update (WView * view)
 {
     static int dirt_limit = 1;
 
@@ -225,15 +245,11 @@ mcview_update (mcview_t * view)
 /** Displays as much data from view->dpy_start as fits on the screen */
 
 void
-mcview_display (mcview_t * view)
+mcview_display (WView * view)
 {
     if (view->hex_mode)
     {
         mcview_display_hex (view);
-    }
-    else if (view->text_nroff_mode)
-    {
-        mcview_display_nroff (view);
     }
     else
     {
@@ -245,7 +261,7 @@ mcview_display (mcview_t * view)
 /* --------------------------------------------------------------------------------------------- */
 
 void
-mcview_compute_areas (mcview_t * view)
+mcview_compute_areas (WView * view)
 {
     struct area view_area;
     screen_dimen height, rest, y;
@@ -268,11 +284,12 @@ mcview_compute_areas (mcview_t * view)
     /* Compute the heights of the areas */
     rest = view_area.height;
 
-    height = mcview_dimen_min (rest, 1);
+    height = min (rest, 1);
     view->status_area.height = height;
     rest -= height;
 
-    height = mcview_dimen_min (rest, (ruler == RULER_NONE || view->hex_mode) ? 0 : 2);
+    height = (ruler == RULER_NONE || view->hex_mode) ? 0 : 2;
+    height = min (rest, height);
     view->ruler_area.height = height;
     rest -= height;
 
@@ -300,15 +317,15 @@ mcview_compute_areas (mcview_t * view)
 /* --------------------------------------------------------------------------------------------- */
 
 void
-mcview_update_bytes_per_line (mcview_t * view)
+mcview_update_bytes_per_line (WView * view)
 {
     const screen_dimen cols = view->data_area.width;
     int bytes;
 
-    if (cols < 8 + 17)
+    if (cols < 9 + 17)
         bytes = 4;
     else
-        bytes = 4 * ((cols - 8) / ((cols < 80) ? 17 : 18));
+        bytes = 4 * ((cols - 9) / ((cols <= 80) ? 17 : 18));
 #ifdef HAVE_ASSERT_H
     assert (bytes != 0);
 #endif
@@ -320,7 +337,7 @@ mcview_update_bytes_per_line (mcview_t * view)
 /* --------------------------------------------------------------------------------------------- */
 
 void
-mcview_display_toggle_ruler (mcview_t * view)
+mcview_display_toggle_ruler (WView * view)
 {
     static const enum ruler_type next[3] =
     {
@@ -340,11 +357,11 @@ mcview_display_toggle_ruler (mcview_t * view)
 /* --------------------------------------------------------------------------------------------- */
 
 void
-mcview_display_clean (mcview_t * view)
+mcview_display_clean (WView * view)
 {
     Widget *w = WIDGET (view);
 
-    tty_setcolor (NORMAL_COLOR);
+    tty_setcolor (VIEW_NORMAL_COLOR);
     widget_erase (w);
     if (view->dpy_frame_size != 0)
         tty_draw_box (w->y, w->x, w->lines, w->cols, FALSE);
@@ -353,7 +370,7 @@ mcview_display_clean (mcview_t * view)
 /* --------------------------------------------------------------------------------------------- */
 
 void
-mcview_display_ruler (mcview_t * view)
+mcview_display_ruler (WView * view)
 {
     static const char ruler_chars[] = "|----*----";
     const screen_dimen top = view->ruler_area.top;
@@ -390,37 +407,7 @@ mcview_display_ruler (mcview_t * view)
             }
         }
     }
-    tty_setcolor (NORMAL_COLOR);
-}
-
-/* --------------------------------------------------------------------------------------------- */
-
-void
-mcview_percent (mcview_t * view, off_t p)
-{
-    const screen_dimen top = view->status_area.top;
-    const screen_dimen right = view->status_area.left + view->status_area.width;
-    const screen_dimen height = view->status_area.height;
-    int percent;
-    off_t filesize;
-
-    if (height < 1 || right < 4)
-        return;
-    if (mcview_may_still_grow (view))
-        return;
-    filesize = mcview_get_filesize (view);
-
-    if (filesize == 0 || view->dpy_end == filesize)
-        percent = 100;
-    else if (p > (INT_MAX / 100))
-        percent = p / (filesize / 100);
-    else
-        percent = p * 100 / filesize;
-
-    widget_move (view, top, right - 4);
-    tty_printf ("%3d%%", percent);
-    /* avoid cursor wrapping in NCurses-base MC */
-    widget_move (view, top, right - 1);
+    tty_setcolor (VIEW_NORMAL_COLOR);
 }
 
 /* --------------------------------------------------------------------------------------------- */

@@ -14,8 +14,6 @@
 /* Define to 1 if you have the <ctype.h> header file. */
 #define HAVE_CTYPE_H
 
-#define ENABLE_THREADS
-
 /* Define to 1 if you have the <errno.h> header file. */
 #define HAVE_ERRNO_H
 
@@ -86,18 +84,11 @@
 #define HAVE_STRING_H
 
 /* Define to 1 if you have the `strlcat' function. */
-#if defined (WINCE)
-#define HAVE_STRLCAT
-#else
 #undef HAVE_STRLCAT
-#endif
 
 /* Define to 1 if you have the `strlcpy' function. */
-#if defined (WINCE)
-#define HAVE_STRLCPY
-#else
 #undef HAVE_STRLCPY
-#endif
+
 /* Define to 1 if you have the `strptime' function. */
 #undef HAVE_STRPTIME
 
@@ -241,7 +232,7 @@
 #define USING_TWOS_COMPLEMENT
 
 /* Version number of package */
-#define VERSION "0.2.4.22"
+#define VERSION "0.2.7.6"
 
 
 
@@ -253,7 +244,19 @@
 #define SHARE_DATADIR ""
 #define HAVE_EVENT2_DNS_H
 #define HAVE_EVENT_BASE_LOOPEXIT
-#define CURVE25519_ENABLED
 #define USE_CURVE25519_DONNA
 
 #define ENUM_VALS_ARE_SIGNED 1
+
+#ifndef STDOUT_FILENO
+#define STDOUT_FILENO 1
+#endif
+
+#ifndef STDERR_FILENO
+#define STDERR_FILENO 2
+#endif
+
+#define WINVER 0x0501
+#define _WIN32_WINNT 0x0501
+#define WIN32_LEAN_AND_MEAN 1
+

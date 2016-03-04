@@ -1,12 +1,29 @@
 /*
- * Copyright (c) 2009-2014, The Regents of the University of California,
- * through Lawrence Berkeley National Laboratory (subject to receipt of any
- * required approvals from the U.S. Dept. of Energy).  All rights reserved.
+ * iperf, Copyright (c) 2014, 2015, The Regents of the University of
+ * California, through Lawrence Berkeley National Laboratory (subject
+ * to receipt of any required approvals from the U.S. Dept. of
+ * Energy).  All rights reserved.
  *
- * This code is distributed under a BSD style license, see the LICENSE file
- * for complete information.
+ * If you have questions about your rights to use or distribute this
+ * software, please contact Berkeley Lab's Technology Transfer
+ * Department at TTD@lbl.gov.
+ *
+ * NOTICE.  This software is owned by the U.S. Department of Energy.
+ * As such, the U.S. Government has been granted for itself and others
+ * acting on its behalf a paid-up, nonexclusive, irrevocable,
+ * worldwide license in the Software to reproduce, prepare derivative
+ * works, and perform publicly and display publicly.  Beginning five
+ * (5) years after the date permission to assert copyright is obtained
+ * from the U.S. Department of Energy, and subject to any subsequent
+ * five (5) year renewals, the U.S. Government is granted for itself
+ * and others acting on its behalf a paid-up, nonexclusive,
+ * irrevocable, worldwide license in the Software to reproduce,
+ * prepare derivative works, distribute copies to the public, perform
+ * publicly and display publicly, and to permit others to do so.
+ *
+ * This code is distributed under a BSD style license, see the LICENSE
+ * file for complete information.
  */
-
 /* iperf_server_api.c: Functions to be used by an iperf server
 */
 
@@ -24,7 +41,9 @@
 #include <arpa/inet.h>
 #include <netdb.h>
 #include <pthread.h>
+#ifdef HAVE_STDINT_H
 #include <stdint.h>
+#endif
 #include <netinet/tcp.h>
 #include <sys/time.h>
 #include <sys/resource.h>
@@ -41,7 +60,7 @@
 #include "units.h"
 #include "tcp_window_size.h"
 #include "iperf_util.h"
-#include "locale.h"
+#include "iperf_locale.h"
 
 
 int
@@ -65,8 +84,8 @@ iperf_server_listen(struct iperf_test *test)
     }
 
     if (!test->json_output) {
-	printf("-----------------------------------------------------------\n");
-	printf("Server listening on %d\n", test->server_port);
+	iprintf(test, "-----------------------------------------------------------\n");
+	iprintf(test, "Server listening on %d\n", test->server_port);
     }
 
     // This needs to be changed to reflect if client has different window size
@@ -111,7 +130,6 @@ iperf_accept(struct iperf_test *test)
 {
     int s;
     signed char rbuf = ACCESS_DENIED;
-    char cookie[COOKIE_SIZE];
     socklen_t len;
     struct sockaddr_storage addr;
 
@@ -136,16 +154,15 @@ iperf_accept(struct iperf_test *test)
         if (iperf_exchange_parameters(test) < 0)
             return -1;
 	if (test->server_affinity != -1) 
-	    if (iperf_setaffinity(test->server_affinity) != 0)
+	    if (iperf_setaffinity(test, test->server_affinity) != 0)
 		return -1;
         if (test->on_connect)
             test->on_connect(test);
     } else {
-        /* XXX: Do we even need to receive cookie if we're just going to deny anyways? */
-        if (Nread(s, cookie, COOKIE_SIZE, Ptcp) < 0) {
-            i_errno = IERECVCOOKIE;
-            return -1;
-        }
+	/*
+	 * Don't try to read from the socket.  It could block an ongoing test. 
+	 * Just send ACCESS_DENIED.
+	 */
         if (Nwrite(s, (char*) &rbuf, sizeof(rbuf), Ptcp) < 0) {
             i_errno = IESENDMESSAGE;
             return -1;
@@ -189,6 +206,7 @@ iperf_handle_message_server(struct iperf_test *test)
                 FD_CLR(sp->socket, &test->write_set);
                 close(sp->socket);
             }
+            test->reporter_callback(test);
 	    if (iperf_set_send_state(test, EXCHANGE_RESULTS) != 0)
                 return -1;
             if (iperf_exchange_results(test) < 0)
@@ -197,7 +215,6 @@ iperf_handle_message_server(struct iperf_test *test)
                 return -1;
             if (test->on_test_finish)
                 test->on_test_finish(test);
-            test->reporter_callback(test);
             break;
         case IPERF_DONE:
             break;
@@ -412,15 +429,6 @@ cleanup_server(struct iperf_test *test)
 }
 
 
-static jmp_buf sigend_jmp_buf;
-
-static void
-sigend_handler(int sig)
-{
-    longjmp(sigend_jmp_buf, 1);
-}
-
-
 int
 iperf_run_server(struct iperf_test *test)
 {
@@ -430,13 +438,8 @@ iperf_run_server(struct iperf_test *test)
     struct timeval now;
     struct timeval* timeout;
 
-    /* Termination signals. */
-    iperf_catch_sigend(sigend_handler);
-    if (setjmp(sigend_jmp_buf))
-	iperf_got_sigend(test);
-
     if (test->affinity != -1) 
-	if (iperf_setaffinity(test->affinity) != 0)
+	if (iperf_setaffinity(test, test->affinity) != 0)
 	    return -1;
 
     if (test->json_output)
@@ -449,8 +452,8 @@ iperf_run_server(struct iperf_test *test)
     } else if (test->verbose) {
 	iprintf(test, "%s\n", version);
 	iprintf(test, "%s", "");
-	fflush(stdout);
-	system("uname -a");
+	iprintf(test, "%s\n", get_system_info());
+	iflush(test);
     }
 
     // Open socket and listen
@@ -516,8 +519,14 @@ iperf_run_server(struct iperf_test *test)
 			    FD_SET(s, &test->read_set);
 			if (s > test->max_fd) test->max_fd = s;
 
-			// If the protocol isn't UDP, set nonblocking sockets
-			if (test->protocol->id != Pudp) {
+			/* 
+			 * If the protocol isn't UDP, or even if it is but
+			 * we're the receiver, set nonblocking sockets.
+			 * We need this to allow a server receiver to
+			 * maintain interactivity with the control channel.
+			 */
+			if (test->protocol->id != Pudp ||
+			    !test->sender) {
 			    setnonblocking(s, 1);
 			}
 
@@ -607,8 +616,10 @@ iperf_run_server(struct iperf_test *test)
 	    return -1;
     } 
 
+    iflush(test);
+
     if (test->server_affinity != -1) 
-	if (iperf_clearaffinity() != 0)
+	if (iperf_clearaffinity(test) != 0)
 	    return -1;
 
     return 0;

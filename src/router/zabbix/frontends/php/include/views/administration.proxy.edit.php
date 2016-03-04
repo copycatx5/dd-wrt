@@ -1,7 +1,7 @@
 <?php
 /*
 ** Zabbix
-** Copyright (C) 2001-2013 Zabbix SIA
+** Copyright (C) 2001-2015 Zabbix SIA
 **
 ** This program is free software; you can redistribute it and/or modify
 ** it under the terms of the GNU General Public License as published by
@@ -17,8 +17,8 @@
 ** along with this program; if not, write to the Free Software
 ** Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 **/
-?>
-<?php
+
+
 $proxyWidget = new CWidget();
 $proxyWidget->addPageHeader(_('CONFIGURATION OF PROXIES'));
 
@@ -33,7 +33,9 @@ if (!empty($this->data['proxyid'])) {
 
 // create form list
 $proxyFormList = new CFormList('proxyFormList');
-$proxyFormList->addRow(_('Proxy name'), new CTextBox('host', $this->data['name'], ZBX_TEXTBOX_STANDARD_SIZE, 'no', 64));
+$nameTextBox = new CTextBox('host', $this->data['name'], ZBX_TEXTBOX_STANDARD_SIZE, 'no', 64);
+$nameTextBox->attr('autofocus', 'autofocus');
+$proxyFormList->addRow(_('Proxy name'), $nameTextBox);
 
 // append status to form list
 $statusBox = new CComboBox('status', $this->data['status'], 'submit()');
@@ -43,11 +45,11 @@ $proxyFormList->addRow(_('Proxy mode'), $statusBox);
 
 if ($this->data['status'] == HOST_STATUS_PROXY_PASSIVE) {
 	if (isset($this->data['interface']['interfaceid'])) {
-		$proxyForm->addVar('interfaces[0][interfaceid]', $this->data['interface']['interfaceid']);
-		$proxyForm->addVar('interfaces[0][hostid]', $this->data['interface']['hostid']);
+		$proxyForm->addVar('interface[interfaceid]', $this->data['interface']['interfaceid']);
+		$proxyForm->addVar('interface[hostid]', $this->data['interface']['hostid']);
 	}
 
-	$interfaceTable = new CTable(_('No interfaces defined.'), 'formElementTable');
+	$interfaceTable = new CTable(null, 'formElementTable');
 	$interfaceTable->addRow(array(
 		_('IP address'),
 		_('DNS name'),
@@ -55,16 +57,16 @@ if ($this->data['status'] == HOST_STATUS_PROXY_PASSIVE) {
 		_('Port')
 	));
 
-	$connectByComboBox = new CRadioButtonList('interfaces[0][useip]', $this->data['interface']['useip']);
+	$connectByComboBox = new CRadioButtonList('interface[useip]', $this->data['interface']['useip']);
 	$connectByComboBox->addValue(_('IP'), 1);
 	$connectByComboBox->addValue(_('DNS'), 0);
 	$connectByComboBox->useJQueryStyle();
 
 	$interfaceTable->addRow(array(
-		new CTextBox('interfaces[0][ip]', $this->data['interface']['ip'], ZBX_TEXTBOX_SMALL_SIZE, 'no', 39),
-		new CTextBox('interfaces[0][dns]', $this->data['interface']['dns'], ZBX_TEXTBOX_SMALL_SIZE, 'no', 64),
+		new CTextBox('interface[ip]', $this->data['interface']['ip'], ZBX_TEXTBOX_SMALL_SIZE, 'no', 64),
+		new CTextBox('interface[dns]', $this->data['interface']['dns'], ZBX_TEXTBOX_SMALL_SIZE, 'no', 64),
 		$connectByComboBox,
-		new CTextBox('interfaces[0][port]', $this->data['interface']['port'], 18, 'no', 64)
+		new CTextBox('interface[port]', $this->data['interface']['port'], 18, 'no', 64)
 	));
 	$proxyFormList->addRow(_('Interface'), new CDiv($interfaceTable, 'objectgroup inlineblock border_dotted ui-corner-all'));
 }
@@ -72,12 +74,16 @@ if ($this->data['status'] == HOST_STATUS_PROXY_PASSIVE) {
 // append hosts to form list
 $hostsTweenBox = new CTweenBox($proxyForm, 'hosts', $this->data['hosts']);
 foreach ($this->data['dbHosts'] as $host) {
-	$hostsTweenBox->addItem(
-		$host['hostid'],
-		$host['name'],
-		null,
-		empty($host['proxy_hostid']) || (!empty($this->data['proxyid']) && bccomp($host['proxy_hostid'], $this->data['proxyid']) == 0)
-	);
+	// show only normal hosts, and discovered hosts monitored by the current proxy
+	// for new proxies display only normal hosts
+	if (($this->data['proxyid'] && idcmp($this->data['proxyid'], $host['proxy_hostid'])) || $host['flags'] == ZBX_FLAG_DISCOVERY_NORMAL) {
+		$hostsTweenBox->addItem(
+			$host['hostid'],
+			$host['name'],
+			null,
+			empty($host['proxy_hostid']) || (!empty($this->data['proxyid']) && bccomp($host['proxy_hostid'], $this->data['proxyid']) == 0 && $host['flags'] == ZBX_FLAG_DISCOVERY_NORMAL)
+		);
+	}
 }
 $proxyFormList->addRow(_('Hosts'), $hostsTweenBox->get(_('Proxy hosts'), _('Other hosts')));
 
@@ -100,11 +106,11 @@ if (!empty($this->data['proxyid'])) {
 else {
 	$proxyForm->addItem(makeFormFooter(
 		new CSubmit('save', _('Save')),
-		array(new CButtonCancel())
+		new CButtonCancel()
 	));
 }
 
 // append form to widget
 $proxyWidget->addItem($proxyForm);
+
 return $proxyWidget;
-?>

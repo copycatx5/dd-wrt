@@ -1,6 +1,6 @@
 /*
 ** Zabbix
-** Copyright (C) 2001-2013 Zabbix SIA
+** Copyright (C) 2001-2015 Zabbix SIA
 **
 ** This program is free software; you can redistribute it and/or modify
 ** it under the terms of the GNU General Public License as published by
@@ -19,10 +19,41 @@
 
 #include "common.h"
 #include "log.h"
+#include "setproctitle.h"
 
 #ifdef _WINDOWS
 char	ZABBIX_SERVICE_NAME[ZBX_SERVICE_NAME_LEN] = APPLICATION_NAME;
 char	ZABBIX_EVENT_SOURCE[ZBX_SERVICE_NAME_LEN] = APPLICATION_NAME;
+
+int	__zbx_stat(const char *path, zbx_stat_t *buf)
+{
+	int	ret, fd;
+	wchar_t	*wpath;
+
+	wpath = zbx_utf8_to_unicode(path);
+
+	if (-1 == (ret = _wstat64(wpath, buf)))
+		goto out;
+
+	if (0 != S_ISDIR(buf->st_mode) || 0 != buf->st_size)
+		goto out;
+
+	/* In the case of symlinks _wstat64 returns zero file size.   */
+	/* Try to work around it by opening the file and using fstat. */
+
+	ret = -1;
+
+	if (-1 != (fd = _wopen(wpath, O_RDONLY)))
+	{
+		ret = _fstat64(fd, buf);
+		_close(fd);
+	}
+out:
+	zbx_free(wpath);
+
+	return ret;
+}
+
 #endif
 
 /******************************************************************************
@@ -49,22 +80,6 @@ const char	*get_program_name(const char *path)
 	}
 
 	return filename;
-}
-
-/******************************************************************************
- *                                                                            *
- * Function: get_nodeid_by_id                                                 *
- *                                                                            *
- * Purpose: Get Node ID by resource ID                                        *
- *                                                                            *
- * Return value: Node ID                                                      *
- *                                                                            *
- * Author: Alexei Vladishev                                                   *
- *                                                                            *
- ******************************************************************************/
-int	get_nodeid_by_id(zbx_uint64_t id)
-{
-	return (int)(id / __UINT64_C(100000000000000)) % 1000;
 }
 
 /******************************************************************************
@@ -177,7 +192,7 @@ void	zbx_timespec(zbx_timespec_t *ts)
  *           January 1, 1970, coordinated universal time (UTC).               *
  *                                                                            *
  ******************************************************************************/
-double	zbx_time()
+double	zbx_time(void)
 {
 	zbx_timespec_t	ts;
 
@@ -197,7 +212,7 @@ double	zbx_time()
  * Author: Eugene Grigorjev                                                   *
  *                                                                            *
  ******************************************************************************/
-double	zbx_current_time()
+double	zbx_current_time(void)
 {
 	return zbx_time() + ZBX_JAN_1970_IN_SEC;
 }
@@ -224,8 +239,6 @@ void    *zbx_calloc2(const char *filename, int line, void *old, size_t nmemb, si
 		zabbix_log(LOG_LEVEL_CRIT, "[file:%s,line:%d] zbx_calloc: allocating already allocated memory. "
 				"Please report this to Zabbix developers.",
 				filename, line);
-		/* exit if defined DEBUG, ignore otherwise */
-		zbx_dbg_assert(0);
 	}
 
 	for (
@@ -265,8 +278,6 @@ void    *zbx_malloc2(const char *filename, int line, void *old, size_t size)
 		zabbix_log(LOG_LEVEL_CRIT, "[file:%s,line:%d] zbx_malloc: allocating already allocated memory. "
 				"Please report this to Zabbix developers.",
 				filename, line);
-		/* exit if defined DEBUG, ignore otherwise */
-		zbx_dbg_assert(0);
 	}
 
 	for (
@@ -346,7 +357,7 @@ char    *zbx_strdup2(const char *filename, int line, char *old, const char *str)
  ******************************************************************************/
 void	__zbx_zbx_setproctitle(const char *fmt, ...)
 {
-#ifdef HAVE_FUNCTION_SETPROCTITLE
+#if defined(HAVE_FUNCTION_SETPROCTITLE) || defined(PS_OVERWRITE_ARGV) || defined(PS_PSTAT_ARGV)
 	char	title[MAX_STRING_LEN];
 	va_list	args;
 
@@ -354,7 +365,13 @@ void	__zbx_zbx_setproctitle(const char *fmt, ...)
 	zbx_vsnprintf(title, sizeof(title), fmt, args);
 	va_end(args);
 
+	zabbix_log(LOG_LEVEL_DEBUG, "%s", title);
+#endif
+
+#if defined(HAVE_FUNCTION_SETPROCTITLE)
 	setproctitle(title);
+#elif defined(PS_OVERWRITE_ARGV) || defined(PS_PSTAT_ARGV)
+	setproctitle_set_status(title);
 #endif
 }
 
@@ -455,7 +472,7 @@ static int	get_current_delay(int delay, const char *flex_intervals, time_t now)
 {
 	const char	*s, *delim;
 	char		flex_period[30];
-	int		flex_delay, current_delay = SEC_PER_YEAR;
+	int		flex_delay, current_delay = -1;
 
 	if (NULL == flex_intervals || '\0' == *flex_intervals)
 		return delay;
@@ -470,8 +487,11 @@ static int	get_current_delay(int delay, const char *flex_intervals, time_t now)
 		{
 			zabbix_log(LOG_LEVEL_DEBUG, "%d sec at %s", flex_delay, flex_period);
 
-			if (flex_delay < current_delay && SUCCEED == check_time_period(flex_period, now))
+			if ((-1 == current_delay || flex_delay < current_delay) &&
+					SUCCEED == check_time_period(flex_period, now))
+			{
 				current_delay = flex_delay;
+			}
 		}
 		else
 			zabbix_log(LOG_LEVEL_ERR, "wrong delay period format [%s]", s);
@@ -480,10 +500,10 @@ static int	get_current_delay(int delay, const char *flex_intervals, time_t now)
 			break;
 	}
 
-	if (SEC_PER_YEAR == current_delay)
+	if (-1 == current_delay)
 		return delay;
 
-	return current_delay == 0 ? SEC_PER_YEAR : current_delay;
+	return current_delay;
 }
 
 /******************************************************************************
@@ -604,68 +624,73 @@ static int	get_next_delay_interval(const char *flex_intervals, time_t now, time_
  *                                                                            *
  * Purpose: calculate nextcheck timestamp for item                            *
  *                                                                            *
- * Parameters: delay - [IN] default delay value, can be overridden            *
+ * Parameters: seed      - [IN] the seed value applied to delay to spread     *
+ *                              item checks over the delay period             *
+ *             item_type - [IN] the item type                                 *
+ *             delay     - [IN] default delay value, can be overridden        *
  *             flex_intervals - [IN] descriptions of flexible intervals       *
  *                                   in the form [dd/d1-d2,hh:mm-hh:mm;]      *
- *             now - current timestamp                                        *
+ *             now       - [IN] current timestamp                             *
  *                                                                            *
  * Return value: nextcheck value                                              *
  *                                                                            *
  * Author: Alexei Vladishev, Aleksandrs Saveljevs                             *
  *                                                                            *
  * Comments: if item check is forbidden with delay=0 (default and flexible),  *
- *           a timestamp approximately one year in the future is returned     *
+ *           a timestamp very far in the future is returned                   *
  *                                                                            *
  *           Old algorithm: now+delay                                         *
  *           New one: preserve period, if delay==5, nextcheck = 0,5,10,15,... *
  *           !!! Don't forget to sync code with PHP !!!                       *
  *                                                                            *
  ******************************************************************************/
-int	calculate_item_nextcheck(zbx_uint64_t interfaceid, zbx_uint64_t itemid, int item_type,
-		int delay, const char *flex_intervals, time_t now, int *effective_delay)
+int	calculate_item_nextcheck(zbx_uint64_t seed, int item_type, int delay, const char *flex_intervals, time_t now)
 {
 	int	nextcheck = 0;
-
-	if (0 == delay)
-		delay = SEC_PER_YEAR;
 
 	/* special processing of active items to see better view in queue */
 	if (ITEM_TYPE_ZABBIX_ACTIVE == item_type)
 	{
-		nextcheck = (int)now + delay;
+		if (0 != delay)
+			nextcheck = (int)now + delay;
+		else
+			nextcheck = ZBX_JAN_2038;
 	}
 	else
 	{
-		int		current_delay = SEC_PER_YEAR, try = 0;
-		time_t		next_interval, t, tmax;
-		zbx_uint64_t	shift;
+		int	current_delay = 0, try = 0;
+		time_t	next_interval, t, tmax;
 
 		/* Try to find the nearest 'nextcheck' value with condition */
-		/* 'now' < 'nextcheck' < 'now' + SEC_PER_YEAR */
+		/* 'now' < 'nextcheck' < 'now' + SEC_PER_YEAR. If it is not */
+		/* possible to check the item within a year, fail. */
 
 		t = now;
 		tmax = now + SEC_PER_YEAR;
-
-		shift = (ITEM_TYPE_JMX == item_type ? interfaceid : itemid);
 
 		while (t < tmax)
 		{
 			/* calculate 'nextcheck' value for the current interval */
 			current_delay = get_current_delay(delay, flex_intervals, t);
 
-			nextcheck = current_delay * (int)(t / (time_t)current_delay) +
-					(int)(shift % (zbx_uint64_t)current_delay);
-
-			if (0 == try)
+			if (0 != current_delay)
 			{
-				while (nextcheck <= t)
-					nextcheck += current_delay;
+				nextcheck = current_delay * (int)(t / (time_t)current_delay) +
+						(int)(seed % (zbx_uint64_t)current_delay);
+
+				if (0 == try)
+				{
+					while (nextcheck <= t)
+						nextcheck += current_delay;
+				}
+				else
+				{
+					while (nextcheck < t)
+						nextcheck += current_delay;
+				}
 			}
 			else
-			{
-				while (nextcheck < t)
-					nextcheck += current_delay;
-			}
+				nextcheck = ZBX_JAN_2038;
 
 			/* 'nextcheck' < end of the current interval ? */
 			/* the end of the current interval is the beginning of the next interval - 1 */
@@ -679,11 +704,7 @@ int	calculate_item_nextcheck(zbx_uint64_t interfaceid, zbx_uint64_t itemid, int 
 			else
 				break;	/* nextcheck is within the current interval */
 		}
-		delay = current_delay;
 	}
-
-	if (NULL != effective_delay)
-		*effective_delay = delay;
 
 	return nextcheck;
 }
@@ -854,67 +875,67 @@ int	is_ip(const char *ip)
 
 /******************************************************************************
  *                                                                            *
- * Function: expand_ipv6                                                      *
+ * Function: ip6_str2dig                                                      *
  *                                                                            *
- * Purpose: convert short ipv6 addresses to expanded type                     *
+ * Purpose: convert short ipv6 addresses to the digital type                  *
  *                                                                            *
- * Parameters: ip - IPv6 IPs [12fc::2]                                        *
- *             buf - result value [12fc:0000:0000:0000:0000:0000:0000:0002]   *
+ * Parameters: ip     - [IN] IPv6 IP address [12fc::2]                        *
+ *             groups - [OUT] 8 groups of 16 bit each                         *
+ *                      2001:0db8:0000:0000:0000:ff00:0042:8329               *
  *                                                                            *
  * Return value: FAIL - invalid IP address, SUCCEED - conversion OK           *
  *                                                                            *
- * Author: Alexander Vladishev                                                *
- *                                                                            *
  ******************************************************************************/
-int	expand_ipv6(const char *ip, char *str, size_t str_len)
+int	ip6_str2dig(const char *ip, unsigned short *groups)
 {
-	unsigned int	i[8];	/* x:x:x:x:x:x:x:x */
-	char		buf[5], *ptr;
-	int		c, dc, pos = 0, len;
-	size_t		ip_len, j;
+	const char	*ptr;
+	char		buf[5];
+	int		c = 0, dc, pos = 0;
+	size_t		ip_len, j, len;
 
-	c = 0;	/* colons count */
-	for (ptr = strchr(ip, ':'); ptr != NULL; ptr = strchr(ptr + 1, ':'))
+	for (ptr = strchr(ip, ':'); NULL != ptr; ptr = strchr(ptr + 1, ':'))
 		c++;
 
 	if (2 > c || c > 7)
 		return FAIL;
 
 	ip_len = strlen(ip);
-	if ((ip[0] == ':' && ip[1] != ':') || (ip[ip_len - 1] == ':' && ip[ip_len - 2] != ':'))
+
+	if ((':' == ip[0] && ':' != ip[1]) || (':' == ip[ip_len - 1] && ':' != ip[ip_len - 2]))
 		return FAIL;
 
-	memset(i, 0x00, sizeof(i));
+	memset(groups, 0, sizeof(unsigned short) * 8);
 
-	dc  = 0; /* double colon flag */
+	dc = 0;	/* double colon flag */
 	len = 0;
+
 	for (j = 0; j < ip_len; j++)
 	{
 		if (0 != isxdigit(ip[j]))
 		{
 			if (len > 3)
 				return FAIL;
-			buf[len ++] = ip[j];
+			buf[len++] = ip[j];
 		}
-		else if (ip[j] != ':')
+		else if (':' != ip[j])
 			return FAIL;
 
-		if (ip[j] == ':' || ip[j + 1] == '\0')
+		if (':' == ip[j] || '\0' == ip[j + 1])
 		{
-			if (len)
+			if (0 != len)
 			{
-				buf[len] = 0x00;
-				sscanf(buf, "%x", &i[pos]);
-				pos ++;
+				buf[len] = '\0';
+				sscanf(buf, "%hx", &groups[pos]);
+				pos++;
 				len = 0;
 			}
 
-			if (ip[j + 1] == ':')
+			if (':' == ip[j + 1])
 			{
-				if (dc == 0)
+				if (0 == dc)
 				{
 					dc = 1;
-					pos = ( 8 - c ) + pos + (j == 0 ? 1 : 0);
+					pos += (8 - c) + (0 == j);
 				}
 				else
 					return FAIL;
@@ -922,39 +943,31 @@ int	expand_ipv6(const char *ip, char *str, size_t str_len)
 		}
 	}
 
-	zbx_snprintf(str, str_len, "%04x:%04x:%04x:%04x:%04x:%04x:%04x:%04x", i[0], i[1], i[2], i[3], i[4], i[5], i[6], i[7]);
-
 	return SUCCEED;
 }
 
 #if defined(HAVE_IPV6)
 /******************************************************************************
  *                                                                            *
- * Function: collapse_ipv6                                                    *
+ * Function: ip6_dig2str                                                      *
  *                                                                            *
- * Purpose: convert array to IPv6 collapsed type                              *
+ * Purpose: convert ipv6 addresses to a string                                *
  *                                                                            *
- * Parameters: ip - [IN] full IPv6 address [12fc:0:0:0:0:0:0:2]               *
- *                  [OUT] short IPv6 address [12fc::0]                        *
+ * Parameters: groups - [IN] 8 groups of 16 bit each                          *
+ *             ip     - [OUT] short IPv6 address [12fc::0]                    *
  *             ip_len - [IN] ip buffer len                                    *
  *                                                                            *
  * Return value: pointer to result buffer                                     *
  *                                                                            *
- * Author: Alexander Vladishev                                                *
- *                                                                            *
  ******************************************************************************/
-char	*collapse_ipv6(char *str, size_t str_len)
+void	ip6_dig2str(unsigned short *groups, char *ip, size_t ip_len)
 {
 	size_t		offset = 0;
 	int		i, c = 0, m = 0, idx = -1, idx2 = -1;
-	unsigned int	j[8];
-
-	if (8 != sscanf(str, "%x:%x:%x:%x:%x:%x:%x:%x", &j[0], &j[1], &j[2], &j[3], &j[4], &j[5], &j[6], &j[7]))
-		return str;
 
 	for (i = 0; i <= 8; i++)
 	{
-		if (i < 8 && j[i] == 0)
+		if (i < 8 && groups[i] == 0)
 		{
 			if (idx2 == -1)
 				idx2 = i;
@@ -974,23 +987,21 @@ char	*collapse_ipv6(char *str, size_t str_len)
 
 	for (i = 0; i < 8; i++)
 	{
-		if (j[i] != 0 || idx == -1 || i < idx)
+		if (groups[i] != 0 || idx == -1 || i < idx)
 		{
-			offset += zbx_snprintf(str + offset, str_len - offset, "%x", j[i]);
+			offset += zbx_snprintf(ip + offset, ip_len - offset, "%hx", groups[i]);
 			if (i > idx)
 				idx = -1;
 			if (i < 7)
-				offset += zbx_snprintf(str + offset, str_len - offset, ":");
+				offset += zbx_snprintf(ip + offset, ip_len - offset, ":");
 		}
 		else if (idx == i)
 		{
-			offset += zbx_snprintf(str + offset, str_len - offset, ":");
+			offset += zbx_snprintf(ip + offset, ip_len - offset, ":");
 			if (idx == 0)
-				offset += zbx_snprintf(str + offset, str_len - offset, ":");
+				offset += zbx_snprintf(ip + offset, ip_len - offset, ":");
 		}
 	}
-
-	return str;
 }
 
 /******************************************************************************
@@ -999,196 +1010,246 @@ char	*collapse_ipv6(char *str, size_t str_len)
  *                                                                            *
  * Purpose: check if ip matches range of ip addresses                         *
  *                                                                            *
- * Parameters: list -  IPs [12fc::2-55,::45]                                  *
+ * Parameters: list - [IN] comma-separated list of ip ranges                  *
+ *                    12fc::2-55,::45,12fc::ff00/120                          *
+ *             ip   - [IN] IPv6 ip address [12fc::2]                          *
  *                                                                            *
  * Return value: FAIL - out of range, SUCCEED - within the range              *
  *                                                                            *
- * Author: Alexei Vladishev                                                   *
- *                                                                            *
  ******************************************************************************/
-static int	ip6_in_list(char *list, char *ip)
+static int	ip6_in_list(char *list, const char *ip)
 {
-	char	*start, *comma = NULL, *dash = NULL, buffer[MAX_STRING_LEN];
-	int	i[8], j[9], ret = FAIL;
+	unsigned short	i[8], j[9], mask;
+	char		*start, *comma = NULL, *slash = NULL, *dash = NULL;
+	int		ret = FAIL;
 
-	zabbix_log(LOG_LEVEL_DEBUG, "In ip6_in_list(list:%s,ip:%s)", list, ip);
+	if (FAIL == ip6_str2dig(ip, i))
+		return FAIL;
 
-	if (FAIL == expand_ipv6(ip, buffer, sizeof(buffer)))
+	for (start = list; '\0' != *start;)
 	{
-		goto out;
-	}
-
-	if (sscanf(buffer, "%x:%x:%x:%x:%x:%x:%x:%x", &i[0], &i[1], &i[2], &i[3], &i[4], &i[5], &i[6], &i[7]) != 8)
-	{
-		goto out;
-	}
-
-	for (start = list; start[0] != '\0';)
-	{
-
 		if (NULL != (comma = strchr(start, ',')))
-		{
-			comma[0] = '\0';
-		}
+			*comma = '\0';
 
 		if (NULL != (dash = strchr(start, '-')))
+			*dash = '\0';
+		else if (NULL != (slash = strchr(start, '/')))
+			*slash = '\0';
+
+		if (FAIL == ip6_str2dig(start, j))
+			goto next;
+
+		if (i[0] != j[0] || i[1] != j[1] || i[2] != j[2] || i[3] != j[3] ||
+				i[4] != j[4] || i[5] != j[5] || i[6] != j[6])
 		{
-			dash[0] = '\0';
-			if (sscanf(dash + 1, "%x", &j[8]) != 1)
-			{
+			goto next;
+		}
+
+		if (NULL != dash)
+		{
+			if (1 != sscanf(dash + 1, "%hx", &j[8]))
 				goto next;
-			}
 		}
-
-		if (FAIL == expand_ipv6(start, buffer, sizeof(buffer)))
+		else if (NULL != slash)
 		{
-			goto next;
+			if (1 != sscanf(slash + 1, "%hu", &j[8]) || 112 > j[8] || j[8] > 128)
+				goto next;
+
+			mask = 0xffff << (128 - j[8]);
+			j[8] = j[7] | ~mask;
+			j[7] = j[7] & mask;
 		}
-
-		if (sscanf(buffer, "%x:%x:%x:%x:%x:%x:%x:%x", &j[0], &j[1], &j[2], &j[3], &j[4], &j[5], &j[6], &j[7]) != 8)
-		{
-			goto next;
-		}
-
-		if (dash == NULL)
-		{
+		else
 			j[8] = j[7];
-		}
 
-		if (i[0] == j[0] && i[1] == j[1] && i[2] == j[2] && i[3] == j[3] &&
-			i[4] == j[4] && i[5] == j[5] && i[6] == j[6] &&
-			i[7] >= j[7] && i[7] <= j[8])
+		if (i[7] >= j[7] && i[7] <= j[8])
 		{
 			ret = SUCCEED;
 			break;
 		}
 next:
-		if (dash != NULL)
+		if (NULL != dash)
 		{
-			dash[0] = '-';
+			*dash = '-';
 			dash = NULL;
+		}
+		else if (NULL != slash)
+		{
+			*slash = '/';
+			slash = NULL;
 		}
 
 		if (comma != NULL)
 		{
-			comma[0] = ',';
+			*comma = ',';
 			start = comma + 1;
 			comma = NULL;
 		}
 		else
-		{
 			break;
-		}
 	}
-out:
+
 	if (dash != NULL)
-	{
-		dash[0] = '-';
-	}
+		*dash = '-';
+	else if (slash != NULL)
+		*slash = '/';
 
 	if (comma != NULL)
-	{
-		comma[0] = ',';
-	}
-
-	zabbix_log(LOG_LEVEL_DEBUG, "End of ip6_in_list():%s",
-			zbx_result_string(ret));
+		*comma = ',';
 
 	return ret;
 }
-#endif /*HAVE_IPV6*/
+#endif	/* HAVE_IPV6 */
+/******************************************************************************
+ *                                                                            *
+ * Function: ip4_str2dig                                                      *
+ *                                                                            *
+ * Purpose: convert short ipv4 addresses to the digital type                  *
+ *                                                                            *
+ * Parameters: ip     - [IN] IPv4 IP address [192.168.0.1]                    *
+ *             ip_dig - [OUT] 4-byte unsigned integer                         *
+ *                                                                            *
+ * Return value: FAIL - invalid IP address, SUCCEED - conversion OK           *
+ *                                                                            *
+ ******************************************************************************/
+int	ip4_str2dig(const char *ip, unsigned int *ip_dig)
+{
+	unsigned short  i[4];
+
+	if (4 != sscanf(ip, "%hu.%hu.%hu.%hu", &i[0], &i[1], &i[2], &i[3]))
+		return FAIL;
+
+	if (255 < i[0] || 255 < i[1] || 255 < i[2] || 255 < i[3])
+		return FAIL;
+
+	*ip_dig = (i[0] << 24) + (i[1] << 16) + (i[2] << 8) + i[3];
+
+	return SUCCEED;
+}
+
+/******************************************************************************
+ *                                                                            *
+ * Function: ip4_in_list                                                      *
+ *                                                                            *
+ * Purpose: check if ip matches range of ip addresses                         *
+ *                                                                            *
+ * Parameters: list - [IN] comma-separated list of ip ranges                  *
+ *                    192.168.0.1-64,192.168.0.128,10.10.0.0/24               *
+ *             ip   - [IN] IPv4 ip address [192.168.0.1]                      *
+ *                                                                            *
+ * Return value: FAIL - out of range, SUCCEED - within the range              *
+ *                                                                            *
+ ******************************************************************************/
+static int	ip4_in_list(char *list, const char *ip)
+{
+	unsigned short	i;
+	unsigned int	mask, ip_dig[2], first, last;
+	char		*start = NULL, *comma = NULL, *slash = NULL, *dash = NULL;
+	int		ret = FAIL;
+
+	if (SUCCEED != ip4_str2dig(ip, &ip_dig[0]))
+		return FAIL;
+
+	for (start = list; '\0' != *start;)
+	{
+		if (NULL != (comma = strchr(start, ',')))
+			*comma = '\0';
+
+		if (NULL != (dash = strchr(start, '-')))
+			*dash = '\0';
+		else if (NULL != (slash = strchr(start, '/')))
+			*slash = '\0';
+
+		if (SUCCEED != ip4_str2dig(start, &ip_dig[1]))
+			goto next;
+
+		if (NULL != dash)
+		{
+			if (1 != sscanf(dash + 1, "%hu", &i) || 255 < i)
+				goto next;
+
+			first = ip_dig[1];
+			last = (ip_dig[1] & 0xffffff00) + i;
+		}
+		else if (NULL != slash)
+		{
+			if (1 != sscanf(slash + 1, "%hu", &i) || 16 > i || i > 30)
+				goto next;
+
+			mask = 0xffffffff << (32 - i);
+			first = (ip_dig[1] & mask) + 1;
+			last = (ip_dig[1] | ~mask) - 1;
+		}
+		else
+		{
+			first = ip_dig[1];
+			last = ip_dig[1];
+		}
+
+		if (first <= ip_dig[0] && ip_dig[0] <= last)
+		{
+			ret = SUCCEED;
+			break;
+		}
+next:
+		if (NULL != dash)
+		{
+			*dash = '-';
+			dash = NULL;
+		}
+		else if (NULL != slash)
+		{
+			*slash = '/';
+			slash = NULL;
+		}
+
+		if (NULL != comma)
+		{
+			*comma = ',';
+			start = comma + 1;
+			comma = NULL;
+		}
+		else
+			break;
+	}
+
+	if (NULL != dash)
+		*dash = '-';
+	else if (NULL != slash)
+		*slash = '/';
+
+	if (NULL != comma)
+		*comma = ',';
+
+	return ret;
+}
 /******************************************************************************
  *                                                                            *
  * Function: ip_in_list                                                       *
  *                                                                            *
  * Purpose: check if ip matches range of ip addresses                         *
  *                                                                            *
- * Parameters: list -  IPs [192.168.1.1-244,192.168.1.250]                    *
+ * Parameters: ip   - [IN] ip address                                         *
+ *             list - [IN] comma-separated list of ip ranges                  *
+ *                    192.168.0.1-64,192.168.0.128,10.10.0.0/24,12fc:21       *
  *                                                                            *
  * Return value: FAIL - out of range, SUCCEED - within the range              *
  *                                                                            *
- * Author: Alexei Vladishev                                                   *
- *                                                                            *
  ******************************************************************************/
-int	ip_in_list(char *list, char *ip)
+int	ip_in_list(char *list, const char *ip)
 {
-	int	i[4], j[5];
-	int	ret = FAIL;
-	char	*start = NULL, *comma = NULL, *dash = NULL;
+	const char	*__function_name = "ip_in_list";
 
-	zabbix_log( LOG_LEVEL_DEBUG, "In ip_in_list(list:%s,ip:%s)", list, ip);
+	int		ret = FAIL;
 
-	if (sscanf(ip, "%d.%d.%d.%d", &i[0], &i[1], &i[2], &i[3]) != 4)
-	{
+	zabbix_log(LOG_LEVEL_DEBUG, "In %s() list:'%s' ip:'%s'", __function_name, list, ip);
+
+	ret = ip4_in_list(list, ip);
 #if defined(HAVE_IPV6)
+	if (SUCCEED != ret)
 		ret = ip6_in_list(list, ip);
-#endif /*HAVE_IPV6*/
-		goto out;
-	}
-
-	for (start = list; start[0] != '\0';)
-	{
-		if (NULL != (comma = strchr(start, ',')))
-		{
-			comma[0] = '\0';
-		}
-
-		if (NULL != (dash = strchr(start, '-')))
-		{
-			dash[0] = '\0';
-			if (sscanf(dash + 1, "%d", &j[4]) != 1)
-			{
-				goto next;
-			}
-		}
-
-		if (sscanf(start, "%d.%d.%d.%d", &j[0], &j[1], &j[2], &j[3]) != 4)
-		{
-			goto next;
-		}
-
-		if (dash == NULL)
-		{
-			j[4] = j[3];
-		}
-
-		if (i[0] == j[0] && i[1] == j[1] && i[2] == j[2] && i[3] >= j[3] && i[3] <= j[4])
-		{
-			ret = SUCCEED;
-			break;
-		}
-next:
-		if (dash != NULL)
-		{
-			dash[0] = '-';
-			dash = NULL;
-		}
-
-		if (comma != NULL)
-		{
-			comma[0] = ',';
-			start = comma + 1;
-			comma = NULL;
-		}
-		else
-		{
-			break;
-		}
-	}
-
-out:
-	if (dash != NULL)
-	{
-		dash[0] = '-';
-	}
-
-	if (comma != NULL)
-	{
-		comma[0] = ',';
-	}
-
-	zabbix_log(LOG_LEVEL_DEBUG, "End of ip_in_list():%s",
-			zbx_result_string(ret));
+#endif
+	zabbix_log(LOG_LEVEL_DEBUG, "End of %s():%s", __function_name, zbx_result_string(ret));
 
 	return ret;
 }
@@ -1315,48 +1376,55 @@ int	is_double_suffix(const char *str)
  * Return value:  SUCCEED - the string is double                              *
  *                FAIL - otherwise                                            *
  *                                                                            *
- * Author: Alexei Vladishev                                                   *
+ * Author: Alexei Vladishev, Aleksandrs Saveljevs                             *
  *                                                                            *
  ******************************************************************************/
 int	is_double(const char *str)
 {
-	size_t	i, len;
-	char	dot = 0;
+	int	i = 0, digits = 0;
 
-	for (i = 0; ' ' == str[i] && '\0' != str[i]; i++)	/* trim left spaces */
-		;
+	while (' ' == str[i])				/* trim left spaces */
+		i++;
 
-	for (len = 0; '\0' != str[i]; i++, len++)
+	if ('-' == str[i] || '+' == str[i])		/* check leading sign */
+		i++;
+
+	while (0 != isdigit(str[i]))			/* check digits before dot */
 	{
-		/* negative number? */
-		if ('-' == str[i] && 0 == i)
-			continue;
-
-		if (0 != isdigit(str[i]))
-			continue;
-
-		if ('.' == str[i] && 0 == dot)
-		{
-			dot = 1;
-			continue;
-		}
-
-		if (' ' == str[i])	/* check right spaces */
-		{
-			for (; ' ' == str[i] && '\0' != str[i]; i++)	/* trim right spaces */
-				;
-
-			if ('\0' == str[i])
-				break;	/* SUCCEED */
-		}
-
-		return FAIL;
+		i++;
+		digits = 1;
 	}
 
-	if (0 == len || (1 == len && 0 != dot))
+	if ('.' == str[i])				/* check decimal dot */
+		i++;
+
+	while (0 != isdigit(str[i]))			/* check digits after dot */
+	{
+		i++;
+		digits = 1;
+	}
+
+	if (0 == digits)				/* 1., .1, and 1.1 are good, just . is not */
 		return FAIL;
 
-	return SUCCEED;
+	if ('e' == str[i] || 'E' == str[i])		/* check exponential part */
+	{
+		i++;
+
+		if ('-' == str[i] || '+' == str[i])	/* check exponent sign */
+			i++;
+
+		if (0 == isdigit(str[i]))		/* check exponent */
+			return FAIL;
+
+		while (0 != isdigit(str[i]))
+			i++;
+	}
+
+	while (' ' == str[i])				/* trim right spaces */
+		i++;
+
+	return '\0' == str[i] ? SUCCEED : FAIL;
 }
 
 /******************************************************************************
@@ -1433,49 +1501,6 @@ int	is_uint_suffix(const char *str, unsigned int *value)
 	return SUCCEED;
 }
 
-/******************************************************************************
- *                                                                            *
- * Function: is_uint                                                          *
- *                                                                            *
- * Purpose: check if the string is unsigned integer                           *
- *                                                                            *
- * Parameters: str - string to check                                          *
- *                                                                            *
- * Return value:  SUCCEED - the string is unsigned integer                    *
- *                FAIL - otherwise                                            *
- *                                                                            *
- * Author: Alexei Vladishev                                                   *
- *                                                                            *
- ******************************************************************************/
-int	is_uint(const char *str)
-{
-	size_t	i, len;
-
-	for (i = 0; ' ' == str[i] && '\0' != str[i]; i++)	/* trim left spaces */
-		;
-
-	for (len = 0; '\0' != str[i]; i++, len++)
-	{
-		if (0 != isdigit(str[i]))
-			continue;
-
-		if (' ' == str[i])	/* check right spaces */
-		{
-			for (; ' ' == str[i] && '\0' != str[i]; i++)	/* trim right spaces */
-				;
-
-			if ('\0' == str[i])	/* SUCCEED */
-				break;
-		}
-		return FAIL;
-	}
-
-	if (0 == len)
-		return FAIL;
-
-	return SUCCEED;
-}
-
 #if defined(_WINDOWS)
 int	_wis_uint(const wchar_t *wide_string)
 {
@@ -1530,26 +1555,32 @@ int	is_int_prefix(const char *str)
 
 /******************************************************************************
  *                                                                            *
- * Function: is_uint64_n                                                      *
+ * Function: is_uint_n_range                                                  *
  *                                                                            *
- * Purpose: check if the string is 64bit unsigned integer                     *
+ * Purpose: check if the string is unsigned integer within the specified      *
+ *          range and optionally store it into value parameter                *
  *                                                                            *
  * Parameters: str   - [IN] string to check                                   *
  *             n     - [IN] string length or ZBX_MAX_UINT64_LEN               *
- *             value - [OUT] a pointer to converted value (optional)          *
+ *             value - [OUT] a pointer to output buffer where the converted   *
+ *                     value is to be written (optional, can be NULL)         *
+ *             size  - [IN] size of the output buffer (optional)              *
+ *             min   - [IN] the minimum acceptable value                      *
+ *             max   - [IN] the maximum acceptable value                      *
  *                                                                            *
  * Return value:  SUCCEED - the string is unsigned integer                    *
- *                FAIL - the string is not a number or overflow               *
+ *                FAIL - the string is not a number or its value is outside   *
+ *                       the specified range                                  *
  *                                                                            *
- * Author: Alexander Vladishev                                                *
+ * Author: Alexander Vladishev, Andris Zeila                                  *
  *                                                                            *
  ******************************************************************************/
-int	is_uint64_n(const char *str, size_t n, zbx_uint64_t *value)
+int	is_uint_n_range(const char *str, size_t n, void *value, size_t size, zbx_uint64_t min, zbx_uint64_t max)
 {
-	const zbx_uint64_t	max_uint64 = ~(zbx_uint64_t)__UINT64_C(0);
 	zbx_uint64_t		value_uint64 = 0, c;
+	const zbx_uint64_t	max_uint64 = ~(zbx_uint64_t)__UINT64_C(0);
 
-	if ('\0' == *str || 0 == n)
+	if ('\0' == *str || 0 == n || sizeof(zbx_uint64_t) < size || (0 == size && NULL != value))
 		return FAIL;
 
 	while ('\0' != *str && 0 < n--)
@@ -1560,59 +1591,26 @@ int	is_uint64_n(const char *str, size_t n, zbx_uint64_t *value)
 		c = (zbx_uint64_t)(unsigned char)(*str - '0');
 
 		if ((max_uint64 - c) / 10 < value_uint64)
-			return FAIL;	/* overflow */
+			return FAIL;	/* maximum value exceeded */
 
 		value_uint64 = value_uint64 * 10 + c;
 
 		str++;
 	}
 
-	if (NULL != value)
-		*value = value_uint64;
-
-	return SUCCEED;
-}
-
-/******************************************************************************
- *                                                                            *
- * Function: is_ushort                                                        *
- *                                                                            *
- * Purpose: check if the string is 16bit unsigned integer                     *
- *                                                                            *
- * Parameters: str   - string to check                                        *
- *             value - a pointer to converted value (optional)                *
- *                                                                            *
- * Return value:  SUCCEED - the string is unsigned integer                    *
- *                FAIL - the string is not number or overflow                 *
- *                                                                            *
- * Author: Alexander Vladishev                                                *
- *                                                                            *
- ******************************************************************************/
-int	is_ushort(const char *str, unsigned short *value)
-{
-	const unsigned short	max_ushort = 0xffff;
-	unsigned short		value_ushort = 0, c;
-
-	if ('\0' == *str)
+	if (min > value_uint64 || value_uint64 > max)
 		return FAIL;
 
-	while ('\0' != *str)
-	{
-		if (0 == isdigit(*str))
-			return FAIL;	/* not a digit */
-
-		c = (unsigned short)(unsigned char)(*str - '0');
-
-		if ((max_ushort - c) / 10 < value_ushort)
-			return FAIL;	/* overflow */
-
-		value_ushort = value_ushort * 10 + c;
-
-		str++;
-	}
-
 	if (NULL != value)
-		*value = value_ushort;
+	{
+		/* On little endian architecture the output value will be stored starting from the first bytes */
+		/* of 'value' buffer while on big endian architecture it will be stored starting from the last */
+		/* bytes. We handle it by storing the offset in the most significant byte of short value and   */
+		/* then use the first byte as source offset.                                                   */
+		unsigned short value_offset = (unsigned short)((sizeof(zbx_uint64_t) - size) << 8);
+
+		memcpy(value, (unsigned char*)&value_uint64 + *((unsigned char*)&value_offset), size);
+	}
 
 	return SUCCEED;
 }
@@ -1813,7 +1811,7 @@ int	uint64_in_list(char *list, zbx_uint64_t value)
 		}
 		else
 		{
-			ZBX_STR2UINT64(tmp_uint64,start);
+			sscanf(start, ZBX_FS_UI64, &tmp_uint64);
 			if (tmp_uint64 == value)
 			{
 				ret = SUCCEED;
@@ -1849,11 +1847,11 @@ int	uint64_in_list(char *list, zbx_uint64_t value)
  *             num - number of elements                                       *
  *             id  - index to look for                                        *
  *                                                                            *
- * Return value: nearest index position                                       *
- *               0 - otherwise                                                *
+ * Return value: index at which it would be possible to insert the element so *
+ *               that the array is still sorted                               *
  *                                                                            *
  ******************************************************************************/
-int	get_nearestindex(void *p, size_t sz, int num, zbx_uint64_t id)
+int	get_nearestindex(const void *p, size_t sz, int num, zbx_uint64_t id)
 {
 	int		first_index, last_index, index;
 	zbx_uint64_t	element_id;
@@ -1868,7 +1866,7 @@ int	get_nearestindex(void *p, size_t sz, int num, zbx_uint64_t id)
 	{
 		index = first_index + (last_index - first_index) / 2;
 
-		if (id == (element_id = *(zbx_uint64_t *)((char *)p + index * sz)))
+		if (id == (element_id = *(const zbx_uint64_t *)((const char *)p + index * sz)))
 			return index;
 
 		if (last_index == first_index)
@@ -1946,7 +1944,7 @@ void	uint64_array_merge(zbx_uint64_t **values, int *alloc, int *num, zbx_uint64_
  * Author: Alexander Vladishev                                                *
  *                                                                            *
  ******************************************************************************/
-int	uint64_array_exists(zbx_uint64_t *values, int num, zbx_uint64_t value)
+int	uint64_array_exists(const zbx_uint64_t *values, int num, zbx_uint64_t value)
 {
 	int	index;
 
@@ -1966,7 +1964,7 @@ int	uint64_array_exists(zbx_uint64_t *values, int num, zbx_uint64_t value)
  * Author: Alexander Vladishev                                                *
  *                                                                            *
  ******************************************************************************/
-void	uint64_array_remove(zbx_uint64_t *values, int *num, zbx_uint64_t *rm_values, int rm_num)
+void	uint64_array_remove(zbx_uint64_t *values, int *num, const zbx_uint64_t *rm_values, int rm_num)
 {
 	int	rindex, index;
 
@@ -2237,21 +2235,30 @@ int	is_macro_char(char c)
  *                                                                            *
  * Function: is_time_function                                                 *
  *                                                                            *
- * Purpose:                                                                   *
- *                                                                            *
- * Parameters:                                                                *
- *                                                                            *
  * Return value:  SUCCEED - given function is time-based                      *
  *                FAIL - otherwise                                            *
  *                                                                            *
  * Author: Aleksandrs Saveljevs                                               *
  *                                                                            *
- * Comments:                                                                  *
- *                                                                            *
  ******************************************************************************/
 int	is_time_function(const char *func)
 {
 	return str_in_list("nodata,date,dayofmonth,dayofweek,time,now", func, ',');
+}
+
+/******************************************************************************
+ *                                                                            *
+ * Function: is_snmp_type                                                     *
+ *                                                                            *
+ * Return value:  SUCCEED  - the given type is one of regular SNMP types      *
+ *                FAIL - otherwise                                            *
+ *                                                                            *
+ * Author: Aleksandrs Saveljevs                                               *
+ *                                                                            *
+ ******************************************************************************/
+int	is_snmp_type(unsigned char type)
+{
+	return ITEM_TYPE_SNMPv1 == type || ITEM_TYPE_SNMPv2c == type || ITEM_TYPE_SNMPv3 == type ? SUCCEED : FAIL;
 }
 
 /******************************************************************************

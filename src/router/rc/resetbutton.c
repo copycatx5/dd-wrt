@@ -18,6 +18,12 @@
 #define	SES_LED_CHECK_INTERVAL	"1"	/* Wait interval seconds */
 #define RESET_WAIT		3	/* seconds */
 #define RESET_WAIT_COUNT	RESET_WAIT * 10	/* 10 times a second */
+#ifdef HAVE_ERC
+#define SES_WAIT		5	/* seconds */
+#else
+#define SES_WAIT		3	/* seconds */
+#endif
+#define SES_WAIT_COUNT	SES_WAIT	/* 10 times a second */
 #ifdef HAVE_UNFY
 #define UPGRADE_WAIT		1	/* seconds */
 #define UPGRADE_WAIT_COUNT	UPGRADE_WAIT * 10 - 5
@@ -98,77 +104,85 @@ int getbuttonstate()
 int getbuttonstate()
 {
 #if defined(HAVE_EAP3660) || defined(HAVE_EOC2610) || defined(HAVE_EOC1650) || defined(HAVE_ECB3500)
-	int ret = get_gpio(5);
-	return 1 - ret;
+	return !get_gpio(5);
 #elif defined(HAVE_WRT54G2)
-	int ret = get_gpio(7);
-	return 1 - ret;
+	return !get_gpio(7);
 #elif defined(HAVE_RTG32)
-	int ret = get_gpio(6);
-	return ret;
+	return get_gpio(6);
 #elif defined(HAVE_EOC5610)
-	int ret = get_gpio(6);
-	return 1 - ret;
+	return !get_gpio(6);
 #elif HAVE_WP54G
-	int ret = get_gpio(4);
-	return ret;
+	return get_gpio(4);
 #elif HAVE_NP28G
-	int ret = get_gpio(4);
-	return ret;
+	return get_gpio(4);
 #elif HAVE_WPE53G
-	int ret = get_gpio(6);
-	return ret;
+	return get_gpio(6);
 #elif HAVE_NP25G
-	int ret = get_gpio(4);
-	return ret;
+	return  get_gpio(4);
 #elif HAVE_OPENRISC
-	int ret = get_gpio(0);
-	return ret;
+	return get_gpio(0);
 #else
-	int ret = get_gpio(6);
-	return ret;
+	return get_gpio(6);
 #endif
 }
 #elif defined(HAVE_VENTANA)
 int getbuttonstate()
 {
-	int ret = get_gpio(240);
-	if (ret == 1)
-		return 0;
-	return 1;
+	return !get_gpio(496);
+}
+#elif defined(HAVE_E200)
+int getbuttonstate()
+{
+	return !get_gpio(0);
 }
 #elif defined(HAVE_EROUTER)
 int getbuttonstate()
 {
-	int ret = get_gpio(11);
-	if (ret == 1)
-		return 0;
-	return 1;
+	return !get_gpio(11);
 }
 #elif defined(HAVE_UNIWIP)
 int getbuttonstate()
 {
-	int ret = get_gpio(232);
-	if (ret == 1)
-		return 0;
-	return 1;
+	return !get_gpio(232);
 }
 #elif defined(HAVE_WDR4900)
 int getbuttonstate()
 {
-	int ret = get_gpio(3);
-	if (ret == 0)
-		return 0;;
-	return 1;
+	return get_gpio(3);
+}
+#elif defined(HAVE_MVEBU)
+int getbuttonstate()
+{
+	int ret;
+	if (getRouterBrand() == ROUTER_WRT_1900AC)
+		ret = get_gpio(33);
+	else
+		ret = get_gpio(29);
+	return !ret;
+}
+#elif defined(HAVE_IPQ806X)
+int getbuttonstate()
+{
+	int ret = 0;
+	if (getRouterBrand() == ROUTER_NETGEAR_R7500)
+		ret = get_gpio(54);
+	else if (getRouterBrand() == ROUTER_TRENDNET_TEW827)
+		ret = get_gpio(54);
+	else if (getRouterBrand() == ROUTER_LINKSYS_EA8500)
+		ret = get_gpio(68);
+	else
+		return 0;
+	return !ret;
+}
+#elif defined(HAVE_DAP3410)
+int getbuttonstate()
+{
+	return !get_gpio(17);
 }
 #elif defined(HAVE_UBNTM)
 int getbuttonstate()
 {
-	int ret = get_gpio(12);
-
-	if (ret == 0)
-		return 1;
-	return 0;
+	return !get_gpio(12);
 }
 #elif defined(HAVE_RB2011)
 int getbuttonstate()
@@ -178,16 +192,24 @@ int getbuttonstate()
 #elif defined(HAVE_WDR4300)
 int getbuttonstate()
 {
-	int ret = get_gpio(16);
-
-	if (ret == 0)
-		return 1;
-	return 0;
+	return !get_gpio(16);
 }
 #elif defined(HAVE_WNDR3700V4)
 int getbuttonstate()
 {
-	int ret = get_gpio(21);
+	return !get_gpio(21);
+}
+#elif defined(HAVE_DIR862)
+int getbuttonstate()
+{
+	return !get_gpio(17);
+
+}
+#elif defined(HAVE_MMS344)
+int getbuttonstate()
+{
+	return 0;
+	int ret = get_gpio(12);
 
 	if (ret == 0)
 		return 1;
@@ -196,327 +218,227 @@ int getbuttonstate()
 #elif defined(HAVE_WR1043V2)
 int getbuttonstate()
 {
-	int ret = get_gpio(16);
-
-	if (ret == 0)
-		return 1;
-	return 0;
+	return !get_gpio(16);
 }
-#elif defined(HAVE_WHR450HP)
+#elif defined(HAVE_WZR450HP2)
 int getbuttonstate()
 {
-	int ret = get_gpio(17);
-
-	if (ret == 0)
-		return 1;
-	return 0;
+	return !get_gpio(17);
+}
+#elif defined(HAVE_DIR859)
+int getbuttonstate()
+{
+	return !get_gpio(2);
+}
+#elif defined(HAVE_JWAP606)
+int getbuttonstate()
+{
+	return !get_gpio(15);
 }
 #elif defined(HAVE_DIR825C1)
 int getbuttonstate()
 {
-	int ret = get_gpio(17);
-
-	if (ret == 0)
-		return 1;
-	return 0;
+	return !get_gpio(17);
 }
 #elif defined(HAVE_WASP)
 int getbuttonstate()
 {
-	int ret = get_gpio(12);
-
-	if (ret == 0)
-		return 1;
-	return 0;
+	return !get_gpio(12);
 }
 #elif defined(HAVE_CARAMBOLA)
+#ifdef HAVE_ERC
 int getbuttonstate()
 {
-	int ret = get_gpio(11);
+	return get_gpio(12);
 
-	if (ret == 0)
-		return 1;
-	return 0;
 }
+#else
+int getbuttonstate()
+{
+	return !get_gpio(11);
+}
+#endif
 #elif defined(HAVE_HORNET)
 int getbuttonstate()
 {
-	int ret = get_gpio(12);
-
-	if (ret == 0)
-		return 1;
-	return 0;
+	return !get_gpio(12);
 }
 #elif defined(HAVE_WNR2200)
 int getbuttonstate()
 {
-	int ret = get_gpio(38);
-
-	if (ret == 0)
-		return 1;
-	return 0;
+	return !get_gpio(38);
 }
 #elif defined(HAVE_WNR2000)
 int getbuttonstate()
 {
-	int ret = get_gpio(40);
-
-	if (ret == 0)
-		return 1;
-	return 0;
+	return !get_gpio(40);
 }
 #elif defined(HAVE_WDR2543)
 int getbuttonstate()
 {
-	int ret = get_gpio(11);
-	if (ret == 0)
-		return 1;
-	return 0;
+	return !get_gpio(11);
 }
 #elif defined(HAVE_WHRHPGN)
 int getbuttonstate()
 {
-	int ret = get_gpio(11);
+	return !get_gpio(11);
 
-	if (ret == 0)
-		return 1;
-	return 0;
+}
+#elif defined(HAVE_DAP3320)
+int getbuttonstate()
+{
+	return !get_gpio(12);
+}
+#elif defined(HAVE_DAP2330)
+int getbuttonstate()
+{
+	return !get_gpio(17);
+}
+#elif defined(HAVE_DAP2230)
+int getbuttonstate()
+{
+	return !get_gpio(17);
 }
 #elif defined(HAVE_WR841V9)
 int getbuttonstate()
 {
-	int ret = get_gpio(12);
-	if (ret == 0)
-		return 1;
-	return 0;
+	return !get_gpio(12);
 }
 #elif defined(HAVE_DIR615I)
 int getbuttonstate()
 {
-	int ret = get_gpio(17);
-	if (ret == 0)
-		return 1;
-	return 0;
+	return !get_gpio(17);
 }
 #elif defined(HAVE_DIR615E)
 int getbuttonstate()
 {
-	int ret = get_gpio(8);
-	if (ret == 0)
-		return 1;
-	return 0;
+	return !get_gpio(8);
 }
 #elif defined(HAVE_WNDR3700)
 int getbuttonstate()
 {
-	int ret = get_gpio(8);
-
-	if (ret == 0)
-		return 1;
-	return 0;
+	return !get_gpio(8);
 }
 #elif defined(HAVE_DIR825)
 int getbuttonstate()
 {
-	int ret = get_gpio(3);
+	return !get_gpio(3);
 
-	if (ret == 0)
-		return 1;
-	return 0;
 }
 #elif defined(HAVE_WRT400)
 int getbuttonstate()
 {
-	int ret = get_gpio(8);
-
-	if (ret == 0)
-		return 1;
-	return 0;
+	return !get_gpio(8);
 }
 #elif defined(HAVE_WRT160NL)
 int getbuttonstate()
 {
-	int ret = get_gpio(21);
-
-	if (ret == 0)
-		return 1;
-	return 0;
+	return !get_gpio(21);
 }
 #elif defined(HAVE_TG2521)
 int getbuttonstate()
 {
-	int ret = get_gpio(21);
+	return !get_gpio(21);
 
-	if (ret == 0)
-		return 1;
-	return 0;
 }
 #elif defined(HAVE_TG1523)
 int getbuttonstate()
 {
-	int ret = get_gpio(0);
+	return !get_gpio(0);
 
-	if (ret == 0)
-		return 1;
-	return 0;
 }
 #elif defined(HAVE_WR941)
 int getbuttonstate()
 {
-	int ret = get_gpio(3);
+	return !get_gpio(3);
 
-	if (ret == 0)
-		return 1;
-	return 0;
 }
 #elif defined(HAVE_WR741V4)
 int getbuttonstate()
 {
-	int ret = get_gpio(11);
-
-	return ret;
+	return get_gpio(11);
 }
 #elif defined(HAVE_WR741)
 int getbuttonstate()
 {
-	int ret = get_gpio(11);
-
-	if (ret == 0)
-		return 1;
-	return 0;
+	return !get_gpio(11);
 }
 #elif defined(HAVE_WR1043)
 int getbuttonstate()
 {
-	int ret = get_gpio(3);
+	return !get_gpio(3);
 
-	if (ret == 0)
-		return 1;
-	return 0;
 }
 #elif defined(HAVE_WZRG300NH2)
 int getbuttonstate()
 {
-	int ret = get_gpio(1);	// nxp multiplexer connected
-
-	if (ret == 0)
-		return 1;
-	return 0;
+	return !get_gpio(1);	// nxp multiplexer connected
 }
 #elif defined(HAVE_WZRG450)
 int getbuttonstate()
 {
-	int ret = get_gpio(6);	// nxp multiplexer connected
-
-	if (ret == 0)
-		return 1;
-	return 0;
+	return !get_gpio(6);	// nxp multiplexer connected
 }
 #elif defined(HAVE_DIR632)
 int getbuttonstate()
 {
-	int ret = get_gpio(8);	// nxp multiplexer connected
+	return !get_gpio(8);	// nxp multiplexer connected
 
-	if (ret == 0)
-		return 1;
-	return 0;
 }
 #elif defined(HAVE_WZRG300NH)
 int getbuttonstate()
 {
-	int ret = get_gpio(24);	// nxp multiplexer connected
-
-	if (ret == 0)
-		return 1;
-	return 0;
+	return !get_gpio(24);	// nxp multiplexer connected
 }
 #elif defined(HAVE_WZRHPAG300NH)
 int getbuttonstate()
 {
-	int ret = get_gpio(11);
-
-	if (ret == 0)
-		return 1;
-	return 0;
+	return !get_gpio(11);
 }
 #elif defined(HAVE_TEW632BRP)
 int getbuttonstate()
 {
-	int ret = get_gpio(21);
-
-	if (ret == 0)
-		return 1;
-	return 0;
+	return !get_gpio(21);
 }
 #elif defined(HAVE_JA76PF)
 int getbuttonstate()
 {
-	int ret = get_gpio(11);
-
-	if (ret == 0)
-		return 1;
-	return 0;
+	return !get_gpio(11);
 }
 #elif defined(HAVE_ALFAAP94)
 int getbuttonstate()
 {
-	int ret = get_gpio(11);
-
-	if (ret == 0)
-		return 1;
-	return 0;
+	return !get_gpio(11);
 }
 #elif defined(HAVE_JWAP003)
 int getbuttonstate()
 {
-	int ret = get_gpio(11);
-
-	if (ret == 0)
-		return 1;
-	return 0;
+	return !get_gpio(11);
 }
 #elif defined(HAVE_ALFANX)
 int getbuttonstate()
 {
-	int ret = get_gpio(11);
-
-	if (ret == 0)
-		return 1;
-	return 0;
+	return !get_gpio(11);
 }
 #elif defined(HAVE_LSX)
 int getbuttonstate()
 {
-	int ret = get_gpio(8);
-
-	if (ret == 0)
-		return 1;
-	return 0;
+	return !get_gpio(8);
 }
 #elif defined(HAVE_WMBR_G300NH)
 int getbuttonstate()
 {
-	int ret = get_gpio(37);
-
-	if (ret == 0)
-		return 1;
-	return 0;
+	return !get_gpio(37);
 }
 #elif defined(HAVE_VF803)
 int getbuttonstate()
 {
-	int ret = get_gpio(28);
-
-	if (ret == 0)
-		return 1;
-	return 0;
+	return !get_gpio(28);
 }
 #elif defined(HAVE_SX763)
 int getbuttonstate()
 {
-	int ret = get_gpio(14);
-
-	return 0;
+	return get_gpio(14);
 }
 #endif
 #if defined(HAVE_GATEWORX) || defined (HAVE_STORM)
@@ -672,6 +594,8 @@ static int ses_mode = 0;	/* mode 1 : pushed */
 static int wifi_mode = 0;	/* mode 1 : pushed */
 static int count = 0;
 
+static int ses_pushed = 0;
+static int wifi_pushed = 0;
 #ifdef HAVE_RADIOOFF
 static int initses = 1;
 #endif
@@ -744,6 +668,164 @@ void service_restart(void)
 	eval("rc", "restart");
 }
 
+static void handle_reset(void)
+{
+
+	if ((brand & 0x000f) != 0x000f) {
+		fprintf(stderr, "resetbutton: factory default.\n");
+		dd_syslog(LOG_DEBUG, "Reset button: restoring factory defaults now!\n");
+#if !defined(HAVE_XSCALE) && !defined(HAVE_MAGICBOX) && !defined(HAVE_FONERA) && !defined(HAVE_WHRAG108) && !defined(HAVE_GATEWORX) && !defined(HAVE_LS2) && !defined(HAVE_CA8) && !defined(HAVE_TW6600) && !defined(HAVE_LS5) && !defined(HAVE_LSX) && !defined(HAVE_SOLO51)
+		led_control(LED_DIAG, LED_ON);
+#elif defined(HAVE_WHRHPGN)  || defined(HAVE_WZRG300NH) || defined(HAVE_WZRHPAG300NH) || defined(HAVE_WZRG450)
+		led_control(LED_DIAG, LED_ON);
+#endif
+		ACTION("ACT_HW_RESTORE");
+		alarmtimer(0, 0);	/* Stop the timer alarm */
+#ifdef HAVE_X86
+		eval("mount", "/usr/local", "-o", "remount,rw");
+		eval("rm", "-f", "/tmp/nvram/*");	// delete nvram
+		// database
+		unlink("/tmp/nvram/.lock");	// delete
+		// nvram
+		// database
+		eval("rm", "-f", "/usr/local/nvram/*");	// delete
+		// nvram
+		// database
+		eval("mount", "/usr/local", "-o", "remount,ro");
+#elif HAVE_RB500
+		eval("rm", "-f", "/tmp/nvram/*");	// delete nvram
+		// database
+		unlink("/tmp/nvram/.lock");	// delete
+		// nvram
+		// database
+		eval("rm", "-f", "/etc/nvram/*");	// delete nvram
+		// database
+#elif HAVE_MAGICBOX
+		eval("rm", "-f", "/tmp/nvram/*");	// delete nvram
+		// database
+		unlink("/tmp/nvram/.lock");	// delete
+		// nvram
+		// database
+		eval("erase", "nvram");
+#else
+#ifdef HAVE_BUFFALO_SA
+		int region_sa = 0;
+		if (nvram_default_match("region", "SA", ""))
+			region_sa = 1;
+#endif
+		nvram_set("sv_restore_defaults", "1");
+		nvram_commit();
+		eval("killall", "ledtool");	// stop blinking on
+		// nvram_commit
+#if !defined(HAVE_XSCALE) && !defined(HAVE_MAGICBOX) && !defined(HAVE_FONERA) && !defined(HAVE_WHRAG108) && !defined(HAVE_GATEWORX) && !defined(HAVE_LS2) && !defined(HAVE_CA8) && !defined(HAVE_TW6600) && !defined(HAVE_LS5) && !defined(HAVE_LSX) && !defined(HAVE_SOLO51)
+		led_control(LED_DIAG, LED_ON);	// turn diag led on,
+		// so we know reset
+		// was pressed and
+		// we're restoring
+		// defaults.
+#elif defined(HAVE_WHRHPGN) || defined(HAVE_WZRG300NH) || defined(HAVE_WZRHPAG300NH) || defined(HAVE_WZRG450)
+		led_control(LED_DIAG, LED_ON);
+#endif
+#ifdef HAVE_BUFFALO_SA
+		nvram_set("sv_restore_defaults", "1");
+		if (region_sa)
+			nvram_set("region", "SA");
+		nvram_commit();
+#endif
+
+		// nvram_set ("sv_restore_defaults", "1");
+		// nvram_commit ();
+
+		kill(1, SIGTERM);
+#endif
+	}
+
+}
+
+static void handle_wifi(void)
+{
+
+	led_control(LED_WLAN, LED_FLASH);	// when pressed, blink white
+	count = 0;
+	switch (wifi_mode) {
+	case 1:
+		dd_syslog(LOG_DEBUG, "Wifi button: turning radio(s) on\n");
+		sysprintf("startstop radio_on");
+		wifi_mode = 0;
+		break;
+	case 0:
+		// (AOSS) led
+		dd_syslog(LOG_DEBUG, "Wifi button: turning radio(s) off\n");
+		sysprintf("startstop radio_off");
+		wifi_mode = 1;
+		break;
+	}
+
+}
+
+static void handle_ses(void)
+{
+
+	runStartup("/etc/config", ".sesbutton");
+	runStartup("/jffs/etc/config", ".sesbutton");	// if available
+	runStartup("/mmc/etc/config", ".sesbutton");	// if available
+	runStartup("/tmp/etc/config", ".sesbutton");	// if available
+	count = 0;
+	if (nvram_match("usb_ses_umount", "1")) {
+		led_control(LED_DIAG, LED_FLASH);
+		runStartup("/etc/config", ".umount");
+		sleep(5);
+		led_control(LED_DIAG, LED_FLASH);
+		sleep(1);
+		led_control(LED_DIAG, LED_FLASH);
+	}
+
+	if (nvram_match("radiooff_button", "1")) {
+		led_control(LED_SES, LED_FLASH);	// when pressed, blink white
+		switch (ses_mode) {
+
+		case 1:
+			// SES (AOSS) led
+#ifdef HAVE_RADIOOFF
+#ifndef HAVE_BUFFALO
+			dd_syslog(LOG_DEBUG, "SES / AOSS / EZ-setup button: turning radio(s) on\n");
+#else
+			dd_syslog(LOG_DEBUG, "AOSS button: turning radio(s) on\n");
+#endif
+#ifndef HAVE_ERC
+			sysprintf("startstop radio_on");
+#endif
+#endif
+
+			ses_mode = 0;
+			break;
+		case 0:
+
+			// (AOSS) led
+#ifdef HAVE_RADIOOFF
+#ifndef HAVE_BUFFALO
+			dd_syslog(LOG_DEBUG, "SES / AOSS / EZ-setup button: turning radio(s) off\n");
+#else
+			dd_syslog(LOG_DEBUG, "AOSS button: turning radio(s) off\n");
+#endif
+#ifndef HAVE_ERC
+			sysprintf("startstop radio_off");
+#endif
+#endif
+
+			ses_mode = 1;
+			break;
+		}
+
+	}
+#if defined(HAVE_AOSS) || defined(HAVE_WPS)
+	else if (nvram_match("radiooff_button", "2")) {
+		sysprintf("startstop aoss");
+	}
+#endif
+
+}
+
 void period_check(int sig)
 {
 	FILE *fp;
@@ -762,48 +844,42 @@ void period_check(int sig)
 	// time(&t);
 	// DEBUG("resetbutton: now time=%d\n", t);
 
-#if defined(HAVE_MAGICBOX) || defined(HAVE_FONERA) || defined(HAVE_WHRAG108) || defined(HAVE_GATEWORX) || defined(HAVE_STORM) || defined(HAVE_LS2) || defined(HAVE_CA8) || defined(HAVE_TW6600)  || defined(HAVE_LS5) || defined(HAVE_LSX) || defined(HAVE_WP54G) || defined(HAVE_NP28G) || defined(HAVE_SOLO51) || defined(HAVE_OPENRISC) || defined(HAVE_DANUBE) || defined(HAVE_WDR4900) || defined(HAVE_VENTANA) || defined(HAVE_AC622) || defined(HAVE_AC722) || defined(HAVE_EROUTER)
+#if defined(HAVE_IPQ806X) || defined(HAVE_MVEBU) || defined(HAVE_MAGICBOX) || defined(HAVE_FONERA) || defined(HAVE_WHRAG108) || defined(HAVE_GATEWORX) || defined(HAVE_STORM) || defined(HAVE_LS2) || defined(HAVE_CA8) || defined(HAVE_TW6600)  || defined(HAVE_LS5) || defined(HAVE_LSX) || defined(HAVE_WP54G) || defined(HAVE_NP28G) || defined(HAVE_SOLO51) || defined(HAVE_OPENRISC) || defined(HAVE_DANUBE) || defined(HAVE_WDR4900) || defined(HAVE_VENTANA) || defined(HAVE_AC622) || defined(HAVE_AC722) || defined(HAVE_EROUTER)
 	val = getbuttonstate();
 #ifdef HAVE_WRK54G
-	if (val)
-		val = 0;
-	else
-		val = 1;
+	val = !val;
 #endif
 #ifndef HAVE_ALPHA
 #ifdef HAVE_USR5453
-	if (val)
-		val = 0;
-	else
-		val = 1;
+	val = !val;
 #endif
 #endif
 
 #else
 	if (brand == ROUTER_BOARD_WCRGN) {
-		val = get_gpio(10) << 10;
+		val = (get_gpio(10) << 10) | (get_gpio(0) << 0);
 	} else if (brand == ROUTER_BOARD_WHRG300N) {
-		val = get_gpio(10) << 10;
+		val = (get_gpio(10) << 10) | (get_gpio(0) << 0);
 	} else if (brand == ROUTER_BOARD_HAMEA15) {
 		val = get_gpio(0);
 	} else if (brand == ROUTER_BOARD_ECB9750) {
 		val = get_gpio(11) << 11;
 	} else if (brand == ROUTER_BOARD_NEPTUNE) {
-		val = get_gpio(10) << 10;
+		val = (get_gpio(10) << 10) | (get_gpio(0) << 0);
 	} else if (brand == ROUTER_BOARD_RT3352) {
-		val = get_gpio(10) << 10;
+		val = (get_gpio(10) << 10) | (get_gpio(0) << 0);
 	} else if (brand == ROUTER_BOARD_WR5422) {
 		val = get_gpio(10) << 10;
 	} else if (brand == ROUTER_BOARD_DIR600B) {
-		val = get_gpio(10) << 10;
+		val = (get_gpio(10) << 10) | (get_gpio(0) << 0);
 	} else if (brand == ROUTER_BOARD_F5D8235) {
 		val = get_gpio(10) << 10;
 	} else if (brand == ROUTER_ASUS_RTN10PLUS) {
-		val = get_gpio(10) << 10;
+		val = get_gpio(10) << 10 | (get_gpio(0) << 0);
 	} else if (brand == ROUTER_BOARD_RT15N) {
 		val = get_gpio(12) << 12;
 	} else if (brand == ROUTER_BOARD_DIR615D) {
-		val = get_gpio(10) << 10;
+		val = (get_gpio(10) << 10) | (get_gpio(0) << 0);
 	} else if (brand == ROUTER_BOARD_ESR6650) {
 		val = get_gpio(10) << 10;
 	} else if (brand == ROUTER_BOARD_EAP9550) {
@@ -821,7 +897,13 @@ void period_check(int sig)
 	} else if (brand == ROUTER_BOARD_TECHNAXX3G) {
 		val = get_gpio(10) << 10;
 	} else if (brand == ROUTER_WHR300HP2) {
-		val = get_gpio(52) << 1;
+		val = (get_gpio(52) << 1) | (get_gpio(53) << 2);
+	} else if (brand == ROUTER_BOARD_E1700) {
+		val = (get_gpio(1) << 1) | (get_gpio(2) << 2);
+	} else if (brand == ROUTER_DIR810L) {
+		val = (get_gpio(1) << 1) | (get_gpio(2) << 2);
+	} else if (brand == ROUTER_DIR860LB1) {
+		val = (get_gpio(7) << 7) | (get_gpio(18) << 18);
 	} else if (brand == ROUTER_BOARD_W502U) {
 		val = get_gpio(10) << 10;
 	} else if (brand == ROUTER_BOARD_GW2380) {
@@ -855,30 +937,18 @@ void period_check(int sig)
 
 	int state = 0;
 
-#if defined(HAVE_XSCALE) || defined(HAVE_MAGICBOX) || defined(HAVE_FONERA) || defined(HAVE_WHRAG108) || defined(HAVE_GATEWORX) || defined(HAVE_STORM) || defined(HAVE_LS2) || defined(HAVE_CA8) || defined(HAVE_TW6600)  || defined(HAVE_LS5) || defined(HAVE_LSX) || defined(HAVE_WP54G) || defined(HAVE_NP28G) || defined(HAVE_SOLO51) || defined(HAVE_OPENRISC) || defined(HAVE_DANUBE) || defined(HAVE_UNIWIP) || defined(HAVE_EROUTER) || defined(HAVE_VENTANA)
+#if defined(HAVE_IPQ806X) || defined(HAVE_MVEBU) || (HAVE_XSCALE) || defined(HAVE_MAGICBOX) || defined(HAVE_FONERA) || defined(HAVE_WHRAG108) || defined(HAVE_GATEWORX) || defined(HAVE_STORM) || defined(HAVE_LS2) || defined(HAVE_CA8) || defined(HAVE_TW6600)  || defined(HAVE_LS5) || defined(HAVE_LSX) || defined(HAVE_WP54G) || defined(HAVE_NP28G) || defined(HAVE_SOLO51) || defined(HAVE_OPENRISC) || defined(HAVE_DANUBE) || defined(HAVE_UNIWIP) || defined(HAVE_EROUTER) || defined(HAVE_VENTANA)
 	state = val;
 	int sesgpio = 0xfff;
 	int wifigpio = 0xfff;
-	int push;
+	int pushses;
 	int pushwifi;
 #ifdef HAVE_WZRG300NH
 	sesgpio = 0x117;
 	val |= get_gpio(23) << 23;	//aoss pushbutton
-#elif defined(HAVE_WHR300HP2)
-	sesgpio = 0x102;
-	val |= get_gpio(53) << 2;	//aoss pushbutton
-#elif defined(HAVE_NEPTUNE)
-	sesgpio = 0x100;
-	val |= get_gpio(0);	//aoss pushbutton
-#elif defined(HAVE_HAMEA15)
-//      sesgpio = 0x100;
-//      val |= get_gpio(0);     //aoss pushbutton
-#elif defined(HAVE_WCRGN)
-	sesgpio = 0x100;
-	val |= get_gpio(0);	//aoss pushbutton
-#elif defined(HAVE_RT3352)
-	sesgpio = 0x100;
-	val |= get_gpio(0);	//aoss pushbutton
+#elif defined(HAVE_WZR600DHP)
+	sesgpio = 0x105;
+	val |= get_gpio(5) << 5;
 #elif defined(HAVE_WZRG300NH2)
 	sesgpio = 0x10c;
 	val |= get_gpio(12) << 12;	//aoss pushbutton
@@ -888,6 +958,12 @@ void period_check(int sig)
 #elif defined(HAVE_WZRG450)
 	sesgpio = 0x108;
 	val |= get_gpio(8) << 8;	//aoss pushbutton
+#elif defined(HAVE_MVEBU)
+	sesgpio = 0x101;
+	if (getRouterBrand() == ROUTER_WRT_1900AC)
+		val |= get_gpio(32) << 1;	//aoss pushbutton
+	else
+		val |= get_gpio(24) << 1;	//aoss pushbutton
 #elif defined(HAVE_DIR632)
 	sesgpio = 0x10c;
 	val |= get_gpio(12) << 12;	//aoss pushbutton
@@ -895,8 +971,10 @@ void period_check(int sig)
 	sesgpio = 0x105;
 	val |= get_gpio(5) << 5;	//aoss pushbutton
 #elif defined(HAVE_CARAMBOLA)
-	sesgpio = 0xfff;
-
+#if defined(HAVE_ERC)
+	wifigpio = 0x117;
+	val |= get_gpio(23) << 23;
+#endif
 #elif defined(HAVE_HORNET)
 	sesgpio = 0x00b;
 	val |= get_gpio(11) << 11;	//aoss pushbutton
@@ -907,14 +985,21 @@ void period_check(int sig)
 //      sesgpio = 0x110;
 //      val |= get_gpio(16) << 16;      //aoss pushbutton
 #elif defined(HAVE_WNDR3700V4)
-	sesgpio = 0x10f;
+	wifigpio = 0x10f;
+	sesgpio = 0x10c;
 	val |= get_gpio(15) << 15;	//aoss pushbutton
+	val |= get_gpio(12) << 12;	//aoss pushbutton
 #elif defined(HAVE_WR1043V2)
 	sesgpio = 0x111;
 	val |= get_gpio(17) << 17;	//aoss pushbutton
-#elif defined(HAVE_WHR450HP)
+#elif defined(HAVE_WZR450HP2)
 	sesgpio = 0x115;
 	val |= get_gpio(21) << 21;	//aoss pushbutton
+#elif defined(HAVE_DIR859)
+	sesgpio = 0x101;
+	val |= get_gpio(1) << 1;	//aoss pushbutton
+#elif defined(HAVE_MMS344)
+
 #elif defined(HAVE_DIR825C1)
 	sesgpio = 0x110;
 	val |= get_gpio(16) << 16;	//aoss pushbutton
@@ -922,8 +1007,8 @@ void period_check(int sig)
 	sesgpio = 0x00b;
 	val |= get_gpio(11) << 11;	//aoss pushbutton
 #elif defined(HAVE_WNR2200)
-//      sesgpio = 0x00b; //not yet supported
-//      val |= get_gpio(37) << 37;      //aoss pushbutton
+	sesgpio = 0x101;	//not yet supported
+	val |= get_gpio(37) << 1;	//aoss pushbutton
 #elif defined(HAVE_WNR2000)
 	sesgpio = 0x00b;
 	val |= get_gpio(11) << 11;	//aoss pushbutton
@@ -975,8 +1060,10 @@ void period_check(int sig)
 	sesgpio = 0x103;
 	val |= get_gpio(3) << 3;	//aoss pushbutton
 #elif defined(HAVE_WNDR3700)
+	wifigpio = 0x10b;
 	sesgpio = 0x103;
 	val |= get_gpio(3) << 3;	//aoss pushbutton
+	val |= get_gpio(11) << 11;	//aoss pushbutton
 #elif defined(HAVE_DIR825)
 	sesgpio = 0x108;
 	val |= get_gpio(8) << 8;	//aoss pushbutton
@@ -1029,7 +1116,7 @@ void period_check(int sig)
 	 * 
 	 * 0xff = button disabled / not available 
 	 */
-	int push;
+	int pushses;
 	int pushwifi;
 	int sesgpio;
 	int wifigpio = 0xfff;
@@ -1060,6 +1147,26 @@ void period_check(int sig)
 		sesgpio = 0x10a;	// gpio 10, inversed
 		break;
 #ifndef HAVE_BUFFALO
+	case ROUTER_BOARD_WCRGN:
+	case ROUTER_BOARD_DIR600B:
+	case ROUTER_BOARD_RT3352:
+	case ROUTER_BOARD_NEPTUNE:
+	case ROUTER_BOARD_DIR615D:
+	case ROUTER_BOARD_WHRG300N:
+	case ROUTER_ASUS_RTN10PLUS:
+	case ROUTER_TPLINK_ARCHERC9:
+		sesgpio = 0x100;
+		break;
+	case ROUTER_DIR860LB1:
+		sesgpio = 0x112;
+		break;
+	case ROUTER_BOARD_E1700:
+	case ROUTER_DIR810L:
+		sesgpio = 0x102;
+		break;
+	case ROUTER_WHR300HP2:
+		sesgpio = 0x102;
+		break;
 	case ROUTER_ASUS_WL700GE:
 		sesgpio = 0x004;	// gpio 4, normal
 		break;
@@ -1096,18 +1203,47 @@ void period_check(int sig)
 		break;
 	case ROUTER_LINKSYS_EA6900:
 	case ROUTER_LINKSYS_EA6700:
+	case ROUTER_LINKSYS_EA6350:
 	case ROUTER_LINKSYS_EA6500V2:
 	case ROUTER_TRENDNET_TEW812:
 		sesgpio = 0x107;	// gpio 7, inversed
 		break;
+	case ROUTER_DLINK_DIR890:
+	case ROUTER_DLINK_DIR880:
+	case ROUTER_DLINK_DIR895:
+	case ROUTER_TRENDNET_TEW828:
+		sesgpio = 0x107;	// gpio 7, inversed
+		break;
+	case ROUTER_DLINK_DIR885:
+		sesgpio = 0x107;	// gpio 7, inversed
+//              wifigpio = 0x10a;       // gpio 10, inversed
+		break;
 	case ROUTER_DLINK_DIR868:
+	case ROUTER_DLINK_DIR868C:
+		sesgpio = 0x107;	// gpio 7, inversed
+		break;
 	case ROUTER_ASUS_AC67U:
 		wifigpio = 0x10f;
 		sesgpio = 0x107;	// gpio 7, inversed
 		break;
+	case ROUTER_DLINK_DIR860:
+		sesgpio = 0x108;	// gpio 7, inversed
+		break;
 	case ROUTER_ASUS_AC87U:
 		sesgpio = 0x102;	// gpio 2, inversed
 		wifigpio = 0x10f;
+		break;
+	case ROUTER_ASUS_AC88U:
+		sesgpio = 0x114;	// gpio 20, inversed
+		wifigpio = 0x112;	// gpio 18, inversed
+		break;
+	case ROUTER_ASUS_AC5300:
+		wifigpio = 0x114;	// gpio 20, inversed
+		sesgpio = 0x112;	// gpio 18, inversed
+		break;
+	case ROUTER_ASUS_AC3200:
+		sesgpio = 0x107;	// gpio 2, inversed
+		wifigpio = 0x104;
 		break;
 	case ROUTER_ASUS_AC56U:
 		wifigpio = 0x107;	// gpio 7, inversed
@@ -1157,6 +1293,10 @@ void period_check(int sig)
 	case ROUTER_NETGEAR_WNR3500L:
 		sesgpio = 0x106;	// gpio 6, inversed
 		break;
+	case ROUTER_NETGEAR_WNR3500LV2:
+		sesgpio = 0x106;	// gpio 6, inversed
+		wifigpio = 0x108;
+		break;
 	case ROUTER_WRT320N:
 	case ROUTER_WRT160NV3:
 	case ROUTER_NETGEAR_WNDR4500:
@@ -1181,6 +1321,17 @@ void period_check(int sig)
 		sesgpio = 0x104;
 		wifigpio = 0x105;
 		break;
+	case ROUTER_NETGEAR_R7500:
+		wifigpio = 0x106;
+		break;
+	case ROUTER_NETGEAR_R8000:
+		sesgpio = 0x105;
+		wifigpio = 0x104;
+		break;
+	case ROUTER_NETGEAR_R8500:
+		sesgpio = 0x104;
+		wifigpio = 0x113;
+		break;
 	case ROUTER_NETGEAR_EX6200:
 		wifigpio = 0x104;
 		break;
@@ -1198,6 +1349,10 @@ void period_check(int sig)
 	case ROUTER_LINKSYS_EA6500:
 		sesgpio = 0x104;	// gpio 4, inversed
 		break;
+	case ROUTER_LINKSYS_EA8500:
+		sesgpio = 0x165;
+		break;
+
 #endif
 	default:
 		sesgpio = 0xfff;	// gpio unknown, disabled
@@ -1205,7 +1360,7 @@ void period_check(int sig)
 	}
 #endif
 
-	push = 1 << (sesgpio & 0x0ff);	// calculate push value from ses gpio
+	pushses = 1 << (sesgpio & 0x0ff);	// calculate push value from ses gpio
 	pushwifi = 1 << (wifigpio & 0x0ff);	// calculate push value from ses gpio 
 	// 
 	// 
@@ -1225,169 +1380,48 @@ void period_check(int sig)
 			alarmtimer(0, URGENT_INTERVAL);
 			mode = 1;
 		}
-		{		/* Whenever it is pushed steady */
-			if (++count > RESET_WAIT_COUNT) {
-				if (check_action() != ACT_IDLE) {	// Don't execute during upgrading
-					fprintf(stderr, "resetbutton: nothing to do...\n");
-					alarmtimer(0, 0);	/* Stop the timer alarm */
-					return;
-				}
-				if ((brand & 0x000f) != 0x000f) {
-					printf("resetbutton: factory default.\n");
-					dd_syslog(LOG_DEBUG, "Reset button: restoring factory defaults now!\n");
-#if !defined(HAVE_XSCALE) && !defined(HAVE_MAGICBOX) && !defined(HAVE_FONERA) && !defined(HAVE_WHRAG108) && !defined(HAVE_GATEWORX) && !defined(HAVE_LS2) && !defined(HAVE_CA8) && !defined(HAVE_TW6600) && !defined(HAVE_LS5) && !defined(HAVE_LSX) && !defined(HAVE_SOLO51)
-					led_control(LED_DIAG, LED_ON);
-#elif defined(HAVE_WHRHPGN)  || defined(HAVE_WZRG300NH) || defined(HAVE_WZRHPAG300NH) || defined(HAVE_WZRG450)
-					led_control(LED_DIAG, LED_ON);
-#endif
-					ACTION("ACT_HW_RESTORE");
-					alarmtimer(0, 0);	/* Stop the timer alarm */
-#ifdef HAVE_X86
-					eval("mount", "/usr/local", "-o", "remount,rw");
-					eval("rm", "-f", "/tmp/nvram/*");	// delete nvram
-					// database
-					eval("rm", "-f", "/tmp/nvram/.lock");	// delete
-					// nvram
-					// database
-					eval("rm", "-f", "/usr/local/nvram/*");	// delete
-					// nvram
-					// database
-					eval("mount", "/usr/local", "-o", "remount,ro");
-#elif HAVE_RB500
-					eval("rm", "-f", "/tmp/nvram/*");	// delete nvram
-					// database
-					eval("rm", "-f", "/tmp/nvram/.lock");	// delete
-					// nvram
-					// database
-					eval("rm", "-f", "/etc/nvram/*");	// delete nvram
-					// database
-#elif HAVE_MAGICBOX
-					eval("rm", "-f", "/tmp/nvram/*");	// delete nvram
-					// database
-					eval("rm", "-f", "/tmp/nvram/.lock");	// delete
-					// nvram
-					// database
-					eval("erase", "nvram");
-#else
-#ifdef HAVE_BUFFALO_SA
-					int region_sa = 0;
-					if (nvram_default_match("region", "SA", ""))
-						region_sa = 1;
-#endif
-					nvram_set("sv_restore_defaults", "1");
-					nvram_commit();
-					eval("killall", "ledtool");	// stop blinking on
-					// nvram_commit
-#if !defined(HAVE_XSCALE) && !defined(HAVE_MAGICBOX) && !defined(HAVE_FONERA) && !defined(HAVE_WHRAG108) && !defined(HAVE_GATEWORX) && !defined(HAVE_LS2) && !defined(HAVE_CA8) && !defined(HAVE_TW6600) && !defined(HAVE_LS5) && !defined(HAVE_LSX) && !defined(HAVE_SOLO51)
-					led_control(LED_DIAG, LED_ON);	// turn diag led on,
-					// so we know reset
-					// was pressed and
-					// we're restoring
-					// defaults.
-#elif defined(HAVE_WHRHPGN) || defined(HAVE_WZRG300NH) || defined(HAVE_WZRHPAG300NH) || defined(HAVE_WZRG450)
-					led_control(LED_DIAG, LED_ON);
-#endif
-#ifdef HAVE_BUFFALO_SA
-					nvram_set("sv_restore_defaults", "1");
-					if (region_sa)
-						nvram_set("region", "SA");
-					nvram_commit();
-#endif
-
-					// nvram_set ("sv_restore_defaults", "1");
-					// nvram_commit ();
-
-					kill(1, SIGTERM);
-#endif
-				}
+		if (++count > RESET_WAIT_COUNT) {
+			if (check_action() != ACT_IDLE) {	// Don't execute during upgrading
+				fprintf(stderr, "resetbutton: nothing to do...\n");
+				alarmtimer(0, 0);	/* Stop the timer alarm */
+				return;
 			}
+			handle_reset();
 		}
-	} else if ((sesgpio != 0xfff)
-		   && (((sesgpio & 0x100) == 0 && (val & push))
-		       || ((sesgpio & 0x100) == 0x100 && !(val & push)))) {
-		runStartup("/etc/config", ".sesbutton");
-		runStartup("/jffs/etc/config", ".sesbutton");	// if available
-		runStartup("/mmc/etc/config", ".sesbutton");	// if available
-		runStartup("/tmp/etc/config", ".sesbutton");	// if available
-		if (nvram_match("usb_ses_umount", "1")) {
-			led_control(LED_DIAG, LED_FLASH);
-			runStartup("/etc/config", ".umount");
-			sleep(5);
-			led_control(LED_DIAG, LED_FLASH);
-			sleep(1);
-			led_control(LED_DIAG, LED_FLASH);
-		}
-
-		if (nvram_match("radiooff_button", "1")) {
-			led_control(LED_SES, LED_FLASH);	// when pressed, blink white
-			switch (ses_mode) {
-
-			case 1:
-				// SES (AOSS) led
-#ifdef HAVE_RADIOOFF
-#ifndef HAVE_BUFFALO
-				dd_syslog(LOG_DEBUG, "SES / AOSS / EZ-setup button: turning radio(s) on\n");
-#else
-				dd_syslog(LOG_DEBUG, "AOSS button: turning radio(s) on\n");
-#endif
-#ifndef HAVE_ERC
-				sysprintf("startstop radio_on");
-#endif
-#endif
-
-				ses_mode = 0;
-				break;
-			case 2:
-
-				// (AOSS) led
-#ifdef HAVE_RADIOOFF
-#ifndef HAVE_BUFFALO
-				dd_syslog(LOG_DEBUG, "SES / AOSS / EZ-setup button: turning radio(s) off\n");
-#else
-				dd_syslog(LOG_DEBUG, "AOSS button: turning radio(s) off\n");
-#endif
-#ifndef HAVE_ERC
-				sysprintf("startstop radio_off");
-#endif
-#endif
-
-				ses_mode = 1;
-				break;
+	} else if ((sesgpio != 0xfff) && (((sesgpio & 0x100) == 0 && (val & pushses)) || ((sesgpio & 0x100) == 0x100 && !(val & pushses)))) {
+		if (!ses_pushed && (++count > SES_WAIT)) {
+			if (check_action() != ACT_IDLE) {	// Don't execute during upgrading
+				fprintf(stderr, "resetbutton: nothing to do...\n");
+				alarmtimer(0, 0);	/* Stop the timer alarm */
+				return;
 			}
-
+			count = 0;
+			ses_pushed = 1;
+			handle_ses();
 		}
-#ifdef HAVE_AOSS
-		else if (nvram_match("radiooff_button", "2")) {
-			sysprintf("startstop aoss");
-		}
-#else
-#endif
-
-	} else if ((wifigpio != 0xfff)
-		   && (((wifigpio & 0x100) == 0 && (val & pushwifi))
-		       || ((wifigpio & 0x100) == 0x100 && !(val & pushwifi)))) {
-		led_control(LED_WLAN, LED_FLASH);	// when pressed, blink white
-		switch (wifi_mode) {
-		case 1:
-			dd_syslog(LOG_DEBUG, "Wifi button: turning radio(s) on\n");
-			sysprintf("startstop radio_on");
-			wifi_mode = 0;
-			break;
-		case 0:
-			// (AOSS) led
-			dd_syslog(LOG_DEBUG, "Wifi button: turning radio(s) off\n");
-			sysprintf("startstop radio_off");
-			wifi_mode = 1;
-			break;
+	} else if ((wifigpio != 0xfff) && (((wifigpio & 0x100) == 0 && (val & pushwifi)) || ((wifigpio & 0x100) == 0x100 && !(val & pushwifi)))) {
+		if (!wifi_pushed && (++count > SES_WAIT)) {
+			if (check_action() != ACT_IDLE) {	// Don't execute during upgrading
+				fprintf(stderr, "resetbutton: nothing to do...\n");
+				alarmtimer(0, 0);	/* Stop the timer alarm */
+				return;
+			}
+			count = 0;
+			wifi_pushed = 1;
+			handle_wifi();
 		}
 
 	} else {
-
+		count = 0;	// reset counter to avoid factory default
+		wifi_pushed = 0;
+		ses_pushed = 0;
 		/* 
 		 * Although it's unpushed now, it had ever been pushed 
 		 */
 		if (mode == 1) {
-			fprintf(stderr, "[RESETBUTTON] released %d\n", count);
+//                      fprintf(stderr, "[RESETBUTTON] released %d\n", count);
+			alarmtimer(NORMAL_INTERVAL, 0);
+			mode = 0;
 #ifdef HAVE_UNFY
 			if (count > UPGRADE_WAIT_COUNT) {
 
@@ -1405,8 +1439,6 @@ void period_check(int sig)
 					}
 				}
 			}
-			count = 0;	// reset counter to avoid factory default
-			mode = 0;
 #else
 			if (check_action() != ACT_IDLE) {	// Don't execute during upgrading
 				fprintf(stderr, "resetbutton: nothing to do...\n");

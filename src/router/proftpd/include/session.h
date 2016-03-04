@@ -1,6 +1,6 @@
 /*
  * ProFTPD - FTP server daemon
- * Copyright (c) 2009-2011 The ProFTPD Project team
+ * Copyright (c) 2009-2012 The ProFTPD Project team
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -21,7 +21,7 @@
  * distribute the resulting executable, without including the source code for
  * OpenSSL in the source distribution.
  *
- * $Id: session.h,v 1.7 2011/05/23 20:35:35 castaglia Exp $
+ * $Id: session.h,v 1.8 2012-04-15 18:04:14 castaglia Exp $
  */
 
 #ifndef PR_SESSION_H
@@ -72,6 +72,9 @@
 /* Disconnected due to snprintf(3) buffer truncation. */
 #define PR_SESS_DISCONNECT_SNPRINTF_TRUNCATED	13
 
+/* Disconnected due to wrong protocol used (e.g. HTTP/SMTP). */
+#define PR_SESS_DISCONNECT_BAD_PROTOCOL		14
+
 /* Returns a string describing the reason the client was disconnected or
  * the session ended.  If a pointer to a char * was provided, any extra
  * disconnect details will be provided.
@@ -104,6 +107,9 @@ void pr_session_end(int flags);
  * logging.
  */
 const char *pr_session_get_ttyname(pool *);
+
+/* Send the 220 response/banner information to the connecting client. */
+void pr_session_send_banner(server_rec *, int);
 
 /* Marks the current session as "idle" both in the scoreboard and in the
  * proctitle.

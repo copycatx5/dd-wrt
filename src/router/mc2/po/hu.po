@@ -3,18 +3,18 @@
 # This file is distributed under the same license as the PACKAGE package.
 #
 # Translators:
-# Rezső Páder <rezso@rezso.net>, 2012-2014
+# Mátyás Demeter <mathias.demeter@gmail.com>, 2014
+# Rezső Páder <rezso@rezso.net>, 2012-2015
 # Slava Zanko <slavazanko@gmail.com>, 2011
-# Atekka <atekka@gmail.com>, 2013
+# Szabo Attila <atekka@gmail.com>, 2013
 msgid ""
 msgstr ""
 "Project-Id-Version: Midnight Commander\n"
 "Report-Msgid-Bugs-To: http://www.midnight-commander.org/\n"
-"POT-Creation-Date: 2014-04-01 14:47+0300\n"
-"PO-Revision-Date: 2014-02-19 16:07+0000\n"
+"POT-Creation-Date: 2015-11-06 14:43+0300\n"
+"PO-Revision-Date: 2015-06-07 11:33+0000\n"
 "Last-Translator: Rezső Páder <rezso@rezso.net>\n"
-"Language-Team: Hungarian (http://www.transifex.com/projects/p/mc/language/"
-"hu/)\n"
+"Language-Team: Hungarian (http://www.transifex.com/mc/mc/language/hu/)\n"
 "Language: hu\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
@@ -157,7 +157,7 @@ msgstr ""
 "Alapértelmezett borítás használata"
 
 msgid "Escape"
-msgstr ""
+msgstr "Escape"
 
 msgid "Function key 1"
 msgstr " F1 "
@@ -223,10 +223,10 @@ msgid "Completion/M-tab"
 msgstr " Kieg./M-Tab"
 
 msgid "BackTab/S-tab"
-msgstr ""
+msgstr "Shift+Tab"
 
 msgid "Backspace"
-msgstr ""
+msgstr "Backspace"
 
 msgid "Up arrow"
 msgstr " <Fel> "
@@ -241,25 +241,25 @@ msgid "Right arrow"
 msgstr " <Jobbra> "
 
 msgid "Insert"
-msgstr ""
+msgstr "Insert"
 
 msgid "Delete"
-msgstr ""
+msgstr "Delete"
 
 msgid "Home"
-msgstr ""
+msgstr "Home"
 
 msgid "End key"
 msgstr " \"End\""
 
 msgid "Page Up"
-msgstr ""
+msgstr "Page Up"
 
 msgid "Page Down"
-msgstr ""
+msgstr "Page Down"
 
 msgid "/ on keypad"
-msgstr ""
+msgstr "/ numerikus"
 
 msgid "* on keypad"
 msgstr " * numerikus"
@@ -350,6 +350,9 @@ msgstr "Aposztróf"
 
 msgid "Colon"
 msgstr "Kettőspont"
+
+msgid "Semicolon"
+msgstr "Pontosvessző"
 
 msgid "Exclamation mark"
 msgstr "Felkiáltójel"
@@ -447,6 +450,27 @@ msgstr ""
 "A(z) %dx%d képernyőméret nem támogatott.\n"
 "Ellenőrizze a TERM környezeti változót.\n"
 
+msgid "Cannot create pipe descriptor"
+msgstr ""
+
+msgid "Cannot parse command for pipe"
+msgstr ""
+
+msgid "Cannot create pipe streams"
+msgstr ""
+
+#, c-format
+msgid ""
+"Unexpected error in select() reading data from a child process:\n"
+"%s"
+msgstr ""
+
+#, c-format
+msgid ""
+"Unexpected error in waitpid():\n"
+"%s"
+msgstr ""
+
 msgid "Warning"
 msgstr "Figyelem"
 
@@ -463,8 +487,16 @@ msgstr "Hiba a régi hiba-cső duplikálásakor"
 msgid "Directory cache expired for %s"
 msgstr "A könyvtár gyorstárának adatai elévültek: %s"
 
+#, c-format
+msgid "%s: %s: %s %3d%% %<PRIuMAX> %s"
+msgstr ""
+
 msgid "bytes transferred"
 msgstr "bájt átvive"
+
+#, c-format
+msgid "%s: %s: %s %<PRIuMAX> %s"
+msgstr ""
 
 msgid "Starting linear transfer..."
 msgstr "Lineáris átvitel indítása..."
@@ -545,6 +577,13 @@ msgstr "Háttérfolyamat:"
 
 msgid "Error"
 msgstr "Hiba"
+
+#, c-format
+msgid "%d: %s"
+msgstr "%d: %s"
+
+msgid "&Abort"
+msgstr "&Megszakítás"
 
 msgid "Displays the current version"
 msgstr "Verzióinformáció megjelenítése"
@@ -641,28 +680,26 @@ msgid ""
 "   Editor:       editnormal, editbold, editmarked, editwhitespace,\n"
 "                 editlinestate, editbg, editframe, editframeactive\n"
 "                 editframedrag\n"
-"   Viewer:       viewbold, viewunderline, viewselected\n"
+"   Viewer:       viewnormal,viewbold, viewunderline, viewselected\n"
 "   Help:         helpnormal, helpitalic, helpbold, helplink, helpslink\n"
 msgstr ""
-"--colors KULCSSZÓ={FORE},{BACK},{ATTR}:KEYWORD2=...\n"
+"--colors KEYWORD={FORE},{BACK},{ATTR}:KEYWORD2=...\n"
 "\n"
-"{FORE}, {BACK} és {ATTR} elhagyható, ekkor az alapértelmezett lesz "
+"{FORE}, {BACK} és {ATTR} elhagyható, akkor az alapértelmezett lesz "
 "használva\n"
-"\n"
-" Kulcsszavak:\n"
+" Keywords:\n"
 "   Általános:       errors, disabled, reverse, gauge, header\n"
 "                 input, inputmark, inputunchanged, commandlinemark\n"
 "                 bbarhotkey, bbarbutton, statusbar\n"
 "   Fájl megjelenítés: normal, selected, marked, markselect\n"
-"   Párbeszéd dobozok: dnormal, dfocus, dhotnormal, dhotfocus, "
-"errdhotnormal,\n"
+"   Dialógus dobozok: dnormal, dfocus, dhotnormal, dhotfocus, errdhotnormal,\n"
 "                 errdhotfocus\n"
 "   Menük:        menunormal, menuhot, menusel, menuhotsel, menuinactive\n"
 "   Popup menük:  pmenunormal, pmenusel, pmenutitle\n"
 "   Szerkesztő:       editnormal, editbold, editmarked, editwhitespace,\n"
 "                 editlinestate, editbg, editframe, editframeactive\n"
 "                 editframedrag\n"
-"   Megjelenítő:       viewbold, viewunderline, viewselected\n"
+"   Megjelenítő:       viewnormal,viewbold, viewunderline, viewselected\n"
 "   Súgó:         helpnormal, helpitalic, helpbold, helplink, helpslink\n"
 
 #. TRANSLATORS: don't translate color names and attributes
@@ -676,20 +713,18 @@ msgid ""
 "   color16 to color255, or rgb000 to rgb555 and gray0 to gray23\n"
 "\n"
 "Attributes:\n"
-"   bold, underline, reverse, blink; append more with '+'\n"
+"   bold, italic, underline, reverse, blink; append more with '+'\n"
 msgstr ""
 "Alap színek:\\n\n"
-"   black (fekete), gray (szürke), red (piros), brightred (élénkpiros),\\n\n"
-"   green (zöld), brightgreen, brown (barna), yellow (sárga), \\n\n"
-"   blue (kék), brightblue, magenta (lila), brightmagenta,\\n\n"
-"   cyan (türkiz), brightcyan, lightgray andés white (fehér)\\n\n"
+"   black, gray, red, brightred, green, brightgreen, brown,\\n\n"
+"   yellow, blue, brightblue, magenta, brightmagenta, cyan,\\n\n"
+"   brightcyan, lightgray, white\\n\n"
 "\\n\n"
 "Bővített színek, ha a 256 szín elérhető:\\n\n"
 "   color16 - color255, vagy rgb000 - rgb555 és gray0 - gray23\\n\n"
 "\\n\n"
 "Attribútumok:\\n\n"
-"   bold (félkövér), underline (aláhúzott), reverse (inverz), blink "
-"(villogás); továbbiak hozzáadása: '+'\\n\n"
+"   bold, italic, underline, reverse, blink; továbbiak hozzáadása: '+'\\n\n"
 
 msgid "Color options"
 msgstr "Színbeállítások"
@@ -728,8 +763,14 @@ msgstr "Argumentum feldolgozási hiba!"
 msgid "No arguments given to the viewer."
 msgstr "Hiányzó paraméterek a nézethez."
 
-msgid "Two files are required to evoke the diffviewer."
+msgid "Two files are required to envoke the diffviewer."
 msgstr "Két fájl kell a diff-nézet indításához."
+
+msgid "Background protocol error"
+msgstr "Háttérprotokoll-hiba"
+
+msgid "Reading failed"
+msgstr "Sikertelen olvasás"
 
 msgid "Background process error"
 msgstr "Hiba a háttérfolyamatban"
@@ -739,12 +780,6 @@ msgstr "Ismeretlen hiba a futtatott programban"
 
 msgid "Child died unexpectedly"
 msgstr "Váratlanul leállt a futtatott program"
-
-msgid "Background protocol error"
-msgstr "Háttérprotokoll-hiba"
-
-msgid "Reading failed"
-msgstr "Sikertelen olvasás"
 
 msgid ""
 "Background process sent us a request for more arguments\n"
@@ -913,8 +948,18 @@ msgid "< Reload Current Syntax >"
 msgstr "< Aktuális szintaktika újratöltése >"
 
 #, c-format
+msgid "Loading: %3d%%"
+msgstr "Betöltés: %3d%%"
+
+msgid "Loading..."
+msgstr "Betöltés..."
+
+#, c-format
 msgid "Cannot open %s for reading"
 msgstr "A(z) \"%s\" fájl nem megnyitható olvasásra"
+
+msgid "Load file"
+msgstr "Fájl betöltése"
 
 #, c-format
 msgid "Error reading %s"
@@ -944,6 +989,14 @@ msgstr "Hiba a cső olvasásakor: %s"
 msgid "Cannot open pipe for reading: %s"
 msgstr "A cső nem megnyitható olvasásra: %s"
 
+#, c-format
+msgid "Searching %s: %3d%%"
+msgstr "%s keresése: %3d%%"
+
+#, c-format
+msgid "Searching %s"
+msgstr "\"%s\" keresése"
+
 msgid "File has hard-links. Detach before saving?"
 msgstr "A fájlban \"hard-link\" van. Leválaszt mentés előtt?"
 
@@ -962,9 +1015,8 @@ msgstr "A cső nem megnyitható írásra: %s"
 msgid "Cannot open file for writing: %s"
 msgstr "A(z) \"%s\" fájl nem megnyitható írásra."
 
-#, fuzzy
 msgid "The file you are saving does not end with a newline."
-msgstr "A file nem soremeléssel ér véget"
+msgstr "A mentendő fájl nem soremeléssel ér véget."
 
 msgid "C&ontinue"
 msgstr "&Tovább"
@@ -992,6 +1044,9 @@ msgstr "Mentés másként"
 
 msgid "Block is large, you may not be able to undo this action"
 msgstr "Nagy blokk, a művelet nem biztos hogy visszavonható."
+
+msgid "Collect completions"
+msgstr ""
 
 msgid "&Quick save"
 msgstr "Gyors mentés"
@@ -1522,8 +1577,8 @@ msgstr ""
 "Felhasználóbarát szövegszerkesztő\n"
 "a Midnight Commander-hez készítve"
 
-msgid "Copyright (C) 1996-2014 the Free Software Foundation"
-msgstr ""
+msgid "Copyright (C) 1996-2015 the Free Software Foundation"
+msgstr "Copyright (C) 1996-2015 the Free Software Foundation"
 
 msgid "About"
 msgstr "Névjegy"
@@ -1551,6 +1606,78 @@ msgstr "Töröl"
 
 msgid "ButtonBar|PullDn"
 msgstr "Főmenü"
+
+msgid "Breton"
+msgstr "Breton"
+
+msgid "Czech"
+msgstr "Cseh"
+
+msgid "Welsh"
+msgstr "Velszi"
+
+msgid "Danish"
+msgstr "Dán"
+
+msgid "German"
+msgstr "német"
+
+msgid "Greek"
+msgstr "görög"
+
+msgid "English"
+msgstr "angol"
+
+msgid "British English"
+msgstr "Brit angol"
+
+msgid "Canadian English"
+msgstr "Kanadai angol"
+
+msgid "American English"
+msgstr "Amerikai angol"
+
+msgid "Esperanto"
+msgstr "Eszperantó"
+
+msgid "Spanish"
+msgstr "Spanyol"
+
+msgid "Faroese"
+msgstr ""
+
+msgid "French"
+msgstr "francia"
+
+msgid "Italian"
+msgstr "olasz"
+
+msgid "Dutch"
+msgstr "holland"
+
+msgid "Norwegian"
+msgstr "norvég"
+
+msgid "Polish"
+msgstr "lengyel"
+
+msgid "Portuguese"
+msgstr "portugál"
+
+msgid "Romanian"
+msgstr "román"
+
+msgid "Russian"
+msgstr "orosz"
+
+msgid "Slovak"
+msgstr "szlovák"
+
+msgid "Swedish"
+msgstr "svéd"
+
+msgid "Ukrainian"
+msgstr "ukrán"
 
 msgid "&Add word"
 msgstr "Szó hozzá&adása"
@@ -1647,6 +1774,12 @@ msgstr ""
 "\"%s\" tulaja nem állítható\n"
 "%s"
 
+msgid "< Default >"
+msgstr "< Alapértelmezett >"
+
+msgid "Skins"
+msgstr ""
+
 msgid "Other 8 bit"
 msgstr "Egyéb 8 bites"
 
@@ -1731,17 +1864,11 @@ msgstr "Auto &Beállításmentés"
 msgid "Configure options"
 msgstr "Alapbeállítások"
 
-msgid "< Default >"
-msgstr ""
-
-msgid "Skins"
-msgstr ""
-
 msgid "Skin:"
 msgstr ""
 
 msgid "Appearance"
-msgstr ""
+msgstr "Megjelenítés"
 
 msgid "Case &insensitive"
 msgstr "&Kis-/nagybetű mindegy"
@@ -1822,14 +1949,17 @@ msgstr ""
 msgid "&Full file list"
 msgstr "&Teljes"
 
-msgid "&Brief file list"
-msgstr "Tömö&r"
+msgid "&Brief file list:"
+msgstr ""
 
 msgid "&Long file list"
 msgstr "&Duplaszéles"
 
 msgid "&User defined:"
 msgstr "Sa&ját:"
+
+msgid "columns"
+msgstr "oszlopok"
 
 msgid "User &mini status"
 msgstr "Saját extra adat&sor"
@@ -2067,15 +2197,6 @@ msgstr "Szűrő"
 msgid "Set expression for filtering filenames"
 msgstr "Adja meg a fájlnevekre vonatkozó szűrőkifejezést"
 
-msgid "&Files only"
-msgstr "Csak &fájlokat"
-
-msgid "&Using shell patterns"
-msgstr "&Shell-minta"
-
-msgid "&Case sensitive"
-msgstr "&Kis-/nagybetű számít"
-
 #, c-format
 msgid "Link %s to:"
 msgstr "\"%s\" linkelése ide:"
@@ -2115,12 +2236,6 @@ msgstr "Új könyvtár létrehozása"
 
 msgid "Enter directory name:"
 msgstr "Könyvtár neve:"
-
-msgid "Select"
-msgstr "Kiválaszt"
-
-msgid "Unselect"
-msgstr "Kijelölések megszüntetése"
 
 msgid "Extension file edit"
 msgstr "Kiterjesztésfájl szerkesztése"
@@ -2207,6 +2322,9 @@ msgstr ""
 "A visszaállítandó fájlokat tároló eszköz neve\n"
 "(/dev/ nélkül) (részletek: F1 billentyű):"
 
+msgid "Directory scanning"
+msgstr "Könyvtárak átfésülése"
+
 msgid "Setup"
 msgstr "Beállítások"
 
@@ -2289,7 +2407,7 @@ msgstr "Töröl"
 
 #, no-c-format
 msgid "%o %f%n\"%s\"%m"
-msgstr ""
+msgstr "%o %f%n\"%s\"%m"
 
 #, no-c-format
 msgid "%o %d %f%m"
@@ -2341,9 +2459,6 @@ msgid ""
 msgstr ""
 "Nem sikerült létrehozni a cél szim-linket \"%s\"\n"
 "%s"
-
-msgid "&Abort"
-msgstr "&Megszakítás"
 
 msgid "Ski&p all"
 msgstr "Ö&sszes kihagyása"
@@ -2630,16 +2745,9 @@ msgstr ""
 "A(z) \"%s\" könyvtár nem átnevezhető/mozgatható erre: \"%s\" \n"
 "%s"
 
-msgid "Directory scanning"
-msgstr "Könyvtárak átfésülése"
-
 #, c-format
-msgid ""
-"%s\n"
-"Directories: %zd, total size: %s"
-msgstr ""
-"%s\n"
-"Könyvtár: %zd, összméret: %s"
+msgid "Directories: %zd, total size: %s"
+msgstr "Könyvtár: %zd, összméret: %s"
 
 msgid "Cannot operate on \"..\"!"
 msgstr "A \"..\" könyvtárral ez nem lehetséges!"
@@ -2746,6 +2854,12 @@ msgstr "Forrás"
 msgid "Target"
 msgstr "Cél"
 
+msgid "Deleting"
+msgstr "Törlés"
+
+msgid "&Using shell patterns"
+msgstr "&Shell-minta"
+
 msgid "to:"
 msgstr "Cél:"
 
@@ -2838,10 +2952,6 @@ msgid "Finished (ignored %zd directory)"
 msgid_plural "Finished (ignored %zd directories)"
 msgstr[0] "Befejezve (%zd könyvtár kihagyva)"
 msgstr[1] "Befejezve (%zd könyvtár kihagyva)"
-
-#, c-format
-msgid "Searching %s"
-msgstr "\"%s\" keresése"
 
 msgid "Searching"
 msgstr "Keresés"
@@ -2965,31 +3075,31 @@ msgid "Free space: %s/%s (%d%%)"
 msgstr "Szabad hely: %s/%s (%d%%)"
 
 #, c-format
-msgid "Type:      %s"
-msgstr "Fájlr.-típus: %s"
+msgid "Type:       %s"
+msgstr "Típus: %s"
 
 msgid "non-local vfs"
 msgstr "távoli VFS"
 
 #, c-format
-msgid "Device:    %s"
-msgstr "Eszköz:       %s"
+msgid "Device:     %s"
+msgstr "Eszköz: %s"
 
 #, c-format
 msgid "Filesystem: %s"
 msgstr "Fájlrendszer: %s"
 
 #, c-format
-msgid "Accessed:  %s"
+msgid "Accessed:   %s"
 msgstr "Elérés ideje: %s"
 
 #, c-format
-msgid "Modified:  %s"
-msgstr "Módosítás:    %s"
+msgid "Modified:   %s"
+msgstr "Módosítás: %s"
 
 #. TRANSLATORS: Time of last status change as in stat(2) man.
 #, c-format
-msgid "Changed:   %s"
+msgid "Changed:    %s"
 msgstr "Változtatás:  %s"
 
 #, c-format
@@ -2997,8 +3107,8 @@ msgid "Dev. type: major %lu, minor %lu"
 msgstr "Eszköztípus:  fő: %lu, al: %lu"
 
 #, c-format
-msgid "Size:      %s"
-msgstr "Méret:        %s"
+msgid "Size:       %s"
+msgstr "Méret: %s"
 
 #, c-format
 msgid " (%ld block)"
@@ -3007,20 +3117,20 @@ msgstr[0] "(%ld blokk)"
 msgstr[1] "(%ld blokk)"
 
 #, c-format
-msgid "Owner:     %s/%s"
-msgstr "Tulajdonos:   %s/%s"
+msgid "Owner:      %s/%s"
+msgstr "Tulajdonos: %s/%s"
 
 #, c-format
-msgid "Links:     %d"
+msgid "Links:      %d"
 msgstr "Linkek száma: %d"
 
 #, c-format
-msgid "Mode:      %s (%04o)"
+msgid "Mode:       %s (%04o)"
 msgstr "Típus+jogok:  %s (%04o)"
 
 #, c-format
-msgid "Location:  %Xh:%Xh"
-msgstr "Hely:         %Xh:%Xh"
+msgid "Location:   %Xh:%Xh"
+msgstr "Hely: %Xh:%Xh"
 
 msgid "&Equal split"
 msgstr "S&zimmetrikus elosztás"
@@ -3224,7 +3334,7 @@ msgid "C&onfirmation..."
 msgstr "&Rákérdezés..."
 
 msgid "&Appearance..."
-msgstr ""
+msgstr "&Megjelenítés..."
 
 msgid "&Display bits..."
 msgstr "&Kivitel és bevitel..."
@@ -3400,6 +3510,18 @@ msgstr "Panelra helyezés"
 msgid "Unknown tag on display format:"
 msgstr "Ismeretlen címke a megjelenítési formátumban:"
 
+msgid "&Files only"
+msgstr "Csak &fájlokat"
+
+msgid "&Case sensitive"
+msgstr "&Kis-/nagybetű számít"
+
+msgid "Select"
+msgstr "Kiválaszt"
+
+msgid "Unselect"
+msgstr "Kijelölések megszüntetése"
+
 msgid "Do you really want to execute?"
 msgstr "Biztosan futtatni kívánja a programot?"
 
@@ -3532,14 +3654,6 @@ msgstr "A %%var makrónak nincs alapértéke"
 #, c-format
 msgid "The %%var macro has no variable"
 msgstr "A %%var makrónak nincs változója"
-
-#, c-format
-msgid ""
-"Cannot open file%s\n"
-"%s"
-msgstr ""
-"A(z) %s fájl nem megnyitható\n"
-"%s"
 
 #, c-format
 msgid "No suitable entries found in %s"
@@ -4021,9 +4135,6 @@ msgstr "sftp: A jelenlegi felhasználó nevet nem kaptam meg."
 msgid "sftp: Invalid host name."
 msgstr "sftp: Érvénytelen kiszolgálónév."
 
-msgid "sftp: Invalid port value."
-msgstr "sftp: Érvénytelen portszám."
-
 #, c-format
 msgid "sftp: %s"
 msgstr "sftp: %s"
@@ -4206,14 +4317,8 @@ msgstr ""
 "A Midnight Commander kilép.\n"
 "Módosított fájl mentése?"
 
-msgid "Cannot spawn child process"
-msgstr "Nem sikerült programot indítani"
-
-msgid "Empty output from child filter"
-msgstr "A szűrő kimenete üres."
-
-msgid "&Line number (decimal)"
-msgstr "&Sorszám (decimális)"
+msgid "&Line number"
+msgstr "&Sorszám"
 
 msgid "Pe&rcents"
 msgstr "Szá&zalék"
@@ -4259,6 +4364,12 @@ msgstr "Formáz"
 
 #, c-format
 msgid ""
+"Failed to read data from child stdout:\n"
+"%s"
+msgstr ""
+
+#, c-format
+msgid ""
 "Error while closing the file:\n"
 "%s\n"
 "Data may have been written or not"
@@ -4295,9 +4406,6 @@ msgid ""
 "%s"
 msgstr ""
 
-msgid "Seeking to search result"
-msgstr "Találat keresése"
-
 msgid "Search done"
 msgstr "Keresés kész"
 
@@ -4306,6 +4414,3 @@ msgstr "Folytatás az elejéről?"
 
 msgid "Cannot fetch a local copy of /ftp://some.host/editme.txt"
 msgstr "Nem sikerült behozni /ftp://some.host/editme.txt helyi másolatát"
-
-#~ msgid "&Select"
-#~ msgstr "&Kiválaszt"

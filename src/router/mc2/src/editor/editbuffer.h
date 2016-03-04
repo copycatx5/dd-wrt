@@ -22,6 +22,15 @@ typedef struct edit_buffer_struct
     long curs_line;             /* line number of the cursor. */
 } edit_buffer_t;
 
+typedef struct edit_buffer_read_file_status_msg_struct
+{
+    simple_status_msg_t status_msg;     /* base class */
+
+    gboolean first;
+    edit_buffer_t *buf;
+    off_t loaded;
+} edit_buffer_read_file_status_msg_t;
+
 /*** global variables defined in .c file *********************************************************/
 
 /*** declarations of public functions ************************************************************/
@@ -31,8 +40,8 @@ void edit_buffer_clean (edit_buffer_t * buf);
 
 int edit_buffer_get_byte (const edit_buffer_t * buf, off_t byte_index);
 #ifdef HAVE_CHARSET
-int edit_buffer_get_utf (const edit_buffer_t * buf, off_t byte_index, int *char_width);
-int edit_buffer_get_prev_utf (const edit_buffer_t * buf, off_t byte_index, int *char_width);
+int edit_buffer_get_utf (const edit_buffer_t * buf, off_t byte_index, int *char_length);
+int edit_buffer_get_prev_utf (const edit_buffer_t * buf, off_t byte_index, int *char_length);
 #endif
 long edit_buffer_count_lines (const edit_buffer_t * buf, off_t first, off_t last);
 off_t edit_buffer_get_bol (const edit_buffer_t * buf, off_t current);
@@ -48,8 +57,11 @@ int edit_buffer_backspace (edit_buffer_t * buf);
 off_t edit_buffer_move_forward (const edit_buffer_t * buf, off_t current, long lines, off_t upto);
 off_t edit_buffer_move_backward (const edit_buffer_t * buf, off_t current, long lines);
 
-off_t edit_buffer_read_file (edit_buffer_t * buf, int fd, off_t size);
+off_t edit_buffer_read_file (edit_buffer_t * buf, int fd, off_t size,
+                             edit_buffer_read_file_status_msg_t * sm, gboolean * aborted);
 off_t edit_buffer_write_file (edit_buffer_t * buf, int fd);
+
+int edit_buffer_calc_percent (const edit_buffer_t * buf, off_t offset);
 
 /*** inline functions ****************************************************************************/
 

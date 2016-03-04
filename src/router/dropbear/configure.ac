@@ -361,6 +361,10 @@ AC_CHECK_FUNCS(endutxent getutxent getutxid getutxline pututxline )
 AC_CHECK_FUNCS(setutxent utmpxname)
 AC_CHECK_FUNCS(logout updwtmp logwtmp)
 
+# OS X monotonic time
+AC_CHECK_HEADERS([mach/mach_time.h])
+AC_CHECK_FUNCS(mach_absolute_time)
+
 AC_ARG_ENABLE(bundled-libtom,
 [  --enable-bundled-libtom       Force using bundled libtomcrypt/libtommath even if a system version exists.
   --disable-bundled-libtom      Force using system libtomcrypt/libtommath, fail if it does not exist.
@@ -656,6 +660,7 @@ fi
 AC_EXEEXT
 
 # XXX there must be a nicer way to do this
+if test $BUNDLED_LIBTOM = 1 ; then
 AS_MKDIR_P(libtomcrypt/src/ciphers/aes)
 AS_MKDIR_P(libtomcrypt/src/ciphers/safer)
 AS_MKDIR_P(libtomcrypt/src/ciphers/twofish)
@@ -706,8 +711,10 @@ AS_MKDIR_P(libtomcrypt/src/pk/katja)
 AS_MKDIR_P(libtomcrypt/src/pk/pkcs1)
 AS_MKDIR_P(libtomcrypt/src/pk/rsa)
 AS_MKDIR_P(libtomcrypt/src/prngs)
+LIBTOM_FILES="libtomcrypt/Makefile libtommath/Makefile"
+fi
 AC_CONFIG_HEADER(config.h)
-AC_CONFIG_FILES(Makefile libtomcrypt/Makefile libtommath/Makefile)
+AC_CONFIG_FILES(Makefile $LIBTOM_FILES)
 AC_OUTPUT
 
 AC_MSG_NOTICE()

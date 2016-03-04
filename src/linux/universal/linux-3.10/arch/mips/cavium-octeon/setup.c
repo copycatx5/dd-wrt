@@ -41,6 +41,8 @@
 #include <asm/octeon/pci-octeon.h>
 #include <asm/octeon/cvmx-mio-defs.h>
 
+#include "octeon_boot.h"
+
 #ifdef CONFIG_CAVIUM_DECODE_RSL
 extern void cvmx_interrupt_rsl_decode(void);
 extern int __cvmx_interrupt_ecc_report_single_bit_errors;
@@ -55,10 +57,17 @@ extern void pci_console_init(const char *arg);
 
 static unsigned long long MAX_MEMORY = 512ull << 20;
 
+DEFINE_SEMAPHORE(octeon_bootbus_sem);
+
+EXPORT_SYMBOL(octeon_bootbus_sem);
 struct octeon_boot_descriptor *octeon_boot_desc_ptr;
 
 struct cvmx_bootinfo *octeon_bootinfo;
 EXPORT_SYMBOL(octeon_bootinfo);
+
+uint64_t octeon_bootloader_entry_addr;
+EXPORT_SYMBOL(octeon_bootloader_entry_addr);
+
 
 static unsigned long long RESERVE_LOW_MEM = 0ull;
 #ifdef CONFIG_KEXEC
@@ -471,6 +480,18 @@ static void octeon_halt(void)
 	octeon_kill_core(NULL);
 }
 
+static char __read_mostly octeon_system_type[80];
+
+static int __init init_octeon_system_type(void)
+{
+	snprintf(octeon_system_type, sizeof(octeon_system_type), "%s (%s)",
+		cvmx_board_type_to_string(octeon_bootinfo->board_type),
+		octeon_model_get_string(read_c0_prid()));
+
+	return 0;
+}
+early_initcall(init_octeon_system_type);
+
 /**
  * Handle all the error condition interrupts that might occur.
  *
@@ -490,11 +511,7 @@ static irqreturn_t octeon_rlm_interrupt(int cpl, void *dev_id)
  */
 const char *octeon_board_type_string(void)
 {
-	static char name[80];
-	sprintf(name, "%s (%s)",
-		cvmx_board_type_to_string(octeon_bootinfo->board_type),
-		octeon_model_get_string(read_c0_prid()));
-	return name;
+	return octeon_system_type;
 }
 
 const char *get_system_type(void)
@@ -630,6 +647,7 @@ void octeon_user_io_init(void)
 void __init prom_init(void)
 {
 	struct cvmx_sysinfo *sysinfo;
+	struct linux_app_boot_info *labi;
 	const char *arg;
 	char *p;
 	int i;
@@ -865,6 +883,15 @@ void __init prom_init(void)
 
 	octeon_user_io_init();
 	register_smp_ops(&octeon_smp_ops);
+
+
+	labi = (struct linux_app_boot_info *)PHYS_TO_XKSEG_CACHED(LABI_ADDR_IN_BOOTLOADER);
+	if (labi->labi_signature != LABI_SIGNATURE)
+		panic("The bootloader version on this board is incorrect.");
+
+	octeon_bootloader_entry_addr = labi->InitTLBStart_addr;
+
+
 }
 
 /* Exclude a single page from the regions obtained in plat_mem_setup. */
@@ -889,15 +916,16 @@ void __init plat_mem_setup(void)
 {
 	uint64_t mem_alloc_size;
 	uint64_t total;
-	uint64_t crashk_end;
+#ifdef CONFIG_KEXEC
+	uint64_t crashk_end = 0;
+#endif
 #ifndef CONFIG_CRASH_DUMP
-	int64_t memory;
+	uint64_t memory;
 	uint64_t kernel_start;
 	uint64_t kernel_size;
 #endif
 
 	total = 0;
-	crashk_end = 0;
 
 	/*
 	 * The Mips memory init uses the first memory location for

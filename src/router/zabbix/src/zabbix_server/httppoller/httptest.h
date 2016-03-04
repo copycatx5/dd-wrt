@@ -1,6 +1,6 @@
 /*
 ** Zabbix
-** Copyright (C) 2001-2013 Zabbix SIA
+** Copyright (C) 2001-2015 Zabbix SIA
 **
 ** This program is free software; you can redistribute it and/or modify
 ** it under the terms of the GNU General Public License as published by
@@ -20,6 +20,6 @@
 #ifndef ZABBIX_HTTPTEST_H
 #define ZABBIX_HTTPTEST_H
 
-void	process_httptests(int httppoller_num, int now);
+int	process_httptests(int httppoller_num, int now);
 
 #endif

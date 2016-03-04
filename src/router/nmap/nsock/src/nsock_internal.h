@@ -1,11 +1,11 @@
 /***************************************************************************
  * nsock_internal.h -- PRIVATE interface definitions for the guts of the   *
- * nsock paralle socket event library.  Applications calling this library  *
+ * nsock parallel socket event library. Applications calling this library  *
  * should NOT include this. even LOOK at these :).                         *
  *                                                                         *
  ***********************IMPORTANT NSOCK LICENSE TERMS***********************
  *                                                                         *
- * The nsock parallel socket event library is (C) 1999-2012 Insecure.Com   *
+ * The nsock parallel socket event library is (C) 1999-2015 Insecure.Com   *
  * LLC This library is free software; you may redistribute and/or          *
  * modify it under the terms of the GNU General Public License as          *
  * published by the Free Software Foundation; Version 2.  This guarantees  *
@@ -29,22 +29,22 @@
  *                                                                         *
  * Source is provided to this software because we believe users have a     *
  * right to know exactly what a program is going to do before they run it. *
- * This also allows you to audit the software for security holes (none     *
- * have been found so far).                                                *
+ * This also allows you to audit the software for security holes.          *
  *                                                                         *
  * Source code also allows you to port Nmap to new platforms, fix bugs,    *
  * and add new features.  You are highly encouraged to send your changes   *
- * to nmap-dev@insecure.org for possible incorporation into the main       *
- * distribution.  By sending these changes to Fyodor or one of the         *
- * Insecure.Org development mailing lists, it is assumed that you are      *
- * offering the Nmap Project (Insecure.Com LLC) the unlimited,             *
- * non-exclusive right to reuse, modify, and relicense the code.  Nmap     *
- * will always be available Open Source, but this is important because the *
- * inability to relicense code has caused devastating problems for other   *
- * Free Software projects (such as KDE and NASM).  We also occasionally    *
- * relicense the code to third parties as discussed above.  If you wish to *
- * specify special license conditions of your contributions, just say so   *
- * when you send them.                                                     *
+ * to the dev@nmap.org mailing list for possible incorporation into the    *
+ * main distribution.  By sending these changes to Fyodor or one of the    *
+ * Insecure.Org development mailing lists, or checking them into the Nmap  *
+ * source code repository, it is understood (unless you specify otherwise) *
+ * that you are offering the Nmap Project (Insecure.Com LLC) the           *
+ * unlimited, non-exclusive right to reuse, modify, and relicense the      *
+ * code.  Nmap will always be available Open Source, but this is important *
+ * because the inability to relicense code has caused devastating problems *
+ * for other Free Software projects (such as KDE and NASM).  We also       *
+ * occasionally relicense the code to third parties as discussed above.    *
+ * If you wish to specify special license conditions of your               *
+ * contributions, just say so when you send them.                          *
  *                                                                         *
  * This program is distributed in the hope that it will be useful, but     *
  * WITHOUT ANY WARRANTY; without even the implied warranty of              *
@@ -54,7 +54,7 @@
  *                                                                         *
  ***************************************************************************/
 
-/* $Id: nsock_internal.h 28190 2012-03-01 06:32:23Z fyodor $ */
+/* $Id: nsock_internal.h 34756 2015-06-27 08:21:53Z henri $ */
 
 #ifndef NSOCK_INTERNAL_H
 #define NSOCK_INTERNAL_H
@@ -72,9 +72,11 @@
 #endif
 
 #include "gh_list.h"
+#include "gh_heap.h"
 #include "filespace.h"
 #include "nsock.h" /* The public interface -- I need it for some enum defs */
 #include "nsock_ssl.h"
+#include "nsock_proxy.h"
 
 #if HAVE_SYS_TIME_H
 #include <sys/time.h>
@@ -97,6 +99,9 @@
 #if HAVE_STRINGS_H
 #include <strings.h>
 #endif
+#if HAVE_SYS_UN_H
+#include <sys/un.h>
+#endif
 
 #ifndef IPPROTO_SCTP
 #define IPPROTO_SCTP 132
@@ -111,11 +116,11 @@ enum nsock_read_types {
   NSOCK_READ
 };
 
-enum msiod_state {
+enum iod_state {
   NSIOD_STATE_DELETED,
   NSIOD_STATE_INITIAL,
 
-  /* sd was provided to us in nsi_new2 (see nsock_pool.c) */
+  /* sd was provided to us in nsock_iod_new2 (see nsock_iod.c) */
   NSIOD_STATE_UNKNOWN,
 
   NSIOD_STATE_CONNECTED_TCP,
@@ -146,11 +151,7 @@ struct writeinfo {
 
 /* Remember that callers of this library should NOT be accessing these
  * fields directly */
-typedef struct {
-
-  /* Every msp has a unique (across the program execution) id */
-  unsigned long id;
-
+struct npool {
   /* User data, NULL if unset */
   void *userdata;
 
@@ -160,28 +161,21 @@ typedef struct {
   void *engine_data;
 
   /* Active network events */
-  gh_list connect_events;
-  gh_list read_events;
-  gh_list write_events;
-  gh_list timer_events;
+  gh_list_t connect_events;
+  gh_list_t read_events;
+  gh_list_t write_events;
 #if HAVE_PCAP
-  gh_list pcap_read_events;
+  gh_list_t pcap_read_events;
 #endif
+  gh_heap_t expirables;
 
   /* Active iods and related lists of events */
-  gh_list active_iods;
+  gh_list_t active_iods;
 
-  /* msiod structures that have been freed for reuse */
-  gh_list free_iods;
+  /* struct niod structures that have been freed for reuse */
+  gh_list_t free_iods;
   /* When an event is deleted, we stick it here for later reuse */
-  gh_list free_events;
-
-  /* The soonest time that either a timer event goes
-   * off or a read/write/connect expires.  It is
-   * updated each main loop round as we go through
-   * the events.  It is an absolute time.  If there
-   * are no events, tv_sec is 0 */
-  struct timeval next_ev;
+  gh_list_t free_events;
 
   /* Number of events pending (total) on all lists */
   int events_pending;
@@ -195,15 +189,11 @@ typedef struct {
    * error (errnum fashion) */
   int errnum;
 
-  /* Trace/debug level - set by nsp_settrace. If positive, trace logs are
-   * printted to tracefile. */
-  int tracelevel;
-  FILE *tracefile;
-  /* This time is subtracted from the current time for trace reports */
-  struct timeval tracebasetime;
-
   /* If true, new sockets will have SO_BROADCAST set */
   int broadcast;
+
+  /* Interface to bind to; only supported on Linux with SO_BINDTODEVICE sockopt. */
+  const char *device;
 
   /* If true, exit the next iteration of nsock_loop with a status of
    * NSOCK_LOOP_QUIT. */
@@ -213,12 +203,17 @@ typedef struct {
   /* The SSL Context (options and such) */
   SSL_CTX *sslctx;
 #endif
-} mspool;
+
+  /* Optional proxy chain (NULL is not set). Can only be set once per NSP (using
+   * nsock_proxychain_new() or nsock_pool_set_proxychain(). */
+  struct proxy_chain *px_chain;
+
+};
 
 
 /* nsock_iod is like a "file descriptor" for the nsock library.  You use it to
  * request events. */
-typedef struct {
+struct niod {
   /* The socket descriptor related to the event */
   int sd;
 
@@ -226,11 +221,11 @@ typedef struct {
   int events_pending;
 
   /* Pending events */
-  gh_list_elem *first_connect;
-  gh_list_elem *first_read;
-  gh_list_elem *first_write;
+  gh_lnode_t *first_connect;
+  gh_lnode_t *first_read;
+  gh_lnode_t *first_write;
 #if HAVE_PCAP
-  gh_list_elem *first_pcap_read;
+  gh_lnode_t *first_pcap_read;
 #endif
 
   int readsd_count;
@@ -241,10 +236,10 @@ typedef struct {
 
   int watched_events;
 
-  /* The mspool used to create the iod (used for deletion) */
-  mspool *nsp;
+  /* The struct npool used to create the iod (used for deletion) */
+  struct npool *nsp;
 
-  enum msiod_state state;
+  enum iod_state state;
 
   /* The host and port we are connected to using sd (saves a call to getpeername) */
   struct sockaddr_storage peer;
@@ -252,19 +247,21 @@ typedef struct {
   struct sockaddr_storage local;
 
   /* The length of peer/local actually used (sizeof(sockaddr_in) or
-   * sizeof(sockaddr_in6), or 0 if peer/local has not been filled in */
+   * sizeof(sockaddr_in6), SUN_LEN(sockaddr_un), or 0 if peer/local
+   * has not been filled in */
   size_t locallen;
   size_t peerlen;
 
   /* -1 if none yet, otherwise IPPROTO_TCP, etc. */
   int lastproto;
 
-  /* The mspool keeps track of msiods that have been allocated so that it can
-   * destroy them if the msp is deleted.  This pointer makes it easy to remove
-   * this msiod from the allocated list when necessary */
-  gh_list_elem *entry_in_nsp_active_iods;
+  /* The struct npool keeps track of NIODs that have been allocated so that it
+   * can destroy them if the msp is deleted.  This pointer makes it easy to
+   * remove this struct niod from the allocated list when necessary */
+  gh_lnode_t nodeq;
 
 #define IOD_REGISTERED  0x01
+#define IOD_PROCESSED   0x02    /* internally used by engine_kqueue.c */
 
 #define IOD_PROPSET(iod, flag)  ((iod)->_flags |= (flag))
 #define IOD_PROPCLR(iod, flag)  ((iod)->_flags &= ~(flag))
@@ -300,13 +297,15 @@ typedef struct {
 
   /* Pointer to mspcap struct (used only if pcap support is included) */
   void *pcap;
-} msiod;
+
+  struct proxy_chain_context *px_ctx;
+
+};
 
 
 /* nsock_event_t handles a single event.  Its ID is generally returned when the
  * event is created, and the event is included in callbacks */
-typedef struct {
-
+struct nevent {
   /* Every event has an ID which is unique for a given nsock unless you blow
    * through more than 500,000,000 events */
   nsock_event_id id;
@@ -334,13 +333,23 @@ typedef struct {
   /* If we return a status of NSE_STATUS_ERROR, this must be set */
   int errnum;
 
-  int eof;
-
   /* The nsock I/O descriptor related to event (if applicable) */
-  msiod *iod;
+  struct niod *iod;
 
   /* The handler to call when event is complete */
   nsock_ev_handler handler;
+
+  /* slot in the expirable binheap */
+  gh_hnode_t expire;
+
+  /* For some reasons (see nsock_pcap.c) we register pcap events as both read
+   * and pcap_read events when in PCAP_BSD_SELECT_HACK mode. We then need two
+   * gh_lnode_t handles. To make code simpler, we _always_ use _nodeq_pcap for
+   * pcap_read events and _nodeq_io for the other ones.
+   * When not in PCAP_BSD_SELECT_HACK mode we define both handles as members
+   * of an union to optimize memory footprint. */
+  gh_lnode_t nodeq_io;
+  gh_lnode_t nodeq_pcap;
 
   /* Optional (NULL if unset) pointer to pass to the handler */
   void *userdata;
@@ -349,10 +358,9 @@ typedef struct {
    * event_done is nonzero.  Used when event is finished at unexpected time and
    * we want to dispatch it later to avoid duplicating stat update code and all
    * that other crap */
-  int event_done;
-
-  struct timeval time_created;
-} msevent;
+  unsigned int event_done: 1;
+  unsigned int eof: 1;
+};
 
 
 struct io_engine {
@@ -360,95 +368,139 @@ struct io_engine {
   const char *name;
 
   /* Engine constructor */
-  int (*init)(mspool *nsp);
+  int (*init)(struct npool *nsp);
 
   /* Engine destructor */
-  void (*destroy)(mspool *nsp);
+  void (*destroy)(struct npool *nsp);
 
   /* Register a new IOD to the engine */
-  int (*iod_register)(mspool *nsp, msiod *iod, int ev);
+  int (*iod_register)(struct npool *nsp, struct niod *iod, int ev);
 
   /* Remove a registered IOD */
-  int (*iod_unregister)(mspool *nsp, msiod *iod);
+  int (*iod_unregister)(struct npool *nsp, struct niod *iod);
 
   /* Modify events for a registered IOD.
    *  - ev_set represent the events to add
    *  - ev_clr represent the events to delete (if set) */
-  int (*iod_modify)(mspool *nsp, msiod *iod, int ev_set, int ev_clr);
+  int (*iod_modify)(struct npool *nsp, struct niod *iod, int ev_set, int ev_clr);
 
   /* Main engine loop */
-  int (*loop)(mspool *nsp, int msec_timeout);
+  int (*loop)(struct npool *nsp, int msec_timeout);
 };
 
+/* ----------- NSOCK I/O ENGINE CONVENIENCE WRAPPERS ------------ */
+static inline int nsock_engine_init(struct npool *nsp) {
+  return nsp->engine->init(nsp);
+}
+
+static inline void nsock_engine_destroy(struct npool *nsp) {
+  nsp->engine->destroy(nsp);
+  return;
+}
+
+static inline int nsock_engine_iod_register(struct npool *nsp, struct niod *iod, int ev) {
+  return nsp->engine->iod_register(nsp, iod, ev);
+}
+
+static inline int nsock_engine_iod_unregister(struct npool *nsp, struct niod *iod) {
+  return nsp->engine->iod_unregister(nsp, iod);
+}
+
+static inline int nsock_engine_iod_modify(struct npool *nsp, struct niod *iod, int ev_set, int ev_clr) {
+  return nsp->engine->iod_modify(nsp, iod, ev_set, ev_clr);
+}
+
+static inline int nsock_engine_loop(struct npool *nsp, int msec_timeout) {
+  return nsp->engine->loop(nsp, msec_timeout);
+}
 
 /* ------------------- PROTOTYPES ------------------- */
 
+int event_timedout(struct nevent *nse);
+
 /* Get a new nsock_event_id, given a type */
-nsock_event_id get_new_event_id(mspool *nsp, enum nse_type type);
+nsock_event_id get_new_event_id(struct npool *nsp, enum nse_type type);
 
 /* Take an event ID and return the type (NSE_TYPE_CONNECT, etc */
 enum nse_type get_event_id_type(nsock_event_id event_id);
 
-/* Create a new event structure -- must be deleted later with msevent_delete,
- * unless it returns NULL (failure).  NULL can be passed in for the msiod and
+/* Create a new event structure -- must be deleted later with event_delete,
+ * unless it returns NULL (failure).  NULL can be passed in for the struct niod and
  * the userdata if not available. */
-msevent *msevent_new(mspool *nsp, enum nse_type type, msiod *msiod, int timeout_msecs, nsock_ev_handler handler, void *userdata);
+struct nevent *event_new(struct npool *nsp, enum nse_type type, struct niod *iod,
+                           int timeout_msecs, nsock_ev_handler handler, void *userdata);
 
 /* An internal function for cancelling an event when you already have a pointer
- * to the msevent (use nsock_event_cancel if you just have an ID).  The
+ * to the struct nevent (use nsock_event_cancel if you just have an ID).  The
  * event_list passed in should correspond to the type of the event.  For
  * example, with NSE_TYPE_READ, you would pass in &iod->read_events;.  elem
  * is the list element in event_list which holds the event.  Pass a nonzero for
  * notify if you want the program owning the event to be notified that it has
  * been cancelled */
-int msevent_cancel(mspool *nsp, msevent *nse, gh_list *event_list, gh_list_elem *elem, int notify);
+int nevent_delete(struct npool *nsp, struct nevent *nse, gh_list_t *event_list, gh_lnode_t *elem, int notify);
 
 /* Adjust various statistics, dispatches the event handler (if notify is
  * nonzero) and then deletes the event.  This function does NOT delete the event
  * from any lists it might be on (eg nsp->read_list etc.) nse->event_done
  * MUST be true when you call this */
-void msevent_dispatch_and_delete(mspool *nsp, msevent *nse, int notify);
+void event_dispatch_and_delete(struct npool *nsp, struct nevent *nse, int notify);
 
-/* Free an msevent which was allocated with msevent_new, including all internal
+/* Free an struct nevent which was allocated with event_new, including all internal
  * resources.  Note -- we assume that nse->iod->events_pending (if it exists)
- * has ALREADY been decremented (done during msevent_dispatch_and_delete) -- so
- * remember to do this if you call msevent_delete() directly */
-void msevent_delete(mspool *nsp, msevent *nse);
+ * has ALREADY been decremented (done during event_dispatch_and_delete) -- so
+ * remember to do this if you call event_delete() directly */
+void event_delete(struct npool *nsp, struct nevent *nse);
 
 /* Add an event to the appropriate nsp event list, handles housekeeping such as
  * adjusting the descriptor select/poll lists, registering the timeout value,
  * etc. */
-void nsp_add_event(mspool *nsp, msevent *nse);
+void nsock_pool_add_event(struct npool *nsp, struct nevent *nse);
 
-void nsock_connect_internal(mspool *ms, msevent *nse, int proto, struct sockaddr_storage *ss, size_t sslen, unsigned short port);
+void nsock_connect_internal(struct npool *ms, struct nevent *nse, int type, int proto, struct sockaddr_storage *ss, size_t sslen, unsigned short port);
 
 /* Comments on using the following handle_*_result functions are available in nsock_core.c */
 
 /* handle_connect_results assumes that select or poll have already shown the
  * descriptor to be active */
-void handle_connect_result(mspool *ms, msevent *nse, enum nse_status status);
+void handle_connect_result(struct npool *ms, struct nevent *nse, enum nse_status status);
 
-void handle_read_result(mspool *ms, msevent *nse, enum nse_status status);
+void handle_read_result(struct npool *ms, struct nevent *nse, enum nse_status status);
 
-void handle_write_result(mspool *ms, msevent *nse, enum nse_status status);
+void handle_write_result(struct npool *ms, struct nevent *nse, enum nse_status status);
 
-void handle_timer_result(mspool *ms, msevent *nse, enum nse_status status);
+void handle_timer_result(struct npool *ms, struct nevent *nse, enum nse_status status);
 
 #if HAVE_PCAP
-void handle_pcap_read_result(mspool *ms, msevent *nse, enum nse_status status);
+void handle_pcap_read_result(struct npool *ms, struct nevent *nse, enum nse_status status);
 #endif
-
-void nsock_trace(mspool *ms, char *fmt, ...) __attribute__ ((format (printf, 2, 3)));
 
 /* An event has been completed and the handler is about to be called.  This
  * function writes out tracing data about the event if necessary */
-void nsock_trace_handler_callback(mspool *ms, msevent *nse);
+void nsock_trace_handler_callback(struct npool *ms, struct nevent *nse);
 
 #if HAVE_OPENSSL
 /* Sets the ssl session of an nsock_iod, increments usage count.  The session
  * should not have been set yet (as no freeing is done) */
-void nsi_set_ssl_session(msiod *iod, SSL_SESSION *sessid);
+void nsi_set_ssl_session(struct niod *iod, SSL_SESSION *sessid);
 #endif
+
+static inline struct nevent *next_expirable_event(struct npool *nsp) {
+  gh_hnode_t *hnode;
+
+  hnode = gh_heap_min(&nsp->expirables);
+  if (!hnode)
+    return NULL;
+
+  return container_of(hnode, struct nevent, expire);
+}
+
+static inline struct nevent *lnode_nevent(gh_lnode_t *lnode) {
+  return container_of(lnode, struct nevent, nodeq_io);
+}
+
+static inline struct nevent *lnode_nevent2(gh_lnode_t *lnode) {
+  return container_of(lnode, struct nevent, nodeq_pcap);
+}
 
 #endif /* NSOCK_INTERNAL_H */
 

@@ -81,7 +81,7 @@ much traffic. */
 
 /* Enable "Netcat mode" option. This will forward standard input/output
  * to a remote TCP-forwarded connection */
-#define ENABLE_CLI_NETCAT
+// #define ENABLE_CLI_NETCAT
 
 /* Whether to support "-c" and "-m" flags to choose ciphers/MACs at runtime */
 //#define ENABLE_USER_ALGO_LIST
@@ -95,8 +95,12 @@ much traffic. */
 #define DROPBEAR_AES256
 /* Compiling in Blowfish will add ~6kB to runtime heap memory usage */
 /*#define DROPBEAR_BLOWFISH*/
-/*#define DROPBEAR_TWOFISH256
-#define DROPBEAR_TWOFISH128*/
+/*#define DROPBEAR_TWOFISH256*/
+/*#define DROPBEAR_TWOFISH128*/
+
+/* Enable CBC mode for ciphers. This has security issues though
+ * is the most compatible with older SSH implementations */
+#define DROPBEAR_ENABLE_CBC_MODE
 
 /* Enable "Counter Mode" for ciphers. This is more secure than normal
  * CBC mode against certain attacks. This adds around 1kB to binary 
@@ -170,6 +174,11 @@ much traffic. */
 #define DROPBEAR_ZLIB_WINDOW_BITS 15 
 #endif
 
+/* Server won't allow zlib compression until after authentication. Prevents
+   flaws in the zlib library being unauthenticated exploitable flaws.
+   Some old ssh clients may not support the alternative zlib@openssh.com method */
+#define DROPBEAR_SERVER_DELAY_ZLIB 1
+
 /* Whether to do reverse DNS lookups. */
 /*#define DO_HOST_LOOKUP */
 
@@ -207,13 +216,17 @@ much traffic. */
 #define ENABLE_CLI_PUBKEY_AUTH
 #define ENABLE_CLI_INTERACT_AUTH
 
+/* A default argument for dbclient -i <privatekey>. 
+   leading "~" is expanded */
+#define DROPBEAR_DEFAULT_CLI_AUTHKEY "~/.ssh/id_dropbear"
+
 /* This variable can be used to set a password for client
  * authentication on the commandline. Beware of platforms
  * that don't protect environment variables of processes etc. Also
  * note that it will be provided for all "hidden" client-interactive
  * style prompts - if you want something more sophisticated, use 
  * SSH_ASKPASS instead. Comment out this var to remove this functionality.*/
-#define DROPBEAR_PASSWORD_ENV "DROPBEAR_PASSWORD"
+/*#define DROPBEAR_PASSWORD_ENV "DROPBEAR_PASSWORD"*/
 
 /* Define this (as well as ENABLE_CLI_PASSWORD_AUTH) to allow the use of
  * a helper program for the ssh client. The helper program should be
@@ -258,7 +271,7 @@ much traffic. */
 /* The command to invoke for xauth when using X11 forwarding.
  * "-q" for quiet */
 #ifndef XAUTH_COMMAND
-#define XAUTH_COMMAND "/usr/bin/X11/xauth -q"
+#define XAUTH_COMMAND "/usr/bin/xauth -q"
 #endif
 
 /* if you want to enable running an sftp server (such as the one included with
@@ -301,6 +314,11 @@ much traffic. */
 /* Ensure that data is transmitted every KEEPALIVE seconds. This can
 be overridden at runtime with -K. 0 disables keepalives */
 #define DEFAULT_KEEPALIVE 0
+
+/* If this many KEEPALIVES are sent with no packets received from the
+other side, exit. Not run-time configurable - if you have a need
+for runtime configuration please mail the Dropbear list */
+#define DEFAULT_KEEPALIVE_LIMIT 3
 
 /* Ensure that data is received within IDLE_TIMEOUT seconds. This can
 be overridden at runtime with -I. 0 disables idle timeouts */

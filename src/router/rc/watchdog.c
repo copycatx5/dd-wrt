@@ -16,6 +16,8 @@ static void watchdog(void)
 	int oldstate0 = -1;
 	int radiostate1 = -1;
 	int oldstate1 = -1;
+	int radiostate2 = -1;
+	int oldstate2 = -1;
 	int counter = 0;
 	int radioledinitcount = 0;
 	int fd = open("/dev/misc/watchdog", O_WRONLY);
@@ -34,83 +36,126 @@ static void watchdog(void)
 	while (1) {
 		write(fd, "\0", 1);
 		fsync(fd);
-
-#ifdef HAVE_REGISTER
 		if (!nvram_match("flash_active", "1")) {
+
+#ifndef HAVE_RT2880
+#ifdef HAVE_REGISTER
 			if (registered == -1)
 				registered = isregistered_real();
 			if (!registered)
 				isregistered();	//to poll
-		}
 #endif
-		/* 
-		 * software wlan led control 
-		 */
-		if (radioledinitcount < 5) {
-			radioledinitcount++;
-			oldstate0 = -1;
-			oldstate1 = -1;
-		}
+			/* 
+			 * software wlan led control 
+			 */
+			if (radioledinitcount < 5) {
+				radioledinitcount++;
+				oldstate0 = -1;
+				oldstate1 = -1;
+				oldstate2 = -1;
+			}
 #ifdef HAVE_MADWIFI
-		if (!nvram_match("flash_active", "1")) {
 			radiostate0 = get_radiostate("ath0");
 			if (cnt == 2)
 				radiostate1 = get_radiostate("ath1");
-		}
 #else
-		wl_ioctl(get_wl_instance_name(0), WLC_GET_RADIO, &radiostate0, sizeof(int));
+			wl_ioctl(get_wl_instance_name(0), WLC_GET_RADIO, &radiostate0, sizeof(int));
 #ifndef HAVE_QTN
-		if (cnt == 2)
-			wl_ioctl(get_wl_instance_name(1), WLC_GET_RADIO, &radiostate1, sizeof(int));
+			if (cnt > 1)
+				wl_ioctl(get_wl_instance_name(1), WLC_GET_RADIO, &radiostate1, sizeof(int));
+			if (cnt > 2)
+				wl_ioctl(get_wl_instance_name(2), WLC_GET_RADIO, &radiostate2, sizeof(int));
 #endif
 #endif
 
-		if (radiostate0 != oldstate0) {
+			if (radiostate0 != oldstate0) {
 #ifdef HAVE_MADWIFI
-			if (radiostate0 == 1)
+				if (radiostate0 == 1)
 #else
-			if ((radiostate0 & WL_RADIO_SW_DISABLE) == 0)
+				if ((radiostate0 & WL_RADIO_SW_DISABLE) == 0)
 #endif
-				led_control(LED_WLAN0, LED_ON);
-			else {
-				led_control(LED_WLAN0, LED_OFF);
+					led_control(LED_WLAN0, LED_ON);
+				else {
+					led_control(LED_WLAN0, LED_OFF);
 #ifndef HAVE_MADWIFI
-				/* 
-				 * Disable wireless will cause diag led blink, so we want to
-				 * stop it. 
-				 */
-				if (brand == ROUTER_WRT54G)
-					diag_led(DIAG, STOP_LED);
-				/* 
-				 * Disable wireless will cause power led off, so we want to
-				 * turn it on. 
-				 */
-				if (brand == ROUTER_WRT54G_V8)
-					led_control(LED_POWER, LED_ON);
+					/* 
+					 * Disable wireless will cause diag led blink, so we want to
+					 * stop it. 
+					 */
+					if (brand == ROUTER_WRT54G)
+						diag_led(DIAG, STOP_LED);
+					/* 
+					 * Disable wireless will cause power led off, so we want to
+					 * turn it on. 
+					 */
+					if (brand == ROUTER_WRT54G_V8)
+						led_control(LED_POWER, LED_ON);
 #endif
+				}
+
+				oldstate0 = radiostate0;
 			}
 
-			oldstate0 = radiostate0;
-		}
-
-		if (radiostate1 != oldstate1) {
+			if (radiostate1 != oldstate1) {
 #ifdef HAVE_MADWIFI
-			if (radiostate1 == 1)
+				if (radiostate1 == 1)
 #else
-			if ((radiostate1 & WL_RADIO_SW_DISABLE) == 0)
+				if ((radiostate1 & WL_RADIO_SW_DISABLE) == 0)
 #endif
-				led_control(LED_WLAN1, LED_ON);
-			else {
-				led_control(LED_WLAN1, LED_OFF);
+					led_control(LED_WLAN1, LED_ON);
+				else {
+					led_control(LED_WLAN1, LED_OFF);
+				}
+
+				oldstate1 = radiostate1;
 			}
 
-			oldstate1 = radiostate1;
-		}
-		/* 
-		 * end software wlan led control 
-		 */
+			if (radiostate2 != oldstate2) {
+#ifdef HAVE_MADWIFI
+				if (radiostate2 == 1)
+#else
+				if ((radiostate2 & WL_RADIO_SW_DISABLE) == 0)
+#endif
+					led_control(LED_WLAN2, LED_ON);
+				else {
+					led_control(LED_WLAN2, LED_OFF);
+				}
 
-		sleep(10);
+				oldstate2 = radiostate2;
+			}
+			/* 
+			 * end software wlan led control 
+			 */
+#endif
+		}
+#ifdef HAVE_MVEBU
+		if (getRouterBrand() == ROUTER_WRT_1900AC) {
+			int cpu;
+			FILE *tempfp;
+			tempfp = fopen("/sys/class/hwmon/hwmon1/temp1_input", "rb");
+			if (tempfp) {
+				fscanf(tempfp, "%d", &cpu);
+				fclose(tempfp);
+				if (cpu > ((atoi(nvram_safe_get("hwmon_temp_max")) + 10) * 1000)) {
+					system("/bin/echo 255 > /sys/class/hwmon/hwmon0/pwm1");
+
+				} else if (cpu > ((atoi(nvram_safe_get("hwmon_temp_max")) + 5) * 1000)) {
+					system("/bin/echo 150 > /sys/class/hwmon/hwmon0/pwm1");
+
+				} else if (cpu > ((atoi(nvram_safe_get("hwmon_temp_max"))) * 1000)) {
+					system("/bin/echo 100 > /sys/class/hwmon/hwmon0/pwm1");
+
+				} else if (cpu < ((atoi(nvram_safe_get("hwmon_temp_hyst"))) * 1000)) {
+					system("/bin/echo 0 > /sys/class/hwmon/hwmon0/pwm1");
+
+				}
+
+			}
+
+		}
+#endif
+
+		sleep(5);
 		if (nvram_match("warn_enabled", "1")) {
 			counter++;
 			if (!(counter % 60))

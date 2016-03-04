@@ -21,6 +21,9 @@
 #include <sys/param.h>
 #endif
 
+/* for O_* macros */
+#include <fcntl.h>
+
 /* for sig_atomic_t */
 #include <signal.h>
 
@@ -61,6 +64,7 @@
 #include <glib.h>
 #include "glibcompat.h"
 
+/* For SMB VFS only */
 #ifndef __GNUC__
 #define __attribute__(x)
 #endif
@@ -128,6 +132,7 @@
 /* OS specific defines */
 #define PATH_SEP '/'
 #define PATH_SEP_STR "/"
+#define IS_PATH_SEP(c) ((c) == PATH_SEP)
 #define PATH_ENV_SEP ':'
 #define TMPDIR_DEFAULT "/tmp"
 #define SCRIPT_SUFFIX ""
@@ -173,6 +178,8 @@ typedef enum
 typedef struct
 {
     mc_run_mode_t mc_run_mode;
+    /* global timer */
+    struct mc_timer_t *timer;
     /* Used so that widgets know if they are being destroyed or shut down */
     gboolean midnight_shutdown;
 

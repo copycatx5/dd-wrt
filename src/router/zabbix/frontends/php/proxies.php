@@ -1,7 +1,7 @@
 <?php
 /*
 ** Zabbix
-** Copyright (C) 2001-2013 Zabbix SIA
+** Copyright (C) 2001-2015 Zabbix SIA
 **
 ** This program is free software; you can redistribute it and/or modify
 ** it under the terms of the GNU General Public License as published by
@@ -30,10 +30,10 @@ require_once dirname(__FILE__).'/include/page_header.php';
 
 // VAR	TYPE	OPTIONAL	FLAGS	VALIDATION	EXCEPTION
 $fields = array(
-	'proxyid' =>		array(T_ZBX_INT, O_OPT, P_SYS,	DB_ID,		'isset({form})&&({form}=="update")'),
+	'proxyid' =>		array(T_ZBX_INT, O_OPT, P_SYS,	DB_ID,		'isset({form})&&{form}=="update"'),
 	'host' =>			array(T_ZBX_STR, O_OPT, null,	NOT_EMPTY,	'isset({save})', _('Proxy name')),
 	'status' =>			array(T_ZBX_INT, O_OPT, null,	BETWEEN(HOST_STATUS_PROXY_ACTIVE,HOST_STATUS_PROXY_PASSIVE), 'isset({save})'),
-	'interfaces' =>		array(T_ZBX_STR, O_OPT, null,	NOT_EMPTY,	'isset({save})&&({status}=='.HOST_STATUS_PROXY_PASSIVE.')'),
+	'interface' =>		array(T_ZBX_STR, O_OPT, null,	null,		'isset({save})&&{status}=='.HOST_STATUS_PROXY_PASSIVE),
 	'hosts' =>			array(T_ZBX_INT, O_OPT, P_SYS,	DB_ID,		null),
 	// actions
 	'go' =>				array(T_ZBX_STR, O_OPT, P_SYS|P_ACT, null,	null),
@@ -53,8 +53,8 @@ validate_sort_and_sortorder('host', ZBX_SORT_UP);
 if (isset($_REQUEST['proxyid'])) {
 	$dbProxy = API::Proxy()->get(array(
 		'proxyids' => get_request('proxyid'),
-		'selectInterfaces' => API_OUTPUT_EXTEND,
 		'selectHosts' => array('hostid', 'host'),
+		'selectInterface' => API_OUTPUT_EXTEND,
 		'output' => API_OUTPUT_EXTEND
 	));
 	if (empty($dbProxy)) {
@@ -68,8 +68,8 @@ if (isset($_REQUEST['go'])) {
 	else {
 		$dbProxyChk = API::Proxy()->get(array(
 			'proxyids' => $_REQUEST['hosts'],
-			'selectInterfaces' => API_OUTPUT_EXTEND,
 			'selectHosts' => array('hostid', 'host'),
+			'selectInterface' => API_OUTPUT_EXTEND,
 			'countOutput' => true
 		));
 		if ($dbProxyChk != count($_REQUEST['hosts'])) {
@@ -83,50 +83,58 @@ $_REQUEST['go'] = get_request('go', 'none');
  * Actions
  */
 if (isset($_REQUEST['save'])) {
-	if (!count(get_accessible_nodes_by_user($USER_DETAILS, PERM_READ_WRITE, PERM_RES_IDS_ARRAY))) {
-		access_deny();
-	}
-
 	$proxy = array(
 		'host' => get_request('host'),
 		'status' => get_request('status'),
-		'interfaces' => get_request('interfaces'),
-		'hosts' => get_request('hosts', array())
+		'interface' => get_request('interface')
 	);
 
+	// skip discovered hosts
+	$proxy['hosts'] = API::Host()->get(array(
+		'hostids' => get_request('hosts', array()),
+		'output' => array('hostid'),
+		'filter' => array('flags' => ZBX_FLAG_DISCOVERY_NORMAL)
+	));
+
 	DBstart();
+
 	if (isset($_REQUEST['proxyid'])) {
 		$proxy['proxyid'] = $_REQUEST['proxyid'];
-		$proxyids = API::Proxy()->update($proxy);
+		$proxyIds = API::Proxy()->update($proxy);
 
 		$action = AUDIT_ACTION_UPDATE;
-		$msg_ok = _('Proxy updated');
-		$msg_fail = _('Cannot update proxy');
+		$msgOk = _('Proxy updated');
+		$msgFail = _('Cannot update proxy');
 	}
 	else {
-		$proxyids = API::Proxy()->create($proxy);
+		$proxyIds = API::Proxy()->create($proxy);
 
 		$action = AUDIT_ACTION_ADD;
-		$msg_ok = _('Proxy added');
-		$msg_fail = _('Cannot add proxy');
+		$msgOk = _('Proxy added');
+		$msgFail = _('Cannot add proxy');
 	}
 
-	$result = DBend($proxyids);
-	show_messages($result, $msg_ok, $msg_fail);
+	$result = DBend($proxyIds);
+
+	show_messages($result, $msgOk, $msgFail);
+	clearCookies($result);
 
 	if ($result) {
-		add_audit($action, AUDIT_RESOURCE_PROXY, '['.$_REQUEST['host'].'] ['.reset($proxyids['proxyids']).']');
+		add_audit($action, AUDIT_RESOURCE_PROXY, '['.$_REQUEST['host'].'] ['.reset($proxyIds['proxyids']).']');
 		unset($_REQUEST['form']);
 	}
 	unset($_REQUEST['save']);
 }
 elseif (isset($_REQUEST['delete'])) {
-	$result = API::Proxy()->delete(array('proxyid' => $_REQUEST['proxyid']));
+	$result = API::Proxy()->delete(array($_REQUEST['proxyid']));
+
 	if ($result) {
 		unset($_REQUEST['form'], $_REQUEST['proxyid']);
 		$proxy = reset($dbProxy);
 	}
+
 	show_messages($result, _('Proxy deleted'), _('Cannot delete proxy'));
+	clearCookies($result);
 
 	unset($_REQUEST['delete']);
 }
@@ -134,51 +142,57 @@ elseif (isset($_REQUEST['clone']) && isset($_REQUEST['proxyid'])) {
 	unset($_REQUEST['proxyid'], $_REQUEST['hosts']);
 	$_REQUEST['form'] = 'clone';
 }
-elseif (str_in_array($_REQUEST['go'], array('activate', 'disable')) && isset($_REQUEST['hosts'])) {
-	$go_result = true;
-
-	$status = ($_REQUEST['go'] == 'activate') ? HOST_STATUS_MONITORED : HOST_STATUS_NOT_MONITORED;
-	$hosts = get_request('hosts', array());
+elseif (str_in_array(getRequest('go'), array('activate', 'disable')) && hasRequest('hosts')) {
+	$result = true;
+	$enable =(getRequest('go') == 'activate');
+	$status = $enable ? HOST_STATUS_MONITORED : HOST_STATUS_NOT_MONITORED;
+	$hosts = getRequest('hosts', array());
 
 	DBstart();
-	foreach ($hosts as $hostid) {
+
+	$updated = 0;
+	foreach ($hosts as $hostId) {
 		$dbHosts = DBselect(
 			'SELECT h.hostid,h.status'.
 			' FROM hosts h'.
-			' WHERE h.proxy_hostid='.$hostid.
-				' AND '.DBin_node('h.hostid')
+			' WHERE h.proxy_hostid='.zbx_dbstr($hostId).
+				andDbNode('h.hostid')
 		);
-
 		while ($dbHost = DBfetch($dbHosts)) {
 			$oldStatus = $dbHost['status'];
+			$updated++;
+
 			if ($oldStatus == $status) {
 				continue;
 			}
 
-			$go_result &= updateHostStatus($dbHost['hostid'], $status);
-			if (!$go_result) {
+			$result &= updateHostStatus($dbHost['hostid'], $status);
+			if (!$result) {
 				continue;
 			}
 		}
 	}
 
-	$go_result = DBend($go_result && !empty($hosts));
-	show_messages($go_result, _('Host status updated'), null);
+	$result = DBend($result && $hosts);
+
+	$messageSuccess = $enable
+		? _n('Host enabled', 'Hosts enabled', $updated)
+		: _n('Host disabled', 'Hosts disabled', $updated);
+	$messageFailed = $enable
+		? _n('Cannot enable host', 'Cannot enable hosts', $updated)
+		: _n('Cannot disable host', 'Cannot disable hosts', $updated);
+
+	show_messages($result, $messageSuccess, $messageFailed);
+	clearCookies($result);
 }
 elseif ($_REQUEST['go'] == 'delete' && isset($_REQUEST['hosts'])) {
-	$hosts = get_request('hosts', array());
-
 	DBstart();
-	$go_result = API::Proxy()->delete(zbx_toObject($hosts, 'proxyid'));
-	$go_result = DBend($go_result);
 
-	show_messages($go_result, _('Proxy deleted'), _('Cannot delete proxy'));
-}
+	$goResult = API::Proxy()->delete(get_request('hosts'));
+	$goResult = DBend($goResult);
 
-if ($_REQUEST['go'] != 'none' && !empty($go_result)) {
-	$url = new CUrl();
-	$path = $url->getPath();
-	insert_js('cookie.eraseArray("'.$path.'")');
+	show_messages($goResult, _('Proxy deleted'), _('Cannot delete proxy'));
+	clearCookies($goResult);
 }
 
 /*
@@ -192,7 +206,6 @@ if (isset($_REQUEST['form'])) {
 		'name' => get_request('host', ''),
 		'status' => get_request('status', HOST_STATUS_PROXY_ACTIVE),
 		'hosts' => get_request('hosts', array()),
-		'interfaces' => get_request('interfaces', array()),
 		'interface' => get_request('interface', array()),
 		'proxy' => array()
 	);
@@ -204,32 +217,28 @@ if (isset($_REQUEST['form'])) {
 		if (!isset($_REQUEST['form_refresh'])) {
 			$data['name'] = $dbProxy['host'];
 			$data['status'] = $dbProxy['status'];
-			$data['interfaces'] = $dbProxy['interfaces'];
+			$data['interface'] = $dbProxy['interface'];
 			$data['hosts'] = zbx_objectValues($dbProxy['hosts'], 'hostid');
 		}
 	}
 
-	// interfaces
-	if ($data['status'] == HOST_STATUS_PROXY_PASSIVE) {
-		if (!empty($data['interfaces'])) {
-			$data['interface'] = reset($data['interfaces']);
-		}
-		else {
-			$data['interface'] = array(
-				'dns' => 'localhost',
-				'ip' => '127.0.0.1',
-				'useip' => 1,
-				'port' => '10051'
-			);
-		}
+	// interface
+	if ($data['status'] == HOST_STATUS_PROXY_PASSIVE && empty($data['interface'])) {
+		$data['interface'] = array(
+			'dns' => 'localhost',
+			'ip' => '127.0.0.1',
+			'useip' => 1,
+			'port' => '10051'
+		);
 	}
 
-	// hosts
+	// fetch available hosts, skip host prototypes
 	$data['dbHosts'] = DBfetchArray(DBselect(
-		'SELECT h.hostid,h.proxy_hostid,h.name'.
+		'SELECT h.hostid,h.proxy_hostid,h.name,h.flags'.
 		' FROM hosts h'.
 		' WHERE h.status IN ('.HOST_STATUS_MONITORED.','.HOST_STATUS_NOT_MONITORED.')'.
-			' AND '.DBin_node('h.hostid')
+			andDbNode('h.hostid').
+			' AND h.flags<>'.ZBX_FLAG_DISCOVERY_PROTOTYPE
 	));
 	order_result($data['dbHosts'], 'name');
 
@@ -239,13 +248,16 @@ if (isset($_REQUEST['form'])) {
 	$proxyView->show();
 }
 else {
-	$data = array();
+	$data = array(
+		'displayNodes' => is_array(get_current_nodeid()),
+		'config' => select_config()
+	);
 
 	$sortfield = getPageSortField('host');
 
 	$data['proxies'] = API::Proxy()->get(array(
 		'editable' => true,
-		'selectHosts' => API_OUTPUT_EXTEND,
+		'selectHosts' => array('hostid', 'host', 'name', 'status'),
 		'output' => API_OUTPUT_EXTEND,
 		'sortfield' => $sortfield,
 		'limit' => $config['search_limit'] + 1
@@ -254,19 +266,25 @@ else {
 
 	$proxyIds = array_keys($data['proxies']);
 
+	// sorting & paging
 	order_result($data['proxies'], $sortfield, getPageSortOrder());
+	$data['paging'] = getPagingLine($data['proxies'], array('proxyid'));
 
-	// paging
-	$data['paging'] = getPagingLine($data['proxies']);
+	// nodes
+	foreach ($data['proxies'] as &$proxy) {
+		$proxy['nodename'] = $data['displayNodes'] ? get_node_name_by_elid($proxy['proxyid'], true) : '';
+	}
+	unset($proxy);
 
 	// calculate performance
 	$dbPerformance = DBselect(
-		'SELECT h.proxy_hostid,SUM(1.0/i.delay) AS qps'.
+		'SELECT h.proxy_hostid,SUM(CAST(1.0/i.delay AS DECIMAL(20,10))) AS qps'.
 		' FROM items i,hosts h'.
 		' WHERE i.status='.ITEM_STATUS_ACTIVE.
-			' AND i.hostid=h.hostid '.
+			' AND i.hostid=h.hostid'.
 			' AND h.status='.HOST_STATUS_MONITORED.
 			' AND i.delay<>0'.
+			' AND i.flags<>'.ZBX_FLAG_DISCOVERY_PROTOTYPE.
 			' AND '.dbConditionInt('h.proxy_hostid', $proxyIds).
 		' GROUP BY h.proxy_hostid'
 	);

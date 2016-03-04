@@ -22,7 +22,7 @@
 #include <stdlib.h>
 #include "diagnostics_relay.h"
 #include "property_list_service.h"
-#include "debug.h"
+#include "common/debug.h"
 
 #define RESULT_SUCCESS 0
 #define RESULT_FAILURE 1
@@ -69,19 +69,7 @@ static int diagnostics_relay_check_result(plist_t dict)
 	return ret;
 }
 
-/**
- * Connects to the diagnostics_relay service on the specified device.
- *
- * @param device The device to connect to.
- * @param service The service descriptor returned by lockdownd_start_service.
- * @param client Reference that will point to a newly allocated
- *     diagnostics_relay_client_t upon successful return.
- *
- * @return DIAGNOSTICS_RELAY_E_SUCCESS on success,
- *     DIAGNOSTICS_RELAY_E_INVALID_ARG when one of the parameters is invalid,
- *     or DIAGNOSTICS_RELAY_E_MUX_ERROR when the connection failed.
- */
-diagnostics_relay_error_t diagnostics_relay_client_new(idevice_t device, lockdownd_service_descriptor_t service, diagnostics_relay_client_t *client)
+LIBIMOBILEDEVICE_API diagnostics_relay_error_t diagnostics_relay_client_new(idevice_t device, lockdownd_service_descriptor_t service, diagnostics_relay_client_t *client)
 {
 	if (!device || !service || service->port == 0 || !client || *client) {
 		return DIAGNOSTICS_RELAY_E_INVALID_ARG;
@@ -101,18 +89,14 @@ diagnostics_relay_error_t diagnostics_relay_client_new(idevice_t device, lockdow
 	return DIAGNOSTICS_RELAY_E_SUCCESS;
 }
 
-/**
- * Disconnects a diagnostics_relay client from the device and frees up the 
- * diagnostics_relay client data.
- *
- * @param client The diagnostics_relay client to disconnect and free.
- *
- * @return DIAGNOSTICS_RELAY_E_SUCCESS on success,
- *     DIAGNOSTICS_RELAY_E_INVALID_ARG when one of client or client->parent
- *     is invalid, or DIAGNOSTICS_RELAY_E_UNKNOWN_ERROR when the was an
- *     error freeing the parent property_list_service client.
- */
-diagnostics_relay_error_t diagnostics_relay_client_free(diagnostics_relay_client_t client)
+LIBIMOBILEDEVICE_API diagnostics_relay_error_t diagnostics_relay_client_start_service(idevice_t device, diagnostics_relay_client_t * client, const char* label)
+{
+	diagnostics_relay_error_t err = DIAGNOSTICS_RELAY_E_UNKNOWN_ERROR;
+	service_client_factory_start_service(device, DIAGNOSTICS_RELAY_SERVICE_NAME, (void**)client, label, SERVICE_CONSTRUCTOR(diagnostics_relay_client_new), &err);
+	return err;
+}
+
+LIBIMOBILEDEVICE_API diagnostics_relay_error_t diagnostics_relay_client_free(diagnostics_relay_client_t client)
 {
 	if (!client)
 		return DIAGNOSTICS_RELAY_E_INVALID_ARG;
@@ -169,7 +153,7 @@ static diagnostics_relay_error_t diagnostics_relay_send(diagnostics_relay_client
 		return DIAGNOSTICS_RELAY_E_INVALID_ARG;
 
 	diagnostics_relay_error_t ret = DIAGNOSTICS_RELAY_E_SUCCESS;
-	idevice_error_t err;
+	property_list_service_error_t err;
 
 	err = property_list_service_send_xml_plist(client->parent, plist);
 	if (err != PROPERTY_LIST_SERVICE_E_SUCCESS) {
@@ -178,17 +162,7 @@ static diagnostics_relay_error_t diagnostics_relay_send(diagnostics_relay_client
 	return ret;
 }
 
-/**
- * Sends the Goodbye request signaling the end of communication.
- *
- * @param client The diagnostics_relay client
- *
- * @return DIAGNOSTICS_RELAY_E_SUCCESS on success,
- *  DIAGNOSTICS_RELAY_E_INVALID_ARG when client is NULL,
- *  DIAGNOSTICS_RELAY_E_PLIST_ERROR if the device did not acknowledge the
- *  request
- */
-diagnostics_relay_error_t diagnostics_relay_goodbye(diagnostics_relay_client_t client)
+LIBIMOBILEDEVICE_API diagnostics_relay_error_t diagnostics_relay_goodbye(diagnostics_relay_client_t client)
 {
 	if (!client)
 		return DIAGNOSTICS_RELAY_E_INVALID_ARG;
@@ -196,7 +170,7 @@ diagnostics_relay_error_t diagnostics_relay_goodbye(diagnostics_relay_client_t c
 	diagnostics_relay_error_t ret = DIAGNOSTICS_RELAY_E_UNKNOWN_ERROR;
 
 	plist_t dict = plist_new_dict();
-	plist_dict_insert_item(dict, "Request", plist_new_string("Goodbye"));
+	plist_dict_set_item(dict, "Request", plist_new_string("Goodbye"));
 
 	ret = diagnostics_relay_send(client, dict);
 	plist_free(dict);
@@ -222,17 +196,7 @@ diagnostics_relay_error_t diagnostics_relay_goodbye(diagnostics_relay_client_t c
 	return ret;
 }
 
-/**
- * Puts the device into deep sleep mode and disconnects from host.
- *
- * @param client The diagnostics_relay client
- *
- * @return DIAGNOSTICS_RELAY_E_SUCCESS on success,
- *  DIAGNOSTICS_RELAY_E_INVALID_ARG when client is NULL,
- *  DIAGNOSTICS_RELAY_E_PLIST_ERROR if the device did not acknowledge the
- *  request
- */
-diagnostics_relay_error_t diagnostics_relay_sleep(diagnostics_relay_client_t client)
+LIBIMOBILEDEVICE_API diagnostics_relay_error_t diagnostics_relay_sleep(diagnostics_relay_client_t client)
 {
 	if (!client)
 		return DIAGNOSTICS_RELAY_E_INVALID_ARG;
@@ -241,7 +205,7 @@ diagnostics_relay_error_t diagnostics_relay_sleep(diagnostics_relay_client_t cli
 
 	plist_t dict = plist_new_dict();
 
-	plist_dict_insert_item(dict,"Request", plist_new_string("Sleep"));
+	plist_dict_set_item(dict,"Request", plist_new_string("Sleep"));
 	ret = diagnostics_relay_send(client, dict);
 	plist_free(dict);
 	dict = NULL;
@@ -272,18 +236,18 @@ static diagnostics_relay_error_t internal_diagnostics_relay_action(diagnostics_r
 	diagnostics_relay_error_t ret = DIAGNOSTICS_RELAY_E_UNKNOWN_ERROR;
 
 	plist_t dict = plist_new_dict();
-	plist_dict_insert_item(dict,"Request", plist_new_string(name));
+	plist_dict_set_item(dict,"Request", plist_new_string(name));
 
 	if (flags & DIAGNOSTICS_RELAY_ACTION_FLAG_WAIT_FOR_DISCONNECT) {
-		plist_dict_insert_item(dict, "WaitForDisconnect", plist_new_bool(1));
+		plist_dict_set_item(dict, "WaitForDisconnect", plist_new_bool(1));
 	}
 
 	if (flags & DIAGNOSTICS_RELAY_ACTION_FLAG_DISPLAY_PASS) {
-		plist_dict_insert_item(dict, "DisplayPass", plist_new_bool(1));
+		plist_dict_set_item(dict, "DisplayPass", plist_new_bool(1));
 	}
 
 	if (flags & DIAGNOSTICS_RELAY_ACTION_FLAG_DISPLAY_FAIL) {
-		plist_dict_insert_item(dict, "DisplayFail", plist_new_bool(1));
+		plist_dict_set_item(dict, "DisplayFail", plist_new_bool(1));
 	}
 
 	ret = diagnostics_relay_send(client, dict);
@@ -308,47 +272,17 @@ static diagnostics_relay_error_t internal_diagnostics_relay_action(diagnostics_r
 	return ret;
 }
 
-/**
- * Restart the device and optionally show a user notification.
- *
- * @param client The diagnostics_relay client
- * @param flags A binary flag combination of
- *        DIAGNOSTICS_RELAY_ACTION_FLAG_WAIT_FOR_DISCONNECT to wait until 
- *        diagnostics_relay_client_free() disconnects before execution and
- *        DIAGNOSTICS_RELAY_ACTION_FLAG_DISPLAY_FAIL to show a "FAIL" dialog
- *        or DIAGNOSTICS_RELAY_ACTION_FLAG_DISPLAY_PASS to show an "OK" dialog
- *
- * @return DIAGNOSTICS_RELAY_E_SUCCESS on success,
- *  DIAGNOSTICS_RELAY_E_INVALID_ARG when client is NULL,
- *  DIAGNOSTICS_RELAY_E_PLIST_ERROR if the device did not acknowledge the
- *  request
- */
-diagnostics_relay_error_t diagnostics_relay_restart(diagnostics_relay_client_t client, int flags)
+LIBIMOBILEDEVICE_API diagnostics_relay_error_t diagnostics_relay_restart(diagnostics_relay_client_t client, int flags)
 {
 	return internal_diagnostics_relay_action(client, "Restart", flags);
 }
 
-/**
- * Shutdown of the device and optionally show a user notification.
- *
- * @param client The diagnostics_relay client
- * @param flags A binary flag combination of
- *        DIAGNOSTICS_RELAY_ACTION_FLAG_WAIT_FOR_DISCONNECT to wait until 
- *        diagnostics_relay_client_free() disconnects before execution and
- *        DIAGNOSTICS_RELAY_ACTION_FLAG_DISPLAY_FAIL to show a "FAIL" dialog
- *        or DIAGNOSTICS_RELAY_ACTION_FLAG_DISPLAY_PASS to show an "OK" dialog
- *
- * @return DIAGNOSTICS_RELAY_E_SUCCESS on success,
- *  DIAGNOSTICS_RELAY_E_INVALID_ARG when client is NULL,
- *  DIAGNOSTICS_RELAY_E_PLIST_ERROR if the device did not acknowledge the
- *  request
- */
-diagnostics_relay_error_t diagnostics_relay_shutdown(diagnostics_relay_client_t client, int flags)
+LIBIMOBILEDEVICE_API diagnostics_relay_error_t diagnostics_relay_shutdown(diagnostics_relay_client_t client, int flags)
 {
 	return internal_diagnostics_relay_action(client, "Shutdown", flags);
 }
 
-diagnostics_relay_error_t diagnostics_relay_request_diagnostics(diagnostics_relay_client_t client, const char* type, plist_t* diagnostics)
+LIBIMOBILEDEVICE_API diagnostics_relay_error_t diagnostics_relay_request_diagnostics(diagnostics_relay_client_t client, const char* type, plist_t* diagnostics)
 {
 	if (!client || diagnostics == NULL)
 		return DIAGNOSTICS_RELAY_E_INVALID_ARG;
@@ -356,7 +290,7 @@ diagnostics_relay_error_t diagnostics_relay_request_diagnostics(diagnostics_rela
 	diagnostics_relay_error_t ret = DIAGNOSTICS_RELAY_E_UNKNOWN_ERROR;
 
 	plist_t dict = plist_new_dict();
-	plist_dict_insert_item(dict,"Request", plist_new_string(type));
+	plist_dict_set_item(dict,"Request", plist_new_string(type));
 	ret = diagnostics_relay_send(client, dict);
 	plist_free(dict);
 	dict = NULL;
@@ -389,7 +323,7 @@ diagnostics_relay_error_t diagnostics_relay_request_diagnostics(diagnostics_rela
 	return ret;
 }
 
-diagnostics_relay_error_t diagnostics_relay_query_mobilegestalt(diagnostics_relay_client_t client, plist_t keys, plist_t* result)
+LIBIMOBILEDEVICE_API diagnostics_relay_error_t diagnostics_relay_query_mobilegestalt(diagnostics_relay_client_t client, plist_t keys, plist_t* result)
 {
 	if (!client || plist_get_node_type(keys) != PLIST_ARRAY || result == NULL)
 		return DIAGNOSTICS_RELAY_E_INVALID_ARG;
@@ -397,8 +331,8 @@ diagnostics_relay_error_t diagnostics_relay_query_mobilegestalt(diagnostics_rela
 	diagnostics_relay_error_t ret = DIAGNOSTICS_RELAY_E_UNKNOWN_ERROR;
 
 	plist_t dict = plist_new_dict();
-	plist_dict_insert_item(dict,"MobileGestaltKeys", plist_copy(keys));
-	plist_dict_insert_item(dict,"Request", plist_new_string("MobileGestalt"));
+	plist_dict_set_item(dict,"MobileGestaltKeys", plist_copy(keys));
+	plist_dict_set_item(dict,"Request", plist_new_string("MobileGestalt"));
 	ret = diagnostics_relay_send(client, dict);
 	plist_free(dict);
 	dict = NULL;
@@ -431,7 +365,7 @@ diagnostics_relay_error_t diagnostics_relay_query_mobilegestalt(diagnostics_rela
 	return ret;
 }
 
-diagnostics_relay_error_t diagnostics_relay_query_ioregistry_entry(diagnostics_relay_client_t client, const char* name, const char* class, plist_t* result)
+LIBIMOBILEDEVICE_API diagnostics_relay_error_t diagnostics_relay_query_ioregistry_entry(diagnostics_relay_client_t client, const char* name, const char* class, plist_t* result)
 {
 	if (!client || (name == NULL && class == NULL) || result == NULL)
 		return DIAGNOSTICS_RELAY_E_INVALID_ARG;
@@ -440,10 +374,10 @@ diagnostics_relay_error_t diagnostics_relay_query_ioregistry_entry(diagnostics_r
 
 	plist_t dict = plist_new_dict();
 	if (name)
-		plist_dict_insert_item(dict,"EntryName", plist_new_string(name));
+		plist_dict_set_item(dict,"EntryName", plist_new_string(name));
 	if (class)
-		plist_dict_insert_item(dict,"EntryClass", plist_new_string(class));
-	plist_dict_insert_item(dict,"Request", plist_new_string("IORegistry"));
+		plist_dict_set_item(dict,"EntryClass", plist_new_string(class));
+	plist_dict_set_item(dict,"Request", plist_new_string("IORegistry"));
 	ret = diagnostics_relay_send(client, dict);
 	plist_free(dict);
 	dict = NULL;
@@ -476,7 +410,7 @@ diagnostics_relay_error_t diagnostics_relay_query_ioregistry_entry(diagnostics_r
 	return ret;
 }
 
-diagnostics_relay_error_t diagnostics_relay_query_ioregistry_plane(diagnostics_relay_client_t client, const char* plane, plist_t* result)
+LIBIMOBILEDEVICE_API diagnostics_relay_error_t diagnostics_relay_query_ioregistry_plane(diagnostics_relay_client_t client, const char* plane, plist_t* result)
 {
 	if (!client || plane == NULL || result == NULL)
 		return DIAGNOSTICS_RELAY_E_INVALID_ARG;
@@ -484,8 +418,8 @@ diagnostics_relay_error_t diagnostics_relay_query_ioregistry_plane(diagnostics_r
 	diagnostics_relay_error_t ret = DIAGNOSTICS_RELAY_E_UNKNOWN_ERROR;
 
 	plist_t dict = plist_new_dict();
-	plist_dict_insert_item(dict,"CurrentPlane", plist_new_string(plane));
-	plist_dict_insert_item(dict,"Request", plist_new_string("IORegistry"));
+	plist_dict_set_item(dict,"CurrentPlane", plist_new_string(plane));
+	plist_dict_set_item(dict,"Request", plist_new_string("IORegistry"));
 	ret = diagnostics_relay_send(client, dict);
 	plist_free(dict);
 	dict = NULL;

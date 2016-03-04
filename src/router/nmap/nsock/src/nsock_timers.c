@@ -1,10 +1,10 @@
 /***************************************************************************
- * nsock_read.c -- This contains the functions for requesting timers       *
+ * nsock_timers.c -- This contains the functions for requesting timers     *
  * from the nsock parallel socket event library                            *
  *                                                                         *
  ***********************IMPORTANT NSOCK LICENSE TERMS***********************
  *                                                                         *
- * The nsock parallel socket event library is (C) 1999-2012 Insecure.Com   *
+ * The nsock parallel socket event library is (C) 1999-2015 Insecure.Com   *
  * LLC This library is free software; you may redistribute and/or          *
  * modify it under the terms of the GNU General Public License as          *
  * published by the Free Software Foundation; Version 2.  This guarantees  *
@@ -28,22 +28,22 @@
  *                                                                         *
  * Source is provided to this software because we believe users have a     *
  * right to know exactly what a program is going to do before they run it. *
- * This also allows you to audit the software for security holes (none     *
- * have been found so far).                                                *
+ * This also allows you to audit the software for security holes.          *
  *                                                                         *
  * Source code also allows you to port Nmap to new platforms, fix bugs,    *
  * and add new features.  You are highly encouraged to send your changes   *
- * to nmap-dev@insecure.org for possible incorporation into the main       *
- * distribution.  By sending these changes to Fyodor or one of the         *
- * Insecure.Org development mailing lists, it is assumed that you are      *
- * offering the Nmap Project (Insecure.Com LLC) the unlimited,             *
- * non-exclusive right to reuse, modify, and relicense the code.  Nmap     *
- * will always be available Open Source, but this is important because the *
- * inability to relicense code has caused devastating problems for other   *
- * Free Software projects (such as KDE and NASM).  We also occasionally    *
- * relicense the code to third parties as discussed above.  If you wish to *
- * specify special license conditions of your contributions, just say so   *
- * when you send them.                                                     *
+ * to the dev@nmap.org mailing list for possible incorporation into the    *
+ * main distribution.  By sending these changes to Fyodor or one of the    *
+ * Insecure.Org development mailing lists, or checking them into the Nmap  *
+ * source code repository, it is understood (unless you specify otherwise) *
+ * that you are offering the Nmap Project (Insecure.Com LLC) the           *
+ * unlimited, non-exclusive right to reuse, modify, and relicense the      *
+ * code.  Nmap will always be available Open Source, but this is important *
+ * because the inability to relicense code has caused devastating problems *
+ * for other Free Software projects (such as KDE and NASM).  We also       *
+ * occasionally relicense the code to third parties as discussed above.    *
+ * If you wish to specify special license conditions of your               *
+ * contributions, just say so when you send them.                          *
  *                                                                         *
  * This program is distributed in the hope that it will be useful, but     *
  * WITHOUT ANY WARRANTY; without even the implied warranty of              *
@@ -53,9 +53,10 @@
  *                                                                         *
  ***************************************************************************/
 
-/* $Id: nsock_timers.c 28387 2012-04-03 00:21:44Z david $ */
+/* $Id: nsock_timers.c 34756 2015-06-27 08:21:53Z henri $ */
 
 #include "nsock_internal.h"
+#include "nsock_log.h"
 
 extern struct timeval nsock_tod;
 
@@ -63,16 +64,16 @@ extern struct timeval nsock_tod;
  * course it can also return due to error, cancellation, etc. */
 nsock_event_id nsock_timer_create(nsock_pool ms_pool, nsock_ev_handler handler,
                                   int timeout_msecs, void *userdata) {
-  mspool *nsp = (mspool *)ms_pool;
-  msevent *nse;
+  struct npool *nsp = (struct npool *)ms_pool;
+  struct nevent *nse;
 
-  nse = msevent_new(nsp, NSE_TYPE_TIMER, NULL, timeout_msecs, handler, userdata);
+  nse = event_new(nsp, NSE_TYPE_TIMER, NULL, timeout_msecs, handler, userdata);
   assert(nse);
 
-  if (nsp->tracelevel > 0)
-    nsock_trace(nsp, "Timer created - %dms from now.  EID %li", timeout_msecs, nse->id);
+  nsock_log_info("Timer created - %dms from now.  EID %li", timeout_msecs,
+                 nse->id);
 
-  nsp_add_event(nsp, nse);
+  nsock_pool_add_event(nsp, nse);
   
   return nse->id;
 }

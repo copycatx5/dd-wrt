@@ -1,6 +1,6 @@
 /*
 ** Zabbix
-** Copyright (C) 2001-2013 Zabbix SIA
+** Copyright (C) 2001-2015 Zabbix SIA
 **
 ** This program is free software; you can redistribute it and/or modify
 ** it under the terms of the GNU General Public License as published by
@@ -59,8 +59,14 @@ static void	host_availability_sender(struct zbx_json *j)
 
 	if (SUCCEED == get_host_availability_data(j))
 	{
+		char	*error = NULL;
+
 		connect_to_server(&sock, 600, CONFIG_PROXYDATA_FREQUENCY); /* retry till have a connection */
-		put_data_to_server(&sock, j);
+
+		if (SUCCEED != put_data_to_server(&sock, j, &error))
+			zabbix_log(LOG_LEVEL_WARNING, "sending host availability data to server failed: %s", error);
+
+		zbx_free(error);
 		disconnect_server(&sock);
 	}
 
@@ -89,6 +95,8 @@ static void	history_sender(struct zbx_json *j, int *records, const char *tag,
 
 	zbx_sock_t	sock;
 	zbx_uint64_t	lastid;
+	zbx_timespec_t	ts;
+	int		ret = SUCCEED;
 
 	zabbix_log(LOG_LEVEL_DEBUG, "In %s()", __function_name);
 
@@ -104,20 +112,29 @@ static void	history_sender(struct zbx_json *j, int *records, const char *tag,
 
 	if (*records > 0)
 	{
+		char	*error = NULL;
+
 		connect_to_server(&sock, 600, CONFIG_PROXYDATA_FREQUENCY); /* retry till have a connection */
 
-		zbx_json_adduint64(j, ZBX_PROTO_TAG_CLOCK, (int)time(NULL));
+		zbx_timespec(&ts);
+		zbx_json_adduint64(j, ZBX_PROTO_TAG_CLOCK, ts.sec);
+		zbx_json_adduint64(j, ZBX_PROTO_TAG_NS, ts.ns);
 
-		if (SUCCEED == put_data_to_server(&sock, j))
+		if (SUCCEED != (ret = put_data_to_server(&sock, j, &error)))
 		{
-			DBbegin();
-			f_set_lastid(lastid);
-			DBcommit();
-		}
-		else
 			*records = 0;
+			zabbix_log(LOG_LEVEL_WARNING, "sending data to server failed: %s", error);
+		}
 
+		zbx_free(error);
 		disconnect_server(&sock);
+	}
+
+	if (SUCCEED == ret && 0 != lastid)
+	{
+		DBbegin();
+		f_set_lastid(lastid);
+		DBcommit();
 	}
 
 	zabbix_log(LOG_LEVEL_DEBUG, "End of %s()", __function_name);
@@ -138,13 +155,11 @@ static void	history_sender(struct zbx_json *j, int *records, const char *tag,
  * Comments: never returns                                                    *
  *                                                                            *
  ******************************************************************************/
-void	main_datasender_loop()
+void	main_datasender_loop(void)
 {
-	int		records, r;
-	double		sec;
+	int		records = 0, r;
+	double		sec = 0.0;
 	struct zbx_json	j;
-
-	zabbix_log(LOG_LEVEL_DEBUG, "In main_datasender_loop()");
 
 	zbx_setproctitle("%s [connecting to the database]", get_process_type_string(process_type));
 
@@ -154,10 +169,10 @@ void	main_datasender_loop()
 
 	for (;;)
 	{
+		zbx_setproctitle("%s [sent %d values in " ZBX_FS_DBL " sec, sending data]",
+				get_process_type_string(process_type), records, sec);
+
 		sec = zbx_time();
-
-		zbx_setproctitle("%s [sending data]", get_process_type_string(process_type));
-
 		host_availability_sender(&j);
 
 		records = 0;
@@ -183,8 +198,10 @@ retry_autoreg_host:
 		if (ZBX_MAX_HRECORDS == r)
 			goto retry_autoreg_host;
 
-		zabbix_log(LOG_LEVEL_DEBUG, "Datasender spent " ZBX_FS_DBL " seconds while processing %3d values.",
-				zbx_time() - sec, records);
+		sec = zbx_time() - sec;
+
+		zbx_setproctitle("%s [sent %d values in " ZBX_FS_DBL " sec, idle %d sec]",
+				get_process_type_string(process_type), records, sec, CONFIG_PROXYDATA_FREQUENCY);
 
 		zbx_sleep_loop(CONFIG_PROXYDATA_FREQUENCY);
 	}

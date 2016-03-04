@@ -1,7 +1,7 @@
 /*
    Directory cache support
 
-   Copyright (C) 1998-2014
+   Copyright (C) 1998-2015
    Free Software Foundation, Inc.
 
    Written by:
@@ -58,8 +58,6 @@
 #include <config.h>
 
 #include <errno.h>
-#include <fcntl.h>              /* include fcntl.h -> sys/fcntl.h only       */
-                                /* includes fcntl.h see IEEE Std 1003.1-2008 */
 #include <time.h>
 #include <sys/time.h>           /* gettimeofday() */
 #include <inttypes.h>           /* uintmax_t */
@@ -155,12 +153,14 @@ vfs_s_resolve_symlink (struct vfs_class *me, struct vfs_s_entry *entry, int foll
         ERRNOR (EFAULT, NULL);
 
     /* make full path from relative */
-    if (*linkname != PATH_SEP)
+    if (!IS_PATH_SEP (*linkname))
     {
-        char *fullpath = vfs_s_fullpath (me, entry->dir);
-        if (fullpath)
+        char *fullpath;
+
+        fullpath = vfs_s_fullpath (me, entry->dir);
+        if (fullpath != NULL)
         {
-            fullname = g_strconcat (fullpath, "/", linkname, (char *) NULL);
+            fullname = g_strconcat (fullpath, PATH_SEP_STR, linkname, (char *) NULL);
             linkname = fullname;
             g_free (fullpath);
         }
@@ -193,7 +193,7 @@ vfs_s_find_entry_tree (struct vfs_class *me, struct vfs_s_inode *root,
     {
         GList *iter;
 
-        while (*path == PATH_SEP)       /* Strip leading '/' */
+        while (IS_PATH_SEP (*path))     /* Strip leading '/' */
             path++;
 
         if (path[0] == '\0')
@@ -202,7 +202,7 @@ vfs_s_find_entry_tree (struct vfs_class *me, struct vfs_s_inode *root,
             return ent;
         }
 
-        for (pseg = 0; path[pseg] != '\0' && path[pseg] != PATH_SEP; pseg++)
+        for (pseg = 0; path[pseg] != '\0' && !IS_PATH_SEP (path[pseg]); pseg++)
             ;
 
         for (iter = root->subdir; iter != NULL; iter = g_list_next (iter))
@@ -448,7 +448,6 @@ vfs_s_readdir (void *data)
     else
         vfs_die ("Null in structure-cannot happen");
 
-    compute_namelen (&dir.dent);
     info->cur = g_list_next (info->cur);
 
     return (void *) &dir;
@@ -638,6 +637,8 @@ vfs_s_lseek (void *fh, off_t offset, int whence)
     case SEEK_END:
         offset += size;
         break;
+    default:
+        break;
     }
     if (offset < 0)
         FH->pos = 0;
@@ -695,22 +696,13 @@ static void
 vfs_s_print_stats (const char *fs_name, const char *action,
                    const char *file_name, off_t have, off_t need)
 {
-    static const char *i18n_percent_transf_format = NULL;
-    static const char *i18n_transf_format = NULL;
-
-    if (i18n_percent_transf_format == NULL)
-    {
-        i18n_percent_transf_format = "%s: %s: %s %3d%% (%" PRIuMAX " %s";
-        i18n_transf_format = "%s: %s: %s %" PRIuMAX " %s";
-    }
-
     if (need)
-        vfs_print_message (i18n_percent_transf_format, fs_name, action,
+        vfs_print_message (_("%s: %s: %s %3d%% %" PRIuMAX " %s"), fs_name, action,
                            file_name, (int) ((double) have * 100 / need), (uintmax_t) have,
                            _("bytes transferred"));
     else
-        vfs_print_message (i18n_transf_format, fs_name, action, file_name, (uintmax_t) have,
-                           _("bytes transferred"));
+        vfs_print_message (_("%s: %s: %s %" PRIuMAX " %s"), fs_name, action, file_name,
+                           (uintmax_t) have, _("bytes transferred"));
 }
 
 /* --------------------------------------------------------------------------------------------- */
@@ -726,7 +718,7 @@ vfs_s_fill_names (struct vfs_class *me, fill_names_f func)
         const struct vfs_s_super *super = (const struct vfs_s_super *) iter->data;
         char *name;
 
-        name = g_strconcat (super->name, "/", me->prefix, VFS_PATH_URL_DELIMITER,
+        name = g_strconcat (super->name, PATH_SEP_STR, me->prefix, VFS_PATH_URL_DELIMITER,
                             /* super->current_dir->name, */ (char *) NULL);
         func (name);
         g_free (name);
@@ -820,8 +812,9 @@ vfs_s_setctl (const vfs_path_t * vpath, int ctlop, void *arg)
     case VFS_SETCTL_FLUSH:
         ((struct vfs_s_subclass *) path_element->class->data)->flush = 1;
         return 1;
+    default:
+        return 0;
     }
-    return 0;
 }
 
 /* --------------------------------------------------------------------------------------------- */
@@ -963,8 +956,7 @@ vfs_s_free_entry (struct vfs_class *me, struct vfs_s_entry *ent)
     if (ent->dir != NULL)
         ent->dir->subdir = g_list_remove (ent->dir->subdir, ent);
 
-    g_free (ent->name);
-    /* ent->name = NULL; */
+    MC_PTR_FREE (ent->name);
 
     if (ent->ino != NULL)
     {
@@ -1197,7 +1189,7 @@ vfs_s_fullpath (struct vfs_class *me, struct vfs_s_inode *ino)
             ino = ino->ent->dir;
             if (ino == ino->super->root)
                 break;
-            newpath = g_strconcat (ino->ent->name, "/", path, (char *) NULL);
+            newpath = g_strconcat (ino->ent->name, PATH_SEP_STR, path, (char *) NULL);
             g_free (path);
             path = newpath;
         }
@@ -1297,7 +1289,7 @@ vfs_s_open (const vfs_path_t * vpath, int flags, mode_t mode)
     {
         if (VFSDATA (path_element)->linear_start)
         {
-            vfs_print_message (_("Starting linear transfer..."));
+            vfs_print_message ("%s", _("Starting linear transfer..."));
             fh->linear = LS_LINEAR_PREOPEN;
         }
     }
@@ -1405,8 +1397,7 @@ vfs_s_retrieve_file (struct vfs_class *me, struct vfs_s_inode *ino)
     close (handle);
     unlink (ino->localname);
   error_4:
-    g_free (ino->localname);
-    ino->localname = NULL;
+    MC_PTR_FREE (ino->localname);
     g_free (fh.data);
     return -1;
 }
@@ -1550,34 +1541,42 @@ int
 vfs_s_get_line_interruptible (struct vfs_class *me, char *buffer, int size, int fd)
 {
     int i;
+    int res = 0;
 
     (void) me;
 
     tty_enable_interrupt_key ();
+
     for (i = 0; i < size - 1; i++)
     {
-        int n;
+        ssize_t n;
 
-        n = read (fd, buffer + i, 1);
-        tty_disable_interrupt_key ();
+        n = read (fd, &buffer[i], 1);
         if (n == -1 && errno == EINTR)
         {
-            buffer[i] = 0;
-            return EINTR;
+            buffer[i] = '\0';
+            res = EINTR;
+            goto ret;
         }
         if (n == 0)
         {
-            buffer[i] = 0;
-            return 0;
+            buffer[i] = '\0';
+            goto ret;
         }
         if (buffer[i] == '\n')
         {
-            buffer[i] = 0;
-            return 1;
+            buffer[i] = '\0';
+            res = 1;
+            goto ret;
         }
     }
-    buffer[size - 1] = 0;
-    return 0;
+
+    buffer[size - 1] = '\0';
+
+  ret:
+    tty_disable_interrupt_key ();
+
+    return res;
 }
 #endif /* ENABLE_VFS_NET */
 

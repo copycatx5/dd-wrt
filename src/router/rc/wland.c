@@ -374,15 +374,6 @@ void start_wds_check(void)
 		}
 	}
 	close(sock);
-	if (nvram_match("lan_stp", "0")) {
-
-		eval("brctl", "stp", "br0", "0");
-
-	} else {
-		eval("brctl", "stp", "br0", "1");
-
-	}
-
 	return;
 }
 
@@ -472,8 +463,8 @@ static void do_client_check(void)
 		} else {
 			eval("wl", "-i", ifname, "join", nvram_nget("wl%d_ssid", instance));
 		}
-		sysprintf("stopservice nas");
-		sysprintf("startservice_f nas");
+		eval("stopservice", "nas");
+		eval("startservice_f", "nas");
 	} else {
 #ifdef HAVE_DDLAN
 		nvram_set("cur_state", "<span style=\"background-color: rgb(135, 255, 51);\">Verbunden</span>");
@@ -639,6 +630,7 @@ static void do_wlan_check(void)
 #ifdef HAVE_AQOS
 	do_aqos_check();
 #endif
+#ifndef HAVE_DHDAP
 #ifndef HAVE_MADWIFI
 	if (getSTA() || getWET())
 		do_client_check();
@@ -647,6 +639,7 @@ static void do_wlan_check(void)
 #else
 
 	do_madwifi_check();
+#endif
 #endif
 
 }
@@ -687,6 +680,19 @@ int main(int argc, char **argv)
 	while (1) {
 		sleep(WLAND_INTERVAL);
 		do_wlan_check();
+#if defined(HAVE_ATH10K) && !defined(HAVE_MVEBU)
+		int c = getdevicecount();
+		char dev[32];
+		int i;
+		for (i = 0; i < c; i++) {
+			sprintf(dev, "ath%d", i);
+			char dst[32];
+			sprintf(dst, "%s_distance", dev);
+			if (is_ath10k(dev)) {	// evil hack for QCA 
+				set_ath10kdistance(dev, atoi(nvram_safe_get(dst)));
+			}
+		}
+#endif
 
 	}
 

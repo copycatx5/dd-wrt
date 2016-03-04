@@ -1,6 +1,6 @@
 /* A more useful interface to strtol.
 
-   Copyright (C) 1995-2014
+   Copyright (C) 1995-2015
    Free Software Foundation, Inc.
 
    This program is free software: you can redistribute it and/or modify
@@ -163,6 +163,8 @@ xstrtoumax (const char *s, char **ptr, int base, uintmax_t * val, const char *va
                 base = 1000;
                 suffixes++;
                 break;
+            default:
+                break;
             }
         }
 
@@ -177,7 +179,7 @@ xstrtoumax (const char *s, char **ptr, int base, uintmax_t * val, const char *va
             break;
 
         case 'c':
-            overflow = 0;
+            overflow = LONGINT_OK;
             break;
 
         case 'E':              /* exa or exbi */

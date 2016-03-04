@@ -1108,13 +1108,13 @@ struct EstablishPosition {
 struct RequestChallenge {
 	struct {
 		struct ORPCTHIS ORPCthis;
-		const char *wszNetworkResource;/* [unique,charset(UTF16)] */
+		const char *wszNetworkResource;/* [charset(UTF16),unique] */
 		const char *wszUser;/* [unique,charset(UTF16)] */
 	} in;
 
 	struct {
 		struct ORPCTHAT *ORPCthat;/* [ref] */
-		uint8_t *Nonce;/* [ref,length_is(16),size_is(16)] */
+		uint8_t *Nonce;/* [size_is(16),length_is(16),ref] */
 		WERROR result;
 	} out;
 
@@ -1125,7 +1125,7 @@ struct WBEMLogin {
 	struct {
 		struct ORPCTHIS ORPCthis;
 		const char *wszPreferredLocale;/* [unique,charset(UTF16)] */
-		uint8_t *AccessToken;/* [unique,length_is(16),size_is(16)] */
+		uint8_t *AccessToken;/* [length_is(16),size_is(16),unique] */
 		int32_t lFlags;
 		struct MInterfacePointer *pCtx;/* [ref] */
 	} in;
@@ -1143,7 +1143,7 @@ struct NTLMLogin {
 	struct {
 		struct ORPCTHIS ORPCthis;
 		const char *wszNetworkResource;/* [unique,charset(UTF16)] */
-		const char *wszPreferredLocale;/* [unique,charset(UTF16)] */
+		const char *wszPreferredLocale;/* [charset(UTF16),unique] */
 		int32_t lFlags;
 		struct MInterfacePointer *pCtx;/* [unique] */
 	} in;

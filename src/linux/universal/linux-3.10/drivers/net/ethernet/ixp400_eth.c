@@ -83,6 +83,7 @@
 #include <linux/mii.h>
 #include <linux/socket.h>
 #include <linux/cache.h>
+#include <linux/interrupt.h>
 #include <asm/io.h>
 #include <asm/errno.h>
 #include <asm/mach-types.h>
@@ -155,7 +156,7 @@ static int log_level = 0;         /* default : no log */
 static int no_ixp400_sw_init = 0; /* default : init core components of the IXP400 Software */
 #if defined(CONFIG_MACH_CAMBRIA)
 static int no_phy_scan = 0;       /* default : do phy discovery */
-static int hss_coexist = 1;	  /* default : HSS coexist disabled */
+static int hss_coexist = 0;	  /* default : HSS coexist disabled */
 #elif  defined(CONFIG_TONZE)
 static int no_phy_scan = 0;       /* default : do phy discovery */
 static int hss_coexist = 0;	  /* default : HSS coexist disabled */
@@ -3130,6 +3131,7 @@ static int ethacc_init(void)
 	    }
 #endif
 	}
+	printk(KERN_INFO "Loaded NPE%d from id 0x%08X\n",portId,default_npeImageId[portId].npeImageId);
     }
 
     /* initialize the Ethernet Access layer */

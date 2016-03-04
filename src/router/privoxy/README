@@ -32,7 +32,7 @@
  *
  *********************************************************************/
 
-This README is included with Privoxy 3.0.21. See http://www.privoxy.org/ for
+This README is included with Privoxy 3.0.24. See http://www.privoxy.org/ for
 more information. The current code maturity level is "stable".
 
 -------------------------------------------------------------------------------
@@ -230,11 +230,8 @@ understanding actions, and action debugging.
 
 6.2. Get Support
 
-For casual users, our support forum at SourceForge is probably best suited:
-http://sourceforge.net/tracker/?group_id=11118&atid=211118
-
-All users are of course welcome to discuss their issues on the users mailing
-list, where the developers also hang around.
+All users are welcome to discuss their issues on the users mailing list, where
+the developers also hang around.
 
 Please don't send private support requests to individual Privoxy developers,
 either use the mailing lists or the support trackers.
@@ -266,7 +263,8 @@ and you won't see them.
     function properly due to one Privoxy "action" or another being turned "on".
 
   * "Bugs" in the programming code that makes up Privoxy, such as that might
-    cause a crash.
+    cause a crash. Documentation issues, for example spelling errors and
+    unclear descriptions, are bugs, too.
 
 -------------------------------------------------------------------------------
 
@@ -277,29 +275,26 @@ blocked, sites that don't work properly, and other configuration related
 problem of default.action file, to http://sourceforge.net/tracker/?group_id=
 11118&atid=460288, the Actions File Tracker.
 
-New, improved default.action files may occasionally be made available based on
-your feedback. These will be announced on the ijbswa-announce list and
-available from our the files section of our project page.
-
 -------------------------------------------------------------------------------
 
 6.3.2. Reporting Bugs
 
-Please report all bugs through our bug tracker: http://sourceforge.net/tracker
-/?group_id=11118&atid=111118.
-
-Before doing so, please make sure that the bug has not already been submitted
-and observe the additional hints at the top of the submit form. If already
-submitted, please feel free to add any info to the original report that might
-help to solve the issue.
+Before reporting bugs, please make sure that the bug has not already been
+submitted and observe the additional hints at the top of the submit form. If
+already submitted, please feel free to add any info to the original report that
+might help to solve the issue.
 
 -------------------------------------------------------------------------------
 
-6.4. Request New Features
+6.4. Reporting security problems
 
-You are welcome to submit ideas on new features or other proposals for
-improvement through our feature request tracker at http://sourceforge.net/
-tracker/?atid=361118&group_id=11118.
+If you discovered a security problem or merely suspect that a bug might be a
+security issue, please mail Fabian Keil <fk@fabiankeil.de> (OpenPGP
+fingerprint: 4F36 C17F 3816 9136 54A1 E850 6918 2291 8BA2 371C).
+
+Usually you should get a response within a day, otherwise it's likely that
+either your mail or the response didn't make it. If that happens, please mail
+to the developer list to request a status update.
 
 -------------------------------------------------------------------------------
 
@@ -312,4 +307,13 @@ interested users and people who wish to contribute to the project are always
 welcome on the developers list. You can find an overview of all Privoxy-related
 mailing lists, including list archives, at: http://sourceforge.net/mail/?
 group_id=11118.
+
+-------------------------------------------------------------------------------
+
+6.6. SourceForge support trackers
+
+The SourceForge support trackers may be used as well, but have various
+technical problems that are unlikely to be fixed anytime soon. If you don't get
+a timely response, please try the mailing list as well. While it's hosted at
+SourceForge as well, it usually works as expected.
 

@@ -1,7 +1,7 @@
 <?php
 /*
 ** Zabbix
-** Copyright (C) 2001-2013 Zabbix SIA
+** Copyright (C) 2001-2015 Zabbix SIA
 **
 ** This program is free software; you can redistribute it and/or modify
 ** it under the terms of the GNU General Public License as published by
@@ -36,8 +36,8 @@ function screen_resources($resource = null) {
 		SCREEN_RESOURCE_SCREEN => _('Screen'),
 		SCREEN_RESOURCE_SERVER_INFO => _('Server info'),
 		SCREEN_RESOURCE_SIMPLE_GRAPH => _('Simple graph'),
-		SCREEN_RESOURCE_HOSTGROUP_TRIGGERS => _('Status of host group triggers'),
-		SCREEN_RESOURCE_HOST_TRIGGERS => _('Status of host triggers'),
+		SCREEN_RESOURCE_HOSTGROUP_TRIGGERS => _('Host group issues'),
+		SCREEN_RESOURCE_HOST_TRIGGERS => _('Host issues'),
 		SCREEN_RESOURCE_SYSTEM_STATUS => _('System status'),
 		SCREEN_RESOURCE_TRIGGERS_INFO => _('Triggers info'),
 		SCREEN_RESOURCE_TRIGGERS_OVERVIEW => _('Triggers overview'),
@@ -58,7 +58,8 @@ function screen_resources($resource = null) {
 
 function get_screen_by_screenid($screenid) {
 	$dbScreen = DBfetch(DBselect('SELECT s.* FROM screens s WHERE s.screenid='.zbx_dbstr($screenid)));
-	return !empty($dbScreen) ? $dbScreen : false;
+
+	return empty($dbScreen) ? false : $dbScreen;
 }
 
 function check_screen_recursion($mother_screenid, $child_screenid) {
@@ -77,6 +78,7 @@ function check_screen_recursion($mother_screenid, $child_screenid) {
 			return true;
 		}
 	}
+
 	return false;
 }
 
@@ -113,8 +115,7 @@ function slideshow_accessible($slideshowid, $perm) {
 	$sql = 'SELECT s.slideshowid'.
 			' FROM slideshows s'.
 			' WHERE s.slideshowid='.zbx_dbstr($slideshowid).
-				' AND '.DBin_node('s.slideshowid', get_current_nodeid(null, $perm)
-	);
+				andDbNode('s.slideshowid', get_current_nodeid(null, $perm));
 	if (DBselect($sql)) {
 		$result = true;
 
@@ -143,6 +144,7 @@ function slideshow_accessible($slideshowid, $perm) {
 			}
 		}
 	}
+
 	return $result;
 }
 
@@ -161,7 +163,7 @@ function add_slideshow($name, $delay, $slides) {
 	$screenids = zbx_objectValues($slides, 'screenid');
 	$screens = API::Screen()->get(array(
 		'screenids' => $screenids,
-		'output' => API_OUTPUT_SHORTEN
+		'output' => array('screenid')
 	));
 	$screens = ZBX_toHash($screens, 'screenid');
 	foreach ($screenids as $screenid) {
@@ -172,8 +174,9 @@ function add_slideshow($name, $delay, $slides) {
 	}
 
 	// validate slide name
-	$sql = 'SELECT s.slideshowid FROM slideshows s WHERE s.name='.zbx_dbstr($name);
-	$db_slideshow = DBfetch(DBselect($sql, 1));
+	$db_slideshow = DBfetch(DBselect(
+		'SELECT s.slideshowid FROM slideshows s WHERE s.name='.zbx_dbstr($name).' '.andDbNode('s.slideshowid')
+	));
 	if (!empty($db_slideshow)) {
 		error(_s('Slide show "%s" already exists.', $name));
 		return false;
@@ -203,6 +206,7 @@ function add_slideshow($name, $delay, $slides) {
 			return false;
 		}
 	}
+
 	return $slideshowid;
 }
 
@@ -217,7 +221,7 @@ function update_slideshow($slideshowid, $name, $delay, $slides) {
 	$screenids = zbx_objectValues($slides, 'screenid');
 	$screens = API::Screen()->get(array(
 		'screenids' => $screenids,
-		'output' => API_OUTPUT_SHORTEN
+		'output' => array('screenid')
 	));
 	$screens = ZBX_toHash($screens, 'screenid');
 	foreach ($screenids as $screenid) {
@@ -228,25 +232,38 @@ function update_slideshow($slideshowid, $name, $delay, $slides) {
 	}
 
 	// validate slide name
-	$sql = 'SELECT s.slideshowid FROM slideshows s WHERE s.name='.zbx_dbstr($name).' AND s.slideshowid<>'.zbx_dbstr($slideshowid);
-	$db_slideshow = DBfetch(DBselect($sql, 1));
-	if (!empty($db_slideshow)) {
-		error(_s('Slide show "%s" already exists.', $name));
+	$dbSlideshow = DBfetch(DBselect(
+		'SELECT s.slideshowid'.
+		' FROM slideshows s'.
+		' WHERE s.name='.zbx_dbstr($name).
+			' AND s.slideshowid<>'.zbx_dbstr($slideshowid).
+			' '.andDbNode('s.slideshowid')
+	));
+	if ($dbSlideshow) {
+		error(_s('Slide show "%1$s" already exists.', $name));
 		return false;
 	}
 
-	$db_slideshow = DBfetchArray(DBselect('SELECT * FROM slideshows WHERE slideshowid='.zbx_dbstr($slideshowid)));
-	$db_slideshow = $db_slideshow[0];
+	$dbSlideshow = DBfetchArray(DBselect('SELECT * FROM slideshows WHERE slideshowid='.zbx_dbstr($slideshowid)));
+	$dbSlideshow = $dbSlideshow[0];
 	$changed = false;
 	$slideshow = array('name' => $name, 'delay' => $delay);
+
 	foreach ($slideshow as $key => $val) {
-		if ($db_slideshow[$key] != $val) {
+		if ((string) $val !== (string) $dbSlideshow[$key]) {
 			$changed = true;
 			break;
 		}
 	}
+
 	if ($changed) {
-		if (!$result = DBexecute('UPDATE slideshows SET name='.zbx_dbstr($name).',delay='.zbx_dbstr($delay).' WHERE slideshowid='.zbx_dbstr($slideshowid))) {
+		$result = DBexecute(
+			'UPDATE slideshows'.
+			' SET name='.zbx_dbstr($name).',delay='.zbx_dbstr($delay).
+			' WHERE slideshowid='.zbx_dbstr($slideshowid)
+		);
+
+		if (!$result) {
 			return false;
 		}
 	}
@@ -296,6 +313,7 @@ function delete_slideshow($slideshowid) {
 	$result = DBexecute('DELETE FROM slideshows where slideshowid='.zbx_dbstr($slideshowid));
 	$result &= DBexecute('DELETE FROM slides where slideshowid='.zbx_dbstr($slideshowid));
 	$result &= DBexecute('DELETE FROM profiles WHERE idx=\'web.favorite.screenids\' AND source=\'slideshowid\' AND value_id='.zbx_dbstr($slideshowid));
+
 	return $result;
 }
 
@@ -305,17 +323,30 @@ function check_dynamic_items($elid, $config = 0) {
 		$sql = 'SELECT si.screenitemid'.
 				' FROM screens_items si'.
 				' WHERE si.screenid='.zbx_dbstr($elid).
-					' AND si.dynamic='.SCREEN_DYNAMIC_ITEM;
+					' AND si.dynamic='.SCREEN_DYNAMIC_ITEM.
+					' '.andDbNode('si.screenitemid');
 	}
 	else {
 		$sql = 'SELECT si.screenitemid'.
 				' FROM slides s,screens_items si'.
 				' WHERE s.slideshowid='.zbx_dbstr($elid).
 					' AND si.screenid=s.screenid'.
-					' AND si.dynamic='.SCREEN_DYNAMIC_ITEM;
+					' AND si.dynamic='.SCREEN_DYNAMIC_ITEM.
+					' '.andDbNode('si.screenitemid');
 	}
 	if (DBfetch(DBselect($sql, 1))) {
 		return true;
 	}
+
 	return false;
+}
+
+function getResourceNameByType($resourceType) {
+	switch ($resourceType) {
+		case SCREEN_RESOURCE_DATA_OVERVIEW:
+		case SCREEN_RESOURCE_TRIGGERS_OVERVIEW:
+			return _('Group');
+	}
+
+	return null;
 }

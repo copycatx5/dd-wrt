@@ -19,9 +19,9 @@ tor-configure: libevent miniupnpc-configure
 	--enable-upnp \
 	--disable-asciidoc \
 	--disable-gcc-hardening \
-	CFLAGS="$(COPTS) $(MIPS16_OPT) -ffunction-sections -fdata-sections -Wl,--gc-sections  -I$(TOP)/zlib -I$(TOP) -I$(TOP)/miniupnpc  -I$(TOP)/openssl/include -I$(TOP)/libevent -I$(TOP)/libevent/include" \
-	CPPFLAGS="$(COPTS) $(MIPS16_OPT) -ffunction-sections -fdata-sections -Wl,--gc-sections  -I$(TOP)/zlib -I$(TOP) -I$(TOP)/miniupnpc -I$(TOP)/openssl/include -I$(TOP)/libevent  -I$(TOP)/libevent/include" \
-	LDFLAGS="$(COPTS) $(MIPS16_OPT)  -L$(TOP)/zlib   -L$(TOP)/openssl -L$(TOP)/libevent/.libs -L$(TOP)/miniupnpc" 
+	CFLAGS="$(COPTS) $(MIPS16_OPT) -std=gnu99 -ffunction-sections -fdata-sections -Wl,--gc-sections  -I$(TOP)/zlib -I$(TOP) -I$(TOP)/miniupnpc  -I$(TOP)/openssl/include -I$(TOP)/libevent -I$(TOP)/libevent/include" \
+	CPPFLAGS="$(COPTS) $(MIPS16_OPT) -std=gnu99 -ffunction-sections -fdata-sections -Wl,--gc-sections  -I$(TOP)/zlib -I$(TOP) -I$(TOP)/miniupnpc -I$(TOP)/openssl/include -I$(TOP)/libevent  -I$(TOP)/libevent/include" \
+	LDFLAGS="$(COPTS) $(MIPS16_OPT) -std=gnu99  -L$(TOP)/zlib   -L$(TOP)/openssl -L$(TOP)/libevent/.libs -L$(TOP)/miniupnpc" 
 
 tor: libevent miniupnpc
 	make -C tor
@@ -31,4 +31,6 @@ tor-clean:
 
 tor-install:
 	make -C tor DESTDIR=$(INSTALLDIR)/tor install
-	install -D tor/config/torrc $(INSTALLDIR)/tor/usr/etc/tor
+	mkdir -p $(INSTALLDIR)/tor/etc/config
+	install -D tor/config/tor.webservices $(INSTALLDIR)/tor/etc/config
+	install -D tor/config/tor.nvramconfig $(INSTALLDIR)/tor/etc/config

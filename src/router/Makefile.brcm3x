@@ -21,6 +21,8 @@ endif
 #
 OPENSER_MODULES := sl tm rr maxfwd usrloc registrar dbtext textops exec auth auth_db nathelper
 OPENSER_MODULE_FILES := $(foreach module,$(OPENSER_MODULES),openser/modules/$(module)/$(module).so)
+CONFIG_MUSL=y
+CONFIG_NOOPT=y
 
 # Source bases
 export PLATFORM LINUXDIR LIBDIR USRLIBDIR
@@ -72,7 +74,7 @@ export BASEOPT:=-Os
 
 export ARCH:= mipsel
 export ARCHITECTURE:= broadcom
-export COPTS:=$(BASEOPT) -pipe -mips32r2 -mtune=74kc -mdspr2 -fno-caller-saves  -msoft-float  -mno-branch-likely
+export COPTS:=$(BASEOPT) -pipe -mips32r2 -mtune=74kc -mdspr2 -fno-caller-saves  -msoft-float  -mno-branch-likely -fno-plt
 export CC := ccache $(CROSS_COMPILE)gcc
 export CXX := ccache $(CROSS_COMPILE)g++
 export AR := $(CROSS_COMPILE)ar
@@ -84,7 +86,7 @@ export STRIP := @true
 export SIZE := $(CROSS_COMPILE)size
 export MIPS16_OPT:= -minterlink-mips16 -mips16
 
-export CFLAGS :=$(BASEOPT) -pipe -mips32r2 -mtune=74kc -mdspr2 -fno-caller-saves  -msoft-float  -mno-branch-likely 
+export CFLAGS :=$(BASEOPT) -pipe -mips32r2 -mtune=74kc -mdspr2 -fno-caller-saves  -msoft-float  -mno-branch-likely -fno-plt
 export LDFLAGS := 
 
 #
@@ -111,6 +113,7 @@ obj-distclean := $(foreach obj,$(obj-y) $(obj-n),$(obj)-distclean)
 
 build_date:
 	echo "#define BUILD_DATE \"$(shell date +%D)\"" > ../../opt/build.h 
+	echo "CONFIG_MUSL=y" >> .config 
 
 drop-sections	= .comment
 strip-flags	= $(addprefix --remove-section=,$(drop-sections))
@@ -121,6 +124,7 @@ strip-flags	= $(addprefix --remove-section=,$(drop-sections))
 
 all: install_headers build_date clean_target $(obj-y) $(LINUXDIR)/.config kernel
 
+include kernel-features.mk
 
 kernel:
 	# Also build kernel
@@ -148,11 +152,7 @@ ifeq ($(CONFIG_NOAC),y)
 	cp $(LINUXDIR)/.config_std_noac $(LINUXDIR)/.config
 endif
 
-ifeq ($(CONFIG_EOP_TUNNEL),y)
-	echo CONFIG_NET_ETHERIP=m >> $(LINUXDIR)/.config
-else
-	echo "# CONFIG_NET_ETHERIP" is not set >> $(LINUXDIR)/.config
-endif
+	$(kernelfeatures)
 ifeq ($(CONFIG_V25),y)
 	echo CONFIG_V25=y >> $(LINUXDIR)/.config
 else
@@ -170,9 +170,7 @@ else
 	echo "# CONFIG_NVRAM_64K" is not set >> $(LINUXDIR)/.config
 endif
 endif
-ifeq ($(CONFIG_IPETH),y)
-	sed -i 's/\# CONFIG_USB_IPHETH is not set/CONFIG_USB_IPHETH=m/g' $(LINUXDIR)/.config
-endif
+
 #ifeq ($(CONFIG_REGISTER),y)
 #	cp $(LINUXDIR)/.config_register $(LINUXDIR)/.config
 #endif
@@ -185,15 +183,23 @@ endif
 	rm -f $(TARGETDIR)/lib/modules/$(KERNELRELEASE)/build
 	rm -f $(TARGETDIR)/lib/modules/$(KERNELRELEASE)/source
 
-	-$(MAKE) -f Makefile.brcm3x ath9k
-	-$(MAKE) -f Makefile.brcm3x ath9k-install
+#	-$(MAKE) -f Makefile.brcm3x ath9k
+#	-$(MAKE) -f Makefile.brcm3x ath9k-install
+	-$(MAKE) -f Makefile.brcm3x emf
+	-$(MAKE) -f Makefile.brcm3x emf-install
 	-$(MAKE) -f Makefile.brcm3x libutils
-	-$(MAKE) -f Makefile.brcm3x madwifi
-	-$(MAKE) -f Makefile.brcm3x madwifi-install
+#	-$(MAKE) -f Makefile.brcm3x madwifi
+#	-$(MAKE) -f Makefile.brcm3x madwifi-install
+	-$(MAKE) -f Makefile.brcm3x emf
+	-$(MAKE) -f Makefile.brcm3x emf-install
+ifeq ($(CONFIG_BATMANADV),y)
 	-$(MAKE) -f Makefile.brcm3x batman-adv
 	-$(MAKE) -f Makefile.brcm3x batman-adv-install
+endif
+ifeq ($(CONFIG_OPENDPI),y)
 	-$(MAKE) -f Makefile.brcm3x opendpi
 	-$(MAKE) -f Makefile.brcm3x opendpi-install
+endif
 	-$(MAKE) -f Makefile.brcm3x uniwip-gpio
 	-$(MAKE) -f Makefile.brcm3x uniwip-gpio-install
 
@@ -251,6 +257,7 @@ endif
 		awk '$$1 == "U" { print $$2 } ' | \
 		sort -u > $(LINUXDIR)/mod_symtab.txt
 	$(ARCH)-linux-nm -n $(LINUXDIR)/vmlinux.o | grep ' r __ksymtab' | sed -e 's,........ r __ksymtab_,,' > $(LINUXDIR)/kernel_symtab.txt
+	$(ARCH)-linux-nm -n $(LINUXDIR)/vmlinux.o | grep ' R __ksymtab' | sed -e 's,........ R __ksymtab_,,' >> $(LINUXDIR)/kernel_symtab.txt
 	grep -f $(LINUXDIR)/mod_symtab.txt $(LINUXDIR)/kernel_symtab.txt -F > $(LINUXDIR)/sym_include.txt
 	grep -vf $(LINUXDIR)/mod_symtab.txt $(LINUXDIR)/kernel_symtab.txt -F > $(LINUXDIR)/sym_exclude.txt
 	( \
@@ -316,7 +323,7 @@ realclean: $(obj-clean)
 	-rm -f $(ARCH)-uclibc/*
 
 	
-clean: rc-clean httpd-clean services-clean shared-clean libutils-clean nvram-clean busybox-clean dnsmasq-clean iptables-clean pppd-clean
+clean: rc-clean httpd-clean services-clean shared-clean libutils-clean nvram-clean busybox-clean dnsmasq-clean iptables-clean pppd-clean iproute2-clean
 	rm -f .config.old .config.cmd
 	#umount $(TARGETDIR)
 	rm -rf $(INSTALLDIR)
@@ -339,10 +346,19 @@ distclean mrproper: $(obj-distclean) clean_target
 	rm -f .config.old .config.cmd
 
 optimize-lib:
+ifneq ($(CONFIG_MUSL),y)
+	cp ${shell $(ARCH)-linux-gcc -print-file-name=libc.so.0} $(ARCH)-uclibc/target/lib/libc.so.0 
+else
+	cp ${shell $(ARCH)-linux-gcc -print-file-name=libc.so} $(ARCH)-uclibc/target/lib/libc.so 
+#	cp ${shell $(ARCH)-linux-gcc -print-file-name=libc.a} $(ARCH)-uclibc/target/lib/libc_pic.a 
+endif
+ifneq ($(CONFIG_MUSL),y)
 	cp ${shell $(ARCH)-linux-gcc -print-file-name=ld-uClibc.so.0} $(ARCH)-uclibc/target/lib/ld-uClibc.so.0 
-	cp ${shell $(ARCH)-linux-gcc -print-file-name=libgcc_s.so.1} $(ARCH)-uclibc/target/lib/libgcc_s.so.1 
+else
+	cd $(ARCH)-uclibc/target/lib && ln -sf libc.so ld-musl-mipsel-sf.so.1
+endif
 ifeq ($(CONFIG_LIBDL),y)
-	cp ${shell $(ARCH)-linux-gcc -print-file-name=libdl.so.0} $(ARCH)-uclibc/target/lib/libdl.so.0 
+	-cp ${shell $(ARCH)-linux-gcc -print-file-name=libdl.so.0} $(ARCH)-uclibc/target/lib/libdl.so.0 
 endif
 ifeq ($(CONFIG_LIBRT),y)
 	-cp ${shell $(ARCH)-linux-gcc -print-file-name=librt.so.0} $(ARCH)-uclibc/target/lib/librt.so.0 
@@ -351,31 +367,32 @@ ifeq ($(CONFIG_LIBNSL),y)
 	-cp ${shell $(ARCH)-linux-gcc -print-file-name=libnsl.so.0} $(ARCH)-uclibc/target/lib/libnsl.so.0 
 endif
 ifeq ($(CONFIG_LIBUTIL),y)
-	cp ${shell $(ARCH)-linux-gcc -print-file-name=libutil.so.0} $(ARCH)-uclibc/target/lib/libutil.so.0 
+	-cp ${shell $(ARCH)-linux-gcc -print-file-name=libutil.so.0} $(ARCH)-uclibc/target/lib/libutil.so.0 
 endif
 ifeq ($(CONFIG_LIBCPP),y)
-	cp ${shell $(ARCH)-linux-gcc -print-file-name=libstdc++.so.6} $(ARCH)-uclibc/target/lib/libstdc++.so.6 
+	-cp ${shell $(ARCH)-linux-gcc -print-file-name=libstdc++.so.6} $(ARCH)-uclibc/target/lib/libstdc++.so.6 
 endif
 ifeq ($(CONFIG_LIBCRYPT),y)
-	cp ${shell $(ARCH)-linux-gcc -print-file-name=libcrypt.so.0} $(ARCH)-uclibc/target/lib/libcrypt.so.0 
+	-cp ${shell $(ARCH)-linux-gcc -print-file-name=libcrypt.so.0} $(ARCH)-uclibc/target/lib/libcrypt.so.0 
 endif
 ifeq ($(CONFIG_LIBM),y)
-	cp ${shell $(ARCH)-linux-gcc -print-file-name=libm.so.0} $(ARCH)-uclibc/target/lib/libm.so.0 
+	-cp ${shell $(ARCH)-linux-gcc -print-file-name=libm.so.0} $(ARCH)-uclibc/target/lib/libm.so.0 
 endif
 ifeq ($(CONFIG_LIBRESOLV),y)
 	-cp ${shell $(ARCH)-linux-gcc -print-file-name=libresolv.so.0} $(ARCH)-uclibc/target/lib/libresolv.so.0 
 endif
 ifeq ($(CONFIG_LIBPTHREAD),y)
-	cp ${shell $(ARCH)-linux-gcc -print-file-name=libpthread.so.0} $(ARCH)-uclibc/target/lib/libpthread.so.0 
+	-cp ${shell $(ARCH)-linux-gcc -print-file-name=libpthread.so.0} $(ARCH)-uclibc/target/lib/libpthread.so.0 
 endif
-	cp ${shell $(ARCH)-linux-gcc -print-file-name=libc.so.0} $(ARCH)-uclibc/target/lib/libc.so.0 
+#	cp ${shell $(ARCH)-linux-gcc -print-file-name=libc.so.0} $(ARCH)-uclibc/target/lib/libc.so.0 
+	-cp ${shell $(ARCH)-linux-gcc -print-file-name=libgcc_s.so.1} $(ARCH)-uclibc/target/lib/libgcc_s.so.1 
 
 ifneq ($(CONFIG_NOOPT),y)
 
 	rm -rf /tmp/$(ARCHITECTURE)/mklibs-out
 	rm -f /tmp/$(ARCHITECTURE)/mklibs-progs
 	-mkdir -p /tmp/$(ARCHITECTURE)/
-	find $(TARGETDIR) -type f -perm +100 -exec \
+	find $(TARGETDIR) -type f -perm /100 -exec \
 		file -r -N -F '' {} + | \
 		awk ' /executable.*dynamically/ { print $$1 }' > /tmp/$(ARCHITECTURE)/mklibs-progs
 
@@ -384,6 +401,7 @@ ifneq ($(CONFIG_NOOPT),y)
 		awk ' /shared object/ { print $$1 }' >> /tmp/$(ARCHITECTURE)/mklibs-progs
 
 	mkdir -p /tmp/$(ARCHITECTURE)/mklibs-out
+ifneq ($(CONFIG_MUSL),y)
 	mklibs.py -D \
 		-d /tmp/$(ARCHITECTURE)/mklibs-out \
 		--sysroot $(TARGETDIR) \
@@ -392,6 +410,17 @@ ifneq ($(CONFIG_NOOPT),y)
 		--ldlib /lib/ld-uClibc.so.0 \
 		--target $(ARCH)-linux-uclibc \
 		`cat /tmp/$(ARCHITECTURE)/mklibs-progs` 2>&1
+else
+	mklibs.py -D \
+		-d /tmp/$(ARCHITECTURE)/mklibs-out \
+		--sysroot $(TARGETDIR) \
+		-L /lib \
+		-L /usr/lib \
+		--ldlib /lib/ld-musl-mips-sf.so.1 \
+		--target $(ARCH)-linux-uclibc \
+		`cat /tmp/$(ARCHITECTURE)/mklibs-progs` 2>&1
+
+endif
 	cp /tmp/$(ARCHITECTURE)/mklibs-out/* $(TARGETDIR)/lib
 endif
 
@@ -659,9 +688,19 @@ endif
 endif
 	cp ../../opt/etc/config/* mipsel-uclibc/target/etc/config
 	../../tools/process_nvramconfigfile mipsel-uclibc/target/etc/config/*.nvramconfig
+
+	-find $(TARGETDIR)/lib/modules/$(KERNELRELEASE)/kernel -name *.ko -exec mv {} $(TARGETDIR)/lib/modules/$(KERNELRELEASE) \;
+	-find $(TARGETDIR)/lib/modules/$(KERNELRELEASE)/net -name *.ko -exec mv {} $(TARGETDIR)/lib/modules/$(KERNELRELEASE) \;
+	rm -rf $(TARGETDIR)/lib/modules/$(KERNELRELEASE)/kernel
+	rm -rf $(TARGETDIR)/lib/modules/$(KERNELRELEASE)/net
+	#e2fsck -y -f $(ARCH)-uclibc/root.fs
+	./busybox/examples/depmod.pl -F $(LINUXDIR)/System.map -b $(ARCH)-uclibc/target/lib/modules
+
+
 	export STRIP_KMOD="$(LINUXDIR)/scripts/strip-kmod.sh" && \
 	export STRIP="sstrip" && \
 	$(LINUXDIR)/scripts/rstrip.sh $(TARGETDIR)
+	$(TOP)/../../tools/removewhitespace.sh $(TOP)/../../tools $(TARGETDIR)/etc/config
 	$(LINUXDIR)/scripts/squashfs/mksquashfs-lzma $(ARCH)-uclibc/target $(ARCH)-uclibc/rootfs.squashfs -noappend -root-owned -le
 #	$(MAKE) -C compressed clean
 #	$(MAKE) -C compressed
@@ -670,8 +709,8 @@ endif
 	../../opt/tools/trx -m 32000000 -o $(ARCH)-uclibc/dd-wrt.v24-K3-nandboot.trx $(ARCH)-uclibc/lzma_vmlinuz  -a 1024 $(ARCH)-uclibc/rootfs.squashfs
 #	../../opt/tools/trx -m 32000000 -o $(ARCH)-uclibc/dd-wrt.v24-K26.trx $(ARCH)-uclibc/vmlinus.gzip  -a 1024 $(ARCH)-uclibc/rootfs.squashfs
 	../../opt/asus/asustrx-rt66u -p RT-AC66U -v 3.0.0.1 -m 32000000 -o $(ARCH)-uclibc/dd-wrt.v24-K3_RT-AC66U.trx $(ARCH)-uclibc/lzma_vmlinuz -a 1024 $(ARCH)-uclibc/rootfs.squashfs
-ifeq ($(CONFIG_NOAC),y)
 	../../opt/tools/trx -m 32000000 -o $(ARCH)-uclibc/dd-wrt.v24-K3.trx ../../opt/loader-0.02/loader.gz $(ARCH)-uclibc/vmlinuz  -a 1024 $(ARCH)-uclibc/rootfs.squashfs
+ifeq ($(CONFIG_NOAC),y)
 
 #	../../opt/asus/asustrx-rt66u -p RT-AC66U -v 3.0.0.1 -m 32000000 -o $(ARCH)-uclibc/dd-wrt.v24-K26_RT-AC66U.trx ../../opt/loader-0.02/loader.gz $(ARCH)-uclibc/vmlinuz $(ARCH)-uclibc/rootfs.squashfs
 #	../../opt/asus/asustrx-rt66u -p RT-AC66U -v 3.0.0.1 -m 32000000 -o $(ARCH)-uclibc/dd-wrt.v24-K26_RT-AC66U.trx $(ARCH)-uclibc/lzma_vmlinuz $(ARCH)-uclibc/rootfs.squashfs
@@ -773,6 +812,8 @@ ifeq ($(CONFIG_NOAC),y)
 	cp dd-wrt.bin.chk $(ARCH)-uclibc/dd-wrt.v24-K3_WNR3500v2_VC.chk
 	./netgear/packet -k $(ARCH)-uclibc/dd-wrt.v24-K3.trx -f netgear/emptyfile -b netgear/comp-wnr3500L.txt -ok kernel_image -oall dd-wrt.bin -or rootfs_image -i netgear/ambitCfg-wnr3500.h && \
 	cp dd-wrt.bin.chk $(ARCH)-uclibc/dd-wrt.v24-K3_WNR3500L.chk
+	./netgear/packet -k $(ARCH)-uclibc/dd-wrt.v24-K3.trx -f netgear/emptyfile -b netgear/comp-wnr3500Lv2.txt -ok kernel_image -oall dd-wrt.bin -or rootfs_image -i netgear/ambitCfg-wnr3500lv2.h && \
+	cp dd-wrt.bin.chk $(ARCH)-uclibc/dd-wrt.v24-K3_WNR3500Lv2.chk
 	./netgear/packet -k $(ARCH)-uclibc/dd-wrt.v24-K3.trx -f netgear/emptyfile -b netgear/comp-wnr3500U.txt -ok kernel_image -oall dd-wrt.bin -or rootfs_image -i netgear/ambitCfg-wnr3500.h && \
 	cp dd-wrt.bin.chk $(ARCH)-uclibc/dd-wrt.v24-K3_WNR3500U.chk
 	./netgear/packet -k $(ARCH)-uclibc/dd-wrt.v24-K3.trx -f netgear/emptyfile -b netgear/comp-wnr2000v2.txt -ok kernel_image -oall dd-wrt.bin -or rootfs_image -i netgear/ambitCfg-wnr2000v2.h && \
@@ -818,11 +859,14 @@ ifeq ($(CONFIG_NOAC),y)
 	../../opt/tools/addpattern -4 -p NV64 -v v4.20.6 -i $(ARCH)-uclibc/dd-wrt.v24-K3.trx -o $(ARCH)-uclibc/dd-wrt.v24-K3_nv64k.bin -g
 #endif
 endif
+	-tools/ubnt/src/mkfwimage -v BZ.bcm4706.v6.0.0.3000.150000.1500 -o mipsel-uclibc/UNIFIAC.dd-wrt.bin -i tools/ubnt/unifiac-ddwrt.txt
 	./netgear/lzma e  $(ARCH)-uclibc/vmlinux.bin  $(ARCH)-uclibc/vmlinux_netgear.lzma
 	../../opt/tools/trx -m 32000000 -o $(ARCH)-uclibc/dd-wrt.v24-K3_R6300.trx $(ARCH)-uclibc/vmlinux_netgear.lzma  -a 4096 $(ARCH)-uclibc/rootfs.squashfs
 	./netgear/packet -k $(ARCH)-uclibc/dd-wrt.v24-K3_R6300.trx -f netgear/emptyfile -b netgear/comp-r6300.txt -ok kernel_image -oall dd-wrt.bin -or rootfs_image -i netgear/ambitCfg-r6300.h && cp dd-wrt.bin.chk $(ARCH)-uclibc/dd-wrt.v24-K3_R6300.chk 
 	./netgear/packet -k $(ARCH)-uclibc/dd-wrt.v24-K3_R6300.trx -f netgear/emptyfile -b netgear/comp-wndr4500.txt -ok kernel_image -oall dd-wrt.bin -or rootfs_image -i netgear/ambitCfg-wndr4500.h && cp dd-wrt.bin.chk $(ARCH)-uclibc/dd-wrt.v24-K3_WNDR4500.chk
 	./netgear/packet -k $(ARCH)-uclibc/dd-wrt.v24-K3_R6300.trx -f netgear/emptyfile -b netgear/comp-wndr4500v2.txt -ok kernel_image -oall dd-wrt.bin -or rootfs_image -i netgear/ambitCfg-wndr4500.h && cp dd-wrt.bin.chk $(ARCH)-uclibc/dd-wrt.v24-K3_WNDR4500V2.chk
+	./netgear/packet -k $(ARCH)-uclibc/dd-wrt.v24-K3_R6300.trx -f netgear/emptyfile -b netgear/comp-wnr3500Lv2.txt -ok kernel_image -oall dd-wrt.bin -or rootfs_image -i netgear/ambitCfg-wnr3500lv2.h && cp dd-wrt.bin.chk $(ARCH)-uclibc/dd-wrt.v24-K3_WNR3500Lv2.chk
+	cp $(ARCH)-uclibc/dd-wrt.v24-K3_R6300.trx $(ARCH)-uclibc/dd-wrt.v24-K3_WNR3500Lv2.bin
 
 
 	cd $(ARCH)-uclibc && ../tools/bufenc/makefw.sh dd-wrt.v24-K3-nandboot

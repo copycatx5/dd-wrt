@@ -86,9 +86,8 @@ struct lease_table {
 	char hwaddr[20];
 } *dhcp_lease_table;
 
-char *wl_filter_mac_get(char *ifname2, char *type, int which)
+static char *wl_filter_mac_get(char *ifname2, char *type, int which, char *word)
 {
-	static char word[50];
 	char *wordlist, *next;
 	int temp;
 	char ifname[32];
@@ -163,6 +162,7 @@ void ej_wireless_filter_table(webs_t wp, int argc, char_t ** argv)
 	}
 
 	if (!strcmp(type, "input")) {
+		char word[50];
 		websWrite(wp, "<div class=\"col2l\">\n");
 		websWrite(wp, "<fieldset><legend>Table 1</legend>\n");
 		for (i = 0; i < WL_FILTER_MAC_NUM / 2; i++) {
@@ -171,19 +171,19 @@ void ej_wireless_filter_table(webs_t wp, int argc, char_t ** argv)
 
 			websWrite(wp,
 #ifdef HAVE_SPOTPASS
-				  "<div class=\"setting\"><div class=\"label\" style=\"width: 17%%\">%s %03d : </div><input maxlength=\"17\" style=\"float: left; width: 30%%;\" onblur=\"\" size=%d name=\"%s_mac%d\" value=\"%s\"/>",
+				  "<div class=\"setting\"><div class=\"label\" style=\"width: 16%%\">%s %03d : </div><input maxlength=\"17\" style=\"float: left; width: 30%%;\" onblur=\"\" size=%d name=\"%s_mac%d\" value=\"%s\"/>",
 #else
-				  "<div class=\"setting\"><div class=\"label\" style=\"width: 17%%\">%s %03d : </div><input maxlength=\"17\" style=\"float: left; width: 30%%;\" onblur=\"valid_macs_all(this)\" size=%d name=\"%s_mac%d\" value=\"%s\"/>",
+				  "<div class=\"setting\"><div class=\"label\" style=\"width: 16%%\">%s %03d : </div><input maxlength=\"17\" style=\"float: left; width: 30%%;\" onblur=\"valid_macs_all(this)\" size=%d name=\"%s_mac%d\" value=\"%s\"/>",
 #endif
-				  mac_mess, item, BOX_LEN, ifname, item - 1, wl_filter_mac_get(ifname, "mac", item - 1));
+				  mac_mess, item, BOX_LEN, ifname, item - 1, wl_filter_mac_get(ifname, "mac", item - 1, word));
 
 			websWrite(wp,
 #ifdef HAVE_SPOTPASS
-				  "<div class=\"label\" style=\"width: 17%%; margin-left: 7px;\">%s %03d : </div><input style=\"width: 30%%;\" maxlength=\"17\" onblur=\"\" size=%d name=\"%s_mac%d\" value=\"%s\"/></div>\n",
+				  "<div class=\"label\" style=\"width: 16%%; margin-left: 7px;\">%s %03d : </div><input style=\"width: 30%%;\" maxlength=\"17\" onblur=\"\" size=%d name=\"%s_mac%d\" value=\"%s\"/></div>\n",
 #else
-				  "<div class=\"label\" style=\"width: 17%%; margin-left: 7px;\">%s %03d : </div><input style=\"width: 30%%;\" maxlength=\"17\" onblur=\"valid_macs_all(this)\" size=%d name=\"%s_mac%d\" value=\"%s\"/></div>\n",
+				  "<div class=\"label\" style=\"width: 16%%; margin-left: 7px;\">%s %03d : </div><input style=\"width: 30%%;\" maxlength=\"17\" onblur=\"valid_macs_all(this)\" size=%d name=\"%s_mac%d\" value=\"%s\"/></div>\n",
 #endif
-				  mac_mess, item + (WL_FILTER_MAC_NUM / 2), BOX_LEN, ifname, item + (WL_FILTER_MAC_NUM / 2) - 1, wl_filter_mac_get(ifname, "mac", item + (WL_FILTER_MAC_NUM / 2) - 1));
+				  mac_mess, item + (WL_FILTER_MAC_NUM / 2), BOX_LEN, ifname, item + (WL_FILTER_MAC_NUM / 2) - 1, wl_filter_mac_get(ifname, "mac", item + (WL_FILTER_MAC_NUM / 2) - 1, word));
 
 		}
 
@@ -196,12 +196,12 @@ void ej_wireless_filter_table(webs_t wp, int argc, char_t ** argv)
 			item = 1 * WL_FILTER_MAC_NUM + i + 1;
 
 			websWrite(wp,
-				  "<div class=\"setting\"><div class=\"label\" style=\"width: 17%%\">%s %03d : </div><input maxlength=\"17\" style=\"float: left; width: 30%%;\" onblur=\"valid_macs_all(this)\" size=%d name=\"%s_mac%d\" value=\"%s\"/>",
-				  mac_mess, item, BOX_LEN, ifname, item - 1, wl_filter_mac_get(ifname, "mac", item - 1));
+				  "<div class=\"setting\"><div class=\"label\" style=\"width: 16%%\">%s %03d : </div><input maxlength=\"17\" style=\"float: left; width: 30%%;\" onblur=\"valid_macs_all(this)\" size=%d name=\"%s_mac%d\" value=\"%s\"/>",
+				  mac_mess, item, BOX_LEN, ifname, item - 1, wl_filter_mac_get(ifname, "mac", item - 1, word));
 
 			websWrite(wp,
-				  "<div class=\"label\" style=\"width: 17%%; margin-left: 7px;\">%s %03d : </div><input style=\"width: 30%%;\" maxlength=\"17\" onblur=\"valid_macs_all(this)\" size=%d name=\"%s_mac%d\" value=\"%s\"/></div>\n",
-				  mac_mess, item + (WL_FILTER_MAC_NUM / 2), BOX_LEN, ifname, item + (WL_FILTER_MAC_NUM / 2) - 1, wl_filter_mac_get(ifname, "mac", item + (WL_FILTER_MAC_NUM / 2) - 1));
+				  "<div class=\"label\" style=\"width: 16%%; margin-left: 7px;\">%s %03d : </div><input style=\"width: 30%%;\" maxlength=\"17\" onblur=\"valid_macs_all(this)\" size=%d name=\"%s_mac%d\" value=\"%s\"/></div>\n",
+				  mac_mess, item + (WL_FILTER_MAC_NUM / 2), BOX_LEN, ifname, item + (WL_FILTER_MAC_NUM / 2) - 1, wl_filter_mac_get(ifname, "mac", item + (WL_FILTER_MAC_NUM / 2) - 1, word));
 
 		}
 
@@ -427,6 +427,8 @@ void ej_wireless_active_table(webs_t wp, int argc, char_t ** argv)
 			iface = get_wl_instance_name(0);
 		else if (!strcmp(ifname, "wl1"))
 			iface = get_wl_instance_name(1);
+		else if (!strcmp(ifname, "wl2"))
+			iface = get_wl_instance_name(2);
 		else
 			iface = nvram_safe_get("wl0_ifname");
 		sysprintf("wl -i %s %s > %s", iface, ASSOCLIST_CMD, ASSOCLIST_TMP);
@@ -479,25 +481,23 @@ void ej_wireless_active_table(webs_t wp, int argc, char_t ** argv)
 		for (i = 0; i < nv_count; i++) {
 			if (wl_client_macs[i].status != 1)
 				continue;
-			websWrite(wp, "\
- <tr align=\"middle\"> \n\
-    <td height=\"20\" width=\"167\">%s</td> \n\
-    <td height=\"20\" width=\"140\">%s</td> \n\
-    <td height=\"20\" width=\"156\">%s</td> \n\
-    <td height=\"20\" width=\"141\"><input type=\"checkbox\" name=\"on%d\" value=\"%d\" %s></td> \n\
- </tr>\n", wl_client_macs[i].hostname, wl_client_macs[i].ipaddr, wl_client_macs[i].hwaddr, flag++, i, wl_client_macs[i].check ? "checked=\"checked\"" : "");
+			websWrite(wp, "<tr align=\"middle\"> \n"
+				  "<td height=\"20\" width=\"167\">%s</td> \n"
+				  "<td height=\"20\" width=\"140\">%s</td> \n"
+				  "<td height=\"20\" width=\"156\">%s</td> \n"
+				  "<td height=\"20\" width=\"141\"><input type=\"checkbox\" name=\"on%d\" value=\"%d\" %s></td> \n"
+				  "</tr>\n", wl_client_macs[i].hostname, wl_client_macs[i].ipaddr, wl_client_macs[i].hwaddr, flag++, i, wl_client_macs[i].check ? "checked=\"checked\"" : "");
 		}
 	} else if (!strcmp(type, "offline")) {
 		for (i = 0; i < nv_count; i++) {
 			if (wl_client_macs[i].status != 0)
 				continue;
-			websWrite(wp, "\
- <tr align=\"middle\"> \n\
-    <td height=\"20\" width=\"167\">%s</td> \n\
-    <td height=\"20\" width=\"140\">%s</td> \n\
-    <td height=\"20\" width=\"156\">%s</td> \n\
-    <td height=\"20\" width=\"141\"><input type=\"checkbox\" name=\"off%d\" value=\"%d\" %s></td> \n\
- </tr>\n", wl_client_macs[i].hostname, wl_client_macs[i].ipaddr, wl_client_macs[i].hwaddr, flag++, i, wl_client_macs[i].check ? "checked=\"checked\"" : "");
+			websWrite(wp, "<tr align=\"middle\"> \n"
+				  "<td height=\"20\" width=\"167\">%s</td> \n"
+				  "<td height=\"20\" width=\"140\">%s</td> \n"
+				  "<td height=\"20\" width=\"156\">%s</td> \n"
+				  "<td height=\"20\" width=\"141\"><input type=\"checkbox\" name=\"off%d\" value=\"%d\" %s></td> \n"
+				  "</tr>\n", wl_client_macs[i].hostname, wl_client_macs[i].ipaddr, wl_client_macs[i].hwaddr, flag++, i, wl_client_macs[i].check ? "checked=\"checked\"" : "");
 
 		}
 	}

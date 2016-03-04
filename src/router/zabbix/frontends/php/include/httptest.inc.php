@@ -1,7 +1,7 @@
 <?php
 /*
 ** Zabbix
-** Copyright (C) 2001-2013 Zabbix SIA
+** Copyright (C) 2001-2015 Zabbix SIA
 **
 ** This program is free software; you can redistribute it and/or modify
 ** it under the terms of the GNU General Public License as published by
@@ -71,54 +71,6 @@ function httptest_status2style($status) {
 	}
 }
 
-function activate_httptest($httptestid) {
-	$result = DBexecute('UPDATE httptest SET status='.HTTPTEST_STATUS_ACTIVE.' WHERE httptestid='.zbx_dbstr($httptestid));
-
-	$itemids = array();
-	$items_db = DBselect('SELECT hti.itemid FROM httptestitem hti WHERE hti.httptestid='.zbx_dbstr($httptestid));
-	while ($itemid = Dbfetch($items_db)) {
-		$itemids[] = $itemid['itemid'];
-	}
-
-	$items_db = DBselect(
-		'SELECT hsi.itemid'.
-		' FROM httpstep hs,httpstepitem hsi'.
-		' WHERE hs.httpstepid=hsi.httpstepid'.
-			' AND hs.httptestid='.zbx_dbstr($httptestid)
-	);
-	while ($itemid = Dbfetch($items_db)) {
-		$itemids[] = $itemid['itemid'];
-	}
-
-	$result &= DBexecute('UPDATE items SET status='.ITEM_STATUS_ACTIVE.' WHERE '.dbConditionInt('itemid', $itemids));
-
-	return $result;
-}
-
-function disable_httptest($httptestid) {
-	$result = DBexecute('UPDATE httptest SET status='.HTTPTEST_STATUS_DISABLED.' WHERE httptestid='.zbx_dbstr($httptestid));
-
-	$itemids = array();
-	$items_db = DBselect('SELECT hti.itemid FROM httptestitem hti WHERE hti.httptestid='.zbx_dbstr($httptestid));
-	while ($itemid = Dbfetch($items_db)) {
-		$itemids[] = $itemid['itemid'];
-	}
-
-	$items_db = DBselect(
-		'SELECT hsi.itemid'.
-		' FROM httpstep hs,httpstepitem hsi'.
-		' WHERE hs.httpstepid=hsi.httpstepid'.
-			' AND hs.httptestid='.zbx_dbstr($httptestid)
-	);
-	while ($itemid = Dbfetch($items_db)) {
-		$itemids[] = $itemid['itemid'];
-	}
-
-	$result &= DBexecute('UPDATE items SET status='.ITEM_STATUS_DISABLED.' WHERE '.dbConditionInt('itemid', $itemids));
-
-	return $result;
-}
-
 function delete_history_by_httptestid($httptestid) {
 	$db_items = DBselect(
 		'SELECT DISTINCT i.itemid'.
@@ -147,32 +99,148 @@ function get_httpstep_by_no($httptestid, $no) {
 function get_httptests_by_hostid($hostids) {
 	zbx_value2array($hostids);
 
-	return DBselect(
-		'SELECT DISTINCT ht.*'.
-		' FROM httptest ht,applications ap'.
-		' WHERE ht.applicationid=ap.applicationid'.
-			' AND '.dbConditionInt('ap.hostid', $hostids)
-	);
+	return DBselect('SELECT DISTINCT ht.* FROM httptest ht WHERE '.dbConditionInt('ht.hostid', $hostids));
 }
 
 /**
- * Cheks for duplicates in HTTP steps.
+ * Return parent templates for http tests.
+ * Result structure:
+ * array(
+ *   'httptestid' => array(
+ *     'name' => <template name>,
+ *     'id' => <template id>
+ *   ), ...
+ * )
  *
- * @param type $steps
+ * @param array $httpTests must have httptestid and templateid fields
  *
- * @return boolean return true if duplicate found
+ * @return array
  */
-function validateHttpDuplicateSteps($steps) {
-	$isDuplicateStepFound = false;
+function getHttpTestsParentTemplates(array $httpTests) {
+	$result = array();
+	$template2testMap = array();
 
-	$set = array();
-	foreach ($steps as $step) {
-		if (isset($set[$step['name']])) {
-			error(_s('Step with name "%s" already exists.', $step['name']));
-			$isDuplicateStepFound = true;
+	foreach ($httpTests as $httpTest) {
+		if (!empty($httpTest['templateid'])){
+			$result[$httpTest['httptestid']] = array();
+			$template2testMap[$httpTest['templateid']][$httpTest['httptestid']] = $httpTest['httptestid'];
 		}
-		$set[$step['name']] = 1;
 	}
 
-	return $isDuplicateStepFound;
+	do {
+		$dbHttpTests = DBselect('SELECT ht.httptestid,ht.templateid,ht.hostid,h.name'.
+				' FROM httptest ht'.
+				' INNER JOIN hosts h ON h.hostid=ht.hostid'.
+				' WHERE '.dbConditionInt('ht.httptestid', array_keys($template2testMap)));
+		while ($dbHttpTest = DBfetch($dbHttpTests)) {
+			foreach ($template2testMap[$dbHttpTest['httptestid']] as $testId => $data) {
+				$result[$testId] = array('name' => $dbHttpTest['name'], 'id' => $dbHttpTest['hostid']);
+
+				if (!empty($dbHttpTest['templateid'])) {
+					$template2testMap[$dbHttpTest['templateid']][$testId] = $testId;
+				}
+			}
+			unset($template2testMap[$dbHttpTest['httptestid']]);
+		}
+	} while (!empty($template2testMap));
+
+	return $result;
+}
+
+/**
+ * Resolve http tests macros.
+ *
+ * @param array $httpTests
+ * @param bool  $resolveName
+ * @param bool  $resolveStepName
+ *
+ * @return array
+ */
+function resolveHttpTestMacros(array $httpTests, $resolveName = true, $resolveStepName = true) {
+	$names = array();
+
+	$i = 0;
+	foreach ($httpTests as $test) {
+		if ($resolveName) {
+			$names[$test['hostid']][$i++] = $test['name'];
+		}
+
+		if ($resolveStepName) {
+			foreach ($test['steps'] as $step) {
+				$names[$test['hostid']][$i++] = $step['name'];
+			}
+		}
+	}
+
+	$macrosResolver = new CMacrosResolver();
+	$names = $macrosResolver->resolve(array(
+		'config' => 'httpTestName',
+		'data' => $names
+	));
+
+	$i = 0;
+	foreach ($httpTests as $tnum => $test) {
+		if ($resolveName) {
+			$httpTests[$tnum]['name'] = $names[$test['hostid']][$i++];
+		}
+
+		if ($resolveStepName) {
+			foreach ($httpTests[$tnum]['steps'] as $snum => $step) {
+				$httpTests[$tnum]['steps'][$snum]['name'] = $names[$test['hostid']][$i++];
+			}
+		}
+	}
+
+	return $httpTests;
+}
+
+/**
+ * Copies web scenarios from given host ID to destination host.
+ *
+ * @param string $srcHostId		source host ID
+ * @param string $dstHostId		destination host ID
+ *
+ * @return bool
+ */
+function copyHttpTests($srcHostId, $dstHostId) {
+	$httpTests = API::HttpTest()->get(array(
+		'output' => array('name', 'applicationid', 'delay', 'status', 'variables', 'agent', 'authentication',
+			'http_user', 'http_password', 'http_proxy', 'retries'
+		),
+		'hostids' => $srcHostId,
+		'selectSteps' => array('name', 'no', 'url', 'timeout', 'posts', 'required', 'status_codes', 'variables'),
+		'inherited' => false
+	));
+
+	if (!$httpTests) {
+		return true;
+	}
+
+	// get destination application IDs
+	$srcApplicationIds = array();
+	foreach ($httpTests as $httpTest) {
+		if ($httpTest['applicationid'] != 0) {
+			$srcApplicationIds[] = $httpTest['applicationid'];
+		}
+	}
+
+	if ($srcApplicationIds) {
+		$dstApplicationIds = get_same_applications_for_host($srcApplicationIds, $dstHostId);
+	}
+
+	foreach ($httpTests as &$httpTest) {
+		$httpTest['hostid'] = $dstHostId;
+
+		if (isset($dstApplicationIds[$httpTest['applicationid']])) {
+			$httpTest['applicationid'] = $dstApplicationIds[$httpTest['applicationid']];
+		}
+		else {
+			unset($httpTest['applicationid']);
+		}
+
+		unset($httpTest['httptestid']);
+	}
+	unset($httpTest);
+
+	return (bool) API::HttpTest()->create($httpTests);
 }

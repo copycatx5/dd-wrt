@@ -28,6 +28,9 @@ typedef struct
 
 WLabel *label_new (int y, int x, const char *text);
 void label_set_text (WLabel * label, const char *text);
+/* *INDENT-OFF* */
+void label_set_textv (WLabel * label, const char *format, ...) G_GNUC_PRINTF (2, 3);
+/* *INDENT-ON* */
 
 /*** inline functions ****************************************************************************/
 

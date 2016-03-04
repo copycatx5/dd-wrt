@@ -1,7 +1,7 @@
 <?php
 /*
 ** Zabbix
-** Copyright (C) 2001-2013 Zabbix SIA
+** Copyright (C) 2001-2015 Zabbix SIA
 **
 ** This program is free software; you can redistribute it and/or modify
 ** it under the terms of the GNU General Public License as published by
@@ -73,7 +73,7 @@ $severityForm = new CForm();
 $severityForm->setName('triggerSeverity');
 $severityForm->addVar('form_refresh', $this->data['form_refresh'] + 1);
 $severityForm->addItem($severityView);
-$severityForm->addItem(makeFormFooter(array(new CSubmit('save', _('Save'))), new CButton('resetDefaults', _('Reset defaults'))));
+$severityForm->addItem(makeFormFooter(new CSubmit('save', _('Save')), new CButton('resetDefaults', _('Reset defaults'))));
 
 return $severityForm;
 ?>

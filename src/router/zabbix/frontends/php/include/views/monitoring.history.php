@@ -1,7 +1,7 @@
 <?php
 /*
 ** Zabbix
-** Copyright (C) 2001-2013 Zabbix SIA
+** Copyright (C) 2001-2015 Zabbix SIA
 **
 ** This program is free software; you can redistribute it and/or modify
 ** it under the terms of the GNU General Public License as published by
@@ -27,10 +27,8 @@ $header = array('left' => count($this->data['items']).SPACE._('ITEMS'), 'right' 
 $headerPlaintext = array();
 
 if (count($this->data['items']) == 1) {
-	$itemName = itemName($this->data['item']);
-
-	$header['left'] = array(new CLink($this->data['item']['hostname'], 'latest.php?hostid='.$this->data['item']['hostid']), ': ', $itemName);
-	$headerPlaintext[] = $this->data['item']['hostname'].': '.$itemName;
+	$header['left'] = array(new CLink($this->data['item']['hostname'], 'latest.php?hostid='.$this->data['item']['hostid']), NAME_DELIMITER, $this->data['item']['name_expanded']);
+	$headerPlaintext[] = $this->data['item']['hostname'].NAME_DELIMITER.$this->data['item']['name_expanded'];
 
 	if ($this->data['action'] == 'showgraph') {
 		$header['right'][] = get_icon('favourite', array(
@@ -40,6 +38,9 @@ if (count($this->data['items']) == 1) {
 		));
 	}
 }
+
+$header['right'][] = SPACE;
+$header['right'][] = get_icon('fullscreen', array('fullscreen' => $this->data['fullscreen']));
 
 // append action form to header
 $actionForm = new CForm('get');
@@ -79,6 +80,7 @@ if ($this->data['action'] == 'showvalues' || $this->data['action'] == 'showlates
 		$filterForm->addVar('itemid', zbx_toHash($_REQUEST['itemid']));
 
 		$itemListbox = new CListBox('cmbitemlist[]');
+		$itemsData = array();
 		foreach ($this->data['items'] as $itemid => $item) {
 			if (!isset($this->data['iv_string'][$item['value_type']])) {
 				unset($this->data['items'][$itemid]);
@@ -86,7 +88,13 @@ if ($this->data['action'] == 'showvalues' || $this->data['action'] == 'showlates
 			}
 
 			$host = reset($item['hosts']);
-			$itemListbox->addItem($itemid, $host['name'].': '.itemName($item));
+			$itemsData[$itemid]['id'] = $itemid;
+			$itemsData[$itemid]['name'] = $host['name'].NAME_DELIMITER.$item['name_expanded'];
+		}
+
+		order_result($itemsData, 'name');
+		foreach ($itemsData as $item) {
+			$itemListbox->addItem($item['id'], $item['name']);
 		}
 
 		$addItemButton = new CButton('add_log', _('Add'), "return PopUp('popup.php?multiselect=1&real_hosts=1".
@@ -94,7 +102,6 @@ if ($this->data['action'] == 'showvalues' || $this->data['action'] == 'showlates
 		$deleteItemButton = null;
 
 		if (count($this->data['items']) > 1) {
-			insert_js_function('removeSelectedItems');
 			$deleteItemButton = new CSubmit('remove_log', _('Remove selected'), "javascript: removeSelectedItems('cmbitemlist_', 'itemid')");
 		}
 
@@ -131,9 +138,9 @@ $screen = CScreenBuilder::getScreen(array(
 	'action' => $this->data['action'],
 	'items' => $this->data['items'],
 	'item' => $this->data['item'],
-	'itemid' => $this->data['itemid'],
+	'itemids' => $this->data['itemids'],
 	'profileIdx' => 'web.item.graph',
-	'profileIdx2' => $this->data['itemid'],
+	'profileIdx2' => reset($this->data['itemids']),
 	'period' => $this->data['period'],
 	'stime' => $this->data['stime'],
 	'filter' => get_request('filter'),
@@ -172,7 +179,7 @@ else {
 		$historyWidget->addFlicker($filterForm, CProfile::get('web.history.filter.state', 1));
 	}
 
-	$historyTable = new CTable(_('No graphs defined.'), 'maxwidth');
+	$historyTable = new CTable(null, 'maxwidth');
 	$historyTable->addRow($screen->get());
 
 	$historyWidget->addItem($historyTable);

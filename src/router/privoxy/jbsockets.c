@@ -1,4 +1,4 @@
-const char jbsockets_rcs[] = "$Id: jbsockets.c,v 1.124 2013/03/20 11:30:05 fabiankeil Exp $";
+const char jbsockets_rcs[] = "$Id: jbsockets.c,v 1.135 2016/01/16 12:33:35 fabiankeil Exp $";
 /*********************************************************************
  *
  * File        :  $Source: /cvsroot/ijbswa/current/jbsockets.c,v $
@@ -8,7 +8,7 @@ const char jbsockets_rcs[] = "$Id: jbsockets.c,v 1.124 2013/03/20 11:30:05 fabia
  *                OS-independent.  Contains #ifdefs to make this work
  *                on many platforms.
  *
- * Copyright   :  Written by and Copyright (C) 2001-2011 the
+ * Copyright   :  Written by and Copyright (C) 2001-2016 the
  *                Privoxy team. http://www.privoxy.org/
  *
  *                Based on the Internet Junkbuster originally written
@@ -99,6 +99,7 @@ const char jbsockets_rcs[] = "$Id: jbsockets.c,v 1.124 2013/03/20 11:30:05 fabia
 #include "jbsockets.h"
 #include "filters.h"
 #include "errlog.h"
+#include "miscutil.h"
 
 /* Mac OSX doesn't define AI_NUMERICSESRV */
 #ifndef AI_NUMERICSERV
@@ -121,6 +122,33 @@ static jb_socket rfc2553_connect_to(const char *host, int portnum, struct client
 #else
 static jb_socket no_rfc2553_connect_to(const char *host, int portnum, struct client_state *csp);
 #endif
+
+/*********************************************************************
+ *
+ * Function    :  set_no_delay_flag
+ *
+ * Description :  Disables TCP coalescence for the given socket.
+ *
+ * Parameters  :
+ *          1  :  fd = The file descriptor to operate on
+ *
+ * Returns     :  void
+ *
+ *********************************************************************/
+static void set_no_delay_flag(int fd)
+{
+#ifdef TCP_NODELAY
+   int mi = 1;
+
+   if (setsockopt(fd, IPPROTO_TCP, TCP_NODELAY, &mi, sizeof(int)))
+   {
+      log_error(LOG_LEVEL_ERROR,
+         "Failed to disable TCP coalescence for socket %d", fd);
+   }
+#else
+#warning set_no_delay_flag() is a nop due to lack of TCP_NODELAY
+#endif /* def TCP_NODELAY */
+}
 
 /*********************************************************************
  *
@@ -232,14 +260,7 @@ static jb_socket rfc2553_connect_to(const char *host, int portnum, struct client
       return(JB_INVALID_SOCKET);
    }
 
-   csp->http->host_ip_addr_str = malloc(NI_MAXHOST);
-   if (NULL == csp->http->host_ip_addr_str)
-   {
-      freeaddrinfo(result);
-      log_error(LOG_LEVEL_ERROR,
-         "Out of memory while getting the server IP address.");
-      return JB_INVALID_SOCKET;
-   }
+   csp->http->host_ip_addr_str = malloc_or_die(NI_MAXHOST);
 
    for (rp = result; rp != NULL; rp = rp->ai_next)
    {
@@ -285,16 +306,16 @@ static jb_socket rfc2553_connect_to(const char *host, int portnum, struct client
             "Server socket number too high to use select(): %d >= %d",
             fd, FD_SETSIZE);
          close_socket(fd);
+         freeaddrinfo(result);
          return JB_INVALID_SOCKET;
       }
 #endif
 
-#ifdef TCP_NODELAY
-      {  /* turn off TCP coalescence */
-         int mi = 1;
-         setsockopt(fd, IPPROTO_TCP, TCP_NODELAY, (char *) &mi, sizeof (int));
-      }
-#endif /* def TCP_NODELAY */
+#ifdef FEATURE_EXTERNAL_FILTERS
+      mark_socket_for_close_on_execute(fd);
+#endif
+
+      set_no_delay_flag(fd);
 
 #if !defined(_WIN32) && !defined(__BEOS__) && !defined(AMIGA) && !defined(__OS2__)
       if ((flags = fcntl(fd, F_GETFL, 0)) != -1)
@@ -482,18 +503,16 @@ static jb_socket no_rfc2553_connect_to(const char *host, int portnum, struct cli
    }
 #endif
 
-#ifdef TCP_NODELAY
-   {  /* turn off TCP coalescence */
-      int mi = 1;
-      setsockopt(fd, IPPROTO_TCP, TCP_NODELAY, (char *) &mi, sizeof (int));
-   }
-#endif /* def TCP_NODELAY */
+   set_no_delay_flag(fd);
 
 #if !defined(_WIN32) && !defined(__BEOS__) && !defined(AMIGA) && !defined(__OS2__)
    if ((flags = fcntl(fd, F_GETFL, 0)) != -1)
    {
       flags |= O_NDELAY;
       fcntl(fd, F_SETFL, flags);
+#ifdef FEATURE_EXTERNAL_FILTERS
+      mark_socket_for_close_on_execute(fd);
+#endif
    }
 #endif /* !defined(_WIN32) && !defined(__BEOS__) && !defined(AMIGA) && !defined(__OS2__) */
 
@@ -921,6 +940,10 @@ int bind_port(const char *hostnam, int portnum, jb_socket *pfd)
 #endif
    }
 
+#ifdef FEATURE_EXTERNAL_FILTERS
+   mark_socket_for_close_on_execute(fd);
+#endif
+
 #ifndef _WIN32
    /*
     * This is not needed for Win32 - in fact, it stops
@@ -990,6 +1013,7 @@ int bind_port(const char *hostnam, int portnum, jb_socket *pfd)
    {
       if (errno != EINTR)
       {
+         close_socket(fd);
          return(-1);
       }
    }
@@ -1077,22 +1101,10 @@ void get_host_information(jb_socket afd, char **ip_address, char **port,
 #ifndef NI_MAXSERV
 #define NI_MAXSERV 32
 #endif
-      *port = malloc(NI_MAXSERV);
-      if (NULL == *port)
-      {
-         log_error(LOG_LEVEL_ERROR,
-            "Out of memory while getting the client's port.");
-         return;
-      }
+      *port = malloc_or_die(NI_MAXSERV);
+
 #ifdef HAVE_RFC2553
-      *ip_address = malloc(NI_MAXHOST);
-      if (NULL == *ip_address)
-      {
-         log_error(LOG_LEVEL_ERROR,
-            "Out of memory while getting the client's IP address.");
-         freez(*port);
-         return;
-      }
+      *ip_address = malloc_or_die(NI_MAXHOST);
       retval = getnameinfo((struct sockaddr *) &server, s_length,
          *ip_address, NI_MAXHOST, *port, NI_MAXSERV,
          NI_NUMERICHOST|NI_NUMERICSERV);
@@ -1118,13 +1130,7 @@ void get_host_information(jb_socket afd, char **ip_address, char **port,
       }
 
 #ifdef HAVE_RFC2553
-      *hostname = malloc(NI_MAXHOST);
-      if (NULL == *hostname)
-      {
-         log_error(LOG_LEVEL_ERROR,
-            "Out of memory while getting the client's hostname.");
-         return;
-      }
+      *hostname = malloc_or_die(NI_MAXHOST);
       retval = getnameinfo((struct sockaddr *) &server, s_length,
          *hostname, NI_MAXHOST, NULL, 0, NI_NAMEREQD);
       if (retval)
@@ -1289,7 +1295,7 @@ int accept_connection(struct client_state * csp, jb_socket fds[])
       setsockopt(fd, SOL_SOCKET, SO_ACCEPTFILTER, &af_options, sizeof(af_options));
 #endif
       afd = accept (fd, (struct sockaddr *) &client, &c_length);
-   } while (afd < 1 && errno == EINTR);
+   } while (afd < 0 && errno == EINTR);
    if (afd < 0)
    {
       return 0;
@@ -1301,7 +1307,7 @@ int accept_connection(struct client_state * csp, jb_socket fds[])
       struct linger linger_options;
       linger_options.l_onoff  = 1;
       linger_options.l_linger = 5;
-      if (0 != setsockopt(fd, SOL_SOCKET, SO_LINGER, &linger_options, sizeof(linger_options)))
+      if (0 != setsockopt(afd, SOL_SOCKET, SO_LINGER, &linger_options, sizeof(linger_options)))
       {
          log_error(LOG_LEVEL_ERROR, "Setting SO_LINGER on socket %d failed.", afd);
       }
@@ -1319,15 +1325,15 @@ int accept_connection(struct client_state * csp, jb_socket fds[])
    }
 #endif
 
+#ifdef FEATURE_EXTERNAL_FILTERS
+   mark_socket_for_close_on_execute(afd);
+#endif
+
+   set_no_delay_flag(afd);
+
    csp->cfd = afd;
 #ifdef HAVE_RFC2553
-   csp->ip_addr_str = malloc(NI_MAXHOST);
-   if (NULL == csp->ip_addr_str)
-   {
-      log_error(LOG_LEVEL_ERROR,
-         "Out of memory while getting the client's IP address.");
-      return 0;
-   }
+   csp->ip_addr_str = malloc_or_die(NI_MAXHOST);
    retval = getnameinfo((struct sockaddr *) &client, c_length,
          csp->ip_addr_str, NI_MAXHOST, NULL, 0, NI_NUMERICHOST);
    if (!csp->ip_addr_str || retval)
@@ -1517,6 +1523,42 @@ int socket_is_still_alive(jb_socket sfd)
    return (no_data_waiting || (1 == recv(sfd, buf, 1, MSG_PEEK)));
 }
 
+
+#ifdef FEATURE_EXTERNAL_FILTERS
+/*********************************************************************
+ *
+ * Function    :  mark_socket_for_close_on_execute
+ *
+ * Description :  Marks a socket for close on execute.
+ *
+ *                Used so that external filters have no direct
+ *                access to sockets they shouldn't care about.
+ *
+ *                Not implemented for all platforms.
+ *
+ * Parameters  :
+ *          1  :  fd = The socket to mark
+ *
+ * Returns     :  void.
+ *
+ *********************************************************************/
+void mark_socket_for_close_on_execute(jb_socket fd)
+{
+#ifdef FEATURE_PTHREAD
+   int ret;
+
+   ret = fcntl(fd, F_SETFD, FD_CLOEXEC);
+
+   if (ret == -1)
+   {
+      log_error(LOG_LEVEL_ERROR,
+         "fcntl(%d, F_SETFD, FD_CLOEXEC) failed", fd);
+   }
+#else
+#warning "Sockets will be visible to external filters"
+#endif
+}
+#endif /* def FEATURE_EXTERNAL_FILTERS */
 
 /*
   Local Variables:

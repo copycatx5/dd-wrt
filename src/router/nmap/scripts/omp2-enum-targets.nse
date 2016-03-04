@@ -1,3 +1,10 @@
+local omp2 = require "omp2"
+local shortport = require "shortport"
+local stdnse = require "stdnse"
+local tab = require "tab"
+local table = require "table"
+local target = require "target"
+
 description = [[
 Attempts to retrieve the list of target systems and networks from an OpenVAS Manager server.
 
@@ -28,16 +35,11 @@ These targets will be added to the scanning queue in case
 
 
 author = "Henri Doreau"
-license = "Same as Nmap--See http://nmap.org/book/man-legal.html"
+license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
 categories = {"discovery", "safe"}
 dependencies = {"omp2-brute"}
 
 
-require("tab")
-require("omp2")
-require("target")
-require("stdnse")
-require("shortport")
 
 
 portrule = shortport.port_or_service(9390, "openvas")
@@ -57,14 +59,14 @@ local function account_enum_targets(host, port, username, password)
   local status, err = session:connect(host, port)
 
   if not status then
-    stdnse.print_debug("%s: connection failure (%s)", SCRIPT_NAME, err)
+    stdnse.debug1("connection failure (%s)", err)
     return nil
   end
 
   if session:authenticate(username, password) then
     targets = session:ls_targets()
   else
-    stdnse.print_debug("%s: authentication failure (%s:%s)", SCRIPT_NAME, username, password)
+    stdnse.debug1("authentication failure (%s:%s)", username, password)
   end
 
   session:close()
@@ -113,8 +115,8 @@ action = function(host, port)
     end
 
     if target.ALLOW_NEW_TARGETS and targets ~= nil then
-      stdnse.print_debug("%s: adding new targets %s", SCRIPT_NAME, stdnse.strjoin(", ", targets))
-      target.add(unpack(targets))
+      stdnse.debug1("adding new targets %s", stdnse.strjoin(", ", targets))
+      target.add(table.unpack(targets))
     end
 
   end

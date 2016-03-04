@@ -1,4 +1,3 @@
-#include <linux/types.h>
 #include <linux/version.h>
 #include <linux/init.h>
 #include <linux/platform_device.h>
@@ -54,6 +53,7 @@ DEFINE_SPINLOCK(bcm947xx_sih_lock);
 EXPORT_SYMBOL(bcm947xx_sih);
 EXPORT_SYMBOL(bcm947xx_sih_lock);
 
+extern int nvram_space;
 /* Convenience */
 #define sih bcm947xx_sih
 #define sih_lock bcm947xx_sih_lock
@@ -64,6 +64,29 @@ EXPORT_SYMBOL(kcih);
 ctf_attach_t ctf_attach_fn = NULL;
 EXPORT_SYMBOL(ctf_attach_fn);
 #endif				/* HNDCTF */
+
+
+/* To store real PHYS_OFFSET value */
+unsigned int ddr_phys_offset_va = -1;
+EXPORT_SYMBOL(ddr_phys_offset_va);
+
+unsigned int ddr_phys_offset2_va = 0xa8000000;	/* Default value for NS */
+EXPORT_SYMBOL(ddr_phys_offset2_va);
+
+unsigned int coherence_win_sz = SZ_256M;
+EXPORT_SYMBOL(coherence_win_sz);
+
+/*
+ * Coherence flag:
+ * 0: arch is non-coherent with NS ACP or BCM53573 ACE (CCI-400) disabled.
+ * 1: arch is non-coherent with NS-Ax ACP enabled for ACP WAR.
+ * 2: arch is coherent with NS-Bx ACP enabled.
+ * 4: arch is coherent with BCM53573 ACE enabled.
+ * give non-zero initial value to let this global variable be stored in Data Segment
+ */
+unsigned int coherence_flag = ~(COHERENCE_MASK);
+EXPORT_SYMBOL(coherence_flag);
+
 
 /* This is the main reference clock 25MHz from external crystal */
 static struct clk clk_ref = {
@@ -82,6 +105,8 @@ static struct clk_lookup board_clk_lookups[] = {
 
 extern int _memsize;
 
+extern int _chipid;
+
 #if 0
 #include <mach/uncompress.h>
 
@@ -94,6 +119,11 @@ void printch(int c)
 void __init board_map_io(void)
 {
 	early_printk("board_map_io\n");
+
+	if (BCM53573_CHIP(_chipid)) {
+		/* Override the main reference clock to be 40 MHz */
+		clk_ref.rate = 40 * 1000000;
+	}
 	/* Install clock sources into the lookup table */
 	clkdev_add_table(board_clk_lookups, ARRAY_SIZE(board_clk_lookups));
 
@@ -111,6 +141,8 @@ void __init board_init_irq(void)
 
 void board_init_timer(void)
 {
+	/* Get global SB handle */
+	sih = si_kattach(SI_OSH);
 	early_printk("board_init_timer\n");
 	soc_init_timer();
 }
@@ -168,8 +200,30 @@ static int watchdog = 0;
 
 static void __init brcm_setup(void)
 {
-	/* Get global SB handle */
-	sih = si_kattach(SI_OSH);
+
+	if (ACP_WAR_ENAB() && BCM4707_CHIP(CHIPID(sih->chip))) {
+		if (sih->chippkg == BCM4708_PKG_ID)
+			coherence_win_sz = SZ_128M;
+		else if (sih->chippkg == BCM4707_PKG_ID)
+			coherence_win_sz = SZ_32M;
+		else
+			coherence_win_sz = SZ_256M;
+	} else if ((BCM4707_CHIP(CHIPID(sih->chip)) &&
+		(CHIPREV(sih->chiprev) == 4 || CHIPREV(sih->chiprev) == 6)) ||
+		(CHIPID(sih->chip) == BCM47094_CHIP_ID)) {
+		/* For NS-Bx and NS47094. Chiprev 4 for NS-B0 and chiprev 6 for NS-B1 */
+		coherence_win_sz = SZ_1G;
+	} else if (BCM53573_CHIP(sih->chip)) {
+		if (PHYS_OFFSET == PADDR_ACE1_BCM53573)
+			coherence_win_sz = SZ_512M;
+		else
+			coherence_win_sz = SZ_256M;
+	}
+	
+	printk(KERN_INFO "coherence_win_size = %X\n",coherence_win_sz);
+	printk(KERN_INFO "coherence_flag = %X\n", coherence_flag);
+	printk(KERN_INFO "ddr_phys_offset_va =%X\n", ddr_phys_offset_va);
+	printk(KERN_INFO "ddr_phys_offset2_va =%X\n", ddr_phys_offset2_va);
 
 //      if (strncmp(boot_command_line, "root=/dev/mtdblock", strlen("root=/dev/mtdblock")) == 0)
 //              sprintf(saved_root_name, "/dev/mtdblock%d", rootfs_mtdblock());
@@ -216,6 +270,16 @@ void __init board_fixup(struct tag *t, char **cmdline, struct meminfo *mi)
 
 	early_printk("board_fixup: mem=%uMiB\n", mem_size >> 20);
 
+	/* for NS-B0-ACP */
+#if 0
+	if (ACP_WAR_ENAB()) {
+		mi->bank[0].start = PHYS_OFFSET;
+		mi->bank[0].size = mem_size;
+		mi->nr_banks++;
+		return;
+	}
+#endif
+
 	lo_size = min(mem_size, DRAM_MEMORY_REGION_SIZE);
 
 	mi->bank[0].start = PHYS_OFFSET;
@@ -240,6 +304,10 @@ void __init bcm47xx_adjust_zones(unsigned long *size, unsigned long *hole)
 
 	if (size[0] <= dma_size)
 		return;
+#if 0
+	if (ACP_WAR_ENAB())
+		return;
+#endif
 
 	size[ZONE_NORMAL] = size[0] - dma_size;
 	size[ZONE_DMA] = dma_size;
@@ -446,6 +514,7 @@ struct mtd_partition *init_mtd_partitions(hndsflash_t * sfl_info, struct mtd_inf
 	uint32 bootsz;
 	uint32 maxsize = 0;
 	int is_ex6200 = 0;
+	int nobackup = 0;
 #ifdef CONFIG_FAILSAFE_UPGRADE
 	char *img_boot = nvram_get(BOOTPARTITION);
 	char *imag_1st_offset = nvram_get(IMAGE_FIRST_OFFSET);
@@ -470,10 +539,34 @@ struct mtd_partition *init_mtd_partitions(hndsflash_t * sfl_info, struct mtd_inf
 
 	if (nvram_match("boardnum", "24") && nvram_match("boardtype", "0x0646")
 	    && nvram_match("boardrev", "0x1110")
-	    && nvram_match("gpio7", "wps_button")) {
+	    && nvram_match("gpio7", "wps_button") && !nvram_match("gpio6", "wps_led")) {
 		maxsize = 0x200000;
 		size = maxsize;
 	}
+
+	if (nvram_match("boardnum", "24") && nvram_match("boardtype", "0x0646")
+	    && nvram_match("boardrev", "0x1110")
+	    && nvram_match("gpio7", "wps_button") && nvram_match("gpio6", "wps_led")) {
+		bootsz = 0x200000;
+	}
+
+	if (nvram_match("boardnum", "24") && nvram_match("boardtype", "0x072F")
+	    && nvram_match("boardrev", "0x1101")
+	    && nvram_match("gpio7", "wps_button")) {
+		bootsz = 0x200000;
+	}
+
+	if (nvram_match("boardnum", "24") && nvram_match("boardtype", "0x0646")
+	    && nvram_match("boardrev", "0x1101")) {
+		size = 0x200000;
+		bootsz = 0x200000;
+	}
+
+	if (nvram_match("boardnum", "1234") && nvram_match("boardtype", "0x072F")) {
+		nobackup = 1;
+	}
+	if (nvram_space == 0x20000)
+		nobackup = 1;
 
 	if (nvram_match("boardnum","679") && nvram_match("boardtype", "0x0646") 
 	    && (nvram_match("boardrev", "0x1110"))) {
@@ -486,6 +579,12 @@ struct mtd_partition *init_mtd_partitions(hndsflash_t * sfl_info, struct mtd_inf
 	}
 
 	if (nvram_match("boardnum", "32") && nvram_match("boardtype", "0x0665")
+	    && nvram_match("boardrev", "0x1301")) {
+		maxsize = 0x200000;
+		size = maxsize;
+	}
+	
+	if (nvram_match("boardnum", "32") && nvram_match("boardtype", "0x072F")
 	    && nvram_match("boardrev", "0x1301")) {
 		maxsize = 0x200000;
 		size = maxsize;
@@ -519,7 +618,7 @@ struct mtd_partition *init_mtd_partitions(hndsflash_t * sfl_info, struct mtd_inf
 			bcm947xx_flash_parts[nparts].size = mtd->size - vmlz_off;
 
 			/* Reserve for NVRAM */
-			bcm947xx_flash_parts[nparts].size -= ROUNDUP(NVRAM_SPACE, mtd->erasesize);
+			bcm947xx_flash_parts[nparts].size -= ROUNDUP(nvram_space, mtd->erasesize);
 #ifdef PLC
 			/* Reserve for PLC */
 			bcm947xx_flash_parts[nparts].size -= ROUNDUP(0x1000, mtd->erasesize);
@@ -539,7 +638,7 @@ struct mtd_partition *init_mtd_partitions(hndsflash_t * sfl_info, struct mtd_inf
 		bcm947xx_flash_parts[nparts].size -= ROUNDUP(0x1000, mtd->erasesize);
 #endif
 		/* Reserve for NVRAM */
-		bcm947xx_flash_parts[nparts].size -= ROUNDUP(NVRAM_SPACE, mtd->erasesize);
+		bcm947xx_flash_parts[nparts].size -= ROUNDUP(nvram_space, mtd->erasesize);
 
 #ifdef BCMCONFMTD
 		bcm947xx_flash_parts[nparts].size -= (mtd->erasesize * 4);
@@ -571,7 +670,7 @@ struct mtd_partition *init_mtd_partitions(hndsflash_t * sfl_info, struct mtd_inf
 			bcm947xx_flash_parts[nparts].name = "linux2";
 			bcm947xx_flash_parts[nparts].size = mtd->size - image_second_offset;
 			/* Reserve for NVRAM */
-			bcm947xx_flash_parts[nparts].size -= ROUNDUP(NVRAM_SPACE, mtd->erasesize);
+			bcm947xx_flash_parts[nparts].size -= ROUNDUP(nvram_space, mtd->erasesize);
 
 #ifdef BCMCONFMTD
 			bcm947xx_flash_parts[nparts].size -= (mtd->erasesize * 4);
@@ -596,8 +695,12 @@ struct mtd_partition *init_mtd_partitions(hndsflash_t * sfl_info, struct mtd_inf
 #endif				/* CONFIG_FAILSAFE_UPGRADE */
 
 	} else {
-		root_dev_setup("1f04");
-		bootsz = boot_partition_size(sfl_info->base);
+		if (nobackup)
+			root_dev_setup("1f03");
+		else
+			root_dev_setup("1f04");
+		if (!bootsz)
+			bootsz = boot_partition_size(sfl_info->base);
 		printk("Boot partition size = %d(0x%x)\n", bootsz, bootsz);
 		/* Size pmon */
 		if (maxsize)
@@ -623,7 +726,7 @@ struct mtd_partition *init_mtd_partitions(hndsflash_t * sfl_info, struct mtd_inf
 	/* Setup plc MTD partition */
 	bcm947xx_flash_parts[nparts].name = "plc";
 	bcm947xx_flash_parts[nparts].size = ROUNDUP(0x1000, mtd->erasesize);
-	bcm947xx_flash_parts[nparts].offset = size - (ROUNDUP(NVRAM_SPACE, mtd->erasesize) + ROUNDUP(0x1000, mtd->erasesize));
+	bcm947xx_flash_parts[nparts].offset = size - (ROUNDUP(nvram_space, mtd->erasesize) + ROUNDUP(0x1000, mtd->erasesize));
 	nparts++;
 #endif
 	if (rootfssize) {
@@ -631,33 +734,33 @@ struct mtd_partition *init_mtd_partitions(hndsflash_t * sfl_info, struct mtd_inf
 		bcm947xx_flash_parts[nparts].offset = bcm947xx_flash_parts[2].offset + bcm947xx_flash_parts[2].size;
 		bcm947xx_flash_parts[nparts].offset += (mtd->erasesize - 1);
 		bcm947xx_flash_parts[nparts].offset &= ~(mtd->erasesize - 1);
-		bcm947xx_flash_parts[nparts].size = (size - bcm947xx_flash_parts[nparts].offset) - ROUNDUP(NVRAM_SPACE, mtd->erasesize);
+		bcm947xx_flash_parts[nparts].size = (size - bcm947xx_flash_parts[nparts].offset) - ROUNDUP(nvram_space, mtd->erasesize);
 		nparts++;
 	}
 	
 	if(is_ex6200){
 		bcm947xx_flash_parts[nparts].name = "board_data";
-		bcm947xx_flash_parts[nparts].size = ROUNDUP(NVRAM_SPACE, mtd->erasesize);
+		bcm947xx_flash_parts[nparts].size = ROUNDUP(nvram_space, mtd->erasesize);
 		bcm947xx_flash_parts[nparts].offset = (size - 0x10000) - bcm947xx_flash_parts[nparts].size;
 		nparts++;
 	}
 	
 	/* Setup nvram MTD partition */
 	bcm947xx_flash_parts[nparts].name = "nvram_cfe";
-	bcm947xx_flash_parts[nparts].size = ROUNDUP(NVRAM_SPACE, mtd->erasesize);
+	bcm947xx_flash_parts[nparts].size = ROUNDUP(nvram_space, mtd->erasesize);
 	if (maxsize)
 		bcm947xx_flash_parts[nparts].offset = (size - 0x10000) - bcm947xx_flash_parts[nparts].size;
 	else
 		bcm947xx_flash_parts[nparts].offset = size - bcm947xx_flash_parts[nparts].size;
-	if(!is_ex6200)//skip on ex6200
+	if(!is_ex6200 && !nobackup)//skip on ex6200
 		nparts++;
 	
 
 	bcm947xx_flash_parts[nparts].name = "nvram";
-	bcm947xx_flash_parts[nparts].size = ROUNDUP(NVRAM_SPACE, mtd->erasesize);
+	bcm947xx_flash_parts[nparts].size = ROUNDUP(nvram_space, mtd->erasesize);
 	if (maxsize)
 		bcm947xx_flash_parts[nparts].offset = (size - 0x10000) - bcm947xx_flash_parts[nparts].size;
-		if(is_ex6200)
+		if(is_ex6200 || nobackup)
 			bcm947xx_flash_parts[nparts].offset = size + 0x10000 - bcm947xx_flash_parts[nparts].size;
 	else
 		bcm947xx_flash_parts[nparts].offset = size - bcm947xx_flash_parts[nparts].size;
@@ -711,7 +814,35 @@ static uint lookup_nflash_rootfs_offset(hndnand_t * nfl, struct mtd_info *mtd, i
 		blocksize = 65536;
 	}
 
-	printk("lookup_nflash_rootfs_offset: offset = 0x%x, 0x%x\n", offset, blocksize);
+	if (nvram_match("boardnum", "24") && nvram_match("boardtype", "0x0646")
+	    && nvram_match("boardrev", "0x1100")
+	    && nvram_match("gpio8","wps_button")) {
+		printk(KERN_INFO "DIR-660L Hack for detecting filesystems\n");
+		blocksize = 65536;
+	}
+
+	if (nvram_match("boardnum", "24") && nvram_match("boardtype", "0x072F")
+	    && nvram_match("boardrev", "0x1101")
+	    && nvram_match("gpio7", "wps_button")) {
+		printk(KERN_INFO "DIR-890L Hack for detecting filesystems\n");
+		blocksize = 65536;
+	}
+
+	if (nvram_match("boardnum", "N/A") && nvram_match("boardtype", "0x072F")
+	    && nvram_match("boardrev", "0x1101")
+	    && nvram_match("gpio7", "wps_button")) {
+		printk(KERN_INFO "DIR-885/895L Hack for detecting filesystems\n");
+		blocksize = 65536;
+	}
+
+	if (nvram_match("boardnum", "24") && nvram_match("boardtype", "0x0646")
+	    && nvram_match("boardrev", "0x1101")) {
+		printk(KERN_INFO "DIR-868LC Hack for detecting filesystems\n");
+		blocksize = 65536;
+	}
+
+
+	printk("lookup_nflash_rootfs_offset: offset = 0x%x size = 0x%x, 0x%x\n", offset, size, blocksize);
 	for (off = offset; off < offset + size; off += blocksize) {
 		mask = rbsize - 1;
 		blk_offset = off & ~mask;
@@ -782,6 +913,7 @@ struct mtd_partition *init_nflash_mtd_partitions(hndnand_t * nfl, struct mtd_inf
 	uint32 bootossz = NFL_BOOT_OS_SIZE;
 	int isbufdual = 0;
 	int isbufvxdual = 0;
+	int istew = 0;
 	uint boardnum = bcm_strtoul(nvram_safe_get("boardnum"), NULL, 0);
 	if ((!strncmp(nvram_safe_get("boardnum"),"2013",4) || !strncmp(nvram_safe_get("boardnum"),"2014",4)) && nvram_match("boardtype", "0x0646")
 	    && nvram_match("boardrev", "0x1110")) {
@@ -793,6 +925,11 @@ struct mtd_partition *init_nflash_mtd_partitions(hndnand_t * nfl, struct mtd_inf
 	if (nvram_match("model","RT-AC87U")) {
 		printk(KERN_EMERG "Asus AC87U\n");
 		bootossz = 0x4000000;
+	}
+
+	if (nvram_match("boardnum", "1234") && nvram_match("boardtype", "0x072F")) {
+		bootossz = 0x2000000;
+		istew = 1;
 	}
 
 	if (boardnum == 00 && nvram_match("boardtype", "0x0665")
@@ -810,6 +947,21 @@ struct mtd_partition *init_nflash_mtd_partitions(hndnand_t * nfl, struct mtd_inf
 
 	if (((boardnum == 1) || (nvram_get("boardnum") == NULL)) && nvram_match("boardtype","0xF646") && nvram_match("boardrev","0x1100")) {
 		bootossz = 0x4000000;	
+		nvsz = 0x100000;
+	}
+
+//	if (boardnum == 20140309 && nvram_match("boardtype","0xE646") && nvram_match("boardrev","0x1200")) {
+//		bootossz = 0x4000000;	
+//		nvsz = 0x100000;
+//	}
+
+	if (((boardnum == 1) || (nvram_get("boardnum") == NULL)) && nvram_match("boardtype", "0x0646") && nvram_match("boardrev", "0x1100") && !strncmp(nvram_safe_get("modelNumber"),"EA6400",6)) {
+		bootossz = 0x3c00000;	
+		nvsz = 0x100000;
+	}
+
+	if (((boardnum == 1) || (nvram_get("boardnum") == NULL)) && nvram_match("boardtype", "0x0646") && nvram_match("boardrev", "0x1100") && !strncmp(nvram_safe_get("modelNumber"),"EA6300",6)) {
+		bootossz = 0x3c00000;	
 		nvsz = 0x100000;
 	}
 
@@ -838,6 +990,8 @@ struct mtd_partition *init_nflash_mtd_partitions(hndnand_t * nfl, struct mtd_inf
 	if (imag_2nd_offset == NULL)
 		imag_2nd_offset = "50331648";
 	}
+	if (istew)
+		imag_2nd_offset = "16777216";
 	dual_image_on = (img_boot != NULL && imag_1st_offset != NULL && imag_2nd_offset != NULL);
 
 	if (dual_image_on) {
@@ -908,6 +1062,10 @@ struct mtd_partition *init_nflash_mtd_partitions(hndnand_t * nfl, struct mtd_inf
 			bcm947xx_nflash_parts[nparts].size += 0x200000;
 		}
 		
+		if (nvram_match("boardnum", "32") && nvram_match("boardtype", "0x0665") && nvram_match("boardrev", "0x1101")) {
+			bcm947xx_nflash_parts[nparts].size += 0x600000;
+		}
+		
 		bcm947xx_nflash_parts[nparts].offset = offset;
 
 		shift = lookup_nflash_rootfs_offset(nfl, mtd, offset, bcm947xx_nflash_parts[nparts].size);
@@ -930,7 +1088,7 @@ struct mtd_partition *init_nflash_mtd_partitions(hndnand_t * nfl, struct mtd_inf
 			else
 				bcm947xx_nflash_parts[nparts].name = "rootfs";
 			bcm947xx_nflash_parts[nparts].size = image_second_offset - shift;
-		} 
+		} else
 #endif
 		{
 			bcm947xx_nflash_parts[nparts].name = "rootfs";
@@ -942,8 +1100,20 @@ struct mtd_partition *init_nflash_mtd_partitions(hndnand_t * nfl, struct mtd_inf
 		if (nvram_match("boardnum", "32") && nvram_match("boardtype", "0x0665") && nvram_match("boardrev", "0x1301")) {			
 			bcm947xx_nflash_parts[nparts].size += 0x200000;
 		}
+		
+		if (nvram_match("boardnum", "32") && nvram_match("boardtype", "0x0665") && nvram_match("boardrev", "0x1101")) {
+			bcm947xx_nflash_parts[nparts].size += 0x600000;
+		}
 
 		nparts++;
+
+		if (nvram_match("boardnum", "32") && nvram_match("boardtype", "0x072F") && nvram_match("boardrev", "0x1101")) {
+			
+			bcm947xx_nflash_parts[nparts].name = "board_data";
+			bcm947xx_nflash_parts[nparts].size = 0x80000;
+			bcm947xx_nflash_parts[nparts].offset = 0x7400000;
+			nparts++;
+		}
 		
 		if (nvram_match("boardnum", "32") && nvram_match("boardtype", "0x0665") && nvram_match("boardrev", "0x1301")) {
 			
@@ -953,8 +1123,15 @@ struct mtd_partition *init_nflash_mtd_partitions(hndnand_t * nfl, struct mtd_inf
 			nparts++;
 		}
 		
-		if ( nvram_match("boardnum","679") && nvram_match("boardtype", "0x0646") 
-		    && (nvram_match("boardrev", "0x1110")) ) {
+		if (nvram_match("boardnum", "32") && nvram_match("boardtype", "0x0665") && nvram_match("boardrev", "0x1101")) {
+			
+			bcm947xx_nflash_parts[nparts].name = "board_data";
+			bcm947xx_nflash_parts[nparts].size = 0x80000;
+			bcm947xx_nflash_parts[nparts].offset = 0x2600000;
+			nparts++;
+		}
+		
+		if (nvram_match("boardnum","679") && nvram_match("boardtype", "0x0646") && nvram_match("boardrev", "0x1110") ) {
 			bcm947xx_nflash_parts[nparts].name = "board_data";
 			bcm947xx_nflash_parts[nparts].size = 0x20000;
 			bcm947xx_nflash_parts[nparts].offset = 0x200000;

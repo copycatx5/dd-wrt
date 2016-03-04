@@ -1,7 +1,7 @@
 /*
    Provides a serialize/unserialize functionality for INI-like formats.
 
-   Copyright (C) 2011-2014
+   Copyright (C) 2011-2015
    Free Software Foundation, Inc.
 
    Written by:
@@ -52,6 +52,7 @@
 /* --------------------------------------------------------------------------------------------- */
 
 static void
+G_GNUC_PRINTF (2, 3)
 prepend_error_message (GError ** error, const char *format, ...)
 {
     char *prepend_str;
@@ -196,17 +197,15 @@ char *
 mc_serialize_config (const mc_config_t * data, GError ** error)
 {
     gchar **groups, **group_iterator;
-    size_t group_count;
     GString *buffer;
 
     buffer = g_string_new ("");
-    group_iterator = groups = mc_config_get_groups (data, &group_count);
+    groups = mc_config_get_groups (data, NULL);
 
-    while (group_count-- != 0)
+    for (group_iterator = groups; *group_iterator != NULL; group_iterator++)
     {
         char *serialized_str;
         gchar **params, **param_iterator;
-        size_t param_count;
 
         serialized_str = mc_serialize_str ('g', *group_iterator, error);
         if (serialized_str == NULL)
@@ -218,11 +217,12 @@ mc_serialize_config (const mc_config_t * data, GError ** error)
         g_string_append (buffer, serialized_str);
         g_free (serialized_str);
 
-        param_iterator = params = mc_config_get_keys (data, *group_iterator, &param_count);
+        params = mc_config_get_keys (data, *group_iterator, NULL);
 
-        while (param_count-- != 0)
+        for (param_iterator = params; *param_iterator != NULL; param_iterator++)
         {
             char *value;
+
             serialized_str = mc_serialize_str ('p', *param_iterator, error);
             if (serialized_str == NULL)
             {
@@ -248,13 +248,9 @@ mc_serialize_config (const mc_config_t * data, GError ** error)
 
             g_string_append (buffer, serialized_str);
             g_free (serialized_str);
-
-            param_iterator++;
         }
 
         g_strfreev (params);
-
-        group_iterator++;
     }
     return g_string_free (buffer, FALSE);
 }
@@ -271,7 +267,7 @@ mc_serialize_config (const mc_config_t * data, GError ** error)
 
 #define FUNC_NAME "mc_deserialize_config()"
 #define prepend_error_and_exit() { \
-    prepend_error_message (error, FUNC_NAME " at %lu", current_position + 1); \
+    prepend_error_message (error, FUNC_NAME " at %zd", current_position + 1); \
                 mc_config_deinit (ret_data); \
                 return NULL; \
 }
@@ -334,6 +330,8 @@ mc_deserialize_config (const char *data, GError ** error)
             data = go_to_end_of_serialized_string (data, current_value, &current_position);
             g_free (current_value);
             current_status = WAIT_GROUP;
+            break;
+        default:
             break;
         }
     }

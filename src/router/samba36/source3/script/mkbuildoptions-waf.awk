@@ -25,12 +25,14 @@ BEGIN {
 	print "";
 	print "#define output(screen,fmt,...)";
 	print "";
+	print "";
+	print "";
 	print "/****************************************************************************";
 	print "options set at build time for the samba suite";
 	print "****************************************************************************/";
 	print "void build_options(bool screen)";
 	print "{";
-	print "       if ((DEBUGLEVEL < 4) && (!screen)) {";
+	print "       if ((DEBUGLEVEL < 4) || (!screen)) {";
 	print "	       return;";
 	print "       }";
 	print "";

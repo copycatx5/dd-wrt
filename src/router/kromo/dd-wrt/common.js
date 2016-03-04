@@ -23,12 +23,46 @@ var BCST_OK = 32;	// 0x0010 0000
 var SPACE_NO = 1;
 var SPACE_OK = 2;
 
+function addClass(element, classToAdd) {
+    var currentClassValue = element.className;
+      
+    if (currentClassValue.indexOf(classToAdd) == -1) {
+        if ((currentClassValue == null) || (currentClassValue === "")) {
+            element.className = classToAdd;
+        } else {
+            element.className += " " + classToAdd;
+        }
+    }
+}
+ 
+function removeClass(element, classToRemove) {
+    var currentClassValue = element.className;
+ 
+    if (currentClassValue == classToRemove) {
+        element.className = "";
+        return;
+    }
+ 
+    var classValues = currentClassValue.split(" ");
+    var filteredList = [];
+ 
+    for (var i = 0 ; i < classValues.length; i++) {
+        if (classToRemove != classValues[i]) {
+            filteredList.push(classValues[i]);
+        }
+    }
+ 
+    element.className = filteredList.join(" ");
+}
+
 function choose_enable(en_object) {
 	if(!en_object)	return;
 	en_object.disabled = false;					// netscape 4.x can not work, but 6.x can work
 
 	if(!ns4)
-		en_object.style.backgroundColor = "";	// netscape 4.x have error
+		// better via css class
+		removeClass(en_object, "off");
+		// en_object.style.backgroundColor = "";	// netscape 4.x have error
 }
 
 function choose_disable(dis_object) {
@@ -36,7 +70,9 @@ function choose_disable(dis_object) {
 	dis_object.disabled = true;
 
 	if(!ns4)
-		dis_object.style.backgroundColor = "#e0e0e0";
+		// better via css class
+		addClass(dis_object, "off");
+		// dis_object.style.backgroundColor = "#e0e0e0";
 }
 
 function check_action(I,N) {
@@ -798,8 +834,6 @@ function StatusUpdate(_url, _frequency) {
 		if((!window.XMLHttpRequest && !window.ActiveXObject) || frequency == 0) return false;
 		if(document.getElementsByName("refresh_button")) {
 			document.getElementsByName("refresh_button")[0].disabled = true;
-			document.getElementsByName("refresh_button")[0].style.background = '#DADADA';
-			document.getElementsByName("refresh_button")[0].style.cursor = "default";
 		}
 		timer = setTimeout(me.doUpdate, frequency);
 		return true;
@@ -944,7 +978,7 @@ function checkformelements( form ) {
 		} else if( form.elements[i].type == 'text' ) {
 			if( chars = invalidTextValue(form.elements[i].value ) ) {
 				//alert('Invalid input characters "' + chars + '" in field "' + getInputLabel( 'input', form.elements[i].name ) + '"');
-				alert(errmsg.err112.replace('<invchars>', chars).replace('<fieldname>', getInputLabel( 'input', elements[i].name )));
+				alert(errmsg.err112.replace('<invchars>', chars).replace('<fieldname>', getInputLabel( 'input', form.elements[i].name )));
 				form.elements[i].style.border = "solid 2px #f00";
 				form.elements[i].focus();
 				return false;
@@ -1083,12 +1117,12 @@ function openBW(iface) {
 /* reference values (200 Mhz cpu): 60 sec for a reboot or restore config file, 120 for a reset nvram + reboot */
 function getTimeOut(clk, rest_default, flags) {
 
-	var wait_time = 60;								// 60 seconds without rest to factory default ==> need to be tested
-	var scroll_count = (wait_time / 5) - 3;			// a scroll is during about 5 seconds
+	var wait_time = 60;			// 60 seconds without rest to factory default ==> need to be tested
+	var scroll_count = (wait_time / 5) - 3;	// a scroll is during about 5 seconds
 	var coef = 1;
 
-    if (clk < 200 || clk == 240) {	                // some slow cpus need some more....
-		coef = 2.0;									// also bcm5354 need more
+	if (clk < 200 || clk == 240) {	// some slow cpus need some more....
+		coef = 2.0;		// also bcm5354 need more
 	}
 	
 	if (rest_default == 1) {	// if restore default is ask (in upgrade process or restore default process) then timeout is doubled
@@ -1096,12 +1130,12 @@ function getTimeOut(clk, rest_default, flags) {
 	}
 	if (flags == 1) {
 		coef = coef * 3;
-	}
-	if (flags == 2) {
+	} else if (flags == 2) {
 		coef = coef * 1.8;
-	}
-	if (flags == 3) {
+	} else if (flags == 3) {
 		coef = coef * 1.3;
+	} else if (flags == 4) {
+		coef = coef * 1.1;
 	}
 
 	this.wait_time = coef * wait_time;

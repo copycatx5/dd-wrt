@@ -154,7 +154,7 @@ struct RemQueryInterface {
 		struct GUID *ripid;/* [unique] */
 		uint32_t cRefs;
 		uint16_t cIids;
-		struct GUID *iids;/* [unique,size_is(cIids)] */
+		struct GUID *iids;/* [size_is(cIids),unique] */
 	} in;
 
 	struct {
@@ -175,7 +175,7 @@ struct RemAddRef {
 
 	struct {
 		struct ORPCTHAT *ORPCthat;/* [ref] */
-		WERROR *pResults;/* [unique,size_is(cInterfaceRefs)] */
+		WERROR *pResults;/* [size_is(cInterfaceRefs),unique] */
 		WERROR result;
 	} out;
 
@@ -212,7 +212,7 @@ struct GetClassObject {
 
 	struct {
 		struct ORPCTHAT *ORPCthat;/* [ref] */
-		struct MInterfacePointer *data;/* [ref,iid_is(iid)] */
+		struct MInterfacePointer *data;/* [iid_is(iid),ref] */
 	} out;
 
 };
@@ -290,13 +290,13 @@ struct RemQueryInterface2 {
 		struct ORPCTHIS ORPCthis;
 		struct GUID *ripid;/* [unique] */
 		uint16_t cIids;
-		struct GUID *iids;/* [unique,size_is(cIids)] */
+		struct GUID *iids;/* [size_is(cIids),unique] */
 	} in;
 
 	struct {
 		struct ORPCTHAT *ORPCthat;/* [ref] */
-		WERROR *phr;/* [unique,size_is(cIids)] */
-		struct MInterfacePointer *ppMIF;/* [unique,size_is(cIids)] */
+		WERROR *phr;/* [size_is(cIids),unique] */
+		struct MInterfacePointer *ppMIF;/* [size_is(cIids),unique] */
 		WERROR result;
 	} out;
 
@@ -465,7 +465,7 @@ struct Read {
 struct Write {
 	struct {
 		struct ORPCTHIS ORPCthis;
-		uint8_t *data;/* [unique,size_is(num_requested)] */
+		uint8_t *data;/* [size_is(num_requested),unique] */
 		uint32_t num_requested;
 	} in;
 

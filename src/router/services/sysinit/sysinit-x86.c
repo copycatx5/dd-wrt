@@ -60,7 +60,7 @@ static char *getdisc(void)	// works only for squashfs
 {
 	int i;
 	static char ret[4];
-	unsigned char *disks[] = { "sda2", "sdb2", "sdc2", "sdd2", "sde2", "sdf2", "sdg2", "sdh2",
+	char *disks[] = { "sda2", "sdb2", "sdc2", "sdd2", "sde2", "sdf2", "sdg2", "sdh2",
 		"sdi2"
 	};
 	for (i = 0; i < 9; i++) {
@@ -108,8 +108,8 @@ void start_sysinit(void)
 		eval("cp", "/etc/nvram/offsets.db", "/tmp/nvram");
 		eval("/usr/sbin/convertnvram");
 		nvram_commit();
-		eval("rm", "-f", "/etc/nvram/nvram.db");
-		eval("rm", "-f", "/etc/nvram/offsets.db");
+		unlink("/etc/nvram/nvram.db");
+		unlink("/etc/nvram/offsets.db");
 	}
 	//recover nvram if available
 	in = fopen("/usr/local/nvram/nvram.bin", "rb");
@@ -241,8 +241,8 @@ void start_sysinit(void)
 
 		strncpy(ifr.ifr_name, "eth0", IFNAMSIZ);
 		ioctl(s, SIOCGIFHWADDR, &ifr);
-		nvram_set("et0macaddr_safe", ether_etoa((unsigned char *)ifr.ifr_hwaddr.sa_data, eabuf));
-		nvram_set("et0macaddr", ether_etoa((unsigned char *)ifr.ifr_hwaddr.sa_data, eabuf));
+		nvram_set("et0macaddr_safe", ether_etoa((char *)ifr.ifr_hwaddr.sa_data, eabuf));
+		nvram_set("et0macaddr", ether_etoa((char *)ifr.ifr_hwaddr.sa_data, eabuf));
 		close(s);
 	}
 	detect_wireless_devices();

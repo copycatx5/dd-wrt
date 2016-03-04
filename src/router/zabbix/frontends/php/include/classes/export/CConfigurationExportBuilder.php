@@ -1,7 +1,7 @@
 <?php
 /*
 ** Zabbix
-** Copyright (C) 2001-2013 Zabbix SIA
+** Copyright (C) 2001-2015 Zabbix SIA
 **
 ** This program is free software; you can redistribute it and/or modify
 ** it under the terms of the GNU General Public License as published by
@@ -70,7 +70,7 @@ class CConfigurationExportBuilder {
 				'discovery_rules' => $this->formatDiscoveryRules($template['discoveryRules']),
 				'macros' => $this->formatMacros($template['macros']),
 				'templates' => $this->formatTemplateLinkage($template['parentTemplates']),
-				'screens' => $this->formatScreens($template['screens']),
+				'screens' => $this->formatScreens($template['screens'])
 			);
 		}
 	}
@@ -147,7 +147,7 @@ class CConfigurationExportBuilder {
 			$this->data['images'][] = array(
 				'name' => $image['name'],
 				'imagetype' => $image['imagetype'],
-				'encodedImage' => $image['encodedImage'],
+				'encodedImage' => $image['encodedImage']
 			);
 		}
 	}
@@ -172,6 +172,7 @@ class CConfigurationExportBuilder {
 				'expandproblem' => $map['expandproblem'],
 				'markelements' => $map['markelements'],
 				'show_unack' => $map['show_unack'],
+				'severity_min' => $map['severity_min'],
 				'grid_size' => $map['grid_size'],
 				'grid_show' => $map['grid_show'],
 				'grid_align' => $map['grid_align'],
@@ -264,9 +265,12 @@ class CConfigurationExportBuilder {
 				'delay' => $discoveryRule['delay'],
 				'status' => $discoveryRule['status'],
 				'allowed_hosts' => $discoveryRule['trapper_hosts'],
+				'snmpv3_contextname' => $discoveryRule['snmpv3_contextname'],
 				'snmpv3_securityname' => $discoveryRule['snmpv3_securityname'],
 				'snmpv3_securitylevel' => $discoveryRule['snmpv3_securitylevel'],
+				'snmpv3_authprotocol' => $discoveryRule['snmpv3_authprotocol'],
 				'snmpv3_authpassphrase' => $discoveryRule['snmpv3_authpassphrase'],
+				'snmpv3_privprotocol' => $discoveryRule['snmpv3_privprotocol'],
 				'snmpv3_privpassphrase' => $discoveryRule['snmpv3_privpassphrase'],
 				'delay_flex' => $discoveryRule['delay_flex'],
 				'params' => $discoveryRule['params'],
@@ -283,12 +287,14 @@ class CConfigurationExportBuilder {
 				'item_prototypes' => $this->formatItems($discoveryRule['itemPrototypes']),
 				'trigger_prototypes' => $this->formatTriggers($discoveryRule['triggerPrototypes']),
 				'graph_prototypes' => $this->formatGraphs($discoveryRule['graphPrototypes']),
+				'host_prototypes' => $this->formatHostPrototypes($discoveryRule['hostPrototypes'])
 			);
 			if (isset($discoveryRule['interface_ref'])) {
 				$data['interface_ref'] = $discoveryRule['interface_ref'];
 			}
 			$result[] = $data;
 		}
+
 		return $result;
 	}
 
@@ -341,6 +347,69 @@ class CConfigurationExportBuilder {
 	}
 
 	/**
+	 * Format host prototypes.
+	 *
+	 * @param array $hostPrototypes
+	 *
+	 * @return array
+	 */
+	protected function formatHostPrototypes(array $hostPrototypes) {
+		$result = array();
+		order_result($hostPrototypes, 'host');
+
+		foreach ($hostPrototypes as $hostPrototype) {
+			$result[] = array(
+				'host' => $hostPrototype['host'],
+				'name' => $hostPrototype['name'],
+				'status' => $hostPrototype['status'],
+				'group_links' => $this->formatGroupLinks($hostPrototype['groupLinks']),
+				'group_prototypes' => $this->formatGroupPrototypes($hostPrototype['groupPrototypes']),
+				'templates' => $this->formatTemplateLinkage($hostPrototype['templates'])
+			);
+		}
+
+		return $result;
+	}
+
+	/**
+	 * Format group links.
+	 *
+	 * @param array $groupLinks
+	 *
+	 * @return array
+	 */
+	protected function formatGroupLinks(array $groupLinks) {
+		$result = array();
+
+		foreach ($groupLinks as $groupLink) {
+			$result[] = array(
+				'group' => $groupLink['groupid'],
+			);
+		}
+
+		return $result;
+	}
+
+	/**
+	 * Format group prototypes.
+	 *
+	 * @param array $groupPrototypes
+	 *
+	 * @return array
+	 */
+	protected function formatGroupPrototypes(array $groupPrototypes) {
+		$result = array();
+
+		foreach ($groupPrototypes as $groupPrototype) {
+			$result[] = array(
+				'name' => $groupPrototype['name']
+			);
+		}
+
+		return $result;
+	}
+
+	/**
 	 * Format template linkage.
 	 *
 	 * @param array $templates
@@ -353,9 +422,10 @@ class CConfigurationExportBuilder {
 
 		foreach ($templates as $template) {
 			$result[] = array(
-				'name' => $template['host'],
+				'name' => $template['host']
 			);
 		}
+
 		return $result;
 	}
 
@@ -378,7 +448,7 @@ class CConfigurationExportBuilder {
 				'status' => $trigger['status'],
 				'priority' => $trigger['priority'],
 				'description' => $trigger['comments'],
-				'type' => $trigger['type'],
+				'type' => $trigger['type']
 			);
 			if (isset($trigger['dependencies'])) {
 				$tr['dependencies'] = $this->formatDependencies($trigger['dependencies']);
@@ -386,6 +456,7 @@ class CConfigurationExportBuilder {
 
 			$result[] = $tr;
 		}
+
 		return $result;
 	}
 
@@ -411,6 +482,7 @@ class CConfigurationExportBuilder {
 				'interface_ref' => $interface['interface_ref']
 			);
 		}
+
 		return $result;
 	}
 
@@ -430,6 +502,7 @@ class CConfigurationExportBuilder {
 				'name' => $group['name']
 			);
 		}
+
 		return $result;
 	}
 
@@ -460,9 +533,12 @@ class CConfigurationExportBuilder {
 				'allowed_hosts' => $item['trapper_hosts'],
 				'units' => $item['units'],
 				'delta' => $item['delta'],
+				'snmpv3_contextname' => $item['snmpv3_contextname'],
 				'snmpv3_securityname' => $item['snmpv3_securityname'],
 				'snmpv3_securitylevel' => $item['snmpv3_securitylevel'],
+				'snmpv3_authprotocol' => $item['snmpv3_authprotocol'],
 				'snmpv3_authpassphrase' => $item['snmpv3_authpassphrase'],
+				'snmpv3_privprotocol' => $item['snmpv3_privprotocol'],
 				'snmpv3_privpassphrase' => $item['snmpv3_privpassphrase'],
 				'formula' => $item['formula'],
 				'delay_flex' => $item['delay_flex'],
@@ -479,12 +555,14 @@ class CConfigurationExportBuilder {
 				'inventory_link' => $item['inventory_link'],
 				'applications' => $this->formatApplications($item['applications']),
 				'valuemap' => $item['valuemap'],
+				'logtimefmt' => $item['logtimefmt']
 			);
 			if (isset($item['interface_ref'])) {
 				$data['interface_ref'] = $item['interface_ref'];
 			}
 			$result[] = $data;
 		}
+
 		return $result;
 	}
 
@@ -504,6 +582,7 @@ class CConfigurationExportBuilder {
 				'name' => $application['name']
 			);
 		}
+
 		return $result;
 	}
 
@@ -524,6 +603,7 @@ class CConfigurationExportBuilder {
 				'value' => $macro['value']
 			);
 		}
+
 		return $result;
 	}
 
@@ -546,6 +626,7 @@ class CConfigurationExportBuilder {
 				'screen_items' => $this->formatScreenItems($screen['screenitems'])
 			);
 		}
+
 		return $result;
 	}
 
@@ -565,6 +646,7 @@ class CConfigurationExportBuilder {
 				'expression' => $dependency['expression']
 			);
 		}
+
 		return $result;
 	}
 
@@ -580,23 +662,25 @@ class CConfigurationExportBuilder {
 
 		foreach ($screenItems as $screenItem) {
 			$result[] = array(
-				'resourcetype'=> $screenItem['resourcetype'],
-				'width'=> $screenItem['width'],
-				'height'=> $screenItem['height'],
-				'x'=> $screenItem['x'],
-				'y'=> $screenItem['y'],
-				'colspan'=> $screenItem['colspan'],
-				'rowspan'=> $screenItem['rowspan'],
-				'elements'=> $screenItem['elements'],
-				'valign'=> $screenItem['valign'],
-				'halign'=> $screenItem['halign'],
-				'style'=> $screenItem['style'],
-				'url'=> $screenItem['url'],
-				'dynamic'=> $screenItem['dynamic'],
-				'sort_triggers'=> $screenItem['sort_triggers'],
-				'resource'=> $screenItem['resourceid']
+				'resourcetype' => $screenItem['resourcetype'],
+				'width' => $screenItem['width'],
+				'height' => $screenItem['height'],
+				'x' => $screenItem['x'],
+				'y' => $screenItem['y'],
+				'colspan' => $screenItem['colspan'],
+				'rowspan' => $screenItem['rowspan'],
+				'elements' => $screenItem['elements'],
+				'valign' => $screenItem['valign'],
+				'halign' => $screenItem['halign'],
+				'style' => $screenItem['style'],
+				'url' => $screenItem['url'],
+				'dynamic' => $screenItem['dynamic'],
+				'sort_triggers' => $screenItem['sort_triggers'],
+				'resource' => $screenItem['resourceid'],
+				'application' => $screenItem['application']
 			);
 		}
+
 		return $result;
 	}
 
@@ -621,6 +705,7 @@ class CConfigurationExportBuilder {
 				'item'=> $graphItem['itemid']
 			);
 		}
+
 		return $result;
 	}
 
@@ -640,6 +725,7 @@ class CConfigurationExportBuilder {
 				'elementtype' => $url['elementtype']
 			);
 		}
+
 		return $result;
 	}
 
@@ -656,9 +742,10 @@ class CConfigurationExportBuilder {
 		foreach ($urls as $url) {
 			$result[] = array(
 				'name' => $url['name'],
-				'url' => $url['url'],
+				'url' => $url['url']
 			);
 		}
+
 		return $result;
 	}
 
@@ -682,6 +769,7 @@ class CConfigurationExportBuilder {
 				'linktriggers' => $this->formatMapLinkTriggers($link['linktriggers'])
 			);
 		}
+
 		return $result;
 	}
 
@@ -702,6 +790,7 @@ class CConfigurationExportBuilder {
 				'trigger' => $linktrigger['triggerid']
 			);
 		}
+
 		return $result;
 	}
 
@@ -736,6 +825,7 @@ class CConfigurationExportBuilder {
 				'urls' => $this->formatMapElementUrls($element['urls'])
 			);
 		}
+
 		return $result;
 	}
 }

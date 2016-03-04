@@ -103,7 +103,7 @@ ifeq ($(ARCH),mips)
 export COPTS:=$(BASEOPT) -pipe -mips32 -mtune=mips32 -funit-at-a-time 
 endif
 ifeq ($(ARCH),powerpc)
-export COPTS:=$(BASEOPT) -pipe -funit-at-a-time -mcpu=603e -mtune=603e -fno-caller-saves 
+export COPTS:=$(BASEOPT) -pipe -funit-at-a-time -mcpu=603e -mtune=603e -fno-caller-saves
 #-D_FILE_OFFSET_BITS=64
 endif
 ifeq ($(ARCH),i386)
@@ -154,6 +154,7 @@ all: build_date clean_target $(obj-y) $(LINUXDIR)/.config kernel
 build_date:
 	echo "#define BUILD_DATE \"$(shell date +%D)\"" > ../../opt/build.h 
 
+include kernel-features.mk
 
 kernel:
         # Also build kernel
@@ -169,11 +170,7 @@ ifeq ($(CONFIG_RB800),y)
 	cp $(LINUXDIR)/.config_rb800 $(LINUXDIR)/.config
 endif
 
-ifeq ($(CONFIG_EOP_TUNNEL),y)
-	echo CONFIG_NET_ETHERIP=m >> $(LINUXDIR)/.config
-else
-	echo "# CONFIG_NET_ETHERIP is not set" >> $(LINUXDIR)/.config
-endif
+	$(kernelfeatures)
 	$(MAKE) -C $(LINUXDIR) oldconfig	
 	if ! grep -q "CONFIG_EMBEDDED_RAMDISK=y" $(LINUXDIR)/.config ; then \
 	    $(MAKE) -j 4 -C $(LINUXDIR) vmlinux uImage CROSS_COMPILE=$(ARCH)-linux-uclibc- ARCH=powerpc; \
@@ -197,7 +194,7 @@ realclean: $(obj-clean)
 	-rm -f $(ARCH)-uclibc/*
 
 	
-clean: rc-clean httpd-clean services-clean shared-clean libutils-clean nvram-clean madwifi-clean madwifi_mimo-clean busybox-clean pppd-clean	
+clean: rc-clean httpd-clean services-clean shared-clean libutils-clean nvram-clean madwifi-clean madwifi_mimo-clean busybox-clean pppd-clean iproute2-clean
 	rm -f .config.old .config.cmd
 	#umount $(TARGETDIR)
 	rm -rf $(INSTALLDIR)
@@ -261,7 +258,7 @@ ifneq ($(CONFIG_NOOPT),y)
 
 	rm -rf $(ARCH)-uclibc/mklibs-out
 	rm -f $(ARCH)-uclibc/mklibs-progs
-	find $(TARGETDIR) -type f -perm +100 -exec \
+	find $(TARGETDIR) -type f -perm /100 -exec \
 		file -r -N -F '' {} + | \
 		awk ' /executable.*dynamically/ { print $$1 }' > $(ARCH)-uclibc/mklibs-progs
 
@@ -408,6 +405,7 @@ ifeq ($(CONFIG_KAID),y)
 endif
 	mv $(TARGETDIR)/usr/lib/services.so $(TARGETDIR)/lib
 
+	$(TOP)/../../tools/removewhitespace.sh $(TOP)/../../tools $(TARGETDIR)/etc/config
 ifneq ($(CONFIG_RB600),y)
 	$(LINUXDIR)/scripts/squashfs/mksquashfs-lzma $(ARCH)-uclibc/target $(ARCH)-uclibc/root.fs -noappend -be
 	cp $(LINUXDIR)/arch/ppc/boot/images/uImage $(ARCH)-uclibc/dd-wrt-uImage

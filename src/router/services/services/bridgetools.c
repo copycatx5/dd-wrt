@@ -24,6 +24,10 @@
 #include <shutils.h>
 #include <utils.h>
 #include <syslog.h>
+#include <net/if.h>
+#include <netinet/in.h>
+#include <sys/ioctl.h>
+
 #ifdef HAVE_MICRO
 
 int brctl_main(int argc, char **argv)
@@ -138,9 +142,12 @@ int br_add_bridge(const char *brname)
 	dd_syslog(LOG_INFO, "bridge added successfully\n");
 	char ipaddr[32];
 	char brmcast[32];
+	char hwaddr[32];
+	char tmp[256];
 
 	sprintf(brmcast, "%s_mcast", brname);
 	sprintf(ipaddr, "%s_ipaddr", brname);
+	sprintf(hwaddr, "%s_hwaddr", brname);
 	char netmask[32];
 
 	sprintf(netmask, "%s_netmask", brname);
@@ -163,9 +170,15 @@ int br_add_bridge(const char *brname)
 	if (nvram_get(ipaddr) && nvram_get(netmask)
 	    && !nvram_match(ipaddr, "0.0.0.0")
 	    && !nvram_match(netmask, "0.0.0.0")) {
-		eval("ifconfig", brname, nvram_safe_get(ipaddr), "netmask", nvram_safe_get(netmask), "mtu", getBridgeMTU(brname), "up");
+		eval("ifconfig", brname, nvram_safe_get(ipaddr), "netmask", nvram_safe_get(netmask), "mtu", getBridgeMTU(brname, tmp), "up");
 	} else
-		eval("ifconfig", brname, "mtu", getBridgeMTU(brname));
+		eval("ifconfig", brname, "mtu", getBridgeMTU(brname, tmp));
+
+	if (strcmp(brname, "br0") && strlen(nvram_safe_get(hwaddr)) > 0) {
+		eval("ifconfig", brname, "hw", "ether", nvram_safe_get(hwaddr));
+	} else {
+		eval("ifconfig", brname, "hw", "ether", nvram_safe_get("lan_hwaddr"));
+	}
 
 	return ret;
 }
@@ -187,8 +200,18 @@ int br_del_bridge(const char *brname)
 
 int br_add_interface(const char *br, const char *dev)
 {
+	struct ifreq ifr;
+	char eabuf[32];
+	char tmp[256];
+	int s;
+
 	if (!ifexists(dev))
 		return -1;
+	if (nvram_nmatch("apsta", "%s_mode", dev)) {
+		fprintf(stderr, "skip %s is apsta\n", dev);
+		return 0;
+	}
+
 	char ipaddr[32];
 
 	sprintf(ipaddr, "%s_ipaddr", dev);
@@ -200,7 +223,7 @@ int br_add_interface(const char *br, const char *dev)
 	if (strncmp(dev, "ath", 3) != 0) {	// this is not an ethernet driver
 		eval("ifconfig", dev, "down");	//fixup for some ethernet drivers
 	}
-	eval("ifconfig", dev, "mtu", getBridgeMTU(br));
+	eval("ifconfig", dev, "mtu", getBridgeMTU(br, tmp));
 	if (strncmp(dev, "ath", 3) != 0) {	// this is not an ethernet driver
 		eval("ifconfig", dev, "up");
 	}
@@ -210,6 +233,16 @@ int br_add_interface(const char *br, const char *dev)
 #ifdef HAVE_80211AC
 	eval("emf", "add", "iface", br, dev);
 #endif
+	if (strcmp(br, "br0") && (nvram_nget("%s_hwaddr", br) == NULL || strlen(nvram_nget("%s_hwaddr", br)) == 0)) {
+		if ((s = socket(AF_INET, SOCK_RAW, IPPROTO_RAW)) < 0)
+			return ret;
+		strncpy(ifr.ifr_name, br, IFNAMSIZ);
+		ioctl(s, SIOCGIFHWADDR, &ifr);	// get hw addr
+		nvram_nset(ether_etoa(ifr.ifr_hwaddr.sa_data, eabuf), "%s_hwaddr", br);	// safe addr for gui 
+		ioctl(s, SIOCSIFHWADDR, &ifr);	// set hw addr and fix it
+		close(s);
+	}
+
 	return ret;
 }
 

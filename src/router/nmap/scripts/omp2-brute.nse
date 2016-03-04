@@ -1,3 +1,8 @@
+local brute = require "brute"
+local creds = require "creds"
+local omp2 = require "omp2"
+local shortport = require "shortport"
+
 description = [[
 Performs brute force password auditing against the OpenVAS manager using OMPv2.
 ]]
@@ -9,20 +14,15 @@ Performs brute force password auditing against the OpenVAS manager using OMPv2.
 -- @output
 -- PORT     STATE SERVICE REASON
 -- 9390/tcp open  openvas syn-ack
--- | svn-brute:
+-- | omp2-brute:
 -- |   Accounts
 -- |_    admin:secret => Valid credentials
 --
 
 author = "Henri Doreau"
-license = "Same as Nmap--See http://nmap.org/book/man-legal.html"
+license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
 categories = {"brute", "intrusive"}
 
-require("omp2")
-require("nmap")
-require("brute")
-require("shortport")
-require("creds")
 
 portrule = shortport.port_or_service(9390, "openvas")
 
@@ -64,7 +64,7 @@ Driver = {
     if self.session:authenticate(username, password) then
       -- store the account for possible future use
       omp2.add_account(self.host, username, password)
-      return true, brute.Account:new(username, password, creds.State.VALID)
+      return true, creds.Account:new(username, password, creds.State.VALID)
     else
       return false, brute.Error:new("login failed")
     end

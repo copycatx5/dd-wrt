@@ -66,10 +66,15 @@ struct mon mons[] = {
 #ifdef HAVE_MULTICAST
 	{"igmprt", 1, M_WAN, "block_multicast", "0"},
 #endif
+#ifdef HAVE_ERC
+#ifdef HAVE_OPENVPN
+	{"openvpn", 1, M_LAN, "openvpncl_enable", "1"},
+#endif
+#endif
 	{NULL, 0, 0}
 };
 
-int search_process(char *name, int count)
+static int search_process(char *name, int count)
 {
 	int c = 0;
 
@@ -88,7 +93,7 @@ int search_process(char *name, int count)
 	}
 }
 
-void checknas(void)		// for broadcom v24 only
+static void checknas(void)	// for broadcom v24 only
 {
 #if !defined(HAVE_MADWIFI) && !defined(HAVE_RT2880)
 
@@ -104,22 +109,22 @@ void checknas(void)		// for broadcom v24 only
 	if (strlen(buf) != count_processes("nas"))	// restart all nas
 		// processes
 	{
-		sysprintf("stopservice nas");
-		sysprintf("startservice nas -f");
+		eval("stopservice", "nas");
+		eval("startservice", "nas", "-f");
 	}
 
 	return;
 
 #endif
 #ifdef HAVE_MADWIFI
-	sysprintf("startservice_f checkhostapd -f");
+	eval("startservice_f", "checkhostapd", "-f");
 #endif
 }
 
 		/* 
 		 * software wlan led control 
 		 */
-void softcontrol_wlan_led(void)	// done in watchdog.c for non-micro builds.
+static void softcontrol_wlan_led(void)	// done in watchdog.c for non-micro builds.
 {
 #if defined(HAVE_MICRO) && !defined(HAVE_ADM5120) && !defined(HAVE_WRK54G)
 	int brand;
@@ -127,6 +132,8 @@ void softcontrol_wlan_led(void)	// done in watchdog.c for non-micro builds.
 	int oldstate0 = -1;
 	int radiostate1 = -1;
 	int oldstate1 = -1;
+	int radiostate2 = -1;
+	int oldstate2 = -1;
 
 #ifdef HAVE_MADWIFI
 	int cnt = getdevicecount();
@@ -144,6 +151,10 @@ void softcontrol_wlan_led(void)	// done in watchdog.c for non-micro builds.
 	wl_ioctl(get_wl_instance_name(0), WLC_GET_RADIO, &radiostate0, sizeof(int));
 	if (cnt == 2)
 		wl_ioctl(get_wl_instance_name(1), WLC_GET_RADIO, &radiostate1, sizeof(int));
+	if (cnt == 3) {
+		wl_ioctl(get_wl_instance_name(1), WLC_GET_RADIO, &radiostate1, sizeof(int));
+		wl_ioctl(get_wl_instance_name(2), WLC_GET_RADIO, &radiostate2, sizeof(int));
+	}
 #endif
 
 	if (radiostate0 != oldstate0) {
@@ -188,6 +199,20 @@ void softcontrol_wlan_led(void)	// done in watchdog.c for non-micro builds.
 
 		oldstate1 = radiostate1;
 	}
+
+	if (radiostate2 != oldstate2) {
+#ifdef HAVE_MADWIFI
+		if (radiostate2 == 1)
+#else
+		if ((radiostate2 & WL_RADIO_SW_DISABLE) == 0)
+#endif
+			led_control(LED_WLAN2, LED_ON);
+		else {
+			led_control(LED_WLAN2, LED_OFF);
+		}
+
+		oldstate2 = radiostate2;
+	}
 	/* 
 	 * end software wlan led control 
 	 */
@@ -199,31 +224,30 @@ void softcontrol_wlan_led(void)	// done in watchdog.c for non-micro builds.
 /* 
  * end software wlan led control 
  */
-
-void checkupgrade(void)
+static void checkupgrade(void)
 {
 #ifndef HAVE_X86
 	FILE *in = fopen("/tmp/firmware.bin", "rb");
 
 	if (in != NULL) {
 		fclose(in);
-		system("rm /tmp/cron.d/check_ps");	// deleting cron file to
+		unlink("rm /tmp/cron.d/check_ps");	// deleting cron file to
 		// prevent double call of
 		// this
 		fprintf(stderr, "found firmware upgrade, flashing now, but we will wait for another 30 seconds\n");
 		sleep(30);
 #if defined(HAVE_WHRAG108) || defined(HAVE_TW6600) || defined(HAVE_LS5)
-		system("write /tmp/firmware.bin rootfs");
+		eval("write", "/tmp/firmware.bin", "rootfs");
 #else
-		system("write /tmp/firmware.bin linux");
+		eval("write", "/tmp/firmware.bin", "linux");
 #endif
 		fprintf(stderr, "done. rebooting now\n");
-		system("killall -3 init");
+		killall("init", SIGQUIT);
 	}
 #endif
 }
 
-int do_mon(void)
+static int do_mon(void)
 {
 	struct mon *v;
 
@@ -249,9 +273,9 @@ int do_mon(void)
 		if (!search_process(v->name, v->count)) {
 
 			printf("Maybe %s had died, we need to re-exec it\n", v->name);
-			sysprintf("stopservice %s", v->name);
+			eval("stopservice", v->name);
 			killall(v->name, SIGKILL);
-			sysprintf("startservice_f %s", v->name);
+			eval("startservice_f", v->name);
 		}
 		printf("checking for %s done\n", v->name);
 	}

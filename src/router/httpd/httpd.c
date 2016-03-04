@@ -63,12 +63,13 @@
 # include <matrixssl_xface.h>
 #endif
 
-#ifdef HAVE_XYSSL
-#include <xyssl/havege.h>
-#include <xyssl/certs.h>
-#include <xyssl/x509.h>
-#include <xyssl/ssl.h>
-#include <xyssl/net.h>
+#ifdef HAVE_POLARSSL
+#include "polarssl/entropy.h"
+#include <polarssl/ctr_drbg.h>
+#include <polarssl/certs.h>
+#include <polarssl/x509.h>
+#include <polarssl/ssl.h>
+#include <polarssl/net.h>
 //#include <xyssl_xface.h>
 #endif
 
@@ -86,7 +87,6 @@
 #define RFC1123FMT "%a, %d %b %Y %H:%M:%S GMT"
 #define TIMEOUT	5
 
-
 /* A multi-family sockaddr. */
 typedef union {
 	struct sockaddr sa;
@@ -102,7 +102,7 @@ static SSL *ssl;
 FILE *debout;
 #endif
 
-#if defined(HAVE_OPENSSL) || defined(HAVE_MATRIXSSL) || defined(HAVE_XYSSL)
+#if defined(HAVE_OPENSSL) || defined(HAVE_MATRIXSSL) || defined(HAVE_POLARSSL)
 
 #define DEFAULT_HTTPS_PORT 443
 #define CERT_FILE "/etc/cert.pem"
@@ -114,15 +114,20 @@ extern ssl_t *ssl;
 extern sslKeys_t *keys;
 #endif
 
-#ifdef HAVE_XYSSL
+#ifdef HAVE_POLARSSL
 ssl_context ssl;
 int my_ciphers[] = {
-	TLS1_EDH_RSA_AES_256_SHA,
-	SSL3_EDH_RSA_DES_168_SHA,
-	TLS1_RSA_AES_256_SHA,
-	SSL3_RSA_DES_168_SHA,
-	SSL3_RSA_RC4_128_SHA,
-	SSL3_RSA_RC4_128_MD5,
+	TLS_DHE_RSA_WITH_AES_128_CBC_SHA,
+	TLS_DHE_RSA_WITH_AES_256_CBC_SHA,
+	TLS_RSA_WITH_AES_256_CBC_SHA,
+	TLS_RSA_WITH_RC4_128_MD5,
+	TLS_RSA_WITH_RC4_128_SHA,
+	TLS_RSA_WITH_AES_128_CBC_SHA256,
+	TLS_RSA_WITH_AES_256_CBC_SHA256,
+	TLS_DHE_RSA_WITH_AES_128_CBC_SHA256,
+	TLS_DHE_RSA_WITH_AES_256_CBC_SHA256,
+	TLS_RSA_WITH_AES_128_GCM_SHA256,
+	TLS_RSA_WITH_AES_256_GCM_SHA384,
 	0
 };
 
@@ -132,7 +137,7 @@ char *dhm_P =
     "11CCEF784C26A400F43DFB901BCA7538" "F2C6B176001CF5A0FD16D2C48B1D0C1C" "F6AC8E1DA6BCC3B4E1F96B0564965300" "FFA1D0B601EB2800F489AA512C4B248C" "01F76949A60BB7F00A40B1EAB64BDD48" "E8A700D60B7F1200FA8E77B0A979DABF";
 
 char *dhm_G = "4";
-unsigned char session_table[SSL_SESSION_TBL_LEN];
+//unsigned char session_table[SSL_SESSION_TBL_LEN];
 #endif
 
 #define DEFAULT_HTTP_PORT 80
@@ -260,16 +265,15 @@ static int auth_check(char *user, char *pass, char *dirname, char *authorization
 	enc2 = crypt(authpass, (unsigned char *)pass);
 	if (strcmp(enc2, pass)) {
 		syslog(LOG_INFO, "httpd login failure - bad passwd !\n");
-		while (wfgets(dummy, 64, conn_fp) > 0)
-		{
-				//fprintf(stderr, "flushing %s\n", dummy);
+		while (wfgets(dummy, 64, conn_fp) > 0) {
+			//fprintf(stderr, "flushing %s\n", dummy);
 		}
 		return 0;
 	}
 	memdebug_leave();
-	
-#if 0 //ndef HAVE_IAS
-	u_int64_t auth_time = (u_int64_t)( atoll(nvram_safe_get("auth_time")) );
+
+#if 0				//ndef HAVE_IAS
+	u_int64_t auth_time = (u_int64_t)(atoll(nvram_safe_get("auth_time")));
 	u_int64_t curr_time = (u_int64_t)time(NULL);
 	char s_curr_time[24];
 	sprintf(s_curr_time, "%llu", curr_time);
@@ -278,47 +282,43 @@ static int auth_check(char *user, char *pass, char *dirname, char *authorization
 		return 1;
 	}
 
-	
 	int submittedtoken = atoi(nvram_safe_get("token"));
 	int currenttoken = atoi(nvram_safe_get("ptoken"));
-	
+
 	//protect config changes
-	if(!strcmp(curr_page, "apply.cgi") || !strcmp(curr_page, "nvram.cgi") || !strcmp(curr_page, "upgrade.cgi") ){
-	        //if token does not match ask for auth again, every page that does submit data in POST must send correct token
-		if( currenttoken != 0 )
-		if( ( submittedtoken != currenttoken ) ){
-			//empty read buffer or send_authenticate will fail
-			while (wfgets(dummy, 64, conn_fp) > 0)
-			{
-				//fprintf(stderr, "flushing %s\n", dummy);
+	if (!strcmp(curr_page, "apply.cgi") || !strcmp(curr_page, "nvram.cgi") || !strcmp(curr_page, "upgrade.cgi")) {
+		//if token does not match ask for auth again, every page that does submit data in POST must send correct token
+		if (currenttoken != 0)
+			if ((submittedtoken != currenttoken)) {
+				//empty read buffer or send_authenticate will fail
+				while (wfgets(dummy, 64, conn_fp) > 0) {
+					//fprintf(stderr, "flushing %s\n", dummy);
+				}
+				return 0;
 			}
-			return 0;
+	}
+
+	if (((curr_time - auth_time) > atoll(nvram_safe_get("auth_limit")))) {
+		//empty read buffer or send_authenticate will fail
+		while (wfgets(dummy, 64, conn_fp) > 0) {
+			//fprintf(stderr, "flushing %s\n", dummy);
 		}
+		return 0;
 	}
-	
-	if( ( (curr_time - auth_time) > atoll(nvram_safe_get("auth_limit")) ) ){
-			//empty read buffer or send_authenticate will fail
-			while (wfgets(dummy, 64, conn_fp) > 0)
-			{
-				//fprintf(stderr, "flushing %s\n", dummy);
-			}
-			return 0;
-	}
-	
+
 	nvram_set("auth_time", s_curr_time);
 #endif
-
 
 	return 1;
 }
 
 void send_authenticate(char *realm)
 {
-	u_int64_t auth_time = (u_int64_t)( atoll(nvram_safe_get("auth_time")) );
+	u_int64_t auth_time = (u_int64_t)(atoll(nvram_safe_get("auth_time")));
 	u_int64_t curr_time = (u_int64_t)time(NULL);
 	char s_curr_time[24];
 	sprintf(s_curr_time, "%llu", curr_time);
-	
+
 	char header[10000];
 
 	(void)snprintf(header, sizeof(header), "WWW-Authenticate: Basic realm=\"%s\"", realm);
@@ -509,8 +509,14 @@ static void do_file_2(struct mime_handler *handler, char *path, webs_t stream, c
 		if (!handler->send_headers)
 			send_headers(200, "Ok", handler->extra_header, handler->mime_type, ftell(fp), attach);
 		fseek(fp, 0, SEEK_SET);
-		while ((c = getc(fp)) != EOF)
-			wfputc(c, stream);	// jimmy, https, 8/4/2003
+		char *buffer = malloc(4096);
+		int len;
+		while ((len = fread(buffer, 1, 4096, fp)) == 4096) {
+			wfwrite(buffer, 1, len, stream);
+		}
+		if (len)
+			wfwrite(buffer, 1, len, stream);
+		free(buffer);
 		fclose(fp);
 	} else {
 		int len = getWebsFileLen(path);
@@ -655,7 +661,7 @@ static void handle_request(void)
 	int len;
 	struct mime_handler *handler;
 	int cl = 0, count, flags;
-	char line[LINE_LEN];
+	char line[LINE_LEN + 1];
 
 	/* Initialize the request variables. */
 	authorization = referer = boundary = host = NULL;
@@ -765,17 +771,17 @@ static void handle_request(void)
 
 		ISOMAP isomap[] = {
 			{
-			 "de", "german"},		//
+			 "de", "german"},	//
 			{
 			 "es", "spanish"},	//
 			{
-			 "fr", "french"},		//
+			 "fr", "french"},	//
 			{
 			 "hr", "croatian"},	//
 			{
 			 "hu", "hungarian"},	//
 			{
-			 "nl", "dutch"},		//
+			 "nl", "dutch"},	//
 			{
 			 "it", "italian"},	//
 			{
@@ -783,7 +789,7 @@ static void handle_request(void)
 			{
 			 "jp", "japanese"},	//
 			{
-			 "pl", "polish"},		//
+			 "pl", "polish"},	//
 			{
 			 "pt", "portuguese_braz"},	// 
 			{
@@ -817,6 +823,11 @@ static void handle_request(void)
 		}
 	}
 #endif
+
+	if (!referer && strcasecmp(method, "post") == 0 && nodetect == 0) {
+		send_error(400, "Bad Request", (char *)0, "Cross Site Action detected!");
+		return;
+	}
 	if (referer && host && nodetect == 0) {
 		int i;
 		int hlen = strlen(host);
@@ -1046,14 +1057,14 @@ static void handle_request(void)
 		query = strchr(file, '?');
 		if (query) {
 			//see token length in createpageToken
-			char token[16]="0";
+			char token[16] = "0";
 			strncpy(token, &query[1], sizeof(token));
-			nvram_set("token",token);
+			nvram_set("token", token);
 			*query++ = 0;
-		} else{
-			nvram_set("token","0");
+		} else {
+			nvram_set("token", "0");
 		}
-		
+
 		int changepassword = 0;
 
 #ifdef HAVE_REGISTER
@@ -1098,7 +1109,7 @@ static void handle_request(void)
 		int file_found = 1;
 
 		strncpy(curr_page, file, sizeof(curr_page));
-		
+
 		for (handler = &mime_handlers[0]; handler->pattern; handler++) {
 			if (match(handler->pattern, file)) {
 #ifdef HAVE_REGISTER
@@ -1262,6 +1273,71 @@ static void set_sigchld_handler(void)
 	sigaction(SIGCHLD, &act, 0);
 }
 
+#ifdef HAVE_OPENSSL
+#define SSLBUFFERSIZE 16384
+struct sslbuffer {
+	unsigned char *sslbuffer;
+	unsigned int count;
+	SSL *ssl;
+};
+
+static struct sslbuffer *initsslbuffer(SSL * ssl)
+{
+	struct sslbuffer *buffer;
+	buffer = malloc(sizeof(struct sslbuffer));
+	buffer->ssl = ssl;
+	buffer->count = 0;
+	buffer->sslbuffer = malloc(SSLBUFFERSIZE);
+	return buffer;
+}
+
+static void sslbufferflush(struct sslbuffer *buffer)
+{
+	SSL_write(buffer->ssl, buffer->sslbuffer, buffer->count);
+	buffer->count = 0;
+}
+
+static void sslbufferfree(struct sslbuffer *buffer)
+{
+	free(buffer->sslbuffer);
+	int sockfd = SSL_get_fd(ssl);
+	SSL_shutdown(buffer->ssl);
+	close(sockfd);
+	SSL_free(buffer->ssl);
+	free(buffer);
+}
+
+static int sslbufferread(struct sslbuffer *buffer, char *data, int datalen)
+{
+	return SSL_read(buffer->ssl, data, datalen);
+}
+
+static int sslbufferpeek(struct sslbuffer *buffer, char *data, int datalen)
+{
+	return SSL_peek(buffer->ssl, data, datalen);
+}
+
+static int sslbufferwrite(struct sslbuffer *buffer, char *data, int datalen)
+{
+
+	int targetsize = SSLBUFFERSIZE - buffer->count;
+	while (datalen >= targetsize) {
+		memcpy(&buffer->sslbuffer[buffer->count], data, targetsize);
+		datalen -= targetsize;
+		data += targetsize;
+		SSL_write(buffer->ssl, buffer->sslbuffer, SSLBUFFERSIZE);
+		buffer->count = 0;
+		targetsize = SSLBUFFERSIZE;
+	}
+	if (datalen) {
+		memcpy(&buffer->sslbuffer[buffer->count], data, datalen);
+		buffer->count += datalen;
+	}
+	return datalen;
+}
+
+#endif
+
 int main(int argc, char **argv)
 {
 	usockaddr usa;
@@ -1278,16 +1354,16 @@ int main(int argc, char **argv)
 /* SEG addition */
 	Initnvramtab();
 #ifdef HAVE_OPENSSL
-	BIO *sbio;
 	SSL_CTX *ctx = NULL;
 	int r;
-	BIO *ssl_bio;
 #endif
-#ifdef HAVE_XYSSL
+#ifdef HAVE_POLARSSL
 	int ret, len;
-	x509_cert srvcert;
-	rsa_context rsa;
-	havege_state hs;
+	x509_crt srvcert;
+	pk_context rsa;
+	entropy_context entropy;
+	ctr_drbg_context ctr_drbg;
+	const char *pers = "ssl_server";
 #endif
 
 	strcpy(pid_file, "/var/run/httpd.pid");
@@ -1297,7 +1373,7 @@ int main(int argc, char **argv)
 		switch (c) {
 #ifdef HAVE_HTTPS
 		case 'S':
-#if defined(HAVE_OPENSSL) || defined(HAVE_MATRIXSSL) || defined(HAVE_XYSSL)
+#if defined(HAVE_OPENSSL) || defined(HAVE_MATRIXSSL) || defined(HAVE_POLARSSL)
 			do_ssl = 1;
 			server_port = DEFAULT_HTTPS_PORT;
 			strcpy(pid_file, "/var/run/httpsd.pid");
@@ -1388,15 +1464,20 @@ int main(int argc, char **argv)
 			exit(1);
 		}
 #endif
-#ifdef HAVE_XYSSL
+#ifdef HAVE_POLARSSL
+		if ((ret = ctr_drbg_init(&ctr_drbg, entropy_func, &entropy, (const unsigned char *)pers, strlen(pers))) != 0) {
+			fprintf(stderr, " failed\n  ! ctr_drbg_init returned %d\n", ret);
+		}
+
 		memset(&ssl, 0, sizeof(ssl));
-		memset(&srvcert, 0, sizeof(x509_cert));
-		ret = x509_read_crtfile(&srvcert, CERT_FILE);
+		memset(&srvcert, 0, sizeof(x509_crt));
+		x509_crt_init(&srvcert);
+		ret = x509_crt_parse_file(&srvcert, CERT_FILE);
 		if (ret != 0) {
 			printf("x509_read_crtfile failed\n");
 			exit(0);
 		}
-		ret = x509_read_keyfile(&rsa, KEY_FILE, NULL);
+		ret = pk_parse_keyfile(&rsa, KEY_FILE, NULL);
 		if (ret != 0) {
 			printf("x509_read_keyfile failed\n");
 			exit(0);
@@ -1413,10 +1494,10 @@ int main(int argc, char **argv)
 		} else
 #endif
 		{
-		if (0 != matrixSslReadKeys(&keys, CERT_FILE, KEY_FILE, NULL, NULL)) {
-			fprintf(stderr, "Error reading or parsing %s.\n", KEY_FILE);
-			exit(0);
-		}
+			if (0 != matrixSslReadKeys(&keys, CERT_FILE, KEY_FILE, NULL, NULL)) {
+				fprintf(stderr, "Error reading or parsing %s.\n", KEY_FILE);
+				exit(0);
+			}
 		}
 #endif
 	}
@@ -1468,49 +1549,50 @@ int main(int argc, char **argv)
 				return -1;
 			}
 #ifdef HAVE_OPENSSL
-			sbio = BIO_new_socket(conn_fd, BIO_NOCLOSE);
 			ssl = SSL_new(ctx);
-
-			SSL_set_bio(ssl, sbio, sbio);
-
-			if ((r = SSL_accept(ssl) <= 0)) {
+			SSL_set_fd(ssl, conn_fd);
+			r = SSL_accept(ssl);
+			if (r <= 0) {
 				//berr_exit("SSL accept error");
+//                              ERR_print_errors_fp(stderr);
+//                              fprintf(stderr,"ssl accept return %d, ssl error %d %d\n",r,SSL_get_error(ssl,r),RAND_status());
 				ct_syslog(LOG_ERR, httpd_level, "SSL accept error");
 				close(conn_fd);
+				SSL_free(ssl);
 				continue;
 			}
 
-		if (!conn_fp)
-			conn_fp = safe_malloc(sizeof(webs));
-			conn_fp->fp = (webs_t)BIO_new(BIO_f_buffer());
-			ssl_bio = BIO_new(BIO_f_ssl());
-			BIO_set_ssl(ssl_bio, ssl, BIO_CLOSE);
-			BIO_push((BIO *) conn_fp->fp, ssl_bio);
+			if (!conn_fp)
+				conn_fp = safe_malloc(sizeof(webs));
+
+			conn_fp->fp = (FILE *) initsslbuffer(ssl);
+
 #elif defined(HAVE_MATRIXSSL)
 			matrixssl_new_session(conn_fd);
 			if (!conn_fp)
 				conn_fp = safe_malloc(sizeof(webs));
 			conn_fp->fp = (FILE *) conn_fd;
 #endif
-#ifdef HAVE_XYSSL
+#ifdef HAVE_POLARSSL
 			ssl_free(&ssl);
-			havege_init(&hs);
-			if ((ret = ssl_init(&ssl, 0)) != 0) {
+			if ((ret = ssl_init(&ssl)) != 0) {
 				printf("ssl_init failed\n");
 				close(conn_fd);
 				continue;
 			}
 			ssl_set_endpoint(&ssl, SSL_IS_SERVER);
 			ssl_set_authmode(&ssl, SSL_VERIFY_NONE);
-			ssl_set_rng_func(&ssl, havege_rand, &hs);
-			ssl_set_io_files(&ssl, conn_fd, conn_fd);
-			ssl_set_ciphlist(&ssl, my_ciphers);
-			ssl_set_ca_chain(&ssl, srvcert.next, NULL);
-			ssl_set_rsa_cert(&ssl, &srvcert, &rsa);
-			ssl_set_sidtable(&ssl, session_table);
-			ssl_set_dhm_vals(&ssl, dhm_P, dhm_G);
+			ssl_set_rng(&ssl, ctr_drbg_random, &ctr_drbg);
+			ssl_set_ca_chain(&ssl, srvcert.next, NULL, NULL);
 
-			ret = ssl_server_start(&ssl);
+			ssl_set_bio(&ssl, net_recv, &conn_fd, net_send, &conn_fd);
+			ssl_set_ciphersuites(&ssl, my_ciphers);
+			ssl_set_own_cert(&ssl, &srvcert, &rsa);
+
+			//              ssl_set_sidtable(&ssl, session_table);
+			ssl_set_dh_param(&ssl, dhm_P, dhm_G);
+
+			ret = ssl_handshake(&ssl);
 			if (ret != 0) {
 				printf("ssl_server_start failed\n");
 				close(conn_fd);
@@ -1548,12 +1630,6 @@ int main(int argc, char **argv)
 
 			memdebug_leave_info("handle_request");
 		}
-		wfflush(conn_fp);	// jimmy, https, 8/4/2003
-#ifdef HAVE_HTTPS
-#ifdef XYSSL_SUPPORT
-		ssl_close_notify(&ssl);
-#endif
-#endif
 		wfclose(conn_fp);	// jimmy, https, 8/4/2003
 		free(conn_fp);
 		conn_fp = NULL;
@@ -1574,36 +1650,42 @@ char *wfgets(char *buf, int len, webs_t wp)
 #ifdef HAVE_HTTPS
 #ifdef HAVE_OPENSSL
 	if (do_ssl) {
-		return (char *)BIO_gets((BIO *) fp, buf, len);
-	}else
+		int eof = 1;
+		int i;
+		char c;
+		if (sslbufferpeek((struct sslbuffer *)fp, buf, len) <= 0)
+			return NULL;
+		for (i = 0; i < len; i++) {
+			c = buf[i];
+			if (c == '\n' || c == 0) {
+				eof = 0;
+				break;
+			}
+		}
+		if (sslbufferread((struct sslbuffer *)fp, buf, i + 1) <= 0)
+			return NULL;
+		if (!eof) {
+			buf[i + 1] = 0;
+			return buf;
+		} else
+			return NULL;
+
+	} else
 #elif defined(HAVE_MATRIXSSL)
 	if (do_ssl)
 		return (char *)matrixssl_gets(fp, buf, len);
 	else
-#elif defined(HAVE_XYSSL)
-	if (do_ssl)
-		return (char *)ssl_read_line((ssl_context *) fp, (unsigned char *)buf, &len);
-	else
+#elif defined(HAVE_POLARSSL)
+
+	fprintf(stderr, "ssl read %d\n", len);
+	if (do_ssl) {
+		int ret = ssl_read((ssl_context *) fp, (unsigned char *)buf, len);
+		fprintf(stderr, "returns %d\n", ret);
+		return (char *)buf;
+	} else
 #endif
 #endif
 		return fgets(buf, len, fp);
-}
-
-int wfputc(char c, webs_t wp)
-{
-	FILE *fp = wp->fp;
-#ifdef HAVE_HTTPS
-	if (do_ssl)
-#ifdef HAVE_OPENSSL
-		return BIO_printf((BIO *) fp, "%c", c);
-#elif defined(HAVE_MATRIXSSL)
-		return matrixssl_putc(fp, c);
-#elif defined(HAVE_XYSSL)
-		return ssl_write((ssl_context *) fp, (unsigned char *)&c, 1);
-#endif
-	else
-#endif
-		return fputc(c, fp);
 }
 
 int wfputs(char *buf, webs_t wp)
@@ -1612,11 +1694,17 @@ int wfputs(char *buf, webs_t wp)
 #ifdef HAVE_HTTPS
 	if (do_ssl)
 #ifdef HAVE_OPENSSL
-		return BIO_puts((BIO *) fp, buf);
+	{
+
+		return sslbufferwrite((struct sslbuffer *)fp, buf, strlen(buf));
+	}
 #elif defined(HAVE_MATRIXSSL)
 		return matrixssl_puts(fp, buf);
-#elif defined(HAVE_XYSSL)
+#elif defined(HAVE_POLARSSL)
+	{
+		fprintf(stderr, "ssl write str %d\n", strlen(buf));
 		return ssl_write((ssl_context *) fp, (unsigned char *)buf, strlen(buf));
+	}
 #endif
 	else
 #endif
@@ -1635,15 +1723,20 @@ int wfprintf(webs_t wp, char *fmt, ...)
 #ifdef HAVE_HTTPS
 	if (do_ssl)
 #ifdef HAVE_OPENSSL
-		ret = BIO_printf((BIO *) fp, "%s", buf);
+	{
+		ret = sslbufferwrite((struct sslbuffer *)fp, buf, strlen(buf));
+	}
 #elif defined(HAVE_MATRIXSSL)
 		ret = matrixssl_printf(fp, "%s", buf);
-#elif defined(HAVE_XYSSL)
-		ret = ssl_printf((ssl_context *) fp, "%s", buf);
+#elif defined(HAVE_POLARSSL)
+	{
+		fprintf(stderr, "ssl write buf %d\n", strlen(buf));
+		ret = ssl_write((ssl_context *) fp, buf, strlen(buf));
+	}
 #endif
 	else
 #endif
-	ret = fprintf(fp, "%s", buf);
+		ret = fprintf(fp, "%s", buf);
 	va_end(args);
 	return ret;
 }
@@ -1653,26 +1746,30 @@ int websWrite(webs_t wp, char *fmt, ...)
 	va_list args;
 	char buf[2048];
 	int ret;
-	FILE *fp = wp->fp;
-
 	if (!wp || !fmt)
 		return -1;
+	FILE *fp = wp->fp;
+
 	va_start(args, fmt);
 	vsnprintf(buf, sizeof(buf), fmt, args);
 #ifdef HAVE_HTTPS
 	if (do_ssl)
 #ifdef HAVE_OPENSSL
-		ret = BIO_printf((BIO *) fp, "%s", buf);
+	{
+		ret = sslbufferwrite((struct sslbuffer *)fp, buf, strlen(buf));
+	}
 #elif defined(HAVE_MATRIXSSL)
 		ret = matrixssl_printf(fp, "%s", buf);
-#elif defined(HAVE_XYSSL)
-		ret = ssl_printf((ssl_context *) fp, "%s", buf);
+#elif defined(HAVE_POLARSSL)
+	{
+		fprintf(stderr, "ssl write buf %d\n", strlen(buf));
+		ret = ssl_write((ssl_context *) fp, buf, strlen(buf));
+	}
 #endif
 	else
 #endif
 		ret = fprintf(fp, "%s", buf);
 	va_end(args);
-	wfflush(wp);
 	return ret;
 }
 
@@ -1682,11 +1779,16 @@ size_t wfwrite(char *buf, int size, int n, webs_t wp)
 #ifdef HAVE_HTTPS
 	if (do_ssl)
 #ifdef HAVE_OPENSSL
-		return BIO_write((BIO *) fp, buf, n * size);
+	{
+		return sslbufferwrite((struct sslbuffer *)fp, buf, n * size);
+	}
 #elif defined(HAVE_MATRIXSSL)
 		return matrixssl_write(fp, (unsigned char *)buf, n * size);
-#elif defined(HAVE_XYSSL)
+#elif defined(HAVE_POLARSSL)
+	{
+		fprintf(stderr, "ssl write buf %d\n", n * size);
 		return ssl_write((ssl_context *) fp, (unsigned char *)buf, n * size);
+	}
 #endif
 	else
 #endif
@@ -1700,7 +1802,7 @@ size_t wfread(char *buf, int size, int n, webs_t wp)
 #ifdef HAVE_HTTPS
 	if (do_ssl) {
 #ifdef HAVE_OPENSSL
-		return BIO_read((BIO *) fp, buf, n * size);
+		return sslbufferread((struct sslbuffer *)fp, buf, n * size);
 #elif defined(HAVE_MATRIXSSL)
 		//do it in chains
 		int cnt = (size * n) / 0x4000;
@@ -1714,9 +1816,9 @@ size_t wfread(char *buf, int size, int n, webs_t wp)
 		len += matrixssl_read(fp, buf, (size * n) % 0x4000);
 
 		return len;
-#elif defined(HAVE_XYSSL)
+#elif defined(HAVE_POLARSSL)
 		int len = n * size;
-
+		fprintf(stderr, "read ssl %d\n", len);
 		return ssl_read((ssl_context *) fp, (unsigned char *)buf, &len);
 #endif
 	} else
@@ -1727,16 +1829,17 @@ size_t wfread(char *buf, int size, int n, webs_t wp)
 int wfflush(webs_t wp)
 {
 	FILE *fp = wp->fp;
-	
+
 #ifdef HAVE_HTTPS
 	if (do_ssl) {
 #ifdef HAVE_OPENSSL
-		BIO_flush((BIO *) fp);
+		/* ssl_write doesn't buffer */
+		sslbufferflush((struct sslbuffer *)fp);
 		return 1;
 #elif defined(HAVE_MATRIXSSL)
 		return matrixssl_flush(fp);
-#elif defined(HAVE_XYSSL)
-		ssl_flush((ssl_context *) fp);
+#elif defined(HAVE_POLARSSL)
+		ssl_flush_output((ssl_context *) fp);
 		return 1;
 #endif
 	} else
@@ -1751,11 +1854,13 @@ int wfclose(webs_t wp)
 #ifdef HAVE_HTTPS
 	if (do_ssl) {
 #ifdef HAVE_OPENSSL
-		BIO_free_all((BIO *) fp);
+		sslbufferflush((struct sslbuffer *)fp);
+		sslbufferfree((struct sslbuffer *)fp);
 		return 1;
 #elif defined(HAVE_MATRIXSSL)
 		return matrixssl_free_session(fp);
-#elif defined(HAVE_XYSSL)
+#elif defined(HAVE_POLARSSL)
+		ssl_close_notify((ssl_context *) fp);
 		ssl_free((ssl_context *) fp);
 		return 1;
 #endif

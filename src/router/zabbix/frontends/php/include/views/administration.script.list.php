@@ -1,7 +1,7 @@
 <?php
 /*
 ** Zabbix
-** Copyright (C) 2001-2013 Zabbix SIA
+** Copyright (C) 2001-2015 Zabbix SIA
 **
 ** This program is free software; you can redistribute it and/or modify
 ** it under the terms of the GNU General Public License as published by
@@ -18,6 +18,7 @@
 ** Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 **/
 
+
 $scriptsWidget = new CWidget();
 
 $createForm = new CForm('get');
@@ -31,9 +32,10 @@ $scriptsForm = new CForm();
 $scriptsForm->setName('scriptsForm');
 $scriptsForm->setAttribute('id', 'scripts');
 
-$scriptsTable = new CTableInfo(_('No scripts defined.'));
+$scriptsTable = new CTableInfo(_('No scripts found.'));
 $scriptsTable->setHeader(array(
 	new CCheckBox('all_scripts', null, "checkAll('".$scriptsForm->getName()."', 'all_scripts', 'scripts');"),
+	$this->data['displayNodes'] ? _('Node') : null,
 	make_sorting_header(_('Name'), 'name'),
 	_('Type'),
 	_('Execute on'),
@@ -44,8 +46,6 @@ $scriptsTable->setHeader(array(
 ));
 
 foreach ($this->data['scripts'] as $script) {
-	$scriptid = $script['scriptid'];
-
 	switch ($script['type']) {
 		case ZBX_SCRIPT_TYPE_CUSTOM_SCRIPT:
 			$scriptType = _('Script');
@@ -74,13 +74,14 @@ foreach ($this->data['scripts'] as $script) {
 
 	$scriptsTable->addRow(array(
 		new CCheckBox('scripts['.$script['scriptid'].']', 'no', null, $script['scriptid']),
+		$this->data['displayNodes'] ? $script['nodename'] : null,
 		new CLink($script['name'], 'scripts.php?form=1&scriptid='.$script['scriptid']),
 		$scriptType,
 		$scriptExecuteOn,
 		zbx_nl2br(htmlspecialchars($script['command'], ENT_COMPAT, 'UTF-8')),
-		('' == $script['userGroupName']) ? _('All') : $script['userGroupName'],
-		('' == $script['hostGroupName']) ? _('All') : $script['hostGroupName'],
-		((PERM_READ_WRITE == $script['host_access']) ? _('Write') : _('Read'))
+		$script['userGroupName'] ? $script['userGroupName'] : _('All'),
+		$script['hostGroupName'] ? $script['hostGroupName'] : _('All'),
+		($script['host_access'] == PERM_READ_WRITE) ? _('Write') : _('Read')
 	));
 }
 
@@ -99,4 +100,5 @@ $scriptsForm->addItem(array($this->data['paging'], $scriptsTable, $this->data['p
 
 // append form to widget
 $scriptsWidget->addItem($scriptsForm);
+
 return $scriptsWidget;

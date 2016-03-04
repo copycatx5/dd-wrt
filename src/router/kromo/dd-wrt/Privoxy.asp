@@ -15,6 +15,7 @@ var update;
 
 addEvent(window, "load", function() {
 	show_layer_ext(document.setup.privoxy_enable, 'privoxyconfig', <% nvem("privoxy_enable", "1", "1", "0"); %> == 1);
+	show_layer_ext(document.setup.privoxy_transp_enable, 'privoxyex', <% nvem("privoxy_transp_enable", "1", "1", "0"); %> == 1);
 	show_layer_ext(document.setup.privoxy_advanced, 'privoxyadvanced', <% nvem("privoxy_advanced", "1", "1", "0"); %> == 1);
 	show_layer_ext(document.setup.privoxy_advanced, 'privoxywhite', <% nvem("privoxy_advanced", "0", "1", "0"); %> == 1);
 	update = new StatusbarUpdate();
@@ -64,7 +65,7 @@ addEvent(window, "unload", function() {
 					<div id="help">
 						<div><h2><% tran("share.help"); %></h2></div>
 						<dl>
-							<dt class="term"><% tran("prioxy.server"); %></dt>
+							<dt class="term"><% tran("privoxy.server"); %></dt>
 							<dd class="definition"><% tran("hprivoxy.right2"); %></dd>
 						</dl>
 						<br />

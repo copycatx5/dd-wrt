@@ -44,6 +44,7 @@
 
 #include "config.h"
 #include "network_tap.h"
+#include "olsr_random.h"
 
 int debugMode = 0;
 
@@ -70,6 +71,10 @@ u_int8_t mac_bc[6] = { 0xff, 0xff, 0xff, 0xff, 0xff, 0xff };
 static void
 signalHandler(int signo __attribute__ ((unused)))
 {
+  /*
+   * Normally errno must be saved here and restored before returning but since
+   * we do a simple assignment we don't need to do that in this signal handler.
+   */
   running = 0;
 }
 
@@ -198,7 +203,7 @@ capture_callback(u_char * args, const struct pcap_pkthdr *hdr, const u_char * pa
       prop = connBC[GRID(*index, i, deviceCount)];
     }
 
-    if (prop == 0 || prop < (rand() % (1 << 24))) {
+    if (prop == 0 || prop < (olsr_random() % (1 << 24))) {
       continue;
     }
 

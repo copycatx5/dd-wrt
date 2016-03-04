@@ -1,6 +1,6 @@
 /*
 ** Zabbix
-** Copyright (C) 2001-2013 Zabbix SIA
+** Copyright (C) 2001-2015 Zabbix SIA
 **
 ** This program is free software; you can redistribute it and/or modify
 ** it under the terms of the GNU General Public License as published by
@@ -293,8 +293,9 @@ void	zbx_binary_heap_remove_direct(zbx_binary_heap_t *heap, zbx_uint64_t key)
 		{
 			heap->elems[index] = heap->elems[heap->elems_num];
 
-			if (index == __binary_heap_bubble_down(heap, index))
-				zbx_hashmap_set(heap->key_index, heap->elems[index].key, index);
+			if (index == __binary_heap_bubble_up(heap, index))
+				if (index == __binary_heap_bubble_down(heap, index))
+					zbx_hashmap_set(heap->key_index, heap->elems[index].key, index);
 		}
 	}
 	else

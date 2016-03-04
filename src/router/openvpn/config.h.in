@@ -9,6 +9,9 @@
 /* Use memory debugging function in OpenSSL */
 #undef CRYPTO_MDEBUG
 
+/* p11-kit proxy */
+#undef DEFAULT_PKCS11_MODULE
+
 /* Use dmalloc memory debugging library */
 #undef DMALLOC
 
@@ -60,8 +63,8 @@
 /* Enable multi-homed UDP server capability */
 #undef ENABLE_MULTIHOME
 
-/* Allow --askpass and --auth-user-pass passwords to be read from a file */
-#undef ENABLE_PASSWORD_SAVE
+/* Enable OFB and CFB cipher modes */
+#undef ENABLE_OFB_CFB_MODE
 
 /* Enable internal packet filter */
 #undef ENABLE_PF
@@ -90,7 +93,7 @@
 /* Enable strict options check between peers */
 #undef ENABLE_STRICT_OPTIONS_CHECK
 
-/* Enable systemd support */
+/* Enable systemd integration */
 #undef ENABLE_SYSTEMD
 
 /* Enable --x509-username-field feature */
@@ -331,9 +334,6 @@
 /* Define to 1 if you have the <netdb.h> header file. */
 #undef HAVE_NETDB_H
 
-/* Define to 1 if you have the <netinet/if_ether.h> header file. */
-#undef HAVE_NETINET_IF_ETHER_H
-
 /* Define to 1 if you have the <netinet/in.h> header file. */
 #undef HAVE_NETINET_IN_H
 
@@ -391,8 +391,8 @@
 /* Define to 1 if you have the <resolv.h> header file. */
 #undef HAVE_RESOLV_H
 
-/* Define to 1 if you have the `res_init' function. */
-#undef HAVE_RES_INIT
+/* Define to 1 if you have the `sd_booted' function. */
+#undef HAVE_SD_BOOTED
 
 /* Define to 1 if you have the `select' function. */
 #undef HAVE_SELECT
@@ -472,6 +472,9 @@
 /* Define to 1 if you have the `system' function. */
 #undef HAVE_SYSTEM
 
+/* Define to 1 if you have the <systemd/sd-daemon.h> header file. */
+#undef HAVE_SYSTEMD_SD_DAEMON_H
+
 /* Define to 1 if you have the <sys/epoll.h> header file. */
 #undef HAVE_SYS_EPOLL_H
 
@@ -531,6 +534,9 @@
 
 /* Define to 1 if you have the `unlink' function. */
 #undef HAVE_UNLINK
+
+/* Define to 1 if you have the <versionhelpers.h> header file. */
+#undef HAVE_VERSIONHELPERS_H
 
 /* Define to 1 if you have the `vfork' function. */
 #undef HAVE_VFORK
@@ -628,6 +634,9 @@
 
 /* Define to 1 if you have the ANSI C header files. */
 #undef STDC_HEADERS
+
+/* Path to systemd-ask-password tool */
+#undef SYSTEMD_ASK_PASSWORD_PATH
 
 /* The tap-windows id */
 #undef TAP_WIN_COMPONENT_ID

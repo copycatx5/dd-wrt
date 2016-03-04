@@ -310,7 +310,7 @@ static void dcerpc_PNP_ValidateDeviceInstance_done(struct tevent_req *subreq);
 struct tevent_req *dcerpc_PNP_ValidateDeviceInstance_send(TALLOC_CTX *mem_ctx,
 							  struct tevent_context *ev,
 							  struct dcerpc_binding_handle *h,
-							  const char *_devicepath /* [in] [ref,charset(UTF16)] */,
+							  const char *_devicepath /* [in] [charset(UTF16),ref] */,
 							  uint32_t _flags /* [in]  */)
 {
 	struct tevent_req *req;
@@ -402,7 +402,7 @@ NTSTATUS dcerpc_PNP_ValidateDeviceInstance_recv(struct tevent_req *req,
 
 NTSTATUS dcerpc_PNP_ValidateDeviceInstance(struct dcerpc_binding_handle *h,
 					   TALLOC_CTX *mem_ctx,
-					   const char *_devicepath /* [in] [ref,charset(UTF16)] */,
+					   const char *_devicepath /* [in] [charset(UTF16),ref] */,
 					   uint32_t _flags /* [in]  */,
 					   WERROR *result)
 {
@@ -519,8 +519,8 @@ static void dcerpc_PNP_GetDeviceList_done(struct tevent_req *subreq);
 struct tevent_req *dcerpc_PNP_GetDeviceList_send(TALLOC_CTX *mem_ctx,
 						 struct tevent_context *ev,
 						 struct dcerpc_binding_handle *h,
-						 const char *_filter /* [in] [unique,charset(UTF16)] */,
-						 uint16_t *_buffer /* [out] [ref,length_is(*length),size_is(*length)] */,
+						 const char *_filter /* [in] [charset(UTF16),unique] */,
+						 uint16_t *_buffer /* [out] [size_is(*length),length_is(*length),ref] */,
 						 uint32_t *_length /* [in,out] [ref] */,
 						 uint32_t _flags /* [in]  */)
 {
@@ -632,8 +632,8 @@ NTSTATUS dcerpc_PNP_GetDeviceList_recv(struct tevent_req *req,
 
 NTSTATUS dcerpc_PNP_GetDeviceList(struct dcerpc_binding_handle *h,
 				  TALLOC_CTX *mem_ctx,
-				  const char *_filter /* [in] [unique,charset(UTF16)] */,
-				  uint16_t *_buffer /* [out] [ref,length_is(*length),size_is(*length)] */,
+				  const char *_filter /* [in] [charset(UTF16),unique] */,
+				  uint16_t *_buffer /* [out] [size_is(*length),length_is(*length),ref] */,
 				  uint32_t *_length /* [in,out] [ref] */,
 				  uint32_t _flags /* [in]  */,
 				  WERROR *result)
@@ -761,7 +761,7 @@ static void dcerpc_PNP_GetDeviceListSize_done(struct tevent_req *subreq);
 struct tevent_req *dcerpc_PNP_GetDeviceListSize_send(TALLOC_CTX *mem_ctx,
 						     struct tevent_context *ev,
 						     struct dcerpc_binding_handle *h,
-						     const char *_devicename /* [in] [unique,charset(UTF16)] */,
+						     const char *_devicename /* [in] [charset(UTF16),unique] */,
 						     uint32_t *_size /* [out] [ref] */,
 						     uint32_t _flags /* [in]  */)
 {
@@ -862,7 +862,7 @@ NTSTATUS dcerpc_PNP_GetDeviceListSize_recv(struct tevent_req *req,
 
 NTSTATUS dcerpc_PNP_GetDeviceListSize(struct dcerpc_binding_handle *h,
 				      TALLOC_CTX *mem_ctx,
-				      const char *_devicename /* [in] [unique,charset(UTF16)] */,
+				      const char *_devicename /* [in] [charset(UTF16),unique] */,
 				      uint32_t *_size /* [out] [ref] */,
 				      uint32_t _flags /* [in]  */,
 				      WERROR *result)
@@ -981,10 +981,10 @@ static void dcerpc_PNP_GetDeviceRegProp_done(struct tevent_req *subreq);
 struct tevent_req *dcerpc_PNP_GetDeviceRegProp_send(TALLOC_CTX *mem_ctx,
 						    struct tevent_context *ev,
 						    struct dcerpc_binding_handle *h,
-						    const char *_devicepath /* [in] [ref,charset(UTF16)] */,
+						    const char *_devicepath /* [in] [charset(UTF16),ref] */,
 						    uint32_t _property /* [in]  */,
 						    enum winreg_Type *_reg_data_type /* [in,out] [ref] */,
-						    uint8_t *_buffer /* [out] [ref,length_is(*buffer_size),size_is(*buffer_size)] */,
+						    uint8_t *_buffer /* [out] [ref,size_is(*buffer_size),length_is(*buffer_size)] */,
 						    uint32_t *_buffer_size /* [in,out] [ref] */,
 						    uint32_t *_needed /* [in,out] [ref] */,
 						    uint32_t _flags /* [in]  */)
@@ -1104,10 +1104,10 @@ NTSTATUS dcerpc_PNP_GetDeviceRegProp_recv(struct tevent_req *req,
 
 NTSTATUS dcerpc_PNP_GetDeviceRegProp(struct dcerpc_binding_handle *h,
 				     TALLOC_CTX *mem_ctx,
-				     const char *_devicepath /* [in] [ref,charset(UTF16)] */,
+				     const char *_devicepath /* [in] [charset(UTF16),ref] */,
 				     uint32_t _property /* [in]  */,
 				     enum winreg_Type *_reg_data_type /* [in,out] [ref] */,
-				     uint8_t *_buffer /* [out] [ref,length_is(*buffer_size),size_is(*buffer_size)] */,
+				     uint8_t *_buffer /* [out] [ref,size_is(*buffer_size),length_is(*buffer_size)] */,
 				     uint32_t *_buffer_size /* [in,out] [ref] */,
 				     uint32_t *_needed /* [in,out] [ref] */,
 				     uint32_t _flags /* [in]  */,

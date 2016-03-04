@@ -1,7 +1,7 @@
 /*
    Editor dialogs for high level editing commands
 
-   Copyright (C) 2009-2014
+   Copyright (C) 2009-2015
    Free Software Foundation, Inc.
 
    Written by:
@@ -176,6 +176,7 @@ editcmd_dialog_search_show (WEdit * edit)
         edit->search->is_case_sensitive = edit_search_options.case_sens;
         edit->search->whole_words = edit_search_options.whole_words;
         edit->search->search_fn = edit_search_cmd_callback;
+        edit->search->update_fn = edit_search_update_callback;
     }
 
     return (edit->search != NULL);
@@ -389,7 +390,8 @@ editcmd_dialog_completion_show (const WEdit * edit, int max_len, GString ** comp
 
     /* fill the listbox with the completions */
     for (i = num_compl - 1; i >= 0; i--)        /* reverse order */
-        listbox_add_item (compl_list, LISTBOX_APPEND_AT_END, 0, (char *) compl[i]->str, NULL);
+        listbox_add_item (compl_list, LISTBOX_APPEND_AT_END, 0, (char *) compl[i]->str, NULL,
+                          FALSE);
 
     /* pop up the dialog and apply the chosen completion */
     if (dlg_run (compl_dlg) == B_ENTER)
@@ -460,7 +462,7 @@ editcmd_dialog_select_definition_show (WEdit * edit, char *match_expr, int max_l
         label_def =
             g_strdup_printf ("%s -> %s:%ld", def_hash[i].short_define, def_hash[i].filename,
                              def_hash[i].line);
-        listbox_add_item (def_list, LISTBOX_APPEND_AT_END, 0, label_def, &def_hash[i]);
+        listbox_add_item (def_list, LISTBOX_APPEND_AT_END, 0, label_def, &def_hash[i], FALSE);
         g_free (label_def);
     }
 

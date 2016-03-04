@@ -24,14 +24,17 @@
 #include <wlutils.h>
 #include <bcmwifi_channels.h>
 #include <proto/802.1d.h>
+#include <sys/utsname.h>
 
-#if 0// ndef cprintf
+#if 0 //cprintf
 #define cprintf(fmt, args...) do { \
 		fprintf(stderr,"%s (%d):%s ",__FILE__,__LINE__,__func__); \
 		fprintf(stderr, fmt, ## args); \
 } while (0)
 #endif
+#define WLCONF_DBG(fmt, arg...)
 
+//#define WLCONF_DBG(fmt, arg...)	fprintf(stderr, "%s: "fmt, __FUNCTION__ , ## arg)
 
 #define	BCM4306_CHIP_ID		0x4306		/* 4306 chipcommon chipid */
 #define	BCM4311_CHIP_ID		0x4311		/* 4311 PCIe 802.11a/b/g */
@@ -85,6 +88,13 @@
 #define	BCM5356_CHIP_ID		0x5356		/* 5356 chipcommon chipid */
 #define	BCM5357_CHIP_ID		0x5357		/* 5357 chipcommon chipid */
 #define	BCM53572_CHIP_ID	53572		/* 53572 chipcommon chipid */
+
+#define BCM4365_CHIP_ID		0x4365		/* 4365 chipcommon chipid */
+#define BCM4366_CHIP_ID		0x4366		/* 4366 chipcommon chipid */
+#define BCM4365_CHIP(chipid)	((CHIPID(chipid) == BCM4365_CHIP_ID) || \
+				(CHIPID(chipid) == BCM4366_CHIP_ID))
+
+#define BCM43602_CHIP_ID	0xaa52		/* 43602 chipcommon chipid */
 
 /* phy types */
 #define	PHY_TYPE_A		0
@@ -167,8 +177,14 @@
 		fprintf(stderr, "%s:%d:(%s): setting bsscfg #%d iovar \"%s\" " \
 				"to val 0x%x failed, err = %d\n",	\
 		        __FUNCTION__, __LINE__, ifname, bssidx, iovar, (unsigned int)val, ret);
+#ifdef __CONFIG_DHDAP__
+#define DHD_BSSIOVAR_SETINT(ifname, iovar, bssidx, val)						\
+	if ((ret = dhd_bssiovar_setint(ifname, iovar, bssidx, val)))				\
+		fprintf(stderr, "%s:%d:(%s): setting bsscfg #%d iovar \"%s\" " \
+				"to val 0x%x failed, err = %d\n",	\
+		        __FUNCTION__, __LINE__, ifname, bssidx, iovar, (unsigned int)val, ret);
+#endif
 #else
-#define WLCONF_DBG(fmt, arg...)
 #define WL_IOCTL(name, cmd, buf, len)			(ret = wl_ioctl(name, cmd, buf, len))
 #define WL_SETINT(name, cmd, val)			(ret = wlconf_setint(name, cmd, val))
 #define WL_GETINT(name, cmd, pval)			(ret = wlconf_getint(name, cmd, pval))
@@ -186,12 +202,25 @@
 		(ret = wl_bssiovar_get(ifname, iovar, bssidx, param, paramlen))
 #define WL_BSSIOVAR_SETINT(ifname, iovar, bssidx, val)	(ret = wl_bssiovar_setint(ifname, iovar, \
 			bssidx, val))
+#ifdef __CONFIG_DHDAP__
+#define DHD_BSSIOVAR_SETINT(ifname, iovar, bssidx, val)	(ret = dhd_bssiovar_setint(ifname, iovar, \
+			bssidx, val))
+#endif
 #endif
 			
-#ifdef BCMWPA2
 #define CHECK_PSK(mode) ((mode) & (WPA_AUTH_PSK | WPA2_AUTH_PSK))
-#else
-#define CHECK_PSK(mode) ((mode) & WPA_AUTH_PSK)
+
+#ifdef __CONFIG_DHDAP__
+#define DHD_MAX_ASSOC_VAL		32
+#define DHD_BSS_MAXASSOC_VAL		32
+#endif
+
+#define PSPRETEND_DEFAULT_THRESHOLD 5
+
+#ifdef __CONFIG_DHDAP__
+extern int dhd_probe(char *name);
+extern int dhd_iovar_setint(char *ifname, char *iovar, int val);
+extern int dhd_bssiovar_setint(char *ifname, char *iovar, int bssidx, int val);
 #endif
 
 /* prototypes */
@@ -376,6 +405,227 @@ wlconf_set_preauth(char *name, int bsscfg_idx, int preauth)
 	return ret;
 }
 #endif /* BCMWPA2 */
+
+static void
+wlconf_set_radarthrs(char *name, char *prefix)
+{
+	wl_radar_thr_t  radar_thr;
+	int  i, ret, len;
+	char nv_buf[NVRAM_MAX_VALUE_LEN], *rargs, *v, *endptr;
+	char buf[WLC_IOCTL_SMLEN];
+
+	char *version = NULL;
+	char *thr0_20_lo = NULL, *thr1_20_lo = NULL;
+	char *thr0_40_lo = NULL, *thr1_40_lo = NULL;
+	char *thr0_80_lo = NULL, *thr1_80_lo = NULL;
+	char *thr0_20_hi = NULL, *thr1_20_hi = NULL;
+	char *thr0_40_hi = NULL, *thr1_40_hi = NULL;
+	char *thr0_80_hi = NULL, *thr1_80_hi = NULL;
+
+	char **locals[] = { &version, &thr0_20_lo, &thr1_20_lo, &thr0_40_lo, &thr1_40_lo,
+	&thr0_80_lo, &thr1_80_lo, &thr0_20_hi, &thr1_20_hi,
+	&thr0_40_hi, &thr1_40_hi, &thr0_80_hi, &thr1_80_hi };
+
+	rargs = nvram_safe_get(strcat_r(prefix, "radarthrs", nv_buf));
+	if (!rargs)
+		goto err;
+
+	len = strlen(rargs);
+	if ((len > NVRAM_MAX_VALUE_LEN) || (len == 0))
+		goto err;
+
+	memset(nv_buf, 0, sizeof(nv_buf));
+	strncpy(nv_buf, rargs, len);
+	v = nv_buf;
+	for (i = 0; i < (sizeof(locals) / sizeof(locals[0])); i++) {
+		*locals[i] = v;
+		while (*v && *v != ' ') {
+			v++;
+		}
+		if (*v) {
+			*v = 0;
+			v++;
+		}
+		if (v >= (nv_buf + len)) /* Check for complete list, if not caught later */
+			break;
+	}
+
+	/* Start building request */
+	memset(buf, 0, sizeof(buf));
+	strcpy(buf, "radarthrs");
+	/* Retrieve radar thrs parameters */
+	if (!version)
+		goto err;
+	radar_thr.version = atoi(version);
+	if (radar_thr.version > WL_RADAR_THR_VERSION)
+		goto err;
+
+	/* Retrieve ver 0 params */
+	if (!thr0_20_lo)
+		goto err;
+	radar_thr.thresh0_20_lo = (uint16)strtol(thr0_20_lo, &endptr, 0);
+	if (*endptr != '\0')
+		goto err;
+
+	if (!thr1_20_lo)
+		goto err;
+	radar_thr.thresh1_20_lo = (uint16)strtol(thr1_20_lo, &endptr, 0);
+	if (*endptr != '\0')
+		goto err;
+
+	if (!thr0_40_lo)
+		goto err;
+	radar_thr.thresh0_40_lo = (uint16)strtol(thr0_40_lo, &endptr, 0);
+	if (*endptr != '\0')
+		goto err;
+
+	if (!thr1_40_lo)
+		goto err;
+	radar_thr.thresh1_40_lo = (uint16)strtol(thr1_40_lo, &endptr, 0);
+	if (*endptr != '\0')
+		goto err;
+
+	if (!thr0_80_lo)
+		goto err;
+	radar_thr.thresh0_80_lo = (uint16)strtol(thr0_80_lo, &endptr, 0);
+	if (*endptr != '\0')
+		goto err;
+
+	if (!thr1_80_lo)
+		goto err;
+	radar_thr.thresh1_80_lo = (uint16)strtol(thr1_80_lo, &endptr, 0);
+	if (*endptr != '\0')
+		goto err;
+
+
+	if (radar_thr.version == 0) {
+		/*
+		 * Attempt a best effort update of ver 0 to ver 1 by updating
+		 * the appropriate values with the specified defaults.  The defaults
+		 * are from the reference design.
+		 */
+		radar_thr.version = WL_RADAR_THR_VERSION; /* avoid driver rejecting it */
+		radar_thr.thresh0_20_hi = 0x6ac;
+		radar_thr.thresh1_20_hi = 0x6cc;
+		radar_thr.thresh0_40_hi = 0x6bc;
+		radar_thr.thresh1_40_hi = 0x6e0;
+		radar_thr.thresh0_80_hi = 0x6b0;
+		radar_thr.thresh1_80_hi = 0x30;
+	} else {
+		/* Retrieve ver 1 params */
+		if (!thr0_20_hi)
+			goto err;
+		radar_thr.thresh0_20_hi = (uint16)strtol(thr0_20_hi, &endptr, 0);
+		if (*endptr != '\0')
+			goto err;
+
+		if (!thr1_20_hi)
+			goto err;
+		radar_thr.thresh1_20_hi = (uint16)strtol(thr1_20_hi, &endptr, 0);
+		if (*endptr != '\0')
+			goto err;
+
+		if (!thr0_40_hi)
+			goto err;
+		radar_thr.thresh0_40_hi = (uint16)strtol(thr0_40_hi, &endptr, 0);
+		if (*endptr != '\0')
+			goto err;
+
+		if (!thr1_40_hi)
+			goto err;
+		radar_thr.thresh1_40_hi = (uint16)strtol(thr1_40_hi, &endptr, 0);
+		if (*endptr != '\0')
+			goto err;
+
+		if (!thr0_80_hi)
+			goto err;
+		radar_thr.thresh0_80_hi = (uint16)strtol(thr0_80_hi, &endptr, 0);
+		if (*endptr != '\0')
+			goto err;
+
+		if (!thr1_80_hi)
+			goto err;
+		radar_thr.thresh1_80_hi = (uint16)strtol(thr1_80_hi, &endptr, 0);
+		if (*endptr != '\0')
+			goto err;
+
+	}
+
+	/* Copy radar parameters into buffer and plug them to the driver */
+	memcpy((char*)(buf + strlen(buf) + 1), (char*)&radar_thr, sizeof(wl_radar_thr_t));
+	WL_IOCTL(name, WLC_SET_VAR, buf, sizeof(buf));
+
+	return;
+
+err:
+	WLCONF_DBG("Did not parse radar thrs params, using driver defaults\n");
+	return;
+}
+
+/*
+ * This allows phy antenna selection to be retrieved from NVRAM
+ */
+static void
+wlconf_set_antsel(char *name, char *prefix)
+{
+	int	i, j, len, argc, ret;
+	char	buf[WLC_IOCTL_SMLEN];
+	wlc_antselcfg_t val = { {0}, 0};
+	char	*argv[ANT_SELCFG_MAX] = {};
+	char	nv_buf[NVRAM_MAX_VALUE_LEN], *argstr, *v, *endptr;
+
+	argstr = nvram_safe_get(strcat_r(prefix, "phy_antsel", nv_buf));
+	if (!argstr) {
+		return;
+	}
+	len = strlen(argstr);
+	if ((len == 0) || (len > NVRAM_MAX_VALUE_LEN)) {
+		return;
+	}
+
+	memset(nv_buf, 0, sizeof(nv_buf));
+	strncpy(nv_buf, argstr, len);
+	v = nv_buf;
+	for (argc = 0; argc < ANT_SELCFG_MAX; ) {
+		argv[argc++] = v;
+		while (*v && *v != ' ') {
+			v++;
+		}
+		if (*v) {
+			*v = 0;
+			v++;
+		}
+		if (v >= (nv_buf + len)) {
+			break;
+		}
+	}
+	if ((argc != 1) && (argc != ANT_SELCFG_MAX)) {
+		WLCONF_DBG("phy_antsel requires 1 or %d arguments\n", ANT_SELCFG_MAX);
+		return;
+	}
+
+	memset(buf, 0, sizeof(buf));
+	strcpy(buf, "phy_antsel");
+	for (i = 0, j = 0; i < ANT_SELCFG_MAX; i++) {
+		val.ant_config[i] = (uint8)strtol(argv[j], &endptr, 0);
+		if (*endptr != '\0') {
+			WLCONF_DBG("Invalid antsel argument\n");
+			return;
+		}
+		if (argc > 1) {
+			/* ANT_SELCFG_MAX argument format */
+			j++;
+		}
+	}
+
+	/* Copy antsel parameters into buffer and plug them to the driver */
+	memcpy((char*)(buf + strlen(buf) + 1), (char*)&val, sizeof(wlc_antselcfg_t));
+	WL_IOCTL(name, WLC_SET_VAR, buf, sizeof(buf));
+
+	return;
+}
+
+
 
 /* Set up WME */
 static void
@@ -562,40 +812,29 @@ wlconf_auto_channel(char *name)
 	WLCONF_DBG("interface %s: channel selected %d\n", name, chosen);
 	return chosen;
 }
-
 static chanspec_t
-wlconf_auto_chanspec(char *name,char *prefix)
+wlconf_auto_chanspec(char *name)
 {
 	chanspec_t chosen = 0;
+	int temp = 0;
 	wl_uint32_list_t request;
-	char tmp[100];
-	int bandtype;
 	int ret;
 	int i;
-	int chanspec_asus = 0;
-
-cprintf("wlconf_auto_chanspec 01\n");
-	/* query the band type */
-	WL_GETINT(name, WLC_GET_BAND, &bandtype);
-cprintf("wlconf_auto_chanspec 02\n");
 
 	request.count = 0;	/* let the ioctl decide */
 	WL_IOCTL(name, WLC_START_CHANNEL_SEL, &request, sizeof(request));
-cprintf("wlconf_auto_chanspec 03\n");
 	if (!ret) {
-cprintf("wlconf_auto_chanspec 04\n");
-		sleep_ms(1000);
-cprintf("wlconf_auto_chanspec 04-\n");
+		/* this time needs to be < 1000 to prevent mpc kicking in for 2nd radio */
+		sleep_ms(500);
 		for (i = 0; i < 100; i++) {
-cprintf("wlconf_auto_chanspec 05 %d\n", i);
-			WL_IOVAR_GETINT(name, "apcschspec", (void *)&chosen);
+			WL_IOVAR_GETINT(name, "apcschspec", &temp);
 			if (!ret)
 				break;
 			sleep_ms(100);
 		}
 	}
-cprintf("wlconf_auto_chanspec 06\n");
 
+	chosen = (chanspec_t) temp;
 	WLCONF_DBG("interface %s: chanspec selected %04x\n", name, chosen);
 	return chosen;
 }
@@ -689,7 +928,7 @@ wlconf_get_bsscfgs(char* ifname, char* prefix)
 }
 
 static void
-wlconf_security_options(char *name, char *prefix, int bsscfg_idx, bool wet)
+wlconf_security_options(char *name, char *prefix, int bsscfg_idx, bool wet, bool is_dhd)
 {
 	int i;
 	int val;
@@ -702,6 +941,7 @@ wlconf_security_options(char *name, char *prefix, int bsscfg_idx, bool wet)
 	* defaults since the new chip may not support the requested
 	* encryptions after the card has been changed.
 	*/
+cprintf("set security settings %s, idx %d\n",name, bsscfg_idx);
 	if (wlconf_set_wsec(name, prefix, bsscfg_idx)) {
 		/* change nvram only, code below will pass them on */
 		wlconf_restore_var(prefix, "auth_mode");
@@ -711,13 +951,15 @@ wlconf_security_options(char *name, char *prefix, int bsscfg_idx, bool wet)
 		wlconf_restore_var(prefix, "wep");
 		wlconf_set_wsec(name, prefix, bsscfg_idx);
 	}
-
+cprintf("akm\n");
 	val = wlconf_akm_options(prefix);
 	/* In wet mode enable in driver wpa supplicant */
+
 	if (wet && (CHECK_PSK(val))) {
 		wsec_pmk_t psk;
 		char *key;
 
+cprintf("psk\n");
 		if (((key = nvram_get(strcat_r(prefix, "wpa_psk", tmp))) != NULL) &&
 		    (strlen(key) < WSEC_MAX_PSK_LEN)) {
 			psk.key_len = (ushort) strlen(key);
@@ -725,20 +967,25 @@ wlconf_security_options(char *name, char *prefix, int bsscfg_idx, bool wet)
 			strcpy((char *)psk.key, key);
 			WL_IOCTL(name, WLC_SET_WSEC_PMK, &psk, sizeof(psk));
 		}
+cprintf("sup_wpa\n");
 		wl_iovar_setint(name, "sup_wpa", 1);
 	}
+cprintf("wpa_auth\n");
 	WL_BSSIOVAR_SETINT(name, "wpa_auth", bsscfg_idx, val);
 
+cprintf("auth_mode\n");
 	/* EAP Restrict if we have an AKM or radius authentication */
 	val = ((val != 0) || (nvram_default_match(strcat_r(prefix, "auth_mode", tmp), "radius","disabled")));
 	WL_BSSIOVAR_SETINT(name, "eap_restrict", bsscfg_idx, val);
 
+cprintf("wep keys\n");
 	/* Set WEP keys */
 	if (nvram_default_match(strcat_r(prefix, "wep", tmp), "enabled","disabled")) {
 		for (i = 1; i <= DOT11_MAX_DEFAULT_KEYS; i++)
 			wlconf_set_wep_key(name, prefix, bsscfg_idx, i);
 	}
 
+cprintf("auth\n");
 	/* Set 802.11 authentication mode - open/shared */
 	val = atoi(nvram_default_get(strcat_r(prefix, "auth", tmp),"0"));
 	WL_BSSIOVAR_SETINT(name, "auth", bsscfg_idx, val);
@@ -782,6 +1029,33 @@ wlconf_set_ampdu_retry_limit(char *name, char *prefix)
 	return;
 }
 
+/* Function to set the Short and the Long retry limits
+ */
+static void
+wlconf_set_retry_limit(char *name, char *prefix)
+{
+		char *srl, *lrl;
+		int srl_val, lrl_val, ret;
+		char tmp[100];
+
+		srl = nvram_safe_get(strcat_r(prefix, "srl", tmp));
+
+		if (srl && *srl != '\0') {
+			srl_val = atoi(srl);
+			if (srl_val)
+				WL_IOCTL(name, WLC_SET_SRL, &srl_val, sizeof(srl_val));
+		}
+
+		lrl = nvram_safe_get(strcat_r(prefix, "lrl", tmp));
+
+		if (lrl && *lrl != '\0') {
+			lrl_val = atoi(lrl);
+			if (lrl_val)
+				WL_IOCTL(name, WLC_SET_LRL, &lrl_val, sizeof(lrl_val));
+		}
+		return;
+}
+
 static int
 wlconf_aburn_ampdu_amsdu_set(char *name, char prefix[PREFIX_LEN], int nmode, int btc_mode)
 {
@@ -795,12 +1069,22 @@ wlconf_aburn_ampdu_amsdu_set(char *name, char prefix[PREFIX_LEN], int nmode, int
 	int len = strlen("amsdu");
 	int ret;
 	int phytype;
+	wlc_rev_info_t rev;
+#ifdef __CONFIG_DHDAP__
+	int is_dhd = 0;
+#endif
+	struct utsname unamebuf;
+
+	uname(&unamebuf);
+#ifdef __CONFIG_DHDAP__
+	is_dhd = !dhd_probe(name);
+#endif
+	WL_IOCTL(name, WLC_GET_REVINFO, &rev, sizeof(rev));
 	WL_IOCTL(name, WLC_GET_PHYTYPE, &phytype, sizeof(phytype));
 
 	/* First, clear WMM and afterburner settings to avoid conflicts */
 	WL_IOVAR_SETINT(name, "wme", OFF);
 	WL_IOVAR_SETINT(name, "afterburner_override", OFF);
-
 	/* Get WME setting from NVRAM if present */
 	wme_val = nvram_get(strcat_r(prefix, "wme", tmp));
 	if (wme_val && !strcmp(wme_val, "off")) {
@@ -858,19 +1142,45 @@ wlconf_aburn_ampdu_amsdu_set(char *name, char prefix[PREFIX_LEN], int nmode, int
 				WL_IOVAR_SETINT(name, "ampdu", OFF);
 			}
 			wlconf_set_ampdu_retry_limit(name, prefix);
+
+			/* For MIPS routers set the num mpdu per ampdu limit to 32. We observed
+			 * that having this value at 32 helps with bi-di thru'put as well.
+			 */
+			if ((phytype == PHY_TYPE_AC) &&
+			    (strncmp(unamebuf.machine, "mips", 4) == 0)) {
+				WL_IOVAR_SETINT(name, "ampdu_mpdu", 32);
+			}
 		}
 
 		if (amsdu_valid_option) {
 			if (amsdu_option_val != OFF) { /* AMPDU (above) has priority over AMSDU */
 				if (phytype == PHY_TYPE_AC) {
 					WL_IOVAR_SETINT(name, "amsdu", amsdu_option_val);
+#ifdef __CONFIG_DHDAP__
+					/* For dhdap, ampdu_mpdu=32 gives good tput in
+					 * multiple radio with amsdu.
+					 */
+ 					WL_IOVAR_SETINT(name, "ampdu_mpdu", 32);
+#endif
 				} else if (ampdu_option_val == OFF) {
 					WL_IOVAR_SETINT(name, "ampdu", OFF);
 					WL_IOVAR_SETINT(name, "amsdu", amsdu_option_val);
 				}
-			} else
+			} else {
 				WL_IOVAR_SETINT(name, "amsdu", OFF);
+#ifdef __CONFIG_DHDAP__
+				/* Use default ampdu_mpdu=-1 when amsdu is disabled */
+				if (is_dhd)
+					WL_IOVAR_SETINT(name, "ampdu_mpdu", -1);
+#endif
+			}
 
+		} else {		
+#ifdef __CONFIG_DHDAP__
+			/* Use default ampdu_mpdu=-1 when amsdu is disabled */
+			if (is_dhd)
+				WL_IOVAR_SETINT(name, "ampdu_mpdu", -1);
+#endif
 		}
 
 		WL_IOVAR_SETINT(name, "rx_amsdu_in_ampdu", OFF);
@@ -903,6 +1213,8 @@ wlconf_aburn_ampdu_amsdu_set(char *name, char prefix[PREFIX_LEN], int nmode, int
 		wlconf_set_wme(name, prefix);
 	}
 
+	/* Override SRL & LRL if nvram configuration is defined */
+	wlconf_set_retry_limit(name, prefix);
 	return wme_option_val;
 }
 
@@ -912,15 +1224,16 @@ wlconf_bw_cap(char *prefix, int bandtype)
 {
 	char *str, tmp[100];
 	int bw_cap = WLC_BW_CAP_20MHZ;
+	char *q = NULL;
 	
 	if ((str = nvram_get(strcat_r(prefix, "bw_cap", tmp))) != NULL)
 	{
 		if (!strcmp(str,"0xff"))
 		    str = "255";
-		bw_cap = atoi(str);
+		bw_cap = strtol(str, &q, 0);
 	}else {
 		/* Backward compatibility. Map to bandwidth cap bitmap values. */
-		int val = atoi(nvram_safe_get(strcat_r(prefix, "nbw_cap", tmp)));
+		int val = strtol(nvram_safe_get(strcat_r(prefix, "nbw_cap", tmp)), &q, 0);
 
 		if (((bandtype == WLC_BAND_2G) && (val == WLC_N_BW_40ALL)) ||
 		    ((bandtype == WLC_BAND_5G) &&
@@ -940,6 +1253,8 @@ static void wlconf_set_txbf(char *name, char *prefix)
 	wlc_rev_info_t rev;
 	uint32 txbf_bfe_cap = 0;
 	uint32 txbf_bfr_cap = 0;
+	uint32 txbf_imp = 0;
+	uint32 mu_features = 0;
 	wl_txbf_rateset_t rs;
 	int ret = 0;
 
@@ -952,7 +1267,7 @@ static void wlconf_set_txbf(char *name, char *prefix)
 
 		if (txbf_bfr_cap) {
 			/* Turning TxBF on (order matters) */
-			WL_IOVAR_SETINT(name, "txbf_bfr_cap", 1);
+			WL_IOVAR_SETINT(name, "txbf_bfr_cap", txbf_bfr_cap);
 			WL_IOVAR_SETINT(name, "txbf", 1);
 		} else {
 			/* Similarly, turning TxBF off in reverse order */
@@ -964,9 +1279,19 @@ static void wlconf_set_txbf(char *name, char *prefix)
 	if ((str = nvram_get(strcat_r(prefix, "txbf_bfe_cap", tmp))) != NULL) {
 		txbf_bfe_cap = atoi(str);
 
-		WL_IOVAR_SETINT(name, "txbf_bfe_cap", txbf_bfe_cap ? 1 : 0);
+		WL_IOVAR_SETINT(name, "txbf_bfe_cap", txbf_bfe_cap);
 	}
 
+	if ((str = nvram_get(strcat_r(prefix, "txbf_imp", tmp))) != NULL) {
+		txbf_imp = atoi(str);
+
+		WL_IOVAR_SETINT(name, "txbf_imp", txbf_imp);
+	}
+
+	if ((str = nvram_get(strcat_r(prefix, "mu_features", tmp))) != NULL) {
+		mu_features = strtoul(str, NULL, 0);
+		WL_IOVAR_SETINT(name, "mu_features", mu_features);
+	}
 }
 
 /* Set up TxBF timer. Called when i/f is up. */
@@ -987,11 +1312,232 @@ static void wlconf_set_txbf_timer(char *name, char *prefix)
 	}
 }
 
+static int
+wlconf_del_brcm_syscap_ie(char *name, int bsscfg_idx, char *oui)
+{
+	int iebuf_len = 0;
+	vndr_ie_setbuf_t *ie_setbuf = NULL;
+	int iecount, i;
+
+	char getbuf[2048] = {0};
+	vndr_ie_buf_t *iebuf;
+	vndr_ie_info_t *ieinfo;
+	char *bufaddr;
+	int buflen = 0;
+	int found = 0;
+	uint32 pktflag;
+	uint32 frametype;
+	int ret = 0;
+
+	frametype = VNDR_IE_BEACON_FLAG;
+
+	WL_BSSIOVAR_GET(name, "vndr_ie", bsscfg_idx, getbuf, 2048);
+	iebuf = (vndr_ie_buf_t *)getbuf;
+
+	bufaddr = (char*)iebuf->vndr_ie_list;
+
+	for (i = 0; i < iebuf->iecount; i++) {
+		ieinfo = (vndr_ie_info_t *)bufaddr;
+		bcopy((char*)&ieinfo->pktflag, (char*)&pktflag, (int)sizeof(uint32));
+		if (pktflag == frametype) {
+			if (!memcmp(ieinfo->vndr_ie_data.oui, oui, DOT11_OUI_LEN)) {
+				found = 1;
+				bufaddr = (char*) &ieinfo->vndr_ie_data;
+				buflen = (int)ieinfo->vndr_ie_data.len + VNDR_IE_HDR_LEN;
+				break;
+			}
+		}
+		bufaddr = (char *)(ieinfo->vndr_ie_data.oui + ieinfo->vndr_ie_data.len);
+	}
+
+	if (!found)
+		goto err;
+
+	iebuf_len = buflen + sizeof(vndr_ie_setbuf_t) - sizeof(vndr_ie_t);
+	ie_setbuf = (vndr_ie_setbuf_t *)malloc(iebuf_len);
+	if (!ie_setbuf) {
+		WLCONF_DBG("memory alloc failure\n");
+		ret = -1;
+		goto err;
+	}
+
+	memset(ie_setbuf, 0, iebuf_len);
+
+	/* Copy the vndr_ie SET command ("add"/"del") to the buffer */
+	strcpy(ie_setbuf->cmd, "del");
+
+	/* Buffer contains only 1 IE */
+	iecount = 1;
+	memcpy(&ie_setbuf->vndr_ie_buffer.iecount, &iecount, sizeof(int));
+
+	memcpy(&ie_setbuf->vndr_ie_buffer.vndr_ie_list[0].pktflag, &frametype, sizeof(uint32));
+
+	memcpy(&ie_setbuf->vndr_ie_buffer.vndr_ie_list[0].vndr_ie_data, bufaddr, buflen);
+
+	WL_BSSIOVAR_SET(name, "vndr_ie", bsscfg_idx, ie_setbuf, iebuf_len);
+
+err:
+	if (ie_setbuf)
+		free(ie_setbuf);
+
+	return ret;
+}
+
+static int
+wlconf_set_brcm_syscap_ie(char *name, int bsscfg_idx, char *oui, uchar *data, int datalen)
+{
+	vndr_ie_setbuf_t *ie_setbuf = NULL;
+	unsigned int pktflag;
+	int buflen, iecount;
+	int ret = 0;
+
+	pktflag = VNDR_IE_BEACON_FLAG;
+
+	buflen = sizeof(vndr_ie_setbuf_t) + datalen - 1;
+	ie_setbuf = (vndr_ie_setbuf_t *)malloc(buflen);
+	if (!ie_setbuf) {
+		WLCONF_DBG("memory alloc failure\n");
+		ret = -1;
+		goto err;
+	}
+
+	memset(ie_setbuf, 0, buflen);
+
+	/* Copy the vndr_ie SET command ("add"/"del") to the buffer */
+	strcpy(ie_setbuf->cmd, "add");
+
+	/* Buffer contains only 1 IE */
+	iecount = 1;
+	memcpy(&ie_setbuf->vndr_ie_buffer.iecount, &iecount, sizeof(int));
+
+	/* The packet flag bit field indicates the packets that will contain this IE */
+	memcpy(&ie_setbuf->vndr_ie_buffer.vndr_ie_list[0].pktflag, &pktflag, sizeof(uint32));
+
+	/* Now, add the IE to the buffer, +1: one byte OUI_TYPE */
+	ie_setbuf->vndr_ie_buffer.vndr_ie_list[0].vndr_ie_data.len = DOT11_OUI_LEN + datalen;
+
+	memcpy(&ie_setbuf->vndr_ie_buffer.vndr_ie_list[0].vndr_ie_data.oui[0], oui, DOT11_OUI_LEN);
+	if (datalen > 0)
+		memcpy(&ie_setbuf->vndr_ie_buffer.vndr_ie_list[0].vndr_ie_data.data[0], data,
+		       datalen);
+
+	ret = wlconf_del_brcm_syscap_ie(name, bsscfg_idx, oui);
+	if (ret)
+		goto err;
+
+	WL_BSSIOVAR_SET(name, "vndr_ie", (int)bsscfg_idx, ie_setbuf, buflen);
+
+err:
+	if (ie_setbuf)
+		free(ie_setbuf);
+
+	return (ret);
+}
+
+
+#define VIFNAME_LEN 16
+
+static void
+wlconf_set_taf(char *name, bool enable)
+{
+#if defined(__CONFIG_TOAD__)
+	static const char toad_ifnames[] = "toad_ifnames";
+#endif
+	char iobuf[sizeof( "taf" )		/* Need some space for the iovar itself, + nul */
+		+ sizeof(wl_taf_define_t)-1	/* struct size -1 byte for text[1] declaration */
+		+ sizeof("enable")		/* "enable" string + terminating nul byte */
+		+ sizeof("0")			/* "0" or "1" string + terminating nul byte */
+		+ sizeof("")];			/* Final terminating nul byte */
+
+	wl_taf_define_t *taf_def;
+	char *ptr;
+	int ret;				/* Variable name "ret" is required by WL_IOCTL() */
+
+	memset(iobuf, 0, sizeof(iobuf));
+	strcpy(iobuf, "taf");
+
+	taf_def = (wl_taf_define_t *)&iobuf[ sizeof("taf") ];
+	memset(&taf_def->ea, 0xff, sizeof(taf_def->ea));
+
+	taf_def->version = 1;
+
+	ptr = taf_def->text;
+	ptr += sprintf(ptr, "enable");	/* Set up the command name argument */
+	*ptr++ = '\0';			/* add the NUL separator */
+	*ptr++ = (enable) ? '1' : '0';	/* enable or disable taf */
+	*ptr++ = '\0';			/* add the NUL separator */
+	*ptr = '\0';			/* and another NUL to terminate the argument list */
+
+	WL_IOCTL(name, WLC_SET_VAR, iobuf, sizeof(iobuf));
+
+#if defined(__CONFIG_TOAD__)
+
+	/* Update the "toad_ifnames" nvram variable by adding or removing the interface name */
+
+	ptr = nvram_get(toad_ifnames);
+
+	if (!ptr && enable) {		/* Creating nvram with the first ifname */
+
+		nvram_set(toad_ifnames, name);
+
+	} else if (ptr && enable) {	/* Possibly need to add a new ifname */
+
+		if (!strstr(ptr, name)) {
+			char *tmp;
+
+			tmp = malloc(strlen(ptr) + sizeof(" ") + strlen(name));
+
+			if (tmp) {
+				sprintf(tmp, "%s %s", ptr, name);
+				nvram_set(toad_ifnames, tmp);
+				free(tmp);
+			}
+		}
+
+	} else if (ptr && !enable) {	/* Possibly need to remove an existing ifname */
+
+		if (strstr(ptr, name)) {
+			int tlen;
+
+			tlen = strlen(ptr) - strlen(name);
+			if (tlen == 0) {
+				nvram_unset(toad_ifnames);
+			} else {
+				char *tmp;
+				tmp = malloc(tlen + sizeof(""));
+				if (tmp) {
+					char ifname[VIFNAME_LEN];
+					char *next;
+					char *cp;
+
+					memset(tmp, 0, tlen + sizeof(""));
+					cp = tmp;
+
+					foreach(ifname, ptr, next) {
+						if (strcmp(ifname, name) != 0) {
+							cp += sprintf(cp, "%s%s",
+								(cp == tmp) ? "":" ", name);
+						}
+					}
+					nvram_set(toad_ifnames, tmp);
+					free(tmp);
+				}
+			}
+		}
+	} /* otherwise this must be (!ptr && !enable), no action needed here. */
+
+#endif /* __CONFIG_TOAD__ */
+
+}
+
+
+
 
 /* configure the specified wireless interface */
 int
 wlconf(char *name)
 {
+
 	int restore_defaults, val, unit, phytype, bandtype, gmode = 0, ret = 0;
 	int buflen;
 	uint32 *val_ptr; /* required for iovars */
@@ -1039,7 +1585,12 @@ wlconf(char *name)
 	int max_assoc = -1;
 	bool ure_enab = FALSE;
 	bool radar_enab = FALSE;
+	chanspec_t chanspec = 0;
 	bool obss_coex = FALSE;
+	int wet_tunnel_cap = 0, wet_tunnel_enable = 0;
+	brcm_prop_ie_t brcm_syscap_ie;
+	int is_dhd = 0;
+	int cfg_max_assoc = -1;
 
 	/* wlconf doesn't work for virtual i/f, so if we are given a
 	 * virtual i/f return 0 if that interface is in it's parent's "vifs"
@@ -1068,6 +1619,24 @@ cprintf("get ifname unit\n");
 
 	/* clean up tmp */
 	memset(tmp, 0, sizeof(tmp));
+
+
+cprintf("wl probe\n");
+	/* Check interface (fail silently for non-wl interfaces) */
+	if ((ret = wl_probe(name)))
+		return ret;
+
+#ifdef __CONFIG_DHDAP__
+	/* Check if interface uses dhd adapter */
+	is_dhd = !dhd_probe(name);
+#endif /* __CONFIG_DHDAP__ */
+
+	/* Bring up the interface temporarily before issuing iovars. */
+	/* This will ensure all the cores are fully initialized */
+	if (is_dhd)
+		WL_IOCTL(name, WLC_UP, NULL, 0);
+
+
 
 	/* because of ifdefs in wl driver,  when we don't have AP capabilities we
 	 * can't use the same iovars to configure the wl.
@@ -1103,16 +1672,14 @@ cprintf("get caps\n");
 			rxchain_pwrsave = 1;
 		else if (!strcmp(cap, "radio_pwrsave"))
 			radio_pwrsave = 1;
+		else if (!strcmp(cap, "wet_tunnel"))
+			wet_tunnel_cap = 1;
 	}
-cprintf("wl probe\n");
-	/* Check interface (fail silently for non-wl interfaces) */
-	if ((ret = wl_probe(name)))
-		return ret;
-
 cprintf("get wl addr\n");
 	/* Get MAC address */
 	(void) wl_hwaddr(name, (uchar *)buf);
 	memcpy(vif_addr, buf, ETHER_ADDR_LEN);
+cprintf("get wl addr %s\n",ether_etoa((uchar *)vif_addr, eaddr));
 	/* Get instance */
 cprintf("get instance\n");
 	WL_IOCTL(name, WLC_GET_INSTANCE, &unit, sizeof(unit));
@@ -1137,10 +1704,20 @@ cprintf("get instance\n");
 	snprintf(buf, sizeof(buf), "%d", unit);
 	nvram_set(strcat_r(prefix, "unit", tmp), buf);
 
-
 cprintf("shut down %s\n",name);
+	
+	int wds_num = 1;
+	int wds_enabled = 0;
+	char wds_var[32];
+	for(wds_num = 1; wds_num <= 10; wds_num++){
+		snprintf(wds_var, sizeof(wds_var), "wl%d_wds%d_enable", unit, wds_num);
+		if( atoi(nvram_default_get(wds_var,"0")) != 0 )
+			wds_enabled = 1;
+	}
+	
 	/* Bring the interface down */
-	WL_IOCTL(name, WLC_DOWN, NULL, sizeof(val));
+	if (!wds_enabled) //workaround for driver hang in SDK7 when wds is enabled ticket #4073
+		WL_IOCTL(name, WLC_DOWN, NULL, 0);
 
 cprintf("disable bss %s\n",name);
 	/* Disable all BSS Configs */
@@ -1148,8 +1725,15 @@ cprintf("disable bss %s\n",name);
 		struct {int bsscfg_idx; int enable;} setbuf;
 		setbuf.bsscfg_idx = i;
 		setbuf.enable = 0;
-
+#ifdef __CONFIG_DHDAP__
+		if (is_dhd) {
+			ret = dhd_bssiovar_setint(name, "bss", setbuf.bsscfg_idx, setbuf.enable);
+		}else{
+#endif
 		ret = wl_iovar_set(name, "bss", &setbuf, sizeof(setbuf));
+#ifdef __CONFIG_DHDAP__
+		}
+#endif
 		if (ret) {
 			wl_iovar_getint(name, "bcmerror", &bcmerr);
 			/* fail quietly on a range error since the driver may
@@ -1193,7 +1777,7 @@ cprintf("disable bss %s\n",name);
 	if (wet && apsta) { /* URE is enabled */
 		ure_enab = TRUE;
 	}
-cprintf("set mssid flags %s\n",name);
+
 	if (wl_ap_build) {
 		/* Enable MSSID mode if appropriate */
 		WL_IOVAR_SETINT(name, "mssid", (bclist->count > 1));
@@ -1218,41 +1802,40 @@ cprintf("set mssid flags %s\n",name);
 			WL_BSSIOVAR_SET(name, "ssid", bsscfg->idx, &ssid, sizeof(ssid));
 		}
 	}
-#define MBSS_UC_IDX_MASK		(4 - 1)
 
-cprintf("set local addr %s\n",name);
-//fprintf(stderr, "set local addr %s\n",name);
+	fprintf(stderr,"base addr %s\n",ether_etoa((uchar *)vif_addr, eaddr));
 	if (!ure_enab) {
 		/* set local bit for our MBSS vif base */
-		if (mbsscap)
-		    ETHER_SET_LOCALADDR(vif_addr);
-		char newmac[32];
-		memcpy(newmac,vif_addr,sizeof(vif_addr));
+		ETHER_SET_LOCALADDR(vif_addr);
+		fprintf(stderr,"local bit addr %s\n",ether_etoa((uchar *)vif_addr, eaddr));
+
 		/* construct and set other wlX.Y_hwaddr */
-		for (i = 1; i < 4; i++) {
+		for (i = 1; i < bclist->count; i++) {
 			snprintf(tmp, sizeof(tmp), "wl%d.%d_hwaddr", unit, i);
 			addr = nvram_safe_get(tmp);
-				if (mbsscap)
-				    vif_addr[5] = (newmac[5] & ~MBSS_UC_IDX_MASK) | (MBSS_UC_IDX_MASK & (newmac[5]+i));
+			if (!strcmp(addr, "")) {
+				vif_addr[5] = (vif_addr[5] & ~(max_no_vifs-i)) | ((max_no_vifs-i) & (vif_addr[5]+i));
+				fprintf(stderr,"set new addr %s\n",ether_etoa((uchar *)vif_addr, eaddr));
+				nvram_set(tmp, ether_etoa((uchar *)vif_addr, eaddr));
+			}
+		}
 
-				nvram_set(tmp, ether_etoa((uchar *)vif_addr,
-				                          eaddr));
+		for (i = 0; i < bclist->count; i++) {
+			bsscfg = &bclist->bsscfgs[i];
+			/* Ignore primary */
+			if (bsscfg->idx == 0)
+				continue;
+
+			snprintf(tmp, sizeof(tmp), "wl%d.%d_hwaddr", unit, bsscfg->idx);
+			ether_atoe(nvram_safe_get(tmp), (unsigned char *)eaddr);
+			WL_BSSIOVAR_SET(name, "cur_etheraddr", bsscfg->idx, eaddr, ETHER_ADDR_LEN);
 		}
-		/* The addresses are available in NVRAM, so set them */
-		for (i = 1; i < 4; i++) {
-				snprintf(tmp, sizeof(tmp), "wl%d.%d_hwaddr",
-				         unit, i);
-				ether_atoe(nvram_safe_get(tmp), eaddr);
-				snprintf(tmp, sizeof(tmp), "wl%d.%d",
-				         unit, i);
-				WL_BSSIOVAR_SET(tmp, "cur_etheraddr", i,
-				                eaddr, ETHER_ADDR_LEN);
-		}
-	} else { /* URE is enabled */
-		/* URE is on, so set wlX.1 hwaddr is same as that of primary interface */
+	} else { /* One of URE or Proxy STA Repeater is enabled */
+		/* URE/PSR is on, so set wlX.1 hwaddr is same as that of primary interface */
 		snprintf(tmp, sizeof(tmp), "wl%d.1_hwaddr", unit);
 		WL_BSSIOVAR_SET(name, "cur_etheraddr", 1, vif_addr,
 		                ETHER_ADDR_LEN);
+		nvram_set(tmp, ether_etoa((uchar *)vif_addr, eaddr));
 	}
 
 
@@ -1269,15 +1852,20 @@ cprintf("set apsta flag %s\n",name);
 	/* Set mode: WET */
 cprintf("set wet flag %s\n",name);
 //fprintf(stderr, "set wet flag %s\n",name);
-	if (wet)
-		WL_IOCTL(name, WLC_SET_WET, &wet, sizeof(wet));
+#ifdef __CONFIG_DHDAP__ 
+	if (is_dhd) {
+		dhd_iovar_setint(name, "wet", wet);
+	} else
+#endif
+	WL_IOCTL(name, WLC_SET_WET, &wet, sizeof(wet));
 
 cprintf("set spoof flag %s\n",name);
 //fprintf(stderr, "set spoof flag %s\n",name);
 	if (mac_spoof) {
 		sta = 1;
 		WL_IOVAR_SETINT(name, "mac_spoof", 1);
-	}
+	}else
+		WL_IOVAR_SETINT(name, "mac_spoof", 0);
 
 	/* For STA configurations, configure association retry time.
 	 * Use specified time (capped), or mode-specific defaults.
@@ -1313,8 +1901,29 @@ cprintf("set maxassoc flag %s\n",name);
 //fprintf(stderr, "set maxassoc flag %s\n",name);
 	/* Set The AP MAX Associations Limit */
 	if (ap | apsta) {
+#ifdef __CONFIG_DHDAP__
+		/* check if we have driver maxassoc tuneable value */
+		cfg_max_assoc = atoi(nvram_safe_get(strcat_r(prefix, "cfg_maxassoc", tmp)));
+		if (cfg_max_assoc <= 0) {
+			WL_IOVAR_GETINT(name, "maxassoc", &cfg_max_assoc);
+			/* save to nvram */
+			snprintf(var, sizeof(var), "%d", cfg_max_assoc);
+			nvram_set(tmp, var);
+		}
+#endif
+
 		max_assoc = val = atoi(nvram_safe_get(strcat_r(prefix, "maxassoc", tmp)));
 		if (val > 0) {
+#ifdef __CONFIG_DHDAP__
+			/* fix for max_assoc value greater than 32 for DHD */
+//			if ((val > DHD_MAX_ASSOC_VAL) && is_dhd) {
+//			    val = DHD_MAX_ASSOC_VAL;
+			if ((val > cfg_max_assoc) && is_dhd) {
+			    val = cfg_max_assoc;
+			    snprintf(var, sizeof(var), "%d", val);
+			    nvram_set(tmp, var);
+			}
+#endif
 			WL_IOVAR_SETINT(name, "maxassoc", val);
 		} else { /* Get value from driver if not in nvram */
 			WL_IOVAR_GETINT(name, "maxassoc", &max_assoc);
@@ -1322,6 +1931,15 @@ cprintf("set maxassoc flag %s\n",name);
 	}
 cprintf("set bsscfg %s\n",name);
 //fprintf(stderr, "set bsscfg %s\n",name);
+	/* Turn WET tunnel mode ON or OFF */
+	if ((ap || apsta) && (wet_tunnel_cap)) {
+		if (atoi(nvram_safe_get(strcat_r(prefix, "wet_tunnel", tmp))) == 1) {
+			WL_IOVAR_SETINT(name, "wet_tunnel", 1);
+			wet_tunnel_enable = 1;
+		} else {
+			WL_IOVAR_SETINT(name, "wet_tunnel", 0);
+		}
+	}
 
 	for (i = 0; i < bclist->count; i++) {
 		char *subprefix;
@@ -1347,12 +1965,32 @@ cprintf("set bsscfg %s\n",name);
 			wlconf_set_preauth(name, bsscfg->idx, set_preauth);
 		}
 #endif /* BCMWPA2 */
+		/* Clear BRCM System level Capability IE */
+		memset(&brcm_syscap_ie, 0, sizeof(brcm_prop_ie_t));
+		brcm_syscap_ie.type = BRCM_SYSCAP_IE_TYPE;
+
+		/* Add WET TUNNEL to IE */
+		if (wet_tunnel_enable) {
+			brcm_syscap_ie.cap |= BRCM_SYSCAP_WET_TUNNEL;
+			fprintf(stderr,"enable wet tunnel\n");
+		}
 
 		subprefix = apsta ? prefix : bsscfg->prefix;
 
 		if (ap || (apsta && bsscfg->idx != 0)) {
 			val = atoi(nvram_safe_get(strcat_r(bsscfg->prefix, "bss_maxassoc", tmp)));
 			if (val > 0) {
+#ifdef __CONFIG_DHDAP__
+				/* fix for val greater than 32 for DHD */
+//				if (is_dhd && (val > DHD_BSS_MAXASSOC_VAL)) {
+//					val = DHD_BSS_MAXASSOC_VAL;
+				if (is_dhd && (val > cfg_max_assoc)) {
+					val = cfg_max_assoc;
+					/* rewrite the nvram contents */
+					snprintf(var, sizeof(var), "%d", val);
+					nvram_set(tmp, var);
+				}
+#endif
 				WL_BSSIOVAR_SETINT(name, "bss_maxassoc", bsscfg->idx, val);
 			} else if (max_assoc > 0) { /* Set maxassoc same as global if not set */
 				snprintf(var, sizeof(var), "%d", max_assoc);
@@ -1366,25 +2004,58 @@ cprintf("set bsscfg %s\n",name);
 
 		/* Set the ap isolate mode */
 		val = atoi(nvram_default_get(strcat_r(subprefix, "ap_isolate", tmp),"0"));
+#ifdef __CONFIG_DHDAP__
+		if (is_dhd) {
+		DHD_BSSIOVAR_SETINT(name, "ap_isolate", bsscfg->idx, val);
+		} else
+#endif /* __CONFIG_DHDAP__ */
 		WL_BSSIOVAR_SETINT(name, "ap_isolate", bsscfg->idx, val);
 
 		/* Set the WMF enable mode */
-		if (wmf) {
+		if (wmf ||
+#ifdef __CONFIG_DHDAP__
+			is_dhd ||
+#endif
+		    0) {
+#ifdef __CONFIG_DHDAP__
+			if (is_dhd) {
+				val = atoi(nvram_safe_get(strcat_r(bsscfg->prefix,
+						"wmf_bss_enable", tmp)));
+				DHD_BSSIOVAR_SETINT(name, "wmf_bss_enable", bsscfg->idx, val);
+
+				val = atoi(nvram_safe_get(strcat_r(bsscfg->prefix,
+						"wmf_psta_disable", tmp)));
+				DHD_BSSIOVAR_SETINT(name, "wmf_psta_disable", bsscfg->idx, val);
+
+			} else {
+#endif /* __CONFIG_DHDAP__ */
 			val = atoi(nvram_safe_get(strcat_r(bsscfg->prefix, "wmf_bss_enable", tmp)));
 			WL_BSSIOVAR_SETINT(name, "wmf_bss_enable", bsscfg->idx, val);
 
 			val = atoi(nvram_safe_get(strcat_r(bsscfg->prefix,
 				"wmf_psta_disable", tmp)));
 			WL_BSSIOVAR_SETINT(name, "wmf_psta_disable", bsscfg->idx, val);
+#ifdef __CONFIG_DHDAP__
+			}
+#endif /* __CONFIG_DHDAP__ */
 		}
-
+		
 		if (wet) {
 			val = atoi(nvram_safe_get(strcat_r(bsscfg->prefix,
-							 "mcast_regen_bss_enable", tmp)));
-			WL_BSSIOVAR_SETINT(name, "mcast_regen_bss_enable", bsscfg->idx, val);
+					"mcast_regen_bss_enable", tmp)));
+#ifdef __CONFIG_DHDAP__
+			if (is_dhd) {
+				DHD_BSSIOVAR_SETINT(name, "mcast_regen_bss_enable",
+					bsscfg->idx, val);
+			} else {
+#endif /* __CONFIG_DHDAP__ */
+				WL_BSSIOVAR_SETINT(name, "mcast_regen_bss_enable",
+					bsscfg->idx, val);
+#ifdef __CONFIG_DHDAP__
+			}
+#endif /* __CONFIG_DHDAP__ */
 		}
 
-	}
 cprintf("set rxchain pwrsave %s\n",name);
 //fprintf(stderr, "set rxchain pwrsave %s\n",name);
 
@@ -1428,7 +2099,18 @@ cprintf("set radio pwrsave %s\n",name);
 			val);
 	}
 
+		val = atoi(nvram_safe_get(strcat_r(bsscfg->prefix, "aspm", tmp)));
+		WL_BSSIOVAR_SETINT(name, "aspm", bsscfg->idx, val);
 
+		/* Configure SYSCAP IE to driver */
+		if (brcm_syscap_ie.cap)  {
+			wlconf_set_brcm_syscap_ie(name, bsscfg->idx,
+				BRCM_PROP_OUI, (uchar *)&(brcm_syscap_ie.type),
+				sizeof(brcm_syscap_ie.type) +
+				sizeof(brcm_syscap_ie.cap));
+		}
+
+}
 cprintf("get phy type %s\n",name);
 //fprintf(stderr, "get phy type %s\n",name);
 	/* Get current phy type */
@@ -1467,17 +2149,23 @@ cprintf("get phy type %s\n",name);
 cprintf("set reg mode %s\n",name);
 //fprintf(stderr, "set reg mode %s\n",name);
 	/* Setup regulatory mode */
-	strcat_r(prefix, "reg_mode", tmp);
+	strcpy(tmp,"wl_reg_mode");
+//	strcat_r(prefix, "reg_mode", tmp);
 	if (nvram_default_match(tmp, "off","off"))  {
 		val = 0;
 		WL_IOCTL(name, WLC_SET_REGULATORY, &val, sizeof(val));
 		WL_IOCTL(name, WLC_SET_RADAR, &val, sizeof(val));
 		WL_IOCTL(name, WLC_SET_SPECT_MANAGMENT, &val, sizeof(val));
-	} else if (nvram_match(tmp, "h")) {
+	} else if (nvram_match(tmp, "h") || nvram_match(tmp, "strict_h")) {
 		val = 0;
 		WL_IOCTL(name, WLC_SET_REGULATORY, &val, sizeof(val));
 		val = 1;
 		WL_IOCTL(name, WLC_SET_RADAR, &val, sizeof(val));
+		radar_enab = TRUE;
+		if (nvram_match(tmp, "h"))
+			val = 1;
+		else
+			val = 2;
 		WL_IOCTL(name, WLC_SET_SPECT_MANAGMENT, &val, sizeof(val));
 
 		/* Set the CAC parameters */
@@ -1485,7 +2173,9 @@ cprintf("set reg mode %s\n",name);
 		wl_iovar_setint(name, "dfs_preism", val);
 		val = atoi(nvram_safe_get(strcat_r(prefix, "dfs_postism", tmp)));
 		wl_iovar_setint(name, "dfs_postism", val);
-		val = atoi(nvram_safe_get(strcat_r(prefix, "tpc_db", tmp)));
+	
+//		val = atoi(nvram_safe_get(strcat_r(prefix, "tpc_db", tmp)));
+		val = atoi(nvram_safe_get("wl_tpc_db"));
 		WL_IOCTL(name, WLC_SEND_PWR_CONSTRAINT, &val, sizeof(val));
 
 	} else if (nvram_match(tmp, "d")) {
@@ -1587,8 +2277,10 @@ cprintf("set nband %s\n",name);
 		    str = "2";
 		if (str && !strcmp(str,"0") && strstr(nvram_safe_get(strcat_r(prefix,"bandlist",tmp)),"a"))
 		    str = "1";
-		if (str)
+		if (str) {
 			val = atoi(str);
+			nvram_set(strcat_r(prefix, "nband", tmp), str);
+		}
 		else {
 			WL_GETINT(name, WLC_GET_BAND, &val);
 		}
@@ -1614,6 +2306,7 @@ cprintf("get core rev %s\n",name);
 	snprintf(buf, sizeof(buf), "%d", rev.corerev);
 	nvram_set(strcat_r(prefix, "corerev", tmp), buf);
 
+	/* this does not work for newer AC radios if in nmode (ac does not support GF, but nmode does). blame broadcom for this */
 	if ((rev.chipnum == BCM4716_CHIP_ID) || (rev.chipnum == BCM47162_CHIP_ID) ||
 		(rev.chipnum == BCM4748_CHIP_ID) || (rev.chipnum == BCM4331_CHIP_ID) ||
  		(rev.chipnum == BCM43431_CHIP_ID) || (rev.chipnum == BCM5357_CHIP_ID) ||
@@ -1621,10 +2314,12 @@ cprintf("get core rev %s\n",name);
 		int pam_mode = WLC_N_PREAMBLE_GF_BRCM; /* default GF-BRCM */
 
 		strcat_r(prefix, "mimo_preamble", tmp);
-		if (nvram_match(tmp, "mm"))
+		if (nvram_default_match(tmp, "mm", "mm"))
 			pam_mode = WLC_N_PREAMBLE_MIXEDMODE;
 		else if (nvram_match(tmp, "gf"))
 			pam_mode = WLC_N_PREAMBLE_GF;
+		else if (nvram_match(tmp, "gfbrcm"))
+			pam_mode = WLC_N_PREAMBLE_GF_BRCM;
 		else if (nvram_match(tmp, "auto"))
 			pam_mode = -1;
 		WL_IOVAR_SETINT(name, "mimo_preamble", pam_mode);
@@ -1679,7 +2374,6 @@ cprintf("set channel %s\n",name);
 			nvram_set(strcat_r(prefix, "channel", tmp), buf);
 		}
 	} else if (val && WLCONF_PHYTYPE_11N(phytype)) {
-		chanspec_t chanspec = 0;
 		uint channel;
 		uint nctrlsb = 0;
 		nmode = AUTO;	/* enable by default for NPHY */
@@ -1845,17 +2539,47 @@ cprintf("set n prot mode %s\n",name);
 	if (WLCONF_PHYTYPE_11N(phytype)) {
 		int override = WLC_PROTECTION_OFF;
 		int control = WLC_PROTECTION_CTL_OFF;
-
 		/* Set n protection override and control algorithm */
 		str = nvram_get(strcat_r(prefix, "nmode_protection", tmp));
 		if (!str || !strcmp(str, "auto")) {
 			override = WLC_PROTECTION_AUTO;
+			control = WLC_PROTECTION_CTL_OVERLAP;
+		}else
+		if (!strcmp(tmp, "on")) {
+			override = WLC_PROTECTION_ON;
+			control = WLC_PROTECTION_CTL_OVERLAP;
+		}else
+		if (!strcmp(tmp, "off")) {
+			override = WLC_PROTECTION_OFF;
+			control = WLC_PROTECTION_CTL_OVERLAP;
+		}else
+		if (!strcmp(tmp, "cts")) {
+			override = WLC_PROTECTION_CTS_ONLY;
+			control = WLC_PROTECTION_CTL_OVERLAP;
+		}else
+		if (!strcmp(tmp, "mmhdr")) {
+			override = WLC_PROTECTION_MMHDR_ONLY;
 			control = WLC_PROTECTION_CTL_OVERLAP;
 		}
 
 		WL_IOVAR_SETINT(name, "nmode_protection_override",
 		                (uint32)override);
 		WL_IOCTL(name, WLC_SET_PROTECTION_CONTROL, &control, sizeof(control));
+
+
+		str = nvram_get(strcat_r(prefix, "gf_protection", tmp));
+		if (!str || !strcmp(str, "auto")) {
+			override = WLC_PROTECTION_AUTO;
+		}else
+		if (!strcmp(tmp, "on")) {
+			override = WLC_PROTECTION_ON;
+		}else
+		if (!strcmp(tmp, "off")) {
+			override = WLC_PROTECTION_OFF;
+		}
+		WL_IOVAR_SETINT(name, "gf_protection_override",
+		                (uint32)override);
+
 	}
 
 	/* Set WME mode */
@@ -1906,6 +2630,10 @@ cprintf("set wme %s\n",name);
 		    val = atoi(str);
 		}
 		WL_BSSIOVAR_SETINT(name, "mode_reqd", bsscfg->idx, val);
+		val = atoi(nvram_safe_get(strcat_r(bsscfg->prefix, "bsscfg_class", tmp)));
+		if (val > 0) {
+			WL_BSSIOVAR_SETINT(name, "bsscfg_class", bsscfg->idx, val);
+		}
 	}
 
 
@@ -1978,7 +2706,6 @@ cprintf("get caps %s\n",name);
 		if (valid_option)
 			wl_iovar_setint(name, var, val);
 	}
-
 	/* Get current rateset (gmode may have changed) */
 	WL_IOCTL(name, WLC_GET_CURR_RATESET, &rs, sizeof(wl_rateset_t));
 
@@ -2126,6 +2853,18 @@ cprintf("set frag tres %s\n",name);
 	val = atoi(nvram_default_get(strcat_r(prefix, "bcn", tmp),"100"));
 	WL_IOCTL(name, WLC_SET_BCNPRD, &val, sizeof(val));
 
+	/* Set obss dyn bw switch only for 5g */
+	val = atoi(nvram_safe_get(strcat_r(prefix, "obss_dyn_bw", tmp)));
+	if ((bandtype == WLC_BAND_5G) && (val == 1 || val == 2)) {
+		/*  val = 1 means dynamic bwsw is based on rxcrs stats
+		*    val = 2 means dynamic bwsw is based on txop stats
+		*/
+		WL_IOVAR_SETINT(name, "obss_dyn_bw", val);
+	}
+	else {
+		WL_IOVAR_SETINT(name, "obss_dyn_bw", 0);
+	}
+
 	/* Set beacon rotation */
 	str = nvram_get(strcat_r(prefix, "bcn_rotate", tmp));
 	if (!str) {
@@ -2141,6 +2880,13 @@ cprintf("set frag tres %s\n",name);
 	else
 		val = nvram_match(strcat_r(prefix, "frameburst", tmp), "on");
 	WL_IOCTL(name, WLC_SET_FAKEFRAG, &val, sizeof(val));
+
+	/* Set dynamic frameburst max station limit */
+	str = nvram_get(strcat_r(prefix, "frameburst_dyn_max_stations", tmp));
+	if (!str) { /* Fall back to previous name, frameburst_dyn */
+		str = nvram_default_get("frameburst_dyn","0");
+	}
+	wl_iovar_setint(name, "frameburst_dyn_max_stations", atoi(str));
 
 	/* Enable or disable PLC failover */
 	val = atoi(nvram_safe_get(strcat_r(prefix, "plc", tmp)));
@@ -2186,6 +2932,8 @@ cprintf("set wds %s\n",name);
 		} else if (!strcmp(nvram_str, "off")) {
 			WL_IOVAR_SETINT(name, "stbc_tx", OFF);
 		}
+		val = atoi(nvram_safe_get(strcat_r(prefix, "stbc_rx", tmp)));
+		WL_IOVAR_SETINT(name, "stbc_rx", val);
 	}
 
 	/* Set RIFS mode based on framebursting */
@@ -2212,14 +2960,17 @@ cprintf("set ba mode %s\n",name);
 	else if (!strcmp(ba, "off"))
 		wl_iovar_setint(name, "ba", OFF);
 
+cprintf("%d\n",__LINE__);
 	if (WLCONF_PHYTYPE_11N(phytype)) {
 		val = AVG_DMA_XFER_RATE;
 		wl_iovar_set(name, "avg_dma_xfer_rate", &val, sizeof(val));
 	}
+cprintf("%d\n",__LINE__);
 
 	/* Set up TxBF */
 	wlconf_set_txbf(name, prefix);
 
+cprintf("%d\n",__LINE__);
 
 	/* set airtime fairness */
 	val = 0;
@@ -2228,6 +2979,7 @@ cprintf("set ba mode %s\n",name);
 		val = atoi(str);
 	}
 	WL_IOVAR_SETINT(name, "atf", val);
+cprintf("%d\n",__LINE__);
 
 	str = nvram_get(strcat_r(prefix, "ampdu_atf_us", tmp));
 	if (str) {
@@ -2237,6 +2989,7 @@ cprintf("set ba mode %s\n",name);
 			WL_IOVAR_SETINT(name, "nar_atf_us", val);
 		}
 	}
+cprintf("%d\n",__LINE__);
 
 
 	/* set TAF */
@@ -2245,7 +2998,8 @@ cprintf("set ba mode %s\n",name);
 	if (str && (bandtype == WLC_BAND_5G)) {
 		val = atoi(str);
 	}
-	WL_IOVAR_SETINT(name, "taf", val);
+	wlconf_set_taf(name, val);
+cprintf("%d\n",__LINE__);
 
 	val = 0;
 	str = nvram_get(strcat_r(prefix, "taf_rule", tmp));
@@ -2254,6 +3008,24 @@ cprintf("set ba mode %s\n",name);
 		WL_IOVAR_SETINT(name, "taf_rule", val);
 	}
 
+#ifdef __CONFIG_DHDAP__
+	if (is_dhd) {
+		val = atoi(nvram_safe_get(strcat_r(prefix, "scb_alloc", tmp)));
+		if (val > 0) {
+			WL_IOVAR_SETINT(name, "scb_alloc", val);
+		}
+
+		val = atoi(nvram_safe_get(strcat_r(prefix, "scb_alloc_class", tmp)));
+		if (val > 0) {
+			WL_IOVAR_SETINT(name, "scb_alloc_class", val);
+		}
+
+		val = atoi(nvram_safe_get(strcat_r(prefix, "scb_alloc_min_mem", tmp)));
+		if (val > 0) {
+			WL_IOVAR_SETINT(name, "scb_alloc_min_mem", val);
+		}
+	}
+#endif /* __CONFIG_DHDAP__ */
 
 cprintf("set up %s\n",name);
 	/* Bring the interface back up */
@@ -2272,7 +3044,63 @@ cprintf("set antdiv mode %s\n",name);
 	val = atoi(nvram_default_get(strcat_r(prefix, "antdiv", tmp),"3"));
 	WL_IOCTL(name, WLC_SET_ANTDIV, &val, sizeof(val));
 
+	/* Set antenna selection */
+	wlconf_set_antsel(name, prefix);
 
+	/* Set radar parameters if it is enabled */
+	if (radar_enab) {
+		wlconf_set_radarthrs(name, prefix);
+	}
+
+
+	/* set pspretend */
+	val = 0;
+	if (ap) {
+		bool set_psp;
+		/* Set pspretend for multi-ssid bss */
+		for (i = 0; i < bclist->count; i++) {
+			set_psp = FALSE;
+			bsscfg = &bclist->bsscfgs[i];
+			str = nvram_safe_get(strcat_r(bsscfg->prefix,
+				"pspretend_retry_limit", tmp));
+			if (str && *str != '\0') {
+				val = atoi(str);
+				set_psp = TRUE;
+			} else if (BCM4365_CHIP(rev.chipnum)) {
+				/* For 4365/4366 Enable PSP by default if
+				 *  not explicitly present in nvram
+				 */
+				val = PSPRETEND_DEFAULT_THRESHOLD;
+				set_psp = TRUE;
+			}
+
+			if (set_psp) {
+				WL_BSSIOVAR_SETINT(name, "pspretend_retry_limit", bsscfg->idx, val);
+			}
+		}
+
+		/* now set it for primary bss */
+		val = 0;
+		str = nvram_get(strcat_r(prefix, "pspretend_retry_limit", tmp));
+		if (str && *str != '\0') {
+ 			val = atoi(str);
+		} else if (BCM4365_CHIP(rev.chipnum)) {
+			/* For 4365/4366 Enable PSP by default if
+			 * not explicitly present in nvram
+			 */
+			val = PSPRETEND_DEFAULT_THRESHOLD;
+ 		}
+	}
+	WL_IOVAR_SETINT(name, "pspretend_retry_limit", val);
+
+	val = 0;
+	if (ap) {
+		str = nvram_get(strcat_r(prefix, "pspretend_threshold", tmp));
+		if (str) {
+			val = atoi(str);
+		}
+	}
+	WL_IOVAR_SETINT(name, "pspretend_threshold", val);
 
 	/* Set channel interference threshold value if it is enabled */
 	str = nvram_get(strcat_r(prefix, "glitchthres", tmp));
@@ -2314,7 +3142,7 @@ cprintf("set obss_coex %s\n",name);
 			str = nvram_safe_get(strcat_r(prefix, "obss_coex", tmp));
 			if (!str) {
 				/* No nvram variable found, use the default */
-				str = nvram_default_get(strcat_r(prefix, "obss_coex", tmp),"0");
+				str = nvram_default_get(strcat_r(prefix, "obss_coex", tmp), "0");
 			}
 			obss_coex = atoi(str);
 		} else {
@@ -2338,22 +3166,31 @@ cprintf("set obss_coex %s\n",name);
 	 */
 cprintf("set auto channel selection %s\n",name);
 	if (ap || apsta) {
-//		if(!strcmp(name, "eth1"))
-//			val = 6;
-//		else
-//			val = 52;
-		if(1 == 0) {
-		//if (!(val = atoi(nvram_default_get(strcat_r(prefix, "channel", tmp),"0")))) {
+		int channel = chanspec ? wf_chspec_ctlchan(chanspec) : 0;
+		if (obss_coex || channel == 0) {
 			if (WLCONF_PHYTYPE_11N(phytype)) {
-cprintf("set auto channel 01 tmp: %s %s\n", name, prefix);
-				chanspec_t chanspec = wlconf_auto_chanspec(name,prefix);
+				chanspec_t chanspec;
+				int pref_chspec;
+
+				if (channel != 0) {
+					/* assumes that initial chanspec has been set earlier */
+					/* Maybe we expand scope of chanspec from above so
+					 * that we don't have to do the iovar_get here?
+					 */
+
+					/* We're not doing auto-channel, give the driver
+					 * the preferred chanspec.
+					 */
+					WL_IOVAR_GETINT(name, "chanspec", &pref_chspec);
+					WL_IOVAR_SETINT(name, "pref_chanspec", pref_chspec);
+				} else {
+					WL_IOVAR_SETINT(name, "pref_chanspec", 0);
+				}
+
+				chanspec = wlconf_auto_chanspec(name);
 				if (chanspec != 0)
-					{
-//					fprintf(stderr,"auto chanspec %X\n",chanspec);
 					WL_IOVAR_SETINT(name, "chanspec", chanspec);
-					}
-			}
-			else {
+			} else {
 				/* select a channel */
 				val = wlconf_auto_channel(name);
 				/* switch to the selected channel */
@@ -2361,22 +3198,28 @@ cprintf("set auto channel 01 tmp: %s %s\n", name, prefix);
 					WL_IOCTL(name, WLC_SET_CHANNEL, &val, sizeof(val));
 			}
 			/* set the auto channel scan timer in the driver when in auto mode */
-			val = 15;	/* 15 minutes for now */
-			WL_IOCTL(name, WLC_SET_CS_SCAN_TIMER, &val, sizeof(val));
-		}
-		else {
+			if (channel == 0) {
+				val = 15;	/* 15 minutes for now */
+			} else {
+				val = 0;
+			}
+		} else {
 			/* reset the channel scan timer in the driver when not in auto mode */
 			val = 0;
-			WL_IOCTL(name, WLC_SET_CS_SCAN_TIMER, &val, sizeof(val));
 		}
+
+		WL_IOCTL(name, WLC_SET_CS_SCAN_TIMER, &val, sizeof(val));
+		WL_IOVAR_SETINT(name, "chanim_mode", CHANIM_ACT);
+
 	}
 
 	/* Security settings for each BSS Configuration */
 cprintf("set security settings %s\n",name);
 	for (i = 0; i < bclist->count; i++) {
 		bsscfg = &bclist->bsscfgs[i];
-		wlconf_security_options(name, bsscfg->prefix, bsscfg->idx, wet);
+		wlconf_security_options(name, bsscfg->prefix, bsscfg->idx, wet,is_dhd);
 	}
+cprintf("set enable bss %s\n",name);
 
 	/*
 	 * Finally enable BSS Configs or Join BSS
@@ -2385,7 +3228,6 @@ cprintf("set security settings %s\n",name);
 	 * STA: Join the BSS regardless.
 	 */
 	for (i = 0; i < bclist->count; i++) {
-	cprintf("enable bss %s %d\n",name,i);
 
 		struct {int bsscfg_idx; int enable;} setbuf;
 
@@ -2397,10 +3239,21 @@ cprintf("set security settings %s\n",name);
 		        nvram_default_match(strcat_r(bclist->bsscfgs[i].prefix, "auth_mode", tmp),
 		                    "radius","disabled");
 
-		if (((ap || apsta) && !nas_will_run) || sta || wet) {
+	fprintf(stderr,"enable bss %s %d (%d)\n",name,i,nas_will_run);
+		
+		if (((ap || apsta) && !nas_will_run) || sta || (wet && !apsta)) {
+		
 			for (ii = 0; ii < MAX_BSS_UP_RETRIES; ii++) {
 				if (wl_ap_build) {
+#ifdef __CONFIG_DHDAP__
+					if (is_dhd) {
+					DHD_BSSIOVAR_SETINT(name, "bss", setbuf.bsscfg_idx, setbuf.enable);
+					}else{
+#endif
 					WL_IOVAR_SET(name, "bss", &setbuf, sizeof(setbuf));
+#ifdef __CONFIG_DHDAP__
+					}
+#endif
 				}
 				{
 					strcat_r(prefix, "ssid", tmp);
@@ -2419,16 +3272,36 @@ cprintf("set security settings %s\n",name);
 		}
 	}
 
-	if (nvram_match(strcat_r(bsscfg->prefix, "wmf_bss_enable", tmp), "1")) {
-		val = atoi(nvram_safe_get(strcat_r(prefix, "wmf_ucigmp_query", tmp)));
-		wl_iovar_setint(name, "wmf_ucast_igmp_query", val);
-		val = atoi(nvram_safe_get(strcat_r(prefix, "wmf_mdata_sendup", tmp)));
-		wl_iovar_setint(name, "wmf_mcast_data_sendup", val);
-		val = atoi(nvram_safe_get(strcat_r(prefix, "wmf_ucast_upnp", tmp)));
-		wl_iovar_setint(name, "wmf_ucast_upnp", val);
-		val = atoi(nvram_safe_get(strcat_r(prefix, "wmf_igmpq_filter", tmp)));
-		wl_iovar_setint(name, "wmf_igmpq_filter", val);
+cprintf("set enable wmf %s\n",name);
+
+if (nvram_match(strcat_r(bsscfg->prefix, "wmf_bss_enable", tmp), "1")) {
+#ifdef __CONFIG_DHDAP__
+	if (is_dhd) {
+			val = atoi(nvram_safe_get(strcat_r(prefix, "wmf_ucigmp_query", tmp)));
+			(void)dhd_iovar_setint(name, "wmf_ucast_igmp_query", val);
+			val = atoi(nvram_safe_get(strcat_r(prefix, "wmf_mdata_sendup", tmp)));
+			(void)dhd_iovar_setint(name, "wmf_mcast_data_sendup", val);
+			val = atoi(nvram_safe_get(strcat_r(prefix, "wmf_ucast_upnp", tmp)));
+			(void)dhd_iovar_setint(name, "wmf_ucast_upnp", val);
+		
+	} else {
+#endif /* __CONFIG_DHDAP__ */
+	for (i = 0; i < bclist->count; i++) {
+			bsscfg = &bclist->bsscfgs[i];
+			strncpy(prefix, bsscfg->prefix, PREFIX_LEN - 1);
+			val = atoi(nvram_safe_get(strcat_r(prefix, "wmf_ucigmp_query", tmp)));
+			WL_BSSIOVAR_SETINT(name, "wmf_ucast_igmp_query", bsscfg->idx, val);
+			val = atoi(nvram_safe_get(strcat_r(prefix, "wmf_mdata_sendup", tmp)));
+			WL_BSSIOVAR_SETINT(name, "wmf_mcast_data_sendup", bsscfg->idx, val);
+			val = atoi(nvram_safe_get(strcat_r(prefix, "wmf_ucast_upnp", tmp)));
+			WL_BSSIOVAR_SETINT(name, "wmf_ucast_upnp", bsscfg->idx, val);
+			val = atoi(nvram_safe_get(strcat_r(prefix, "wmf_igmpq_filter", tmp)));
+			WL_BSSIOVAR_SETINT(name, "wmf_igmpq_filter", bsscfg->idx, val);
+ 	}		
+#ifdef __CONFIG_DHDAP__
 	}
+#endif
+    }
 
 	ret = 0;
 exit:
@@ -2453,6 +3326,7 @@ wlconf_down(char *name)
 	char caps[WLC_IOCTL_MEDLEN];
 	char *next;
 	wlc_ssid_t ssid;
+	int is_dhd = 0;
 
 	/* wlconf doesn't work for virtual i/f */
 	if (get_ifname_unit(name, NULL, &wlsubunit) == 0 && wlsubunit >= 0) {
@@ -2463,7 +3337,12 @@ wlconf_down(char *name)
 	/* Check interface (fail silently for non-wl interfaces) */
 	if ((ret = wl_probe(name)))
 		return ret;
-
+	
+#ifdef __CONFIG_DHDAP__
+	/* Check if interface uses dhd adapter */
+	is_dhd = !dhd_probe(name);
+#endif /* __CONFIG_DHDAP__ */
+	
 	/* because of ifdefs in wl driver,  when we don't have AP capabilities we
 	 * can't use the same iovars to configure the wl.
 	 * so we use "wl_ap_build" to help us know how to configure the driver
@@ -2479,14 +3358,21 @@ wlconf_down(char *name)
 
 	if (wl_ap_build) {
 		/* Bring down the interface */
-		WL_IOCTL(name, WLC_DOWN, NULL, sizeof(val));
+		WL_IOCTL(name, WLC_DOWN, NULL, 0);
 
 		/* Disable all BSS Configs */
 		for (i = 0; i < WL_MAXBSSCFG; i++) {
 			setbuf.bsscfg_idx = i;
 			setbuf.enable = 0;
-
-			ret = wl_iovar_set(name, "bss", &setbuf, sizeof(setbuf));
+#ifdef __CONFIG_DHDAP__
+			if (is_dhd) {
+				ret = dhd_bssiovar_setint(name, "bss", setbuf.bsscfg_idx, setbuf.enable);
+					}else{
+#endif
+				ret = wl_iovar_set(name, "bss", &setbuf, sizeof(setbuf));
+#ifdef __CONFIG_DHDAP__
+			}
+#endif
 			if (ret) {
 				wl_iovar_getint(name, "bcmerror", &bcmerr);
 				/* fail quietly on a range error since the driver may
@@ -2506,7 +3392,7 @@ wlconf_down(char *name)
 			WL_IOCTL(name, WLC_SET_SSID, &ssid, sizeof(ssid));
 
 			/* Bring down the interface */
-			WL_IOCTL(name, WLC_DOWN, NULL, sizeof(val));
+			WL_IOCTL(name, WLC_DOWN, NULL, 0);
 		}
 	}
 

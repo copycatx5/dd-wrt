@@ -5,7 +5,7 @@
  * libradius.h	Structures and prototypes
  *		for the radius library.
  *
- * Version:	$Id: 9afc841661317061136c2bb50cc3cadf8a696010 $
+ * Version:	$Id: b598f74ef948b65b60d116d2ed5c947372ef4b0e $
  *
  *   This library is free software; you can redistribute it and/or
  *   modify it under the terms of the GNU Lesser General Public
@@ -25,7 +25,7 @@
  */
 
 #include <freeradius-devel/ident.h>
-RCSIDH(libradius_h, "$Id: 9afc841661317061136c2bb50cc3cadf8a696010 $")
+RCSIDH(libradius_h, "$Id: b598f74ef948b65b60d116d2ed5c947372ef4b0e $")
 
 #include <freeradius-devel/missing.h>
 
@@ -36,6 +36,7 @@ RCSIDH(libradius_h, "$Id: 9afc841661317061136c2bb50cc3cadf8a696010 $")
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdarg.h>
+#include <signal.h>
 
 #include <freeradius-devel/threads.h>
 #include <freeradius-devel/radius.h>
@@ -68,6 +69,10 @@ RCSIDH(libradius_h, "$Id: 9afc841661317061136c2bb50cc3cadf8a696010 $")
 
 #ifdef __cplusplus
 extern "C" {
+#endif
+
+#ifndef HAVE_SIG_T
+typedef void (*sig_t)(int);
 #endif
 
 #define EAP_START               2
@@ -402,6 +407,8 @@ void		fr_printf_log(const char *, ...)
 /*
  *	Several handy miscellaneous functions.
  */
+int		fr_fault_setup(char const *cmd, char const *program);
+int		fr_set_signal(int sig, sig_t func);
 const char *	ip_ntoa(char *, uint32_t);
 char		*ifid_ntoa(char *buffer, size_t size, uint8_t *ifid);
 uint8_t		*ifid_aton(const char *ifid_str, uint8_t *ifid);

@@ -1,6 +1,6 @@
 /*
-** ZABBIX
-** Copyright (C) 2000-2005 SIA Zabbix
+** Zabbix
+** Copyright (C) 2001-2015 Zabbix SIA
 **
 ** This program is free software; you can redistribute it and/or modify
 ** it under the terms of the GNU General Public License as published by
@@ -22,20 +22,20 @@
 
 extern char	*CONFIG_HOSTNAME;
 
-static int	AGENT_HOSTNAME(const char *cmd, const char *param, unsigned flags, AGENT_RESULT *result);
-static int	AGENT_PING(const char *cmd, const char *param, unsigned flags, AGENT_RESULT *result);
-static int	AGENT_VERSION(const char *cmd, const char *param, unsigned flags, AGENT_RESULT *result);
+static int	AGENT_HOSTNAME(AGENT_REQUEST *request, AGENT_RESULT *result);
+static int	AGENT_PING(AGENT_REQUEST *request, AGENT_RESULT *result);
+static int	AGENT_VERSION(AGENT_REQUEST *request, AGENT_RESULT *result);
 
 ZBX_METRIC	parameters_agent[] =
-/*	KEY			FLAG		FUNCTION	ADD_PARAM	TEST_PARAM */
+/*	KEY			FLAG		FUNCTION	TEST PARAMETERS */
 {
-	{"agent.hostname",	0,		AGENT_HOSTNAME,		0,	0},
-	{"agent.ping",		0,		AGENT_PING, 		0,	0},
-	{"agent.version",	0,		AGENT_VERSION,		0,	0},
+	{"agent.hostname",	0,		AGENT_HOSTNAME,	NULL},
+	{"agent.ping",		0,		AGENT_PING, 	NULL},
+	{"agent.version",	0,		AGENT_VERSION,	NULL},
 	{NULL}
 };
 
-static int	AGENT_HOSTNAME(const char *cmd, const char *param, unsigned flags, AGENT_RESULT *result)
+static int	AGENT_HOSTNAME(AGENT_REQUEST *request, AGENT_RESULT *result)
 {
 	/* zabbix_agent standalone does not support the Hostname in the configuration file */
 	if (NULL == CONFIG_HOSTNAME)
@@ -46,14 +46,14 @@ static int	AGENT_HOSTNAME(const char *cmd, const char *param, unsigned flags, AG
 	return SYSINFO_RET_OK;
 }
 
-static int	AGENT_PING(const char *cmd, const char *param, unsigned flags, AGENT_RESULT *result)
+static int	AGENT_PING(AGENT_REQUEST *request, AGENT_RESULT *result)
 {
 	SET_UI64_RESULT(result, 1);
 
 	return SYSINFO_RET_OK;
 }
 
-static int	AGENT_VERSION(const char *cmd, const char *param, unsigned flags, AGENT_RESULT *result)
+static int	AGENT_VERSION(AGENT_REQUEST *request, AGENT_RESULT *result)
 {
 	SET_STR_RESULT(result, zbx_strdup(NULL, ZABBIX_VERSION));
 

@@ -93,13 +93,13 @@ struct ENUM_SERVICE_STATUSW {
 	const char * service_name;/* [relative,flag(LIBNDR_FLAG_STR_NULLTERM|LIBNDR_FLAG_ALIGN2)] */
 	const char * display_name;/* [relative,flag(LIBNDR_FLAG_STR_NULLTERM|LIBNDR_FLAG_ALIGN2)] */
 	struct SERVICE_STATUS status;
-}/* [gensize,public] */;
+}/* [public,gensize] */;
 
 struct ENUM_SERVICE_STATUSA {
-	const char * service_name;/* [relative,flag(LIBNDR_FLAG_STR_ASCII|LIBNDR_FLAG_STR_NULLTERM)] */
+	const char * service_name;/* [flag(LIBNDR_FLAG_STR_ASCII|LIBNDR_FLAG_STR_NULLTERM),relative] */
 	const char * display_name;/* [relative,flag(LIBNDR_FLAG_STR_ASCII|LIBNDR_FLAG_STR_NULLTERM)] */
 	struct SERVICE_STATUS status;
-}/* [gensize,public] */;
+}/* [public,gensize] */;
 
 /* bitmap svcctl_ServerType */
 #define SV_TYPE_WORKSTATION ( 0x00000001 )
@@ -223,16 +223,16 @@ struct QUERY_SERVICE_CONFIG {
 	uint32_t service_type;
 	enum svcctl_StartType start_type;
 	enum svcctl_ErrorControl error_control;
-	const char *executablepath;/* [unique,range(0,8192),charset(UTF16)] */
-	const char *loadordergroup;/* [unique,range(0,8192),charset(UTF16)] */
+	const char *executablepath;/* [range(0,8192),unique,charset(UTF16)] */
+	const char *loadordergroup;/* [range(0,8192),unique,charset(UTF16)] */
 	uint32_t tag_id;
-	const char *dependencies;/* [unique,range(0,8192),charset(UTF16)] */
-	const char *startname;/* [unique,range(0,8192),charset(UTF16)] */
-	const char *displayname;/* [unique,range(0,8192),charset(UTF16)] */
-}/* [gensize,public] */;
+	const char *dependencies;/* [range(0,8192),unique,charset(UTF16)] */
+	const char *startname;/* [range(0,8192),unique,charset(UTF16)] */
+	const char *displayname;/* [charset(UTF16),unique,range(0,8192)] */
+}/* [public,gensize] */;
 
 struct svcctl_ArgumentString {
-	const char *string;/* [unique,range(0,SC_MAX_ARGUMENT_LENGTH),charset(UTF16)] */
+	const char *string;/* [charset(UTF16),range(0,SC_MAX_ARGUMENT_LENGTH),unique] */
 };
 
 enum svcctl_ConfigLevel
@@ -279,8 +279,8 @@ struct SERVICE_FAILURE_ACTIONS {
 	const char * rebootmsg;/* [relative,flag(LIBNDR_FLAG_STR_NULLTERM|LIBNDR_FLAG_ALIGN2)] */
 	const char * command;/* [relative,flag(LIBNDR_FLAG_STR_NULLTERM|LIBNDR_FLAG_ALIGN2)] */
 	uint32_t num_actions;/* [range(0,1024)] */
-	struct SC_ACTION *actions;/* [relative,size_is(num_actions)] */
-}/* [gensize,public] */;
+	struct SC_ACTION *actions;/* [size_is(num_actions),relative] */
+}/* [public,gensize] */;
 
 enum svcctl_StatusLevel
 #ifndef USE_UINT_ENUMS
@@ -366,7 +366,7 @@ struct svcctl_SetServiceObjectSecurity {
 	struct {
 		struct policy_handle *handle;/* [ref] */
 		uint32_t security_flags;
-		uint8_t *buffer;/* [ref,size_is(offered)] */
+		uint8_t *buffer;/* [size_is(offered),ref] */
 		uint32_t offered;
 	} in;
 
@@ -444,8 +444,8 @@ struct svcctl_ChangeServiceConfigW {
 		const char *load_order_group;/* [unique,charset(UTF16)] */
 		const char *dependencies;/* [unique,charset(UTF16)] */
 		const char *service_start_name;/* [unique,charset(UTF16)] */
-		const char *password;/* [unique,charset(UTF16)] */
-		const char *display_name;/* [unique,charset(UTF16)] */
+		const char *password;/* [charset(UTF16),unique] */
+		const char *display_name;/* [charset(UTF16),unique] */
 	} in;
 
 	struct {
@@ -466,8 +466,8 @@ struct svcctl_CreateServiceW {
 		enum svcctl_StartType start_type;
 		enum svcctl_ErrorControl error_control;
 		const char *binary_path;/* [charset(UTF16)] */
-		const char *LoadOrderGroupKey;/* [unique,charset(UTF16)] */
-		uint8_t *dependencies;/* [unique,size_is(dependencies_size)] */
+		const char *LoadOrderGroupKey;/* [charset(UTF16),unique] */
+		uint8_t *dependencies;/* [size_is(dependencies_size),unique] */
 		uint32_t dependencies_size;
 		const char *service_start_name;/* [unique,charset(UTF16)] */
 		uint8_t *password;/* [unique,size_is(password_size)] */
@@ -512,7 +512,7 @@ struct svcctl_EnumServicesStatusW {
 
 	struct {
 		uint8_t *service;/* [ref,size_is(offered)] */
-		uint32_t *needed;/* [ref,range(0,0x40000)] */
+		uint32_t *needed;/* [range(0,0x40000),ref] */
 		uint32_t *services_returned;/* [ref,range(0,0x40000)] */
 		uint32_t *resume_handle;/* [unique] */
 		WERROR result;
@@ -559,7 +559,7 @@ struct svcctl_QueryServiceConfigW {
 
 	struct {
 		struct QUERY_SERVICE_CONFIG *query;/* [ref] */
-		uint32_t *needed;/* [ref,range(0,8192)] */
+		uint32_t *needed;/* [range(0,8192),ref] */
 		WERROR result;
 	} out;
 
@@ -614,12 +614,12 @@ struct svcctl_GetServiceDisplayNameW {
 struct svcctl_GetServiceKeyNameW {
 	struct {
 		struct policy_handle *handle;/* [ref] */
-		const char *service_name;/* [unique,charset(UTF16)] */
+		const char *service_name;/* [charset(UTF16),unique] */
 		uint32_t *display_name_length;/* [unique] */
 	} in;
 
 	struct {
-		const char **key_name;/* [ref,charset(UTF16)] */
+		const char **key_name;/* [charset(UTF16),ref] */
 		uint32_t *display_name_length;/* [unique] */
 		WERROR result;
 	} out;
@@ -648,12 +648,12 @@ struct svcctl_ChangeServiceConfigA {
 		uint32_t type;
 		enum svcctl_StartType start_type;
 		enum svcctl_ErrorControl error_control;
-		const char *binary_path;/* [unique,charset(UTF16)] */
+		const char *binary_path;/* [charset(UTF16),unique] */
 		const char *load_order_group;/* [unique,charset(UTF16)] */
 		const char *dependencies;/* [unique,charset(UTF16)] */
 		const char *service_start_name;/* [unique,charset(UTF16)] */
 		const char *password;/* [unique,charset(UTF16)] */
-		const char *display_name;/* [unique,charset(UTF16)] */
+		const char *display_name;/* [charset(UTF16),unique] */
 	} in;
 
 	struct {
@@ -667,15 +667,15 @@ struct svcctl_ChangeServiceConfigA {
 struct svcctl_CreateServiceA {
 	struct {
 		struct policy_handle *handle;/* [ref] */
-		const char *ServiceName;/* [unique,charset(UTF16)] */
+		const char *ServiceName;/* [charset(UTF16),unique] */
 		const char *DisplayName;/* [unique,charset(UTF16)] */
 		uint32_t desired_access;
 		uint32_t type;
 		enum svcctl_StartType start_type;
 		enum svcctl_ErrorControl error_control;
 		const char *binary_path;/* [unique,charset(UTF16)] */
-		const char *LoadOrderGroupKey;/* [unique,charset(UTF16)] */
-		const char *dependencies;/* [unique,charset(UTF16)] */
+		const char *LoadOrderGroupKey;/* [charset(UTF16),unique] */
+		const char *dependencies;/* [charset(UTF16),unique] */
 		const char *service_start_name;/* [unique,charset(UTF16)] */
 		const char *password;/* [unique,charset(UTF16)] */
 	} in;
@@ -728,7 +728,7 @@ struct svcctl_EnumServicesStatusA {
 struct svcctl_OpenSCManagerA {
 	struct {
 		const char *MachineName;/* [unique,charset(UTF16)] */
-		const char *DatabaseName;/* [unique,charset(UTF16)] */
+		const char *DatabaseName;/* [charset(UTF16),unique] */
 		uint32_t access_mask;
 	} in;
 
@@ -743,7 +743,7 @@ struct svcctl_OpenSCManagerA {
 struct svcctl_OpenServiceA {
 	struct {
 		struct policy_handle *scmanager_handle;/* [ref] */
-		const char *ServiceName;/* [unique,charset(UTF16)] */
+		const char *ServiceName;/* [charset(UTF16),unique] */
 		uint32_t access_mask;
 	} in;
 
@@ -801,7 +801,7 @@ struct svcctl_StartServiceA {
 struct svcctl_GetServiceDisplayNameA {
 	struct {
 		struct policy_handle *handle;/* [ref] */
-		const char *service_name;/* [unique,charset(UTF16)] */
+		const char *service_name;/* [charset(UTF16),unique] */
 		uint32_t *display_name_length;/* [unique] */
 	} in;
 
@@ -822,7 +822,7 @@ struct svcctl_GetServiceKeyNameA {
 	} in;
 
 	struct {
-		const char **key_name;/* [ref,charset(UTF16)] */
+		const char **key_name;/* [charset(UTF16),ref] */
 		uint32_t *display_name_length;/* [unique] */
 		WERROR result;
 	} out;
@@ -899,7 +899,7 @@ struct svcctl_QueryServiceConfig2W {
 
 	struct {
 		uint8_t *buffer;/* [ref,size_is(offered)] */
-		uint32_t *needed;/* [ref,range(0,8192)] */
+		uint32_t *needed;/* [range(0,8192),ref] */
 		WERROR result;
 	} out;
 
@@ -915,7 +915,7 @@ struct svcctl_QueryServiceStatusEx {
 
 	struct {
 		uint8_t *buffer;/* [ref,size_is(offered)] */
-		uint32_t *needed;/* [ref,range(0,8192)] */
+		uint32_t *needed;/* [range(0,8192),ref] */
 		WERROR result;
 	} out;
 
@@ -952,14 +952,14 @@ struct EnumServicesStatusExW {
 		enum svcctl_ServiceState state;
 		uint32_t offered;/* [range(0,0x40000)] */
 		const char *group_name;/* [unique,charset(UTF16)] */
-		uint32_t *resume_handle;/* [unique,range(0,0x40000)] */
+		uint32_t *resume_handle;/* [range(0,0x40000),unique] */
 	} in;
 
 	struct {
-		uint8_t *services;/* [ref,size_is(offered)] */
-		uint32_t *needed;/* [ref,range(0,0x40000)] */
-		uint32_t *service_returned;/* [ref,range(0,0x40000)] */
-		uint32_t *resume_handle;/* [unique,range(0,0x40000)] */
+		uint8_t *services;/* [size_is(offered),ref] */
+		uint32_t *needed;/* [range(0,0x40000),ref] */
+		uint32_t *service_returned;/* [range(0,0x40000),ref] */
+		uint32_t *resume_handle;/* [range(0,0x40000),unique] */
 		WERROR result;
 	} out;
 

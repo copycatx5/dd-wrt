@@ -102,7 +102,16 @@ void start_sysinit(void)
 	insmod("sky2");
 	if (detect_ethernet_devices())
 		nvram_set("intel_eth", "1");
-
+	insmod("caam");
+	insmod("caam_jr");
+	insmod("caamhash");
+	insmod("caamrng");
+	insmod("authenc");
+	insmod("authencesn");
+	insmod("caamalg");
+	insmod("ocf");
+	insmod("cryptodev");
+	insmod("cryptosoft");
 	/*
 	 * network drivers 
 	 */
@@ -113,8 +122,8 @@ void start_sysinit(void)
 
 		strncpy(ifr.ifr_name, "eth0", IFNAMSIZ);
 		ioctl(s, SIOCGIFHWADDR, &ifr);
-		nvram_set("et0macaddr", ether_etoa((unsigned char *)ifr.ifr_hwaddr.sa_data, eabuf));
-		nvram_set("et0macaddr_safe", ether_etoa((unsigned char *)ifr.ifr_hwaddr.sa_data, eabuf));
+		nvram_set("et0macaddr", ether_etoa((char *)ifr.ifr_hwaddr.sa_data, eabuf));
+		nvram_set("et0macaddr_safe", ether_etoa((char *)ifr.ifr_hwaddr.sa_data, eabuf));
 		close(s);
 	}
 	eval("ifconfig", "eth0", "promisc");
@@ -131,28 +140,20 @@ void start_sysinit(void)
 	char *board2 = nvram_safe_get("DD_BOARD2");
 	if (!strncmp(board, "Gateworks Ventana GW54", 22)
 	    || !strncmp(board2, "Gateworks Ventana GW54", 22))
-		sysprintf("gsp_updater -f /etc/gsc_5400_v43.txt 43");
+		eval("gsp_updater", "-f", "/etc/gsc_54xx_v47.txt", "47");
 
 	if (!strncmp(board, "Gateworks Ventana GW53", 22)
 	    || !strncmp(board2, "Gateworks Ventana GW53", 22))
-		sysprintf("gsp_updater -f /etc/gsc_5300_v43.txt 43");
+		eval("gsp_updater", "-f", "/etc/gsc_53xx_v47.txt", "47");
 
 	if (!strncmp(board, "Gateworks Ventana GW52", 22)
 	    || !strncmp(board2, "Gateworks Ventana GW52", 22))
-		sysprintf("gsp_updater -f /etc/gsc_5200_v43.txt 43");
+		eval("gsp_updater", "-f", "/etc/gsc_52xx_v47.txt", "47");
 
 	if (!strncmp(board, "Gateworks Ventana GW51", 22)
 	    || !strncmp(board2, "Gateworks Ventana GW51", 22))
-		sysprintf("gsp_updater -f /etc/gsc_5100_v43.txt 43");
+		eval("gsp_updater", "-f", "/etc/gsc_51xx_v47.txt", "47");
 
-	led_control(LED_POWER, LED_ON);
-	led_control(LED_DIAG, LED_OFF);
-	led_control(LED_SES, LED_OFF);
-	led_control(LED_SES2, LED_OFF);
-	led_control(LED_BRIDGE, LED_OFF);
-	led_control(LED_WLAN0, LED_OFF);
-	led_control(LED_WLAN1, LED_OFF);
-	led_control(LED_CONNECTED, LED_OFF);
 	sysprintf("echo ondemand > /sys/devices/system/cpu/cpu0/cpufreq/scaling_governor");
 
 	return;

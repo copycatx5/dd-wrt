@@ -64,7 +64,7 @@
 
 void start_vlantagging(void)
 {
-	static char word[256];
+	char word[256];
 	char *next, *wordlist;
 
 	wordlist = nvram_safe_get("vlan_tags");
@@ -123,7 +123,7 @@ void start_vlantagging(void)
 
 void stop_vlantagging(void)
 {
-	static char word[256];
+	char word[256];
 	char *next, *wordlist;
 
 	wordlist = nvram_safe_get("vlan_tags");
@@ -143,14 +143,36 @@ void stop_vlantagging(void)
 	}
 }
 
+int getBridgeSTP(char *br)
+{
+
+	char word[256];
+	char *next, *wordlist;
+	wordlist = nvram_safe_get("bridges");
+	foreach(word, wordlist, next) {
+		char *stp = word;
+		char *bridge = strsep(&stp, ">");
+		char *prio = stp;
+		if (strcmp(bridge, br))
+			continue;
+		stp = strsep(&prio, ">");
+		if (!stp)
+			break;
+		if (!strcmp(stp, "On"))
+			return 1;
+		return 0;
+	}
+	if (!strcmp(br, "br0"))
+		return nvram_match("lan_stp", "1") ? 1 : 0;
+	return -1;
+}
+
 void start_bridgesif(void)
 {
-	if (nvram_match("lan_stp", "0"))
-		br_set_stp_state("br0", 0);
-	else
-		br_set_stp_state("br0", 1);
 
-	static char word[256];
+	br_set_stp_state("br0", getBridgeSTP("br0"));
+
+	char word[256];
 	char *next, *wordlist;
 
 	wordlist = nvram_safe_get("bridgesif");
@@ -174,22 +196,14 @@ void start_bridgesif(void)
 				br_set_port_prio(tag, port, prio);
 		}
 	}
-	struct ifreq ifr;
-	int s;
-	char eabuf[32];
-	if ((s = socket(AF_INET, SOCK_RAW, IPPROTO_RAW)) < 0)
-		return;
-	strncpy(ifr.ifr_name, nvram_safe_get("lan_ifname"), IFNAMSIZ);
-	if (ioctl(s, SIOCGIFHWADDR, &ifr) == 0) {
-		nvram_set("lan_hwaddr", ether_etoa(ifr.ifr_hwaddr.sa_data, eabuf));
-	}
-	close(s);
 }
 
 void start_bridging(void)
 {
-	static char word[256];
+	char word[256];
 	char *next, *wordlist;
+	char hwaddr[32];
+
 #ifdef HAVE_MICRO
 	br_init();
 #endif
@@ -223,7 +237,14 @@ void start_bridging(void)
 		if (prio)
 			br_set_bridge_prio(bridge, prio);
 
+		sprintf(hwaddr, "%s_hwaddr", bridge);
+		if (strcmp(bridge, "br0") && strlen(nvram_safe_get(hwaddr)) > 0) {
+			eval("ifconfig", bridge, "hw", "ether", nvram_safe_get(hwaddr));
+		} else {
+			eval("ifconfig", bridge, "hw", "ether", nvram_safe_get("lan_hwaddr"));
+		}
 		eval("ifconfig", bridge, "up");
+
 	}
 #ifdef HAVE_MICRO
 	br_shutdown();
@@ -232,12 +253,10 @@ void start_bridging(void)
 	start_set_routes();
 }
 
-extern char *getBridgeMTU(char *);
 extern char *getMTU(char *);
 
-char *getRealBridge(char *ifname)
+char *getRealBridge(char *ifname, char *word)
 {
-	static char word[256];
 	char *next, *wordlist;
 
 	wordlist = nvram_safe_get("bridgesif");
@@ -255,9 +274,8 @@ char *getRealBridge(char *ifname)
 	return NULL;
 }
 
-char *getBridgePrio(char *ifname)
+char *getBridgePrio(char *ifname, char *word)
 {
-	static char word[256];
 	char *next, *wordlist;
 
 	wordlist = nvram_safe_get("bridgesif");
@@ -277,7 +295,7 @@ char *getBridgePrio(char *ifname)
 
 void stop_bridgesif(void)
 {
-	static char word[256];
+	char word[256];
 	char *next, *wordlist;
 #ifdef HAVE_MICRO
 	br_init();
@@ -328,17 +346,17 @@ void stop_bridging(void)
 }
 
 #else
-char *getBridge(char *ifname)
+char *getBridge(char *ifname, char *buf)
 {
 	return nvram_safe_get("lan_ifname");
 }
 
-char *getRealBridge(char *ifname)
+char *getRealBridge(char *ifname, char *word)
 {
 	return NULL;
 }
 
-char *getBridgePrio(char *ifname)
+char *getBridgePrio(char *ifname, char *word)
 {
 	return "0";
 }
@@ -350,7 +368,8 @@ int getbridge_main(int argc, char *argv[])
 		fprintf(stderr, "syntax: getbridge [ifname]\n");
 		return -1;
 	}
-	char *bridge = getBridge(argv[1]);
+	char tmp[256];
+	char *bridge = getBridge(argv[1], tmp);
 
 	fprintf(stdout, "%s\n", bridge);
 	return 0;
@@ -362,7 +381,8 @@ int getbridgeprio_main(int argc, char *argv[])
 		fprintf(stderr, "syntax: getbridgeprio [ifname]\n");
 		return -1;
 	}
-	char *bridge = getBridgePrio(argv[1]);
+	char tmp[256];
+	char *bridge = getBridgePrio(argv[1], tmp);
 
 	fprintf(stdout, "%s\n", bridge);
 	return 0;

@@ -110,8 +110,8 @@ void start_sysinit(void)
 
 		strncpy(ifr.ifr_name, "eth0", IFNAMSIZ);
 		ioctl(s, SIOCGIFHWADDR, &ifr);
-		nvram_set("et0macaddr", ether_etoa((unsigned char *)ifr.ifr_hwaddr.sa_data, eabuf));
-		nvram_set("et0macaddr_safe", ether_etoa((unsigned char *)ifr.ifr_hwaddr.sa_data, eabuf));
+		nvram_set("et0macaddr", ether_etoa((char *)ifr.ifr_hwaddr.sa_data, eabuf));
+		nvram_set("et0macaddr_safe", ether_etoa((char *)ifr.ifr_hwaddr.sa_data, eabuf));
 		close(s);
 	}
 
@@ -123,33 +123,36 @@ void start_sysinit(void)
 	eval("hwclock", "-s");
 	if (!strcmp(nvram_safe_get("DD_BOARD"), "Gateworks Laguna GW2391")
 	    || !strcmp(nvram_safe_get("DD_BOARD2"), "Gateworks Laguna GW2391"))
-		sysprintf("gsp_updater -f /etc/gsc_2391_v42.txt 42");
+		eval("gsp_updater", "-f", "/etc/gsc_2391_v46.txt", "46");
+	if (!strcmp(nvram_safe_get("DD_BOARD"), "Gateworks Laguna GW2393")
+	    || !strcmp(nvram_safe_get("DD_BOARD2"), "Gateworks Laguna GW2393"))
+		eval("gsp_updater", "-f", "/etc/gsc_2391_v46.txt", "46");
 	if (!strcmp(nvram_safe_get("DD_BOARD"), "Gateworks Laguna GW2389")
 	    || !strcmp(nvram_safe_get("DD_BOARD2"), "Gateworks Laguna GW2389"))
-		sysprintf("gsp_updater -f /etc/gsc_2388_v42.txt 42");
+		eval("gsp_updater", "-f", "/etc/gsc_2388_v46.txt", "46");
 	if (!strcmp(nvram_safe_get("DD_BOARD"), "Gateworks Laguna GW2388")
 	    || !strcmp(nvram_safe_get("DD_BOARD2"), "Gateworks Laguna GW2388"))
-		sysprintf("gsp_updater -f /etc/gsc_2388_v42.txt 42");
+		eval("gsp_updater", "-f", "/etc/gsc_2388_v46.txt", "46");
 	if (!strcmp(nvram_safe_get("DD_BOARD"), "Gateworks Laguna GW2387")
 	    || !strcmp(nvram_safe_get("DD_BOARD2"), "Gateworks Laguna GW2387"))
-		sysprintf("gsp_updater -f /etc/gsc_2387_v42.txt 42");
+		eval("gsp_updater", "-f", "/etc/gsc_2387_v46.txt", "46");
 	if (!strcmp(nvram_safe_get("DD_BOARD"), "Gateworks Laguna GW2386")
 	    || !strcmp(nvram_safe_get("DD_BOARD2"), "Gateworks Laguna GW2386"))
-		sysprintf("gsp_updater -f /etc/gsc_2386_v42.txt 42");
+		eval("gsp_updater", "-f", "/etc/gsc_2386_v46.txt", "46");
 	if (!strcmp(nvram_safe_get("DD_BOARD"), "Gateworks Laguna GW2384")
 	    || !strcmp(nvram_safe_get("DD_BOARD2"), "Gateworks Laguna GW2384"))
-		sysprintf("gsp_updater -f /etc/gsc_2384_v35.txt 35");
+		eval("gsp_updater", "-f", "/etc/gsc_2384_v35.txt", "35");
 	if (!strcmp(nvram_safe_get("DD_BOARD"), "Gateworks Laguna GW2383")
 	    || !strcmp(nvram_safe_get("DD_BOARD2"), "Gateworks Laguna GW2383"))
-		sysprintf("gsp_updater -f /etc/gsc_2383_v39.txt 39");
+		eval("gsp_updater", "-f", "/etc/gsc_2383_v44.txt", "44");
 	if (!strcmp(nvram_safe_get("DD_BOARD"), "Gateworks Laguna GW2382")
 	    || !strcmp(nvram_safe_get("DD_BOARD2"), "Gateworks Laguna GW2382"))
-		sysprintf("gsp_updater -f /etc/gsc_2382_v39.txt 39");
+		eval("gsp_updater", "-f", "/etc/gsc_2382_v44.txt", "44");
 	if (!strcmp(nvram_safe_get("DD_BOARD"), "Gateworks Laguna GW2380")
 	    || !strcmp(nvram_safe_get("DD_BOARD2"), "Gateworks Laguna GW2380"))
-		sysprintf("gsp_updater -f /etc/gsc_2380_v39.txt 39");
+		eval("gsp_updater", "-f", "/etc/gsc_2380_v44.txt", "44");
 
-	writeproc("/proc/irq/51/smp_affinity", "2");	//use second core for ethernet interrupts. this should increase performance a little bit
+	set_smp_affinity(51, 2);
 	return;
 }
 

@@ -1,7 +1,7 @@
 <?php
 /*
 ** Zabbix
-** Copyright (C) 2001-2013 Zabbix SIA
+** Copyright (C) 2001-2015 Zabbix SIA
 **
 ** This program is free software; you can redistribute it and/or modify
 ** it under the terms of the GNU General Public License as published by
@@ -29,7 +29,7 @@ $maintenanceWidget->addPageHeader(_('CONFIGURATION OF MAINTENANCE PERIODS'), $cr
 
 // header
 $filterForm = new CForm('get');
-$filterForm->addItem(array(_('Group').SPACE, $this->data['pageFilter']->getGroupsCB()));
+$filterForm->addItem(array(_('Group').SPACE, $this->data['pageFilter']->getGroupsCB(true)));
 $maintenanceWidget->addHeader(_('Maintenance periods'), $filterForm);
 $maintenanceWidget->addHeaderRowNumber();
 
@@ -38,9 +38,10 @@ $maintenanceForm = new CForm();
 $maintenanceForm->setName('maintenanceForm');
 
 // create table
-$maintenanceTable = new CTableInfo(_('No maintenance defined.'));
+$maintenanceTable = new CTableInfo(_('No maintenance periods found.'));
 $maintenanceTable->setHeader(array(
 	new CCheckBox('all_maintenances', null, "checkAll('".$maintenanceForm->getName()."', 'all_maintenances', 'maintenanceids');"),
+	$this->data['displayNodes'] ? _('Node') : null,
 	make_sorting_header(_('Name'), 'name'),
 	make_sorting_header(_('Type'), 'maintenance_type'),
 	_('State'),
@@ -64,7 +65,8 @@ foreach ($this->data['maintenances'] as $maintenance) {
 
 	$maintenanceTable->addRow(array(
 		new CCheckBox('maintenanceids['.$maintenanceid.']', null, null, $maintenanceid),
-		new CLink($maintenance['name'], 'maintenance.php?form=update&maintenanceid='.$maintenanceid.'#form'),
+		$this->data['displayNodes'] ? $maintenance['nodename'] : null,
+		new CLink($maintenance['name'], 'maintenance.php?form=update&maintenanceid='.$maintenanceid),
 		$maintenance['maintenance_type'] ? _('No data collection') : _('With data collection'),
 		$maintenanceStatus,
 		$maintenance['description']

@@ -110,7 +110,7 @@ void start_devinit(void)
 #ifdef HAVE_HOTPLUG2
 	// shell-skript. otherwise we loose our console
 	system("echo >/proc/sys/kernel/hotplug");
-	system("mount -t tmpfs none /dev -o size=512K");
+	eval("mount", "-t", "tmpfs", "none", "/dev", "-o", "size=512K");
 
 	mknod("/dev/console", S_IFCHR | 0644, makedev(5, 1));
 	mknod("/dev/null", S_IFCHR | 0644, makedev(1, 3));
@@ -172,6 +172,10 @@ void start_devinit(void)
 #ifdef HAVE_MSTP
 	fprintf(stderr, "start MSTP Daemon\n");
 	eval("/sbin/mstpd");
+#endif
+#ifdef HAVE_ATH10K
+	eval("rm", "-f", "/tmp/ath10k-board.bin");
+	eval("ln", "-s", "/lib/ath10k/board.bin", "/tmp/ath10k-board.bin");
 #endif
 	fprintf(stderr, "done\n");
 }

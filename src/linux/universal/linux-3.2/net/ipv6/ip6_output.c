@@ -383,17 +383,6 @@ static inline int ip6_forward_finish(struct sk_buff *skb)
 	return dst_output(skb);
 }
 
-static bool ip6_pkt_too_big(const struct sk_buff *skb, unsigned int mtu)
-{
-	if (skb->len <= mtu || skb->local_df)
-		return false;
-
-	if (skb_is_gso(skb) && skb_gso_network_seglen(skb) <= mtu)
-		return false;
-
-	return true;
-}
-
 int ip6_forward(struct sk_buff *skb)
 {
 	struct dst_entry *dst = skb_dst(skb);
@@ -517,7 +506,7 @@ int ip6_forward(struct sk_buff *skb)
 	if (mtu < IPV6_MIN_MTU)
 		mtu = IPV6_MIN_MTU;
 
-	if (ip6_pkt_too_big(skb, mtu)) {
+	if (skb->len > mtu && !skb_is_gso(skb)) {
 		/* Again, force OUTPUT device used as source address */
 		skb->dev = dst->dev;
 		icmpv6_send(skb, ICMPV6_PKT_TOOBIG, 0, mtu);
@@ -613,27 +602,19 @@ int ip6_find_1stfragopt(struct sk_buff *skb, u8 **nexthdr)
 
 void ipv6_select_ident(struct frag_hdr *fhdr, struct rt6_info *rt)
 {
-	static atomic_t ipv6_fragmentation_id;
-	int old, new;
+	static u32 ip6_idents_hashrnd __read_mostly;
+	static bool hashrnd_initialized = false;
+	u32 hash, id;
 
-	if (rt && !(rt->dst.flags & DST_NOPEER)) {
-		struct inet_peer *peer;
-
-		if (!rt->rt6i_peer)
-			rt6_bind_peer(rt, 1);
-		peer = rt->rt6i_peer;
-		if (peer) {
-			fhdr->identification = htonl(inet_getid(peer, 0));
-			return;
-		}
+	if (unlikely(!hashrnd_initialized)) {
+		hashrnd_initialized = true;
+		get_random_bytes(&ip6_idents_hashrnd, sizeof(ip6_idents_hashrnd));
 	}
-	do {
-		old = atomic_read(&ipv6_fragmentation_id);
-		new = old + 1;
-		if (!new)
-			new = 1;
-	} while (atomic_cmpxchg(&ipv6_fragmentation_id, old, new) != old);
-	fhdr->identification = htonl(new);
+	hash = __ipv6_addr_jhash(&rt->rt6i_dst.addr, ip6_idents_hashrnd);
+	hash = __ipv6_addr_jhash(&rt->rt6i_src.addr, hash);
+
+	id = ip_idents_reserve(hash, 1);
+	fhdr->identification = htonl(id);
 }
 
 int ip6_fragment(struct sk_buff *skb, int (*output)(struct sk_buff *))
@@ -644,6 +625,7 @@ int ip6_fragment(struct sk_buff *skb, int (*output)(struct sk_buff *))
 	struct ipv6hdr *tmp_hdr;
 	struct frag_hdr *fh;
 	unsigned int mtu, hlen, left, len;
+	int hroom, troom;
 	__be32 frag_id = 0;
 	int ptr, offset = 0, err=0;
 	u8 *prevhdr, nexthdr = 0;
@@ -810,6 +792,8 @@ slow_path:
 	 */
 
 	*prevhdr = NEXTHDR_FRAGMENT;
+	hroom = LL_RESERVED_SPACE(rt->dst.dev);
+	troom = rt->dst.dev->needed_tailroom;
 
 	/*
 	 *	Keep copying data until we run out.
@@ -828,7 +812,8 @@ slow_path:
 		 *	Allocate buffer.
 		 */
 
-		if ((frag = alloc_skb(len+hlen+sizeof(struct frag_hdr)+LL_ALLOCATED_SPACE(rt->dst.dev), GFP_ATOMIC)) == NULL) {
+		if ((frag = alloc_skb(len + hlen + sizeof(struct frag_hdr) +
+				      hroom + troom, GFP_ATOMIC)) == NULL) {
 			NETDEBUG(KERN_INFO "IPv6: frag: no memory for new fragment!\n");
 			IP6_INC_STATS(net, ip6_dst_idev(skb_dst(skb)),
 				      IPSTATS_MIB_FRAGFAILS);
@@ -841,7 +826,7 @@ slow_path:
 		 */
 
 		ip6_copy_metadata(frag, skb);
-		skb_reserve(frag, LL_RESERVED_SPACE(rt->dst.dev));
+		skb_reserve(frag, hroom);
 		skb_put(frag, len + hlen + sizeof(struct frag_hdr));
 		skb_reset_network_header(frag);
 		fh = (struct frag_hdr *)(skb_network_header(frag) + hlen);
@@ -1356,7 +1341,8 @@ int ip6_append_data(struct sock *sk, int getfrag(void *from, char *to,
 	if (((length > mtu) ||
 	     (skb && skb_has_frags(skb))) &&
 	    (sk->sk_protocol == IPPROTO_UDP) &&
-	    (rt->dst.dev->features & NETIF_F_UFO)) {
+	    (rt->dst.dev->features & NETIF_F_UFO) &&
+	    (sk->sk_type == SOCK_DGRAM)) {
 		err = ip6_ufo_append_data(sk, getfrag, from, length,
 					  hh_len, fragheaderlen,
 					  transhdrlen, mtu, flags, rt);

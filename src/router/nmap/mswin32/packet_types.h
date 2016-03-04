@@ -17,7 +17,7 @@ struct ip
     u_short ip_id;                      /* identification */
     u_short ip_off;                     /* fragment offset field */
 #define IP_RF 0x8000                    /* reserved fragment flag */
-#define IP_DF 0x4000                    /* dont fragment flag */
+#define IP_DF 0x4000                    /* don't fragment flag */
 #define IP_MF 0x2000                    /* more fragments flag */
 #define IP_OFFMASK 0x1fff               /* mask for fragmenting bits */
     u_char ip_ttl;                    /* time to live */
@@ -67,7 +67,7 @@ struct ip
 /*
  *	Non DIX types. Won't clash for 1500 types.
  */
- 
+
 #define ETH_P_802_3	0x0001		/* Dummy type for 802.3 frames  */
 #define ETH_P_AX25	0x0002		/* Dummy protocol id for AX.25  */
 #define ETH_P_ALL	0x0003		/* Every packet (be careful!!!) */
@@ -151,7 +151,7 @@ struct iphdr {
 	short	ip_len;			/* total length */
 	u_short	ip_id;			/* identification */
 	short	ip_off;			/* fragment offset field */
-#define	IP_DF 0x4000		/* dont fragment flag */
+#define	IP_DF 0x4000		/* don't fragment flag */
 #define	IP_MF 0x2000		/* more fragments flag */
 	u_char	ip_ttl;			/* time to live */
 	u_char	ip_p;			/* protocol */
@@ -292,7 +292,7 @@ struct	ip_timestamp {
 #define ICMP_UNREACH_FILTER_PROHIB      13      /* admin prohib */
 #define ICMP_UNREACH_HOST_PRECEDENCE    14      /* host prec vio. */
 #define ICMP_UNREACH_PRECEDENCE_CUTOFF  15      /* prec cutoff */
-   
+
 
 #define	ICMP_SOURCEQUENCH				4		/* packet lost, slow down */
 #define ICMP_ROUTERADVERT				9       /* router advertisement */

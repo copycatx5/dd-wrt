@@ -2,7 +2,7 @@
    Internal file viewer for the Midnight Commander
    Function for search data
 
-   Copyright (C) 1994-2014
+   Copyright (C) 1994-2015
    Free Software Foundation, Inc.
 
    Written by:
@@ -36,7 +36,7 @@
 #include <config.h>
 
 #include "lib/global.h"
-#include "lib/tty/tty.h"
+#include "lib/strutil.h"
 #include "lib/widget.h"
 
 #include "src/setup.h"
@@ -49,16 +49,59 @@
 
 /*** file scope type declarations ****************************************************************/
 
+typedef struct
+{
+    simple_status_msg_t status_msg;     /* base class */
+
+    gboolean first;
+    WView *view;
+    off_t offset;
+} mcview_search_status_msg_t;
+
 /*** file scope variables ************************************************************************/
 
 static int search_cb_char_curr_index = -1;
 static char search_cb_char_buffer[6];
 
+/* --------------------------------------------------------------------------------------------- */
 /*** file scope functions ************************************************************************/
 /* --------------------------------------------------------------------------------------------- */
 
+static int
+mcview_search_status_update_cb (status_msg_t * sm)
+{
+    simple_status_msg_t *ssm = SIMPLE_STATUS_MSG (sm);
+    mcview_search_status_msg_t *vsm = (mcview_search_status_msg_t *) sm;
+    Widget *wd = WIDGET (sm->dlg);
+    int percent = -1;
+
+    if (verbose)
+        percent = mcview_calc_percent (vsm->view, vsm->offset);
+
+    if (percent >= 0)
+        label_set_textv (ssm->label, _("Searching %s: %3d%%"), vsm->view->last_search_string,
+                         percent);
+    else
+        label_set_textv (ssm->label, _("Searching %s"), vsm->view->last_search_string);
+
+    if (vsm->first)
+    {
+        int wd_width;
+        Widget *lw = WIDGET (ssm->label);
+
+        wd_width = max (wd->cols, lw->cols + 6);
+        widget_set_size (wd, wd->y, wd->x, wd->lines, wd_width);
+        widget_set_size (lw, lw->y, wd->x + (wd->cols - lw->cols) / 2, lw->lines, lw->cols);
+        vsm->first = FALSE;
+    }
+
+    return status_msg_common_update (sm);
+}
+
+/* --------------------------------------------------------------------------------------------- */
+
 static void
-mcview_search_update_steps (mcview_t * view)
+mcview_search_update_steps (WView * view)
 {
     off_t filesize = mcview_get_filesize (view);
     if (filesize != 0)
@@ -74,9 +117,9 @@ mcview_search_update_steps (mcview_t * view)
 /* --------------------------------------------------------------------------------------------- */
 
 static gboolean
-mcview_find (mcview_t * view, off_t search_start, gsize * len)
+mcview_find (mcview_search_status_msg_t * ssm, off_t search_start, off_t search_end, gsize * len)
 {
-    off_t search_end;
+    WView *view = ssm->view;
 
     view->search_numNeedSkipChar = 0;
     search_cb_char_curr_index = -1;
@@ -93,7 +136,7 @@ mcview_find (mcview_t * view, off_t search_start, gsize * len)
                 && mc_search_is_fixed_search_str (view->search))
                 search_end = search_start + view->search->original_len;
 
-            if (mc_search_run (view->search, (void *) view, search_start, search_end, len)
+            if (mc_search_run (view->search, (void *) ssm, search_start, search_end, len)
                 && view->search->normal_offset == search_start)
             {
                 if (view->text_nroff_mode)
@@ -109,14 +152,13 @@ mcview_find (mcview_t * view, off_t search_start, gsize * len)
     view->search_nroff_seq->index = search_start;
     mcview_nroff_seq_info (view->search_nroff_seq);
 
-    return mc_search_run (view->search, (void *) view, search_start, mcview_get_filesize (view),
-                          len);
+    return mc_search_run (view->search, (void *) ssm, search_start, search_end, len);
 }
 
 /* --------------------------------------------------------------------------------------------- */
 
 static void
-mcview_search_show_result (mcview_t * view, WDialog ** d, size_t match_len)
+mcview_search_show_result (WView * view, size_t match_len)
 {
     int nroff_len;
 
@@ -134,13 +176,6 @@ mcview_search_show_result (mcview_t * view, WDialog ** d, size_t match_len)
                                                             match_len) : 0;
     view->search_end = view->search_start + match_len + nroff_len;
 
-    if (verbose)
-    {
-        dlg_run_done (*d);
-        dlg_destroy (*d);
-        *d = create_message (D_NORMAL, _("Search"), _("Seeking to search result"));
-        tty_refresh ();
-    }
     mcview_moveto_match (view);
 }
 
@@ -151,7 +186,7 @@ mcview_search_show_result (mcview_t * view, WDialog ** d, size_t match_len)
 mc_search_cbret_t
 mcview_search_cmd_callback (const void *user_data, gsize char_offset, int *current_char)
 {
-    mcview_t *view = (mcview_t *) user_data;
+    WView *view = ((mcview_search_status_msg_t *) user_data)->view;
 
     /*    view_read_continue (view, &view->search_onechar_info); *//* AB:FIXME */
     if (!view->text_nroff_mode)
@@ -167,13 +202,13 @@ mcview_search_cmd_callback (const void *user_data, gsize char_offset, int *curre
     }
 
     if (search_cb_char_curr_index == -1
-        || search_cb_char_curr_index >= view->search_nroff_seq->char_width)
+        || search_cb_char_curr_index >= view->search_nroff_seq->char_length)
     {
         if (search_cb_char_curr_index != -1)
             mcview_nroff_seq_next (view->search_nroff_seq);
 
         search_cb_char_curr_index = 0;
-        if (view->search_nroff_seq->char_width > 1)
+        if (view->search_nroff_seq->char_length > 1)
             g_unichar_to_utf8 (view->search_nroff_seq->current_char, search_cb_char_buffer);
         else
             search_cb_char_buffer[0] = (char) view->search_nroff_seq->current_char;
@@ -183,7 +218,7 @@ mcview_search_cmd_callback (const void *user_data, gsize char_offset, int *curre
             switch (view->search_nroff_seq->type)
             {
             case NROFF_TYPE_BOLD:
-                view->search_numNeedSkipChar = 1 + view->search_nroff_seq->char_width;  /* real char width and 0x8 */
+                view->search_numNeedSkipChar = 1 + view->search_nroff_seq->char_length; /* real char length and 0x8 */
                 break;
             case NROFF_TYPE_UNDERLINE:
                 view->search_numNeedSkipChar = 2;       /* underline symbol and ox8 */
@@ -206,45 +241,40 @@ mcview_search_cmd_callback (const void *user_data, gsize char_offset, int *curre
 mc_search_cbret_t
 mcview_search_update_cmd_callback (const void *user_data, gsize char_offset)
 {
-    mcview_t *view = (mcview_t *) user_data;
+    status_msg_t *sm = STATUS_MSG (user_data);
+    mcview_search_status_msg_t *vsm = (mcview_search_status_msg_t *) user_data;
+    mc_search_cbret_t result = MC_SEARCH_CB_OK;
 
-    if ((off_t) char_offset >= view->update_activate)
+    vsm->offset = (off_t) char_offset;
+    if (vsm->offset >= vsm->view->update_activate)
     {
-        view->update_activate += view->update_steps;
-        if (verbose)
-        {
-            mcview_percent (view, char_offset);
-            tty_refresh ();
-        }
-        if (tty_got_interrupt ())
-            return MC_SEARCH_CB_ABORT;
+        vsm->view->update_activate += vsm->view->update_steps;
+
+        if (sm->update (sm) == B_CANCEL)
+            result = MC_SEARCH_CB_ABORT;
     }
-    /* may be in future return from this callback will change current position
-     * in searching block. Now this just constant return value.
-     */
-    return MC_SEARCH_CB_OK;
+
+    /* may be in future return from this callback will change current position in searching block. */
+
+    return result;
 }
 
 /* --------------------------------------------------------------------------------------------- */
 
 void
-mcview_do_search (mcview_t * view)
+mcview_do_search (WView * view, off_t want_search_start)
 {
+    mcview_search_status_msg_t vsm;
+
     off_t search_start = 0;
+    off_t orig_search_start = view->search_start;
     gboolean isFound = FALSE;
     gboolean need_search_again = TRUE;
 
-    WDialog *d = NULL;
-
     size_t match_len;
 
-    if (verbose)
-    {
-        d = create_message (D_NORMAL, _("Search"), _("Searching %s"), view->last_search_string);
-        tty_refresh ();
-    }
-
-    /*for avoid infinite search loop we need to increase or decrease start offset of search */
+    view->search_start = want_search_start;
+    /* for avoid infinite search loop we need to increase or decrease start offset of search */
 
     if (view->search_start != 0)
     {
@@ -255,11 +285,12 @@ mcview_do_search (mcview_t * view)
             if (mcview_search_options.backwards)
             {
                 mcview_nroff_t *nroff;
+
                 nroff = mcview_nroff_seq_new_num (view, view->search_start);
                 if (mcview_nroff_seq_prev (nroff) != -1)
                     search_start =
                         -(mcview__get_nroff_real_len (view, nroff->index - 1, 2) +
-                          nroff->char_width + 1);
+                          nroff->char_length + 1);
                 else
                     search_start = -2;
 
@@ -278,9 +309,15 @@ mcview_do_search (mcview_t * view)
 
     /* Compute the percent steps */
     mcview_search_update_steps (view);
-    view->update_activate = 0;
 
-    tty_enable_interrupt_key ();
+    view->update_activate = search_start;
+
+    vsm.first = TRUE;
+    vsm.view = view;
+    vsm.offset = search_start;
+
+    status_msg_init (STATUS_MSG (&vsm), _("Search"), 1.0, simple_status_msg_init_cb,
+                     mcview_search_status_update_cb, NULL);
 
     do
     {
@@ -291,9 +328,9 @@ mcview_do_search (mcview_t * view)
         else
             growbufsize = view->search->original_len;
 
-        if (mcview_find (view, search_start, &match_len))
+        if (mcview_find (&vsm, search_start, mcview_get_filesize (view), &match_len))
         {
-            mcview_search_show_result (view, &d, match_len);
+            mcview_search_show_result (view, match_len);
             need_search_again = FALSE;
             isFound = TRUE;
             break;
@@ -311,11 +348,14 @@ mcview_do_search (mcview_t * view)
     }
     while (mcview_may_still_grow (view));
 
+    status_msg_deinit (STATUS_MSG (&vsm));
+
     if (view->search_start != 0 && !isFound && need_search_again
         && !mcview_search_options.backwards)
     {
         int result;
 
+        view->search_start = orig_search_start;
         mcview_update (view);
 
         result =
@@ -328,25 +368,38 @@ mcview_do_search (mcview_t * view)
             search_start = 0;
     }
 
-    if (!isFound && view->search->error_str != NULL && mcview_find (view, search_start, &match_len))
+    if (!isFound && view->search->error_str != NULL)
     {
-        mcview_search_show_result (view, &d, match_len);
-        isFound = TRUE;
-    }
+        /* continue search from beginning */
+        off_t search_end;
 
-    tty_disable_interrupt_key ();
+        search_end = orig_search_start;
+        /* search_start is 0 here */
+        view->update_activate = search_start;
 
-    if (verbose)
-    {
-        dlg_run_done (d);
-        dlg_destroy (d);
+        vsm.first = TRUE;
+        vsm.view = view;
+        vsm.offset = search_start;
+
+        status_msg_init (STATUS_MSG (&vsm), _("Search"), 1.0, simple_status_msg_init_cb,
+                         mcview_search_status_update_cb, NULL);
+
+        if (mcview_find (&vsm, search_start, search_end, &match_len))
+        {
+            mcview_search_show_result (view, match_len);
+            isFound = TRUE;
+        }
+
+        status_msg_deinit (STATUS_MSG (&vsm));
     }
 
     if (!isFound && view->search->error_str != NULL)
+    {
+        view->search_start = orig_search_start;
+        mcview_update (view);
         query_dialog (_("Search"), view->search->error_str, D_NORMAL, 1, _("&Dismiss"));
-
+    }
     view->dirty++;
-    mcview_update (view);
 }
 
 /* --------------------------------------------------------------------------------------------- */

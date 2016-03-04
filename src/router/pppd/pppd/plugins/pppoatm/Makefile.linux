@@ -1,12 +1,10 @@
-CC	= gcc
-COPTS	= -O2 -g
-CFLAGS	= $(COPTS) -I../.. -I../../../include -fPIC
+CFLAGS	= $(COPTS)  $(MIPS16_OPT) -I../.. -I../../../include -fPIC
 LDFLAGS	= -shared
 INSTALL	= install
 
 #***********************************************************************
 
-DESTDIR = @DESTDIR@
+DESTDIR = $(INSTROOT)@DESTDIR@
 LIBDIR = $(DESTDIR)/lib/pppd/$(VERSION)
 
 VERSION = $(shell awk -F '"' '/VERSION/ { print $$2; }' ../../patchlevel.h)
@@ -22,9 +20,10 @@ PLUGIN_OBJS := pppoatm.o
 #HAVE_LIBATM=yes
 
 ifdef HAVE_LIBATM
-LIBS := -latm
+CFLAGS += -I$(TOP)/linux-atm/src/include -I$(TOP)/kernel_headers/$(KERNELRELEASE)/include -I$(LINUXDIR)/include 
+LIBS := $(TOP)/linux-atm/src/lib/.libs/libatm.so.1
 else
-CFLAGS += -I.
+CFLAGS += -I. -I$(TOP)/kernel_headers/$(KERNELRELEASE)/include -I$(LINUXDIR)/include
 PLUGIN_OBJS += text2qos.o text2atm.o misc.o ans.o
 LIBS := -lresolv
 endif

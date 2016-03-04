@@ -1,7 +1,7 @@
 <?php
 /*
 ** Zabbix
-** Copyright (C) 2001-2013 Zabbix SIA
+** Copyright (C) 2001-2015 Zabbix SIA
 **
 ** This program is free software; you can redistribute it and/or modify
 ** it under the terms of the GNU General Public License as published by
@@ -46,7 +46,7 @@ class CImportReaderFactory {
 	}
 
 	/**
-	 * Converts file extenion to associated import format.
+	 * Converts file extension to associated import format.
 	 *
 	 * @static
 	 * @throws Exception

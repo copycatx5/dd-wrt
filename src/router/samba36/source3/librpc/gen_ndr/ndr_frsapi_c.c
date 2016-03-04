@@ -1192,7 +1192,7 @@ struct tevent_req *dcerpc_frsapi_ForceReplication_send(TALLOC_CTX *mem_ctx,
 						       struct GUID *_replica_set_guid /* [in] [unique] */,
 						       struct GUID *_connection_guid /* [in] [unique] */,
 						       const char *_replica_set_name /* [in] [unique,charset(UTF16)] */,
-						       const char *_partner_dns_name /* [in] [unique,charset(UTF16)] */)
+						       const char *_partner_dns_name /* [in] [charset(UTF16),unique] */)
 {
 	struct tevent_req *req;
 	struct dcerpc_frsapi_ForceReplication_state *state;
@@ -1288,7 +1288,7 @@ NTSTATUS dcerpc_frsapi_ForceReplication(struct dcerpc_binding_handle *h,
 					struct GUID *_replica_set_guid /* [in] [unique] */,
 					struct GUID *_connection_guid /* [in] [unique] */,
 					const char *_replica_set_name /* [in] [unique,charset(UTF16)] */,
-					const char *_partner_dns_name /* [in] [unique,charset(UTF16)] */,
+					const char *_partner_dns_name /* [in] [charset(UTF16),unique] */,
 					WERROR *result)
 {
 	struct frsapi_ForceReplication r;

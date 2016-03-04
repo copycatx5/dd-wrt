@@ -18,9 +18,9 @@
 
 #ifndef _LIBBRIDGE_H
 #define _LIBBRIDGE_H
-
 #ifndef __UCLIBC__
 #include <netinet/in.h>
+#include <sys/time.h>
 #endif
 #include <net/if.h>
 #include <linux/if_bridge.h>
@@ -40,7 +40,7 @@ struct bridge_info {
 	struct timeval bridge_max_age;
 	struct timeval bridge_hello_time;
 	struct timeval bridge_forward_delay;
-	u_int16_t root_port;
+	unsigned short root_port;
 	unsigned char stp_enabled;
 	unsigned char topology_change;
 	unsigned char topology_change_detected;
@@ -52,8 +52,8 @@ struct bridge_info {
 };
 
 struct fdb_entry {
-	u_int8_t mac_addr[6];
-	u_int16_t port_no;
+	unsigned char mac_addr[6];
+	unsigned short port_no;
 	unsigned char is_local;
 	struct timeval ageing_timer_value;
 };
@@ -62,9 +62,9 @@ struct port_info {
 	unsigned port_no;
 	struct bridge_id designated_root;
 	struct bridge_id designated_bridge;
-	u_int16_t port_id;
-	u_int16_t designated_port;
-	u_int8_t priority;
+	unsigned short port_id;
+	unsigned short designated_port;
+	unsigned char priority;
 	unsigned char top_change_ack;
 	unsigned char config_pending;
 	unsigned char state;
@@ -90,9 +90,7 @@ extern int br_set_bridge_max_age(const char *br, struct timeval *tv);
 extern int br_set_ageing_time(const char *br, struct timeval *tv);
 extern int br_set_stp_state(const char *br, int stp_state);
 extern int br_set_bridge_priority(const char *br, int bridge_priority);
-extern int br_set_port_priority(const char *br, const char *p,
-				int port_priority);
+extern int br_set_port_priority(const char *br, const char *p, int port_priority);
 extern int br_set_path_cost(const char *br, const char *p, int path_cost);
-extern int br_read_fdb(const char *br, struct fdb_entry *fdbs,
-		       unsigned long skip, int num);
+extern int br_read_fdb(const char *br, struct fdb_entry *fdbs, unsigned long skip, int num);
 #endif

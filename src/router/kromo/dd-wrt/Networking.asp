@@ -17,6 +17,17 @@ function bridge_add_submit(F) {
 	F.submit_type.value = "add_bridge";
 	F.submit();
 }
+
+function ipvs_add_submit(F) {
+	F.change_action.value="gozila_cgi";
+	F.submit_type.value = "add_ipvs";
+	F.submit();
+}
+function ipvstarget_add_submit(F) {
+	F.change_action.value="gozila_cgi";
+	F.submit_type.value = "add_ipvstarget";
+	F.submit();
+}
 function bridgeif_add_submit(F) {
 	F.change_action.value="gozila_cgi";
 	F.submit_type.value = "add_bridgeif";
@@ -43,6 +54,20 @@ function mdhcp_del_submit(F,I) {
 function bridge_del_submit(F,I) {
 	F.change_action.value="gozila_cgi";
 	F.submit_type.value = "del_bridge";
+	F.del_value.value=I;
+	F.submit();
+}
+
+function ipvs_del_submit(F,I) {
+	F.change_action.value="gozila_cgi";
+	F.submit_type.value = "del_ipvs";
+	F.del_value.value=I;
+	F.submit();
+}
+
+function ipvstarget_del_submit(F,I) {
+	F.change_action.value="gozila_cgi";
+	F.submit_type.value = "del_ipvstarget";
 	F.del_value.value=I;
 	F.submit();
 }
@@ -157,15 +182,9 @@ addEvent(window, "unload", function() {
 								<th width="70%"><% tran("networking.iface"); %></th>
 								</tr>
 								</table><br />
-								<div class="center">
-									<script type="text/javascript">
-									//<![CDATA[
-									document.write("<input class=\"button\" type=\"button\" name=\"refresh_button\" value=\"" + <% nvem("refresh_time","0","sbutton.refres","sbutton.autorefresh"); %> + "\" onclick=\"window.location.reload();\" />");
-									//]]>
-									</script>
-								</div>
 							</fieldset>
 							<br />
+							<% show_ipvs(); %>
 							<% show_bondings(); %>
 							<% portsetup(); %>
 							<% show_mdhcp(); %>

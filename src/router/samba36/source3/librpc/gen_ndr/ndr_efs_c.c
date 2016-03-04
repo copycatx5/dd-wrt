@@ -1148,7 +1148,7 @@ struct tevent_req *dcerpc_EfsRpcQueryRecoveryAgents_send(TALLOC_CTX *mem_ctx,
 							 struct tevent_context *ev,
 							 struct dcerpc_binding_handle *h,
 							 const char *_FileName /* [in] [charset(UTF16)] */,
-							 struct ENCRYPTION_CERTIFICATE_HASH_LIST **_pRecoveryAgents /* [out] [unique,ref] */)
+							 struct ENCRYPTION_CERTIFICATE_HASH_LIST **_pRecoveryAgents /* [out] [ref,unique] */)
 {
 	struct tevent_req *req;
 	struct dcerpc_EfsRpcQueryRecoveryAgents_state *state;
@@ -1247,7 +1247,7 @@ NTSTATUS dcerpc_EfsRpcQueryRecoveryAgents_recv(struct tevent_req *req,
 NTSTATUS dcerpc_EfsRpcQueryRecoveryAgents(struct dcerpc_binding_handle *h,
 					  TALLOC_CTX *mem_ctx,
 					  const char *_FileName /* [in] [charset(UTF16)] */,
-					  struct ENCRYPTION_CERTIFICATE_HASH_LIST **_pRecoveryAgents /* [out] [unique,ref] */,
+					  struct ENCRYPTION_CERTIFICATE_HASH_LIST **_pRecoveryAgents /* [out] [ref,unique] */,
 					  WERROR *result)
 {
 	struct EfsRpcQueryRecoveryAgents r;

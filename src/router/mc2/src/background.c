@@ -2,7 +2,7 @@
 
 /* Background support.
 
-   Copyright (C) 1996-2014
+   Copyright (C) 1996-2015
    Free Software Foundation, Inc.
 
    Written by:
@@ -42,7 +42,6 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <sys/wait.h>           /* waitpid() */
-#include <fcntl.h>
 
 #include "lib/global.h"
 
@@ -171,6 +170,17 @@ destroy_task_and_return_fd (pid_t pid)
  */
 
 static int
+reading_failed (int i, char **data)
+{
+    while (i >= 0)
+        g_free (data[i--]);
+    message (D_ERROR, _("Background protocol error"), "%s", _("Reading failed"));
+    return 0;
+}
+
+/* --------------------------------------------------------------------------------------------- */
+
+static int
 background_attention (int fd, void *closure)
 {
     file_op_context_t *ctx;
@@ -189,7 +199,7 @@ background_attention (int fd, void *closure)
         int (*non_have_ctx3) (file_op_context_t *, int, char *, char *, char *);
         int (*non_have_ctx4) (file_op_context_t *, int, char *, char *, char *, char *);
 
-        char *(*ret_str0) ();
+        char *(*ret_str0) (void);
         char *(*ret_str1) (char *);
         char *(*ret_str2) (char *, char *);
         char *(*ret_str3) (char *, char *, char *);
@@ -198,7 +208,7 @@ background_attention (int fd, void *closure)
         void *pointer;
     } routine;
     /*    void *routine; */
-    int argc, i, result, status;
+    int argc, i, status;
     char *data[MAXCALLARGS];
     ssize_t bytes, ret;
     struct TaskList *p;
@@ -234,8 +244,7 @@ background_attention (int fd, void *closure)
         (read (fd, &type, sizeof (type)) != sizeof (type)) ||
         (read (fd, &have_ctx, sizeof (have_ctx)) != sizeof (have_ctx)))
     {
-        message (D_ERROR, _("Background protocol error"), _("Reading failed"));
-        return 0;
+        return reading_failed (-1, data);
     }
 
     if (argc > MAXCALLARGS)
@@ -249,8 +258,7 @@ background_attention (int fd, void *closure)
     {
         if (read (fd, ctx, sizeof (file_op_context_t)) != sizeof (file_op_context_t))
         {
-            message (D_ERROR, _("Background protocol error"), _("Reading failed"));
-            return 0;
+            return reading_failed (-1, data);
         }
     }
 
@@ -260,14 +268,12 @@ background_attention (int fd, void *closure)
 
         if (read (fd, &size, sizeof (size)) != sizeof (size))
         {
-            message (D_ERROR, _("Background protocol error"), _("Reading failed"));
-            return 0;
+            return reading_failed (i - 1, data);
         }
         data[i] = g_malloc (size + 1);
         if (read (fd, data[i], size) != size)
         {
-            message (D_ERROR, _("Background protocol error"), _("Reading failed"));
-            return 0;
+            return reading_failed (i, data);
         }
         data[i][size] = 0;      /* NULL terminate the blocks (they could be strings) */
     }
@@ -289,6 +295,8 @@ background_attention (int fd, void *closure)
     /* Handle the call */
     if (type == Return_Integer)
     {
+        int result = 0;
+
         if (!have_ctx)
             switch (argc)
             {
@@ -306,6 +314,8 @@ background_attention (int fd, void *closure)
                 break;
             case 4:
                 result = routine.have_ctx4 (Background, data[0], data[1], data[2], data[3]);
+                break;
+            default:
                 break;
             }
         else
@@ -326,6 +336,8 @@ background_attention (int fd, void *closure)
             case 4:
                 result =
                     routine.non_have_ctx4 (ctx, Background, data[0], data[1], data[2], data[3]);
+                break;
+            default:
                 break;
             }
 

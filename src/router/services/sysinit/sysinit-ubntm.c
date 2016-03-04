@@ -127,29 +127,70 @@ void start_sysinit(void)
 
 		strncpy(ifr.ifr_name, "eth0", IFNAMSIZ);
 		ioctl(s, SIOCGIFHWADDR, &ifr);
-		nvram_set("et0macaddr", ether_etoa((unsigned char *)ifr.ifr_hwaddr.sa_data, eabuf));
-		nvram_set("et0macaddr_safe", ether_etoa((unsigned char *)ifr.ifr_hwaddr.sa_data, eabuf));
+		nvram_set("et0macaddr", ether_etoa((char *)ifr.ifr_hwaddr.sa_data, eabuf));
+		nvram_set("et0macaddr_safe", ether_etoa((char *)ifr.ifr_hwaddr.sa_data, eabuf));
 		close(s);
 	}
 #ifdef HAVE_SWCONFIG
-	system("swconfig dev eth1 set reset 1");
-	system("swconfig dev eth1 set enable_vlan 0");
-	system("swconfig dev eth1 vlan 1 set ports \"0 1 2 3 4\"");
-	system("swconfig dev eth1 set apply");
+#ifdef HAVE_DAP3310
+	eval("swconfig", "dev", "eth1", "set", "reset", "1");
+	eval("swconfig", "dev", "eth1", "set", "enable_vlan", "0");
+	eval("swconfig", "dev", "eth1", "vlan", "1", "set", "ports", "0 1 2 3 4");
+	eval("swconfig", "dev", "eth1", "set", "apply");
+	setEthLED(18, "eth0");
+	setEthLED(19, "eth1");
+#elif HAVE_DAP3410
+	eval("swconfig", "dev", "eth0", "set", "reset", "1");
+	eval("swconfig", "dev", "eth0", "set", "enable_vlan", "1");
+	eval("swconfig", "dev", "eth0", "vlan", "1", "set", "ports", "0t 3");
+	eval("swconfig", "dev", "eth0", "vlan", "2", "set", "ports", "0t 4");
+	eval("swconfig", "dev", "eth0", "set", "apply");
+	eval("ifconfig", "eth0", "up");
+	eval("vconfig", "set_name_type", "VLAN_PLUS_VID_NO_PAD");
+	eval("vconfig", "add", "eth0", "1");
+	eval("vconfig", "add", "eth0", "2");
+#else
+	eval("swconfig", "dev", "eth1", "set", "reset", "1");
+	eval("swconfig", "dev", "eth1", "set", "enable_vlan", "0");
+	eval("swconfig", "dev", "eth1", "vlan", "1", "set", "ports", "0 1 2 3 4");
+	eval("swconfig", "dev", "eth1", "set", "apply");
+#endif
 #endif
 
 	detect_wireless_devices();
 
 	int brand = getRouterBrand();
 #ifdef HAVE_WPE72
-	sysprintf("/sbin/wlanled -l generic_14:-94 -l generic_15:-80 -l generic_16:-73 -l generic_17:-65");
-
+	if (!nvram_match("wlanled", "0"))
+		eval("/sbin/wlanled", "-l", "generic_14:-94", "-l", "generic_15:-80", "-l", "generic_16:-73", "-l", "generic_17:-65");
+#elif HAVE_DAP3310
+	set_gpio(14, 1);
+	set_gpio(13, 1);
+	set_gpio(20, 1);
+	if (!nvram_match("wlanled", "0"))
+		eval("/sbin/wlanled", "-L", "generic_14:-94", "-l", "generic_13:-76", "-L", "generic_20:-65");
+#elif HAVE_DAP3410
+	set_gpio(14, 1);
+	set_gpio(15, 1);
+	set_gpio(16, 1);
+	if (!nvram_match("wlanled", "0"))
+		eval("/sbin/wlanled", "-L", "generic_14:-94", "-L", "generic_15:-76", "-L", "generic_16:-65");
+#elif HAVE_UBNTXW
+	writeproc("/proc/sys/dev/wifi0/softled", "0");
+	if (!nvram_match("wlanled", "0"))
+		eval("/sbin/wlanled", "-L", "generic_11:-94", "-L", "generic_16:-80", "-l", "generic_13:-73", "-L", "generic_14:-65");
 #else
-	if (brand == ROUTER_BOARD_UNIFI) {
+	switch (brand) {
+	case ROUTER_BOARD_UNIFI:
 		setWirelessLed(0, 0);
-	} else {
+		break;
+	case ROUTER_BOARD_AIRROUTER:
+		break;
+	default:
 		writeproc("/proc/sys/dev/wifi0/softled", "0");
-		sysprintf("/sbin/wlanled -l generic_0:-94 -l generic_1:-80 -l generic_11:-73 -l generic_7:-65");
+		if (!nvram_match("wlanled", "0"))
+			eval("/sbin/wlanled", "-l", "generic_0:-94", "-l", "generic_1:-80", "-l", "generic_11:-73", "-l", "generic_7:-65");
+
 	}
 #endif
 	/* ubnt has a hardware fault as it seems, so the power bridge feature can break the hardware which causes endless reboot loops. we keep it disabled here. devices which are already broken will work again then */

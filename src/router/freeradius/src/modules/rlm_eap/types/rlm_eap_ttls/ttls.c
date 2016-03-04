@@ -1,7 +1,7 @@
 /*
  * rlm_eap_ttls.c  contains the interfaces that are called from eap
  *
- * Version:     $Id: fc31fffab2c031662d89c7f1447a0a1769a45ce2 $
+ * Version:     $Id: 41e1473943f8f723835a0edba0ea2f4ea06629b7 $
  *
  *   This program is free software; you can redistribute it and/or modify
  *   it under the terms of the GNU General Public License as published by
@@ -22,7 +22,7 @@
  */
 
 #include <freeradius-devel/ident.h>
-RCSID("$Id: fc31fffab2c031662d89c7f1447a0a1769a45ce2 $")
+RCSID("$Id: 41e1473943f8f723835a0edba0ea2f4ea06629b7 $")
 
 #include "eap_ttls.h"
 
@@ -629,6 +629,15 @@ static int process_reply(EAP_HANDLER *handler, tls_session_t *tls_session,
 		rcode = RLM_MODULE_OK;
 
 		/*
+		 *	Delete MPPE keys & encryption policy.  We don't
+		 *	want these here.
+		 */
+		pairdelete(&reply->vps, ((311 << 16) | 7));
+		pairdelete(&reply->vps, ((311 << 16) | 8));
+		pairdelete(&reply->vps, ((311 << 16) | 16));
+		pairdelete(&reply->vps, ((311 << 16) | 17));
+
+		/*
 		 *	MS-CHAP2-Success means that we do NOT return
 		 *	an Access-Accept, but instead tunnel that
 		 *	attribute to the client, and keep going with
@@ -644,15 +653,6 @@ static int process_reply(EAP_HANDLER *handler, tls_session_t *tls_session,
 			t->authenticated = TRUE;
 
 			/*
-			 *	Delete MPPE keys & encryption policy.  We don't
-			 *	want these here.
-			 */
-			pairdelete(&reply->vps, ((311 << 16) | 7));
-			pairdelete(&reply->vps, ((311 << 16) | 8));
-			pairdelete(&reply->vps, ((311 << 16) | 16));
-			pairdelete(&reply->vps, ((311 << 16) | 17));
-
-			/*
 			 *	Use the tunneled reply, but not now.
 			 */
 			if (t->use_tunneled_reply) {
@@ -663,7 +663,7 @@ static int process_reply(EAP_HANDLER *handler, tls_session_t *tls_session,
 		} else { /* no MS-CHAP2-Success */
 			/*
 			 *	Can only have EAP-Message if there's
-			 *	no MS-CHAP2-Success.  (FIXME: EAP-MSCHAP?)
+			 *	no MS-CHAP2-Success.
 			 *
 			 *	We also do NOT tunnel the EAP-Success
 			 *	attribute back to the client, as the client
@@ -816,8 +816,8 @@ static int eapttls_postproxy(EAP_HANDLER *handler, void *data)
 			fprintf(fr_log_fp, "} # server %s\n",
 				(fake->server == NULL) ? "" : fake->server);
 			
-			RDEBUG("Final reply from tunneled session code %d",
-			       fake->reply->code);
+			RDEBUG("Final reply from tunneled session code %s",
+			       fr_packet_codes[fake->reply->code]);
 			debug_pair_list(fake->reply->vps);
 		}
 
@@ -1164,7 +1164,8 @@ int eapttls_process(EAP_HANDLER *handler, tls_session_t *tls_session)
 		fprintf(fr_log_fp, "} # server %s\n",
 			(fake->server == NULL) ? "" : fake->server);
 
-		RDEBUG("Got tunneled reply code %d", fake->reply->code);
+		RDEBUG("Got tunneled reply code %s",
+		       fr_packet_codes[fake->reply->code]);
 		
 		debug_pair_list(fake->reply->vps);
 	}

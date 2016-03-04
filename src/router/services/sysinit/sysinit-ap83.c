@@ -81,9 +81,9 @@ void start_sysinit(void)
 	fprintf(stderr, "load ag71xx or ag7100_mod Ethernet Driver\n");
 	system("insmod ag71xx || insmod ag7100_mod");
 #ifdef HAVE_WZRG300NH
-	system("swconfig dev rtl8366s set reset 1");
-	system("swconfig dev rtl8366s set enable_vlan 0");
-	system("swconfig dev rtl8366s set apply");
+	eval("swconfig", "dev", "rtl8366s", "set", "reset", "1");
+	eval("swconfig", "dev", "rtl8366s", "set", "enable_vlan", "0");
+	eval("swconfig", "dev", "rtl8366s", "set", "apply");
 	FILE *fp = fopen("/dev/mtdblock/6", "rb");
 	if (fp) {
 		unsigned char buf2[256];
@@ -107,11 +107,11 @@ void start_sysinit(void)
 	FILE *fp = fopen("/dev/mtdblock/0", "rb");
 	char mac[32];
 	if (fp) {
-		system("swconfig dev rtl8366rb set reset 1");
-		system("swconfig dev rtl8366rb set enable_vlan 1");
-		system("swconfig dev rtl8366rb vlan 1 set ports \"1 2 3 4 5t\"");
-		system("swconfig dev rtl8366rb vlan 2 set ports \"0 5t\"");
-		system("swconfig dev rtl8366s set apply");
+		eval("swconfig", "dev", "rtl8366rb", "set", "reset", "1");
+		eval("swconfig", "dev", "rtl8366rb", "set", "enable_vlan", "1");
+		eval("swconfig", "dev", "rtl8366rb", "vlan", "1", "set", "ports", "1 2 3 4 5t");
+		eval("swconfig", "dev", "rtl8366rb", "vlan", "2", "set", "ports", "0 5t");
+		eval("swconfig", "dev", "rtl8366rb", "set", "apply");
 		unsigned char buf2[256];
 		fseek(fp, 0x1fc00, SEEK_SET);
 		fread(buf2, 256, 1, fp);
@@ -196,9 +196,11 @@ void start_sysinit(void)
 #endif
 		fseek(fp, firstoffset, SEEK_SET);
 		fread(buf2, 19, 1, fp);
-		if (buf2[0] == 0xff)
+
+		if (buf2[0] == 0xff) {
 			fseek(fp, secondoffset, SEEK_SET);
-		fread(buf2, 19, 1, fp);
+			fread(buf2, 19, 1, fp);
+		}
 
 		fclose(fp);
 		fprintf(stderr, "configure eth0 to %s\n", buf2);
@@ -287,8 +289,8 @@ void start_sysinit(void)
 
 		strncpy(ifr.ifr_name, "eth0", IFNAMSIZ);
 		ioctl(s, SIOCGIFHWADDR, &ifr);
-		nvram_set("et0macaddr", ether_etoa((unsigned char *)ifr.ifr_hwaddr.sa_data, eabuf));
-		nvram_set("et0macaddr_safe", ether_etoa((unsigned char *)ifr.ifr_hwaddr.sa_data, eabuf));
+		nvram_set("et0macaddr", ether_etoa((char *)ifr.ifr_hwaddr.sa_data, eabuf));
+		nvram_set("et0macaddr_safe", ether_etoa((char *)ifr.ifr_hwaddr.sa_data, eabuf));
 		close(s);
 	}
 	detect_wireless_devices();
@@ -325,15 +327,6 @@ void start_sysinit(void)
 	}
 #endif
 
-	led_control(LED_POWER, LED_ON);
-	led_control(LED_SES, LED_OFF);
-	led_control(LED_SES2, LED_OFF);
-	led_control(LED_DIAG, LED_OFF);
-	led_control(LED_BRIDGE, LED_OFF);
-	led_control(LED_WLAN0, LED_OFF);
-	led_control(LED_WLAN1, LED_OFF);
-	led_control(LED_CONNECTED, LED_OFF);
-
 #ifdef HAVE_RS
 	setWirelessLed(0, 2);
 	setWirelessLed(1, 2);
@@ -342,9 +335,10 @@ void start_sysinit(void)
 	setWirelessLed(0, 6);
 	writeproc("/proc/sys/dev/wifi0/ledpin", "6");
 	writeproc("/proc/sys/dev/wifi0/softled", "1");
-	system("swconfig dev eth0 set reset 1");
-	system("swconfig dev eth0 set enable_vlan 1");
-	system("swconfig dev eth0 vlan 1 set ports \"0 1 2 3 4 5\"");
+	eval("swconfig", "dev", "eth0", "set", "reset", "1");
+	eval("swconfig", "dev", "eth0", "set", "enable_vlan", "1");
+	eval("swconfig", "dev", "eth0", "vlan", "1", "set", "ports", "0 1 2 3 4 5");
+	eval("swconfig", "dev", "eth0", "set", "apply");
 #elif HAVE_WZRG300NH
 	setWirelessLed(0, 6);
 #elif HAVE_TEW632BRP

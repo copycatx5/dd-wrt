@@ -130,7 +130,7 @@ struct drsuapi_DsBindInfoFallBack {
 union drsuapi_DsBindInfo {
 	struct drsuapi_DsBindInfo24 info24;/* [subcontext(4),case(24)] */
 	struct drsuapi_DsBindInfo28 info28;/* [subcontext(4),case(28)] */
-	struct drsuapi_DsBindInfo48 info48;/* [subcontext(4),case(48)] */
+	struct drsuapi_DsBindInfo48 info48;/* [case(48),subcontext(4)] */
 	struct drsuapi_DsBindInfoFallBack FallBack;/* [subcontext(4),default] */
 }/* [nodiscriminant] */;
 
@@ -146,7 +146,7 @@ struct drsuapi_DsReplicaObjectIdentifier {
 	struct dom_sid28 sid;
 	uint32_t __ndr_size_dn;/* [value(strlen_m(dn))] */
 	const char *dn;/* [charset(UTF16),size_is(__ndr_size_dn+1)] */
-}/* [gensize,public] */;
+}/* [public,gensize] */;
 
 struct drsuapi_DsReplicaSyncRequest1 {
 	struct drsuapi_DsReplicaObjectIdentifier *naming_context;/* [ref] */
@@ -261,7 +261,7 @@ struct drsuapi_DsGetNCChangesRequest5 {
 
 struct drsuapi_DsReplicaOID {
 	uint32_t length;/* [range(0,10000)] */
-	uint8_t *binary_oid;/* [unique,size_is(length)] */
+	uint8_t *binary_oid;/* [size_is(length),unique] */
 }/* [noprint] */;
 
 struct drsuapi_DsReplicaOIDMapping {
@@ -271,7 +271,7 @@ struct drsuapi_DsReplicaOIDMapping {
 
 struct drsuapi_DsReplicaOIDMapping_Ctr {
 	uint32_t num_mappings;/* [range(0,0x100000)] */
-	struct drsuapi_DsReplicaOIDMapping *mappings;/* [unique,size_is(num_mappings)] */
+	struct drsuapi_DsReplicaOIDMapping *mappings;/* [size_is(num_mappings),unique] */
 }/* [public] */;
 
 enum drsuapi_DsObjectClassId
@@ -541,13 +541,13 @@ struct drsuapi_DsReplicaCursor2CtrEx {
 };
 
 struct drsuapi_DsAttributeValue {
-	uint32_t __ndr_size;/* [value(ndr_size_DATA_BLOB(0,blob,0)),range(0,10485760)] */
+	uint32_t __ndr_size;/* [range(0,10485760),value(ndr_size_DATA_BLOB(0,blob,0))] */
 	DATA_BLOB *blob;/* [unique] */
 };
 
 struct drsuapi_DsAttributeValueCtr {
 	uint32_t num_values;/* [range(0,10485760)] */
-	struct drsuapi_DsAttributeValue *values;/* [unique,size_is(num_values)] */
+	struct drsuapi_DsAttributeValue *values;/* [size_is(num_values),unique] */
 };
 
 struct drsuapi_DsReplicaObjectIdentifier3 {
@@ -624,7 +624,7 @@ struct drsuapi_DsGetNCChangesCtr1 {
 	uint32_t __ndr_size;/* [value(ndr_size_drsuapi_DsGetNCChangesCtr1(r,ndr->flags)+55)] */
 	struct drsuapi_DsReplicaObjectListItemEx *first_object;/* [unique] */
 	uint32_t more_data;
-}/* [gensize,public] */;
+}/* [public,gensize] */;
 
 /* bitmap drsuapi_DsLinkedAttributeFlags */
 #define DRSUAPI_DS_LINKED_ATTRIBUTE_FLAG_ACTIVE ( 0x00000001 )
@@ -654,7 +654,7 @@ struct drsuapi_DsGetNCChangesCtr6 {
 	uint32_t nc_object_count;
 	uint32_t nc_linked_attributes_count;
 	uint32_t linked_attributes_count;/* [range(0,1048576)] */
-	struct drsuapi_DsReplicaLinkedAttribute *linked_attributes;/* [unique,size_is(linked_attributes_count)] */
+	struct drsuapi_DsReplicaLinkedAttribute *linked_attributes;/* [size_is(linked_attributes_count),unique] */
 	WERROR drs_error;
 }/* [gensize,public] */;
 
@@ -669,25 +669,25 @@ struct drsuapi_DsGetNCChangesCtr6TS {
 struct drsuapi_DsGetNCChangesMSZIPCtr1 {
 	uint32_t decompressed_length;
 	uint32_t compressed_length;
-	struct drsuapi_DsGetNCChangesCtr1TS *ts;/* [unique,compression(NDR_COMPRESSION_MSZIP,compressed_length,decompressed_length),subcontext_size(compressed_length),subcontext(4)] */
+	struct drsuapi_DsGetNCChangesCtr1TS *ts;/* [subcontext(4),subcontext_size(compressed_length),unique,compression(NDR_COMPRESSION_MSZIP,compressed_length,decompressed_length)] */
 }/* [nopush] */;
 
 struct drsuapi_DsGetNCChangesMSZIPCtr6 {
 	uint32_t decompressed_length;
 	uint32_t compressed_length;
-	struct drsuapi_DsGetNCChangesCtr6TS *ts;/* [unique,compression(NDR_COMPRESSION_MSZIP,compressed_length,decompressed_length),subcontext_size(compressed_length),subcontext(4)] */
+	struct drsuapi_DsGetNCChangesCtr6TS *ts;/* [unique,compression(NDR_COMPRESSION_MSZIP,compressed_length,decompressed_length),subcontext(4),subcontext_size(compressed_length)] */
 }/* [nopush] */;
 
 struct drsuapi_DsGetNCChangesXPRESSCtr1 {
 	uint32_t decompressed_length;
 	uint32_t compressed_length;
-	struct drsuapi_DsGetNCChangesCtr1TS *ts;/* [unique,compression(NDR_COMPRESSION_XPRESS,compressed_length,decompressed_length),subcontext_size(compressed_length),subcontext(4)] */
+	struct drsuapi_DsGetNCChangesCtr1TS *ts;/* [unique,compression(NDR_COMPRESSION_XPRESS,compressed_length,decompressed_length),subcontext(4),subcontext_size(compressed_length)] */
 }/* [nopush] */;
 
 struct drsuapi_DsGetNCChangesXPRESSCtr6 {
 	uint32_t decompressed_length;
 	uint32_t compressed_length;
-	struct drsuapi_DsGetNCChangesCtr6TS *ts;/* [unique,compression(NDR_COMPRESSION_XPRESS,compressed_length,decompressed_length),subcontext_size(compressed_length),subcontext(4)] */
+	struct drsuapi_DsGetNCChangesCtr6TS *ts;/* [subcontext(4),subcontext_size(compressed_length),unique,compression(NDR_COMPRESSION_XPRESS,compressed_length,decompressed_length)] */
 }/* [nopush] */;
 
 enum drsuapi_DsGetNCChangesCompressionType
@@ -740,7 +740,7 @@ union drsuapi_DsReplicaUpdateRefsRequest {
 
 struct drsuapi_DsReplicaAddRequest1 {
 	struct drsuapi_DsReplicaObjectIdentifier *naming_context;/* [ref] */
-	const char *source_dsa_address;/* [unique,charset(UTF16)] */
+	const char *source_dsa_address;/* [charset(UTF16),unique] */
 	uint8_t schedule[84];
 	uint32_t options;
 };
@@ -772,7 +772,7 @@ union drsuapi_DsReplicaDelRequest {
 struct drsuapi_DsReplicaModRequest1 {
 	struct drsuapi_DsReplicaObjectIdentifier *naming_context;/* [ref] */
 	struct GUID source_dra;
-	const char *source_dra_address;/* [unique,charset(UTF16)] */
+	const char *source_dra_address;/* [charset(UTF16),unique] */
 	uint8_t schedule[84];
 	uint32_t replica_flags;
 	uint32_t modify_fields;
@@ -811,8 +811,8 @@ struct drsuapi_DsGetMembershipsCtr1 {
 	uint32_t num_memberships;/* [range(0,10000)] */
 	uint32_t num_sids;/* [range(0,10000)] */
 	struct drsuapi_DsReplicaObjectIdentifier **info_array;/* [unique,size_is(num_memberships)] */
-	uint32_t *group_attrs;/* [unique,size_is(num_memberships)] */
-	struct dom_sid28 **sids;/* [unique,size_is(num_sids)] */
+	uint32_t *group_attrs;/* [size_is(num_memberships),unique] */
+	struct dom_sid28 **sids;/* [size_is(num_sids),unique] */
 };
 
 union drsuapi_DsGetMembershipsCtr {
@@ -856,8 +856,8 @@ struct drsuapi_DsGetNT4ChangeLogInfo1 {
 	uint64_t lsa_serial_number;
 	NTTIME lsa_creation_time;
 	NTSTATUS status;
-	uint8_t *restart_data;/* [unique,size_is(restart_length)] */
-	uint8_t *log_data;/* [unique,size_is(log_length)] */
+	uint8_t *restart_data;/* [size_is(restart_length),unique] */
+	uint8_t *log_data;/* [size_is(log_length),unique] */
 };
 
 union drsuapi_DsGetNT4ChangeLogInfo {
@@ -999,7 +999,7 @@ struct drsuapi_DsNameInfo1 {
 
 struct drsuapi_DsNameCtr1 {
 	uint32_t count;
-	struct drsuapi_DsNameInfo1 *array;/* [unique,size_is(count)] */
+	struct drsuapi_DsNameInfo1 *array;/* [size_is(count),unique] */
 };
 
 union drsuapi_DsNameCtr {
@@ -1024,7 +1024,7 @@ enum drsuapi_DsSpnOperation
 struct drsuapi_DsWriteAccountSpnRequest1 {
 	enum drsuapi_DsSpnOperation operation;
 	uint32_t unknown1;
-	const char *object_dn;/* [unique,charset(UTF16)] */
+	const char *object_dn;/* [charset(UTF16),unique] */
 	uint32_t count;/* [range(0,10000)] */
 	struct drsuapi_DsNameString *spn_names;/* [unique,size_is(count)] */
 };
@@ -1042,8 +1042,8 @@ union drsuapi_DsWriteAccountSpnResult {
 }/* [switch_type(uint32)] */;
 
 struct drsuapi_DsRemoveDSServerRequest1 {
-	const char *server_dn;/* [unique,charset(UTF16)] */
-	const char *domain_dn;/* [unique,charset(UTF16)] */
+	const char *server_dn;/* [charset(UTF16),unique] */
+	const char *domain_dn;/* [charset(UTF16),unique] */
 	uint32_t commit;
 };
 
@@ -1060,7 +1060,7 @@ union drsuapi_DsRemoveDSServerResult {
 }/* [switch_type(uint32)] */;
 
 struct drsuapi_DsGetDCInfoRequest1 {
-	const char *domain_name;/* [unique,charset(UTF16)] */
+	const char *domain_name;/* [charset(UTF16),unique] */
 	int32_t level;
 };
 
@@ -1070,7 +1070,7 @@ union drsuapi_DsGetDCInfoRequest {
 
 struct drsuapi_DsGetDCInfo1 {
 	const char *netbios_name;/* [unique,charset(UTF16)] */
-	const char *dns_name;/* [unique,charset(UTF16)] */
+	const char *dns_name;/* [charset(UTF16),unique] */
 	const char *site_name;/* [unique,charset(UTF16)] */
 	const char *computer_dn;/* [unique,charset(UTF16)] */
 	const char *server_dn;/* [unique,charset(UTF16)] */
@@ -1084,11 +1084,11 @@ struct drsuapi_DsGetDCInfoCtr1 {
 };
 
 struct drsuapi_DsGetDCInfo2 {
-	const char *netbios_name;/* [unique,charset(UTF16)] */
-	const char *dns_name;/* [unique,charset(UTF16)] */
+	const char *netbios_name;/* [charset(UTF16),unique] */
+	const char *dns_name;/* [charset(UTF16),unique] */
 	const char *site_name;/* [unique,charset(UTF16)] */
-	const char *site_dn;/* [unique,charset(UTF16)] */
-	const char *computer_dn;/* [unique,charset(UTF16)] */
+	const char *site_dn;/* [charset(UTF16),unique] */
+	const char *computer_dn;/* [charset(UTF16),unique] */
 	const char *server_dn;/* [unique,charset(UTF16)] */
 	const char *ntds_dn;/* [unique,charset(UTF16)] */
 	uint32_t is_pdc;
@@ -1102,16 +1102,16 @@ struct drsuapi_DsGetDCInfo2 {
 
 struct drsuapi_DsGetDCInfoCtr2 {
 	uint32_t count;/* [range(0,10000)] */
-	struct drsuapi_DsGetDCInfo2 *array;/* [unique,size_is(count)] */
+	struct drsuapi_DsGetDCInfo2 *array;/* [size_is(count),unique] */
 };
 
 struct drsuapi_DsGetDCInfo3 {
-	const char *netbios_name;/* [unique,charset(UTF16)] */
+	const char *netbios_name;/* [charset(UTF16),unique] */
 	const char *dns_name;/* [unique,charset(UTF16)] */
-	const char *site_name;/* [unique,charset(UTF16)] */
-	const char *site_dn;/* [unique,charset(UTF16)] */
-	const char *computer_dn;/* [unique,charset(UTF16)] */
-	const char *server_dn;/* [unique,charset(UTF16)] */
+	const char *site_name;/* [charset(UTF16),unique] */
+	const char *site_dn;/* [charset(UTF16),unique] */
+	const char *computer_dn;/* [charset(UTF16),unique] */
+	const char *server_dn;/* [charset(UTF16),unique] */
 	const char *ntds_dn;/* [unique,charset(UTF16)] */
 	uint32_t is_pdc;
 	uint32_t is_enabled;
@@ -1125,7 +1125,7 @@ struct drsuapi_DsGetDCInfo3 {
 
 struct drsuapi_DsGetDCInfoCtr3 {
 	uint32_t count;/* [range(0,10000)] */
-	struct drsuapi_DsGetDCInfo3 *array;/* [unique,size_is(count)] */
+	struct drsuapi_DsGetDCInfo3 *array;/* [size_is(count),unique] */
 };
 
 struct drsuapi_DsGetDCConnection01 {
@@ -1135,7 +1135,7 @@ struct drsuapi_DsGetDCConnection01 {
 	uint32_t unknown4;
 	uint32_t unknown5;
 	uint32_t unknown6;
-	const char *client_account;/* [unique,charset(UTF16)] */
+	const char *client_account;/* [charset(UTF16),unique] */
 };
 
 struct drsuapi_DsGetDCConnectionCtr01 {
@@ -1231,7 +1231,7 @@ enum drsuapi_SecBufferType
 struct drsuapi_SecBuffer {
 	uint32_t buf_size;/* [range(0,10000)] */
 	enum drsuapi_SecBufferType buf_type;
-	uint8_t *buffer;/* [unique,size_is(buf_size)] */
+	uint8_t *buffer;/* [size_is(buf_size),unique] */
 };
 
 struct drsuapi_SecBufferDesc {
@@ -1362,7 +1362,7 @@ union drsuapi_DsAddEntryErrorInfo {
 struct drsuapi_DsAddEntry_ErrData_V1 {
 	WERROR status;
 	enum drsuapi_DsAddEntry_DirErr dir_err;
-	union drsuapi_DsAddEntryErrorInfo *info;/* [unique,switch_is(dir_err)] */
+	union drsuapi_DsAddEntryErrorInfo *info;/* [switch_is(dir_err),unique] */
 };
 
 union drsuapi_DsAddEntry_ErrData {
@@ -1382,13 +1382,13 @@ struct drsuapi_DsAddEntryCtr2 {
 	uint32_t extended_data;
 	uint16_t problem;
 	uint32_t count;/* [range(0,10000)] */
-	struct drsuapi_DsReplicaObjectIdentifier2 *objects;/* [unique,size_is(count)] */
+	struct drsuapi_DsReplicaObjectIdentifier2 *objects;/* [size_is(count),unique] */
 };
 
 struct drsuapi_DsAddEntryCtr3 {
 	struct drsuapi_DsReplicaObjectIdentifier *id;/* [unique] */
 	uint32_t err_ver;
-	union drsuapi_DsAddEntry_ErrData *err_data;/* [unique,switch_is(err_ver)] */
+	union drsuapi_DsAddEntry_ErrData *err_data;/* [switch_is(err_ver),unique] */
 	uint32_t count;/* [range(0,10000)] */
 	struct drsuapi_DsReplicaObjectIdentifier2 *objects;/* [unique,size_is(count)] */
 };
@@ -1475,7 +1475,7 @@ struct drsuapi_DsReplicaGetInfoRequest2 {
 	struct GUID source_dsa_guid;
 	uint32_t flags;
 	const char *attribute_name;/* [unique,charset(UTF16)] */
-	const char *value_dn_str;/* [unique,charset(UTF16)] */
+	const char *value_dn_str;/* [charset(UTF16),unique] */
 	uint32_t enumeration_context;
 };
 
@@ -1487,8 +1487,8 @@ union drsuapi_DsReplicaGetInfoRequest {
 struct drsuapi_DsReplicaNeighbour {
 	const char *naming_context_dn;/* [unique,charset(UTF16)] */
 	const char *source_dsa_obj_dn;/* [unique,charset(UTF16)] */
-	const char *source_dsa_address;/* [unique,charset(UTF16)] */
-	const char *transport_obj_dn;/* [unique,charset(UTF16)] */
+	const char *source_dsa_address;/* [charset(UTF16),unique] */
+	const char *transport_obj_dn;/* [charset(UTF16),unique] */
 	uint32_t replica_flags;
 	uint32_t reserved;
 	struct GUID naming_context_obj_guid;
@@ -1569,8 +1569,8 @@ struct drsuapi_DsReplicaOp {
 	uint32_t priority;
 	enum drsuapi_DsReplicaOpType operation_type;
 	uint32_t options;
-	const char *nc_dn;/* [unique,charset(UTF16)] */
-	const char *remote_dsa_obj_dn;/* [unique,charset(UTF16)] */
+	const char *nc_dn;/* [charset(UTF16),unique] */
+	const char *remote_dsa_obj_dn;/* [charset(UTF16),unique] */
 	const char *remote_dsa_address;/* [unique,charset(UTF16)] */
 	struct GUID nc_obj_guid;
 	struct GUID remote_dsa_obj_guid;
@@ -1583,7 +1583,7 @@ struct drsuapi_DsReplicaOpCtr {
 };
 
 struct drsuapi_DsReplicaAttrValMetaData {
-	const char *attribute_name;/* [unique,charset(UTF16)] */
+	const char *attribute_name;/* [charset(UTF16),unique] */
 	const char *object_dn;/* [unique,charset(UTF16)] */
 	uint32_t __ndr_size_binary;/* [value(ndr_size_DATA_BLOB(0,binary,0))] */
 	DATA_BLOB *binary;/* [unique] */
@@ -1622,13 +1622,13 @@ struct drsuapi_DsReplicaCursor3Ctr {
 };
 
 struct drsuapi_DsReplicaObjMetaData2 {
-	const char *attribute_name;/* [unique,charset(UTF16)] */
+	const char *attribute_name;/* [charset(UTF16),unique] */
 	uint32_t version;
 	NTTIME originating_change_time;
 	struct GUID originating_invocation_id;
 	uint64_t originating_usn;
 	uint64_t local_usn;
-	const char *originating_dsa_dn;/* [unique,charset(UTF16)] */
+	const char *originating_dsa_dn;/* [charset(UTF16),unique] */
 };
 
 struct drsuapi_DsReplicaObjMetaData2Ctr {
@@ -1649,7 +1649,7 @@ struct drsuapi_DsReplicaAttrValMetaData2 {
 	struct GUID originating_invocation_id;
 	uint64_t originating_usn;
 	uint64_t local_usn;
-	const char *originating_dsa_dn;/* [unique,charset(UTF16)] */
+	const char *originating_dsa_dn;/* [charset(UTF16),unique] */
 };
 
 struct drsuapi_DsReplicaAttrValMetaData2Ctr {
@@ -1692,7 +1692,7 @@ struct drsuapi_DsReplica06Ctr {
 };
 
 union drsuapi_DsReplicaInfo {
-	struct drsuapi_DsReplicaNeighbourCtr *neighbours;/* [unique,case(DRSUAPI_DS_REPLICA_INFO_NEIGHBORS)] */
+	struct drsuapi_DsReplicaNeighbourCtr *neighbours;/* [case(DRSUAPI_DS_REPLICA_INFO_NEIGHBORS),unique] */
 	struct drsuapi_DsReplicaCursorCtr *cursors;/* [unique,case(DRSUAPI_DS_REPLICA_INFO_CURSORS)] */
 	struct drsuapi_DsReplicaObjMetaDataCtr *objmetadata;/* [unique,case(DRSUAPI_DS_REPLICA_INFO_OBJ_METADATA)] */
 	struct drsuapi_DsReplicaKccDsaFailuresCtr *connectfailures;/* [unique,case(DRSUAPI_DS_REPLICA_INFO_KCC_DSA_CONNECT_FAILURES)] */
@@ -1702,8 +1702,8 @@ union drsuapi_DsReplicaInfo {
 	struct drsuapi_DsReplicaCursor2Ctr *cursors2;/* [unique,case(DRSUAPI_DS_REPLICA_INFO_CURSORS2)] */
 	struct drsuapi_DsReplicaCursor3Ctr *cursors3;/* [unique,case(DRSUAPI_DS_REPLICA_INFO_CURSORS3)] */
 	struct drsuapi_DsReplicaObjMetaData2Ctr *objmetadata2;/* [unique,case(DRSUAPI_DS_REPLICA_INFO_OBJ_METADATA2)] */
-	struct drsuapi_DsReplicaAttrValMetaData2Ctr *attrvalmetadata2;/* [unique,case(DRSUAPI_DS_REPLICA_INFO_ATTRIBUTE_VALUE_METADATA2)] */
-	struct drsuapi_DsReplicaNeighbourCtr *repsto;/* [unique,case(DRSUAPI_DS_REPLICA_INFO_REPSTO)] */
+	struct drsuapi_DsReplicaAttrValMetaData2Ctr *attrvalmetadata2;/* [case(DRSUAPI_DS_REPLICA_INFO_ATTRIBUTE_VALUE_METADATA2),unique] */
+	struct drsuapi_DsReplicaNeighbourCtr *repsto;/* [case(DRSUAPI_DS_REPLICA_INFO_REPSTO),unique] */
 	struct drsuapi_DsReplicaConnection04Ctr *clientctx;/* [unique,case(DRSUAPI_DS_REPLICA_INFO_CLIENT_CONTEXTS)] */
 	struct drsuapi_DsReplicaCursorCtrEx *udv1;/* [unique,case(DRSUAPI_DS_REPLICA_INFO_UPTODATE_VECTOR_V1)] */
 	struct drsuapi_DsReplica06Ctr *srvoutgoingcalls;/* [unique,case(DRSUAPI_DS_REPLICA_INFO_SERVER_OUTGOING_CALLS)] */
@@ -1711,7 +1711,7 @@ union drsuapi_DsReplicaInfo {
 
 struct drsuapi_DsGetMemberships2Ctr1 {
 	uint32_t num_entries;/* [range(0,10000)] */
-	struct drsuapi_DsGetMembershipsCtr1 **ctrl_array;/* [unique,size_is(num_entries)] */
+	struct drsuapi_DsGetMembershipsCtr1 **ctrl_array;/* [size_is(num_entries),unique] */
 };
 
 union drsuapi_DsGetMemberships2Ctr {
@@ -1743,9 +1743,9 @@ union drsuapi_QuerySitesByCostCtr {
 }/* [switch_type(uint32)] */;
 
 struct drsuapi_QuerySitesByCostRequest1 {
-	const char *site_from;/* [unique,charset(UTF16)] */
+	const char *site_from;/* [charset(UTF16),unique] */
 	uint32_t num_req;/* [range(1,10000)] */
-	const char **site_to;/* [unique,charset(UTF16),size_is(num_req)] */
+	const char **site_to;/* [charset(UTF16),unique,size_is(num_req)] */
 	uint32_t flags;
 };
 
@@ -1800,12 +1800,12 @@ struct drsuapi_DsGetNCChanges {
 	struct {
 		struct policy_handle *bind_handle;/* [ref] */
 		uint32_t level;
-		union drsuapi_DsGetNCChangesRequest *req;/* [ref,switch_is(level)] */
+		union drsuapi_DsGetNCChangesRequest *req;/* [switch_is(level),ref] */
 	} in;
 
 	struct {
 		uint32_t *level_out;/* [ref] */
-		union drsuapi_DsGetNCChangesCtr *ctr;/* [ref,switch_is(*level_out)] */
+		union drsuapi_DsGetNCChangesCtr *ctr;/* [switch_is(*level_out),ref] */
 		WERROR result;
 	} out;
 
@@ -1885,7 +1885,7 @@ struct drsuapi_DsGetMemberships {
 
 	struct {
 		uint32_t *level_out;/* [ref] */
-		union drsuapi_DsGetMembershipsCtr *ctr;/* [ref,switch_is(*level_out)] */
+		union drsuapi_DsGetMembershipsCtr *ctr;/* [switch_is(*level_out),ref] */
 		WERROR result;
 	} out;
 
@@ -1904,7 +1904,7 @@ struct drsuapi_DsGetNT4ChangeLog {
 	struct {
 		struct policy_handle *bind_handle;/* [ref] */
 		uint32_t level;
-		union drsuapi_DsGetNT4ChangeLogRequest *req;/* [ref,switch_is(level)] */
+		union drsuapi_DsGetNT4ChangeLogRequest *req;/* [switch_is(level),ref] */
 	} in;
 
 	struct {
@@ -1925,7 +1925,7 @@ struct drsuapi_DsCrackNames {
 
 	struct {
 		uint32_t *level_out;/* [ref] */
-		union drsuapi_DsNameCtr *ctr;/* [ref,switch_is(*level_out)] */
+		union drsuapi_DsNameCtr *ctr;/* [switch_is(*level_out),ref] */
 		WERROR result;
 	} out;
 
@@ -1941,7 +1941,7 @@ struct drsuapi_DsWriteAccountSpn {
 
 	struct {
 		uint32_t *level_out;/* [ref] */
-		union drsuapi_DsWriteAccountSpnResult *res;/* [ref,switch_is(*level_out)] */
+		union drsuapi_DsWriteAccountSpnResult *res;/* [switch_is(*level_out),ref] */
 		WERROR result;
 	} out;
 
@@ -1976,7 +1976,7 @@ struct drsuapi_DsGetDomainControllerInfo {
 	struct {
 		struct policy_handle *bind_handle;/* [ref] */
 		int32_t level;
-		union drsuapi_DsGetDCInfoRequest *req;/* [ref,switch_is(level)] */
+		union drsuapi_DsGetDCInfoRequest *req;/* [switch_is(level),ref] */
 	} in;
 
 	struct {
@@ -1992,7 +1992,7 @@ struct drsuapi_DsAddEntry {
 	struct {
 		struct policy_handle *bind_handle;/* [ref] */
 		uint32_t level;
-		union drsuapi_DsAddEntryRequest *req;/* [ref,switch_is(level)] */
+		union drsuapi_DsAddEntryRequest *req;/* [switch_is(level),ref] */
 	} in;
 
 	struct {
@@ -2022,12 +2022,12 @@ struct drsuapi_DsReplicaGetInfo {
 	struct {
 		struct policy_handle *bind_handle;/* [ref] */
 		enum drsuapi_DsReplicaGetInfoLevel level;
-		union drsuapi_DsReplicaGetInfoRequest *req;/* [ref,switch_is(level)] */
+		union drsuapi_DsReplicaGetInfoRequest *req;/* [switch_is(level),ref] */
 	} in;
 
 	struct {
 		enum drsuapi_DsReplicaInfoType *info_type;/* [ref] */
-		union drsuapi_DsReplicaInfo *info;/* [ref,switch_is(*info_type)] */
+		union drsuapi_DsReplicaInfo *info;/* [switch_is(*info_type),ref] */
 		WERROR result;
 	} out;
 
@@ -2083,7 +2083,7 @@ struct drsuapi_QuerySitesByCost {
 
 	struct {
 		uint32_t *level_out;/* [ref] */
-		union drsuapi_QuerySitesByCostCtr *ctr;/* [ref,switch_is(*level_out)] */
+		union drsuapi_QuerySitesByCostCtr *ctr;/* [switch_is(*level_out),ref] */
 		WERROR result;
 	} out;
 

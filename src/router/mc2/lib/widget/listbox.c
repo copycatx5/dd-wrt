@@ -1,7 +1,7 @@
 /*
    Widgets for the Midnight Commander
 
-   Copyright (C) 1994-2014
+   Copyright (C) 1994-2015
    Free Software Foundation, Inc.
 
    Authors:
@@ -75,7 +75,10 @@ static void
 listbox_entry_free (void *data)
 {
     WLEntry *e = data;
+
     g_free (e->text);
+    if (e->free_data)
+        g_free (e->data);
     g_free (e);
 }
 
@@ -478,7 +481,7 @@ listbox_event (Gpm_Event * event, void *data)
     if ((event->type & GPM_DOWN) != 0)
         dlg_select_widget (l);
 
-    if (g_queue_is_empty (l->list))
+    if (listbox_is_empty (l))
         return MOU_NORMAL;
 
     if ((event->type & (GPM_DOWN | GPM_DRAG)) != 0)
@@ -770,7 +773,8 @@ listbox_remove_list (WListbox * l)
 /* --------------------------------------------------------------------------------------------- */
 
 char *
-listbox_add_item (WListbox * l, listbox_append_t pos, int hotkey, const char *text, void *data)
+listbox_add_item (WListbox * l, listbox_append_t pos, int hotkey, const char *text, void *data,
+                  gboolean free_data)
 {
     WLEntry *entry;
 
@@ -783,6 +787,7 @@ listbox_add_item (WListbox * l, listbox_append_t pos, int hotkey, const char *te
     entry = g_new (WLEntry, 1);
     entry->text = g_strdup (text);
     entry->data = data;
+    entry->free_data = free_data;
     entry->hotkey = hotkey;
 
     listbox_append_item (l, entry, pos);

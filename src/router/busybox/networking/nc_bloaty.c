@@ -175,9 +175,9 @@ enum {
 	OPT_w = (1 << 5),
 	OPT_l = (1 << 6) * ENABLE_NC_SERVER,
 	OPT_k = (1 << 7) * ENABLE_NC_SERVER,
-	OPT_i = (1 << (7+2*ENABLE_NC_SERVER)) * ENABLE_NC_EXTRA,
-	OPT_o = (1 << (8+2*ENABLE_NC_SERVER)) * ENABLE_NC_EXTRA,
-	OPT_z = (1 << (9+2*ENABLE_NC_SERVER)) * ENABLE_NC_EXTRA,
+	OPT_i = (1 << (6+2*ENABLE_NC_SERVER)) * ENABLE_NC_EXTRA,
+	OPT_o = (1 << (7+2*ENABLE_NC_SERVER)) * ENABLE_NC_EXTRA,
+	OPT_z = (1 << (8+2*ENABLE_NC_SERVER)) * ENABLE_NC_EXTRA,
 };
 
 #define o_nflag   (option_mask32 & OPT_n)
@@ -863,8 +863,8 @@ int nc_main(int argc UNUSED_PARAM, char **argv)
 		xbind(netfd, &ouraddr->u.sa, ouraddr->len);
 	}
 #if 0
-	setsockopt(netfd, SOL_SOCKET, SO_RCVBUF, &o_rcvbuf, sizeof o_rcvbuf);
-	setsockopt(netfd, SOL_SOCKET, SO_SNDBUF, &o_sndbuf, sizeof o_sndbuf);
+	setsockopt_SOL_SOCKET_int(netfd, SO_RCVBUF, o_rcvbuf);
+	setsockopt_SOL_SOCKET_int(netfd, SO_SNDBUF, o_sndbuf);
 #endif
 
 #ifdef BLOAT

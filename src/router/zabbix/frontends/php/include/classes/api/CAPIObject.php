@@ -1,7 +1,7 @@
 <?php
 /*
 ** Zabbix
-** Copyright (C) 2001-2013 Zabbix SIA
+** Copyright (C) 2001-2015 Zabbix SIA
 **
 ** This program is free software; you can redistribute it and/or modify
 ** it under the terms of the GNU General Public License as published by
@@ -44,20 +44,7 @@ class CAPIObject {
 			$trace = $result['data'];
 
 			if (isset($result['debug'])) {
-				$trace .= ' [';
-
-				$chain = array();
-				foreach ($result['debug'] as $bt) {
-					if ($bt['function'] == 'exception') continue;
-					if ($bt['function'] == 'call_user_func') break;
-
-					$chain[] = (isset($bt['class']) ? $bt['class'].'.'.$bt['function'] : $bt['function']);
-					$chain[] = ' -> ';
-				}
-				array_pop($chain);
-				$trace .= implode('', array_reverse($chain));
-
-				$trace .= ']';
+				$trace .= ' ['.CProfiler::getInstance()->formatCallStack($result['debug']).']';
 			}
 
 			error($trace);

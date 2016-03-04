@@ -74,7 +74,7 @@ void delete_ath9k_devices(char *physical_iface)
 void deconfigure_single_ath9k(int count)
 {
 	fprintf(stderr, "ath9k deconfigure_single: phy%d ath%d\n", get_ath9k_phy_idx(count), count);
-	static char wif[10];
+	char wif[10];
 	sprintf(wif, "phy%d", get_ath9k_phy_idx(count));
 	delete_ath9k_devices(wif);
 }
@@ -82,33 +82,35 @@ void deconfigure_single_ath9k(int count)
 void configure_single_ath9k(int count)
 {
 	char *next;
-	static char var[80];
-	static char mode[80];
+	char var[80];
+	char mode[80];
 	int cnt = 0;
-	static char dev[10];
-	static char wif[10];
+	char dev[10];
+	char wif[10];
 	int phy_idx = get_ath9k_phy_idx(count);
-	static char mtikie[32];
-	static char wl[16];
-	static char channel[16];
-	static char ssid[16];
-	static char net[16];
-	static char wifivifs[16];
-	static char broadcast[16];
-	static char sens[32];
-	static char basedev[16];
-	static char diversity[32];
-	static char athmac[16];
-	static char wl_poll[32];
-	static char rxantenna[32];
-	static char txantenna[32];
+	char mtikie[32];
+	char wl[16];
+	char channel[16];
+	char ssid[16];
+	char net[16];
+	char wifivifs[16];
+	char broadcast[16];
+	char sens[32];
+	char basedev[16];
+	char diversity[32];
+	char athmac[16];
+	char wl_poll[32];
+	char rxantenna[32];
+	char txantenna[32];
 	static int vapcount = 0;
+	int isath5k = 0;
 	char *apm;
 	char isolate[32];
 	char primary[32] = { 0 };
 	char regdomain[16];
 	char *country;
 	sprintf(dev, "ath%d", count);
+	isath5k = is_ath5k(dev);
 	// sprintf(regdomain, "%s_regdomain", dev);
 	// country = nvram_default_get(regdomain, "US");
 	// sysprintf("iw reg set %s", getIsoName(country));
@@ -135,13 +137,27 @@ void configure_single_ath9k(int count)
 	// set channelbw ht40 is also 20!
 
 	sprintf(bw, "%s_channelbw", dev);
-	if (nvram_match(bw, "5"))
-		sysprintf("echo 5 > /sys/kernel/debug/ieee80211/%s/ath9k/chanbw", wif);
-	else if (nvram_match(bw, "10"))
-		sysprintf("echo 10 > /sys/kernel/debug/ieee80211/%s/ath9k/chanbw", wif);
-	else
-		sysprintf("echo 20 > /sys/kernel/debug/ieee80211/%s/ath9k/chanbw", wif);
+	if (isath5k) {
+		if (nvram_match(bw, "5"))
+			sysprintf("echo 5 > /sys/kernel/debug/ieee80211/%s/ath5k/bwmode", wif);
+		else if (nvram_match(bw, "10"))
+			sysprintf("echo 10 > /sys/kernel/debug/ieee80211/%s/ath5k/bwmode", wif);
+		else if (nvram_match(bw, "40"))
+			sysprintf("echo 40 > /sys/kernel/debug/ieee80211/%s/ath5k/bwmode", wif);
+		else
+			sysprintf("echo 20 > /sys/kernel/debug/ieee80211/%s/ath5k/bwmode", wif);
+	} else {
+		if (nvram_match(bw, "5"))
+			sysprintf("echo 5 > /sys/kernel/debug/ieee80211/%s/ath9k/chanbw", wif);
+		else if (nvram_match(bw, "10"))
+			sysprintf("echo 10 > /sys/kernel/debug/ieee80211/%s/ath9k/chanbw", wif);
+		else
+			sysprintf("echo 20 > /sys/kernel/debug/ieee80211/%s/ath9k/chanbw", wif);
+	}
+	char wl_intmit[32];
 
+	sprintf(wl_intmit, "%s_intmit", dev);
+	sysprintf("echo %s > /sys/kernel/debug/ieee80211/%s/ath9k/ani", nvram_default_get(wl_intmit, "1"), wif);
 #ifdef HAVE_REGISTER
 	int cpeonly = iscpe();
 #else
@@ -187,15 +203,15 @@ void configure_single_ath9k(int count)
 	if (!strcmp(apm, "ap") || !strcmp(apm, "wdsap") || !strcmp(apm, "sta")
 	    || !strcmp(apm, "wet")) {
 
-		sysprintf("iw %s interface add %s type managed", wif, dev);
+		eval("iw", wif, "interface", "add", dev, "type", "managed");
 
 		strcpy(primary, dev);
 	} else if (!strcmp(apm, "wdssta")) {
-		sysprintf("iw %s interface add %s type managed 4addr on", wif, dev);
+		eval("iw", wif, "interface", "add", dev, "type", "managed", "4addr", "on");
 
 		strcpy(primary, dev);
 	} else {
-		sysprintf("iw %s interface add %s type ibss", wif, dev);
+		eval("iw", wif, "interface", "add", dev, "type", "ibss");
 		// still TBD ;-)
 		// ifconfig ath0 up
 		// iw dev ath0 ibss join AdHocNetworkName 2412
@@ -203,13 +219,27 @@ void configure_single_ath9k(int count)
 
 	char macaddr[32];
 	// interface is created at this point, so that should work
+#if defined(HAVE_MVEBU) || defined(HAVE_IPQ806X)
+	getWirelessMac(macaddr, count);
+	eval("ifconfig", dev, "hw", "ether", macaddr);
+#else
 	getMacAddr(dev, macaddr);
+#endif
 	nvram_set(athmac, macaddr);
 	int distance = atoi(nvram_default_get(sens, "2000"));	// to meter
-	sysprintf("iw phy %s set distance %d", wif, distance);
-
+	char dist[32];
+	if (distance > 0)
+		sprintf(dist, "%d", distance);
+	else
+		sprintf(dist, "auto");
+	eval("iw", "phy", wif, "set", "distance", dist);
+#ifdef HAVE_ATH10K
+	if (is_ath10k(dev) && !is_mvebu(dev)) {	// evil hack for QCA 
+		set_ath10kdistance(dev, distance);
+	}
+#endif
 // das scheint noch aerger zu machen
-	sysprintf("iw dev %s set power_save off", dev);
+	eval("iw", "dev", dev, "set", "power_save", "off");
 
 	cprintf("done()\n");
 
@@ -226,7 +256,7 @@ void configure_single_ath9k(int count)
 		if (nvram_match("mac_clone_enable", "1")
 		    && nvram_invmatch(clonename, "00:00:00:00:00:00")
 		    && nvram_invmatch(clonename, "")) {
-			sysprintf("ifconfig %s hw ether %s", dev, nvram_safe_get(clonename));
+			eval("ifconfig", dev, "hw", "ether", nvram_safe_get(clonename));
 		}
 
 		setupSupplicant_ath9k(dev, NULL);
@@ -244,7 +274,7 @@ void configure_single_ath9k(int count)
 	if (strlen(vifs) > 0)
 		foreach(var, vifs, next) {
 		fprintf(stderr, "setup vifs %s %d\n", var, counter);
-		// create the first main hostapd interface when this is repaeter mode
+		// create the first main hostapd interface when this is repeater mode
 		if (isfirst)
 			sysprintf("iw %s interface add %s.%d type managed", wif, dev, counter);
 		setupHostAP_ath9k(dev, isfirst, counter, 0);
@@ -258,9 +288,10 @@ void setupHostAP_generic_ath9k(char *prefix, FILE * fp, int isrepeater, int aoss
 	struct wifi_channels *chan;
 	int channel = 0;
 	int freq = 0;
-	static char nfreq[16];
+	char nfreq[16];
 	int i = 0;
 	char *caps;
+	int isath5k = is_ath5k(prefix);
 	fprintf(fp, "driver=nl80211\n");
 	fprintf(fp, "ctrl_interface=/var/run/hostapd\n");
 	fprintf(fp, "wmm_ac_bk_cwmin=4\n");
@@ -271,7 +302,6 @@ void setupHostAP_generic_ath9k(char *prefix, FILE * fp, int isrepeater, int aoss
 	fprintf(fp, "wmm_ac_be_aifs=3\n");
 	fprintf(fp, "wmm_ac_be_cwmin=4\n");
 	fprintf(fp, "wmm_ac_be_cwmax=10\n");
-	fprintf(fp, "wmm_ac_be_txop_limit=0\n");
 	fprintf(fp, "wmm_ac_be_acm=0\n");
 	fprintf(fp, "wmm_ac_vi_aifs=2\n");
 	fprintf(fp, "wmm_ac_vi_cwmin=3\n");
@@ -290,7 +320,6 @@ void setupHostAP_generic_ath9k(char *prefix, FILE * fp, int isrepeater, int aoss
 	fprintf(fp, "tx_queue_data2_aifs=3\n");
 	fprintf(fp, "tx_queue_data2_cwmin=15\n");
 	fprintf(fp, "tx_queue_data2_cwmax=63\n");
-	fprintf(fp, "tx_queue_data2_burst=0\n");
 	fprintf(fp, "tx_queue_data1_aifs=1\n");
 	fprintf(fp, "tx_queue_data1_cwmin=7\n");
 	fprintf(fp, "tx_queue_data1_cwmax=15\n");
@@ -299,29 +328,49 @@ void setupHostAP_generic_ath9k(char *prefix, FILE * fp, int isrepeater, int aoss
 	fprintf(fp, "tx_queue_data0_cwmin=3\n");
 	fprintf(fp, "tx_queue_data0_cwmax=7\n");
 	fprintf(fp, "tx_queue_data0_burst=1.5\n");
+	char *country = getIsoName(nvram_default_get("ath0_regdomain", "GERMANY"));
+	if (!country)
+		country = "DE";
+	fprintf(fp, "country_code=%s\n", country);
 	char *netmode = nvram_nget("%s_net_mode", prefix);
+	if (isath5k || !(nvram_match(netmode, "n2-only") || nvram_match(netmode, "n5-only"))) {
+		fprintf(fp, "tx_queue_data2_burst=2.0\n");
+		fprintf(fp, "wmm_ac_be_txop_limit=64\n");
+	} else {
+		fprintf(fp, "tx_queue_data2_burst=0\n");
+		fprintf(fp, "wmm_ac_be_txop_limit=0\n");
+	}
+
 	char *akm = nvram_nget("%s_akm", prefix);
 	char *crypto = nvram_nget("%s_crypto", prefix);
-	char ht[5];
+	char ht[6];
 	int iht = 0;
 	char bw[32];
 	sprintf(bw, "%s_channelbw", prefix);
+	ht[0] = 0;
 	if ((!strcmp(netmode, "ng-only") ||	//
 	     !strcmp(netmode, "na-only") ||	//
 	     !strcmp(netmode, "n2-only") ||	//
 	     !strcmp(netmode, "n5-only") ||	//
+	     !strcmp(netmode, "ac-only") ||	//
+	     !strcmp(netmode, "acn-mixed") ||	//
 	     !strcmp(netmode, "mixed"))
 	    && strcmp(akm, "wep")
 	    && !aoss) {
 
 		if (strcmp(netmode, "mixed") && strcmp(netmode, "ng-only")
 		    && strcmp(netmode, "na-only")) {
-			fprintf(fp, "require_ht=1\n");
+			if (!isath5k)
+				fprintf(fp, "require_ht=1\n");
 		}
-		fprintf(fp, "ieee80211n=1\n");
+		if (!isath5k)
+			fprintf(fp, "ieee80211n=1\n");
 		if (nvram_match(bw, "2040")) {
 			fprintf(fp, "dynamic_ht40=1\n");
+		} else {
+			fprintf(fp, "dynamic_ht40=0\n");
 		}
+
 		if (nvram_default_match(bw, "20", "20")) {
 			sprintf(ht, "HT20");
 		} else if (nvram_match(bw, "80") || nvram_match(bw, "40") || nvram_match(bw, "2040")) {
@@ -339,21 +388,31 @@ void setupHostAP_generic_ath9k(char *prefix, FILE * fp, int isrepeater, int aoss
 	} else {
 		sprintf(ht, "HT20");
 	}
-	// fix for repeater mode as long as the driver is not able to do that
-	if (isrepeater) {
-		sprintf(ht, "HT20");
-	}
 	char regdomain[16];
-	char *country;
 	sprintf(regdomain, "%s_regdomain", prefix);
-	country = nvram_default_get(regdomain, "UNITED_STATES");
+	country = nvram_default_get(regdomain, "GERMANY");
 	// jumps to world if set here?!?
 	// fprintf(fp, "country_code=%s\n", getIsoName(country));
-	chan = mac80211_get_channels(prefix, getIsoName(country), 40, 0xff);
+	char *iso = getIsoName(country);
+	if (!iso)
+		iso = "DE";
+
+	chan = mac80211_get_channels(prefix, iso, 40, 0xff);
 	if (isrepeater) {
 		// for ht40- take second channel otherwise hostapd is unhappy (and does not start)
-		if (iht == -1)
-			i = 1;
+		if (has_2ghz(prefix)) {
+			if (iht == -1) {
+				i = 4;	// in 2.4 mhz channel spacing is different
+			}
+		}
+		if (has_5ghz(prefix)) {
+			if (iht == -1) {
+				if (nvram_match(bw, "80"))
+					i = 2;	// second index for 80 mhz
+				else
+					i = 1;
+			}
+		}
 		if (chan != NULL && chan[i].freq != -1) {
 			channel = chan[i].channel;
 			freq = chan[i].freq;
@@ -364,8 +423,13 @@ void setupHostAP_generic_ath9k(char *prefix, FILE * fp, int isrepeater, int aoss
 				freq = 2437;
 			}
 			if (has_5ghz(prefix)) {
-				channel = 40;
-				freq = 5200;
+				if (nvram_match(bw, "80")) {
+					channel = 44;
+					freq = 5220;
+				} else {
+					channel = 40;
+					freq = 5200;
+				}
 			}
 		}
 	} else {
@@ -376,7 +440,7 @@ void setupHostAP_generic_ath9k(char *prefix, FILE * fp, int isrepeater, int aoss
 		if (freq == 0) {
 			struct mac80211_ac *acs;
 			fprintf(stderr, "call mac80211autochannel for interface: %s\n", prefix);
-			sysprintf("ifconfig %s up", prefix);
+			eval("ifconfig", prefix, "up");
 			acs = mac80211autochannel(prefix, NULL, 2, 1, 0);
 			if (acs != NULL) {
 				freq = acs->freq;
@@ -399,57 +463,90 @@ void setupHostAP_generic_ath9k(char *prefix, FILE * fp, int isrepeater, int aoss
 				}
 				free_mac80211_ac(acs);
 			} else {
-				if (has_2ghz(prefix))
+				if (has_2ghz(prefix)) {
 					channel = 6;
-				if (has_5ghz(prefix))
-					channel = 40;
+					freq = 2437;
+				}
+				if (has_5ghz(prefix)) {
+					if (nvram_match(bw, "80")) {
+						channel = 44;
+						freq = 5220;
+					} else {
+						channel = 40;
+						freq = 5200;
+					}
+				}
 			}
 		} else {
 			channel = ieee80211_mhz2ieee(freq);
 		}
 	}
-	caps = mac80211_get_caps(prefix);
-	fprintf(fp, "ht_capab=[%s]%s\n", ht, caps);
-	free(caps);
+	if (!isath5k) {
+		char shortgi[32];
+		sprintf(shortgi, "%s_shortgi", prefix);
+		caps = mac80211_get_caps(prefix, nvram_default_match(shortgi, "1", "1") ? 1 : 0);
+		if (strlen(ht) > 0) {
+			fprintf(fp, "ht_capab=[%s]%s\n", ht, caps);
+		} else {
+			fprintf(fp, "ht_capab=%s\n", caps);
+		}
+		free(caps);
+	}
 #ifdef HAVE_ATH10K
-	if (is_ath10k(prefix)) {
+	if (is_ath10k(prefix) || is_mvebu(prefix)) {
 		if ((!strcmp(netmode, "mixed") ||	//
-		     !strcmp(netmode, "ac-only"))) {
-			caps = mac80211_get_vhtcaps(prefix);
+		     !strcmp(netmode, "ac-only") || !strcmp(netmode, "acn-mixed"))) {
+			char shortgi[32];
+			sprintf(shortgi, "%s_shortgi", prefix);
+			caps = mac80211_get_vhtcaps(prefix, nvram_default_match(shortgi, "1", "1") ? 1 : 0);
 			fprintf(fp, "vht_capab=%s\n", caps);
 			free(caps);
 			fprintf(fp, "ieee80211ac=1\n");
 			if (!strcmp(netmode, "ac-only")) {
 				fprintf(fp, "require_vht=1\n");
+				fprintf(fp, "ieee80211d=1\n");
+				fprintf(fp, "ieee80211h=1\n");
+				//might be needed for dfs
+				//fprintf(fp, "spectrum_mgmt_required=1\n");
+				//fprintf(fp, "local_pwr_constraint=3\n");
+			}
+
+			if (!strcmp(netmode, "acn-mixed")) {
+				fprintf(fp, "require_ht=1\n");
+				fprintf(fp, "ieee80211d=1\n");
+				fprintf(fp, "ieee80211h=1\n");
+				//might be needed for dfs
+				//fprintf(fp, "spectrum_mgmt_required=1\n");
+				//fprintf(fp, "local_pwr_constraint=3\n");
 			}
 
 			if (nvram_match(bw, "40")) {
-				fprintf(fp, "vht_oper_chwidth=1\n");
-				int idx = channel;
-				switch ((channel / 4) % 2) {
+				fprintf(fp, "vht_oper_chwidth=0\n");
+				int idx = channel + (2 * iht);
+/*				switch ((channel / 4) % 2) {
 				case 0:
 					idx = channel + 2;
 					break;
 				case 1:
 					idx = channel - 2;
 					break;
-				}
+				}*/
 				fprintf(fp, "vht_oper_centr_freq_seg0_idx=%d\n", idx);
 			} else if (nvram_match(bw, "80")) {
 				fprintf(fp, "vht_oper_chwidth=1\n");
-				int idx = channel;
-//                              switch ((channel / 4) % 4) {
-//                              case 0:
-				idx = channel + 6;
-/*					break;
+				int idx = channel + (6 * iht);
+/*                                switch ((channel / 4) % 4) {
+                                case 0:
+					idx = channel + 6;
+					break;
 				case 1:
-					idx = channel + 2;
+					idx = channel - 6;
 					break;
 				case 2:
 					idx = channel - 2;
 					break;
 				case 3:
-					idx = channel - 6;
+					idx = channel + 2;
 					break;
 				}*/
 				fprintf(fp, "vht_oper_centr_freq_seg0_idx=%d\n", idx);
@@ -485,8 +582,15 @@ void setupHostAP_generic_ath9k(char *prefix, FILE * fp, int isrepeater, int aoss
 
 	}
 	fprintf(fp, "channel=%d\n", channel);
-	fprintf(fp, "\n");
 	fprintf(fp, "frequency=%d\n", freq);
+	char bcn[32];
+	sprintf(bcn, "%s_bcn", prefix);
+	fprintf(fp, "beacon_int=%s\n", nvram_default_get(bcn, "100"));
+	fprintf(fp, "\n");
+
+	char dtim[32];
+	sprintf(dtim, "%s_dtim", prefix);
+	fprintf(fp, "dtim_period=%s\n", nvram_default_get(dtim, "2"));
 	fprintf(fp, "\n");
 }
 
@@ -541,6 +645,8 @@ static int ieee80211_aton(char *str, unsigned char mac[6])
 
 extern char *hostapd_eap_get_types(void);
 extern void addWPS(FILE * fp, char *prefix, int configured);
+extern void setupHS20(FILE * fp, char *prefix);
+
 void setupHostAP_ath9k(char *maininterface, int isfirst, int vapid, int aoss)
 {
 #ifdef HAVE_REGISTER
@@ -553,12 +659,14 @@ void setupHostAP_ath9k(char *maininterface, int isfirst, int vapid, int aoss)
 	FILE *fp = NULL;
 	char *ssid;
 	char nssid[16];
-	static char maxassoc[32];
+	char maxassoc[32];
 	char ifname[10];
 	int isrepeater = 0;
 	unsigned char hwbuff[16];
 	char macaddr[32];
 	char *types;
+	char *debug;
+	char tmp[256];
 	if (isfirst && vapid == 0) {
 		sprintf(ifname, "%s", maininterface);
 	} else {
@@ -582,7 +690,6 @@ void setupHostAP_ath9k(char *maininterface, int isfirst, int vapid, int aoss)
 	sprintf(fstr, "/tmp/%s_hostap.conf", maininterface);
 	if (isfirst) {
 		fp = fopen(fstr, "wb");
-		fprintf(stderr, "%d:%s\n", __LINE__, maininterface);
 		setupHostAP_generic_ath9k(maininterface, fp, isrepeater, aoss);
 		fprintf(fp, "interface=%s\n", ifname);
 	} else {
@@ -594,7 +701,10 @@ void setupHostAP_ath9k(char *maininterface, int isfirst, int vapid, int aoss)
 	char *mode = nvram_nget("%s_mode", ifname);
 	if (!strcmp(mode, "wdsap"))
 		fprintf(fp, "wds_sta=1\n");
-	fprintf(fp, "wmm_enabled=1\n");
+
+	char wmm[32];
+	sprintf(wmm, "%s_wmm", ifname);
+	fprintf(fp, "wmm_enabled=%s\n", nvram_default_get(wmm, "1"));
 	if (nvram_match("mac_clone_enable", "1")
 	    && nvram_invmatch("def_whwaddr", "00:00:00:00:00:00")
 	    && nvram_invmatch("def_whwaddr", "")
@@ -642,7 +752,7 @@ void setupHostAP_ath9k(char *maininterface, int isfirst, int vapid, int aoss)
 //                      fprintf(fp, "ieee80211n=0\n");
 
 		if (nvram_nmatch("1", "%s_bridged", ifname))
-			fprintf(fp, "bridge=%s\n", getBridge(ifname));
+			fprintf(fp, "bridge=%s\n", getBridge(ifname, tmp));
 		if (!aoss) {
 			if (!strncmp(ifname, "ath0", 4))
 				led_control(LED_SEC0, LED_ON);
@@ -650,10 +760,18 @@ void setupHostAP_ath9k(char *maininterface, int isfirst, int vapid, int aoss)
 				led_control(LED_SEC1, LED_ON);
 		}
 		fprintf(fp, "logger_syslog=-1\n");
-		fprintf(fp, "logger_syslog_level=2\n");
+		debug = nvram_nget("%s_wpa_debug", ifname);
+		if (debug != NULL) {
+			if (!strcmp(debug, "1"))
+				fprintf(fp, "logger_syslog_level=1\n");
+			else if (!strcmp(debug, "2"))
+				fprintf(fp, "logger_syslog_level=0\n");
+			else if (!strcmp(debug, "3"))
+				fprintf(fp, "logger_syslog_level=0\n");
+		} else
+			fprintf(fp, "logger_syslog_level=2\n");
 		fprintf(fp, "logger_stdout=-1\n");
 		fprintf(fp, "logger_stdout_level=2\n");
-		fprintf(fp, "dump_file=/tmp/hostapd.dump\n");
 		char *authmode = nvram_nget("%s_authmode", ifname);
 		if (aoss)
 			authmode = "auto";
@@ -689,12 +807,20 @@ void setupHostAP_ath9k(char *maininterface, int isfirst, int vapid, int aoss)
 			led_control(LED_SEC1, LED_ON);
 		// sprintf(buf, "rsn_preauth_interfaces=%s\n", "br0");
 		if (nvram_nmatch("1", "%s_bridged", ifname))
-			fprintf(fp, "bridge=%s\n", getBridge(ifname));
+			fprintf(fp, "bridge=%s\n", getBridge(ifname, tmp));
 		fprintf(fp, "logger_syslog=-1\n");
-		fprintf(fp, "logger_syslog_level=2\n");
+		debug = nvram_nget("%s_wpa_debug", ifname);
+		if (debug != NULL) {
+			if (!strcmp(debug, "1"))
+				fprintf(fp, "logger_syslog_level=1\n");
+			else if (!strcmp(debug, "2"))
+				fprintf(fp, "logger_syslog_level=0\n");
+			else if (!strcmp(debug, "3"))
+				fprintf(fp, "logger_syslog_level=0\n");
+		} else
+			fprintf(fp, "logger_syslog_level=2\n");
 		fprintf(fp, "logger_stdout=-1\n");
 		fprintf(fp, "logger_stdout_level=2\n");
-		fprintf(fp, "dump_file=/tmp/hostapd.dump\n");
 		// fprintf (fp, "eap_server=0\n");
 		// fprintf (fp, "own_ip_addr=127.0.0.1\n");
 		fprintf(fp, "eapol_version=1\n");
@@ -723,18 +849,31 @@ void setupHostAP_ath9k(char *maininterface, int isfirst, int vapid, int aoss)
 			fprintf(fp, "ieee8021x=1\n");
 			// fprintf (fp, "accept_mac_file=/tmp/hostapd.accept\n");
 			// fprintf (fp, "deny_mac_file=/tmp/hostapd.deny\n");
-			if (nvram_match("wan_proto", "disabled"))
-				fprintf(fp, "own_ip_addr=%s\n", nvram_safe_get("lan_ipaddr"));
-			else {
-				char *wip = get_wan_ipaddr();
-				if (strlen(wip))
-					fprintf(fp, "own_ip_addr=%s\n", wip);
-				else
+
+			char local_ip[32];
+			sprintf(local_ip, "%s_local_ip", ifname);
+			char *lip = nvram_default_get(local_ip, "0.0.0.0");
+			if (strcmp(lip, "0.0.0.0")) {
+				fprintf(fp, "radius_client_addr=%s\n", lip);
+				fprintf(fp, "own_ip_addr=%s\n", lip);
+			} else {
+				if (nvram_match("wan_proto", "disabled"))
 					fprintf(fp, "own_ip_addr=%s\n", nvram_safe_get("lan_ipaddr"));
+				else {
+					char *wip = get_wan_ipaddr();
+					if (strlen(wip))
+						fprintf(fp, "own_ip_addr=%s\n", wip);
+					else
+						fprintf(fp, "own_ip_addr=%s\n", nvram_safe_get("lan_ipaddr"));
+				}
+
 			}
+
 			fprintf(fp, "eap_server=0\n");
 			fprintf(fp, "auth_algs=1\n");
-			fprintf(fp, "radius_retry_primary_interval=60\n");
+			char retry[32];
+			sprintf(retry, "%s_radius_retry", ifname);
+			fprintf(fp, "radius_retry_primary_interval=%s\n", nvram_default_get(retry, "600"));
 			types = hostapd_eap_get_types();
 			fprintf(fp, "%s", types);
 			free(types);
@@ -772,7 +911,15 @@ void setupHostAP_ath9k(char *maininterface, int isfirst, int vapid, int aoss)
 		}
 		// fprintf (fp, "jumpstart_p1=1\n");
 	}
+#ifdef HAVE_HOTSPOT20
+	setupHS20(fp, ifname);
+#endif
+	char *v = nvram_nget("%s_config", ifname);
 	fprintf(fp, "\n");
+	if (v && strlen(v) > 0)
+		fprintf(fp, "%s", v);
+	fprintf(fp, "\n");
+
 	fclose(fp);
 }
 
@@ -833,6 +980,15 @@ void setupSupplicant_ath9k(char *prefix, char *ssidoverride)
 		if (!ssidoverride)
 			ssidoverride = nvram_nget("%s_ssid", prefix);
 		fprintf(fp, "\tssid=\"%s\"\n", ssidoverride);
+		char scanlist[32];
+		sprintf(scanlist, "%s_scanlist", prefix);
+		char *sl = nvram_default_get(scanlist, "default");
+		if (strcmp(sl, "default")) {
+			fprintf(fp, "\tscan_freq=%s\n", sl);
+		}
+#ifdef HAVE_UNIWIP
+		fprintf(fp, "\tbgscan=\"simple:30:-45:300\"\n");
+#endif
 		// fprintf (fp, "\tmode=0\n");
 		fprintf(fp, "\tscan_ssid=1\n");
 		fprintf(fp, "\tkey_mgmt=WPA-PSK\n");
@@ -890,6 +1046,9 @@ void setupSupplicant_ath9k(char *prefix, char *ssidoverride)
 		if (!ssidoverride)
 			ssidoverride = nvram_nget("%s_ssid", prefix);
 		fprintf(fp, "\tssid=\"%s\"\n", ssidoverride);
+#ifdef HAVE_UNIWIP
+		fprintf(fp, "\tbgscan=\"simple:30:-45:300\"\n");
+#endif
 		fprintf(fp, "\tscan_ssid=1\n");
 		if (nvram_prefix_match("8021xtype", prefix, "tls")) {
 // -> added habeIchVergessen
@@ -1047,6 +1206,9 @@ void setupSupplicant_ath9k(char *prefix, char *ssidoverride)
 		if (!ssidoverride)
 			ssidoverride = nvram_nget("%s_ssid", prefix);
 		fprintf(fp, "\tssid=\"%s\"\n", ssidoverride);
+#ifdef HAVE_UNIWIP
+		fprintf(fp, "\tbgscan=\"simple:30:-45:300\"\n");
+#endif
 		// fprintf (fp, "\tmode=0\n");
 		fprintf(fp, "\tscan_ssid=1\n");
 		fprintf(fp, "\tkey_mgmt=NONE\n");
@@ -1087,14 +1249,19 @@ void ath9k_start_supplicant(int count)
 	char var[80];
 	char fstr[32];
 	char bridged[32];
-	static char mode[80];
-	static char dev[10];
-	static char power[32];
+	char mode[80];
+	char dev[10];
+	char power[32];
 	char *apm, *vifs;
-	static char wl[16];
-	static char ctrliface[32] = "";
-	static char wifivifs[16];
+	char wl[16];
+	char ctrliface[32] = "";
+	char wifivifs[16];
+	char tmp[256];
+#ifdef HAVE_CONFIG_DEBUG_SYSLOG
+	char *background = "-Bs";
+#else
 	char *background = "-B";
+#endif
 	char *debug;
 	char psk[16];
 	char wmode[16];
@@ -1111,6 +1278,16 @@ void ath9k_start_supplicant(int count)
 	sprintf(wmode, "%s_mode", dev);
 	sprintf(bridged, "%s_bridged", dev);
 	debug = nvram_nget("%s_wpa_debug", dev);
+#ifdef HAVE_CONFIG_DEBUG_SYSLOG
+	if (debug != NULL) {
+		if (!strcmp(debug, "1"))
+			background = "-Bds";
+		else if (!strcmp(debug, "2"))
+			background = "-Bdds";
+		else if (!strcmp(debug, "3"))
+			background = "-Bddds";
+	}
+#else
 	if (debug != NULL) {
 		if (!strcmp(debug, "1"))
 			background = "-Bd";
@@ -1119,6 +1296,7 @@ void ath9k_start_supplicant(int count)
 		else if (!strcmp(debug, "3"))
 			background = "-Bddd";
 	}
+#endif
 	if (strcmp(apm, "sta") && strcmp(apm, "wdssta")
 	    && strcmp(apm, "wet")) {
 		sprintf(fstr, "/tmp/%s_hostap.conf", dev);
@@ -1132,14 +1310,14 @@ void ath9k_start_supplicant(int count)
 #ifdef HAVE_RELAYD
 			if ((nvram_match(wmode, "wdssta"))
 			    && nvram_match(bridged, "1"))
-				eval("wpa_supplicant", "-b", getBridge(dev), background, "-Dnl80211", psk, "-H", ctrliface, "-c", fstr);
+				eval("wpa_supplicant", "-b", getBridge(dev, tmp), background, "-Dnl80211", psk, "-H", ctrliface, "-c", fstr);
 			else
 				eval("wpa_supplicant", background, "-Dnl80211", psk, "-H", ctrliface, "-c", fstr);
 #else
 			if ((nvram_match(wmode, "wdssta")
 			     || nvram_match(wmode, "wet"))
 			    && nvram_match(bridged, "1"))
-				eval("wpa_supplicant", "-b", getBridge(dev), background, "-Dnl80211", psk, "-H", ctrliface, "-c", fstr);
+				eval("wpa_supplicant", "-b", getBridge(dev, tmp), background, "-Dnl80211", psk, "-H", ctrliface, "-c", fstr);
 			else
 				eval("wpa_supplicant", background, "-Dnl80211", psk, "-H", ctrliface, "-c", fstr);
 #endif
@@ -1148,14 +1326,14 @@ void ath9k_start_supplicant(int count)
 #ifdef HAVE_RELAYD
 			if ((nvram_match(wmode, "wdssta"))
 			    && nvram_match(bridged, "1"))
-				eval("wpa_supplicant", "-b", getBridge(dev), background, "-Dnl80211", psk, "-c", fstr);
+				eval("wpa_supplicant", "-b", getBridge(dev, tmp), background, "-Dnl80211", psk, "-c", fstr);
 			else
 				eval("wpa_supplicant", background, "-Dnl80211", psk, "-c", fstr);
 #else
 			if ((nvram_match(wmode, "wdssta")
 			     || nvram_match(wmode, "wet"))
 			    && nvram_match(bridged, "1"))
-				eval("wpa_supplicant", "-b", getBridge(dev), background, "-Dnl80211", psk, "-c", fstr);
+				eval("wpa_supplicant", "-b", getBridge(dev, tmp), background, "-Dnl80211", psk, "-c", fstr);
 			else
 				eval("wpa_supplicant", background, "-Dnl80211", psk, "-c", fstr);
 #endif
@@ -1169,18 +1347,18 @@ void ath9k_start_supplicant(int count)
 		char bridged[32];
 		sprintf(bridged, "%s_bridged", dev);
 		if (nvram_default_match(bridged, "1", "1")) {
-			sysprintf("ifconfig %s 0.0.0.0 up", dev);
-			br_add_interface(getBridge(dev), dev);
-			sysprintf("ifconfig %s 0.0.0.0 up", dev);
+			eval("ifconfig", dev, "0.0.0.0", "up");
+			br_add_interface(getBridge(dev, tmp), dev);
+			eval("ifconfig", dev, "0.0.0.0", "up");
 		} else {
-			sysprintf("ifconfig %s mtu %s", dev, getMTU(dev));
-			sysprintf("ifconfig %s txqueuelen %s", dev, getTXQ(dev));
-			sysprintf("ifconfig %s %s netmask %s up", dev, nvram_nget("%s_ipaddr", dev), nvram_nget("%s_netmask", dev));
+			eval("ifconfig", dev, "mtu", getMTU(dev));
+			eval("ifconfig", dev, "txqueuelen", getTXQ(dev));
+			eval("ifconfig", dev, nvram_nget("%s_ipaddr", dev), "netmask", nvram_nget("%s_netmask", dev), "up");
 		}
 	} else {
 #ifdef HAVE_RELAYD
 		if (!strcmp(apm, "wet")) {
-			sysprintf("ifconfig %s 0.0.0.0 up", dev);
+			eval("ifconfig", dev, "0.0.0.0", "up");
 //                      sysprintf("relayd -I %s -I %s -D -B", getBridge(dev),
 //                                dev);
 		}
@@ -1189,9 +1367,9 @@ void ath9k_start_supplicant(int count)
 		char bridged[32];
 		sprintf(bridged, "%s_bridged", dev);
 		if (nvram_default_match(bridged, "0", "1")) {
-			sysprintf("ifconfig %s mtu %s", dev, getMTU(dev));
-			sysprintf("ifconfig %s txqueuelen %s", dev, getTXQ(dev));
-			sysprintf("ifconfig %s %s netmask %s up", dev, nvram_nget("%s_ipaddr", dev), nvram_nget("%s_netmask", dev));
+			eval("ifconfig", dev, "mtu", getMTU(dev));
+			eval("ifconfig", dev, "txqueuelen", getTXQ(dev));
+			eval("ifconfig", dev, nvram_nget("%s_ipaddr", dev), "netmask", nvram_nget("%s_netmask", dev), "up");
 		}
 	}
 
@@ -1203,16 +1381,12 @@ void ath9k_start_supplicant(int count)
 				char bridged[32];
 				sprintf(bridged, "%s_bridged", var);
 				if (nvram_default_match(bridged, "1", "1")) {
-					sysprintf("ifconfig %s 0.0.0.0 up", var);
-					br_add_interface(getBridge(var), var);
+					eval("ifconfig", dev, "0.0.0.0", "up");
+					br_add_interface(getBridge(var, tmp), var);
 				} else {
-					char ip[32];
-					char mask[32];
-					sprintf(ip, "%s_ipaddr", var);
-					sprintf(mask, "%s_netmask", var);
-					sysprintf("ifconfig %s mtu %s", var, getMTU(var));
-					sysprintf("ifconfig %s txqueuelen %s", var, getTXQ(var));
-					sysprintf("ifconfig %s %s netmask %s up", var, nvram_safe_get(ip), nvram_safe_get(mask));
+					eval("ifconfig", var, "mtu", getMTU(var));
+					eval("ifconfig", var, "txqueuelen", getTXQ(var));
+					eval("ifconfig", var, nvram_nget("%s_ipaddr", var), "netmask", nvram_nget("%s_netmask", var), "up");
 				}
 			}
 		}
@@ -1241,9 +1415,9 @@ void ath9k_start_supplicant(int count)
 				continue;
 			hwaddr = nvram_get(wdsmacname);
 			if (hwaddr != NULL) {
-				sysprintf("iw %s interface add %s type wds", wif, wdsdev);
-				sysprintf("iw dev %s set peer %s", wdsdev, hwaddr);
-				sysprintf("ifconfig %s 0.0.0.0 up", wdsdev);
+				eval("iw", wif, "interface", "add", wdsdev, "type", "wds");
+				eval("iw", "dev", wdsdev, "set", "peer", hwaddr);
+				eval("ifconfig", wdsdev, "0.0.0.0", "up");
 			}
 		}
 	}

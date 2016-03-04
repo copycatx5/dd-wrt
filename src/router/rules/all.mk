@@ -107,11 +107,13 @@ include rules/dnsmasq.mk
 include rules/iptables.mk
 include rules/netconf.mk
 include rules/pptpd.mk
+include rules/sstp.mk
 include rules/pipsec.mk
 include rules/snmp.mk
 include rules/wifidog.mk
 include rules/wol.mk
 include rules/dhcp-forwarder.mk
+include rules/dhcpv6.mk
 include rules/rtp-proxy.mk
 include rules/shat.mk
 include rules/radauth.mk
@@ -139,6 +141,7 @@ include rules/tftpd.mk
 include rules/cron.mk
 include rules/pptp-client.mk
 include rules/freeradius.mk
+include rules/freeradius3.mk
 include rules/netstatnat.mk
 include rules/pppd.mk
 include rules/ppp.mk
@@ -219,6 +222,7 @@ include rules/mtr.mk
 include rules/snoop.mk
 include rules/aoss.mk
 include rules/ap-serv.mk
+include rules/tolapai.mk
 include rules/buffalo-flash.mk
 include rules/relayd.mk
 include $(TOP)/private/ath9k-rules/ath9k.mk
@@ -252,7 +256,7 @@ include rules/dns_responder.mk
 include rules/minidlna.mk
 include rules/nrpe.mk
 include rules/links.mk
-include rules/softflowd.mk
+include rules/lighttpd.mk
 include rules/nextmediaextra.mk
 include rules/libqmi.mk
 include rules/strongswan.mk
@@ -265,6 +269,12 @@ include rules/transmission.mk
 include rules/libevent.mk
 include rules/tor.mk
 include rules/emf.mk
+include rules/softflowd.mk
+include rules/python.mk
+include rules/nmap.mk
+include rules/arpalert.mk
+include rules/unbound.mk
+include rules/ubi-utils.mk
 
 #
 # Generic rules

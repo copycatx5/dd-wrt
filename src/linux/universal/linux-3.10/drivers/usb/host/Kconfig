@@ -28,7 +28,13 @@ config USB_XHCI_HCD
 if USB_XHCI_HCD
 
 config USB_XHCI_PLATFORM
-	tristate
+	bool "xHCI platform"
+	depends on SOC_MT7621_OPENWRT
+
+config USB_MT7621_XHCI_PLATFORM
+	bool "MTK MT7621 xHCI"
+	depends on USB_XHCI_PLATFORM
+	depends on SOC_MT7621_OPENWRT
 
 config USB_XHCI_HCD_DEBUGGING
 	bool "Debugging for the xHCI host controller"
@@ -107,7 +113,7 @@ config USB_FSL_MPH_DR_OF
 if USB_EHCI_HCD
 
 config USB_EHCI_PCI
-	tristate
+	tristate "EHCI PCI Support"
 	depends on PCI
 	default y
 
@@ -377,7 +383,7 @@ config USB_OHCI_AR7100
 
 config USB_OHCI_AR7240
 	bool "USB OHCI support for AR7240"
-	depends on (MACH_AR7240 || MACH_HORNET) && USB_OHCI_HCD
+	depends on (MACH_AR7240) && USB_OHCI_HCD
 	depends on MACH_AR7240 && USB_OHCI_HCD
 	help
 	  Support for AR7240 OHCI controller
@@ -390,7 +396,7 @@ config USB_EHCI_AR7100
 
 config USB_EHCI_AR9130
 	bool "USB EHCI support for AR9130"
-	depends on (MACH_AR7100 || MACH_AR7240 || MACH_HORNET) && USB_EHCI_HCD
+	depends on (MACH_AR7100 || MACH_AR7240) && USB_EHCI_HCD
 	help
 	  Support for AR9130 EHCI controller
 

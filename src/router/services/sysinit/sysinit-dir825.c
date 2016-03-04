@@ -74,9 +74,9 @@ void start_sysinit(void)
 	system("insmod ag71xx || insmod ag7100_mod");
 	char mac1[32];
 	char mac2[32];
-	system("swconfig dev rtl8366s set reset 1");
-	system("swconfig dev rtl8366s set enable_vlan 0");
-	system("swconfig dev rtl8366s set apply");
+	eval("swconfig", "dev", "rtl8366s", "set", "reset", "1");
+	eval("swconfig", "dev", "rtl8366s", "set", "enable_vlan", "0");
+	eval("swconfig", "dev", "rtl8366s", "set", "apply");
 #ifndef HAVE_WNDR3700
 	FILE *fp = fopen("/dev/mtdblock/7", "rb");
 	if (fp) {
@@ -121,8 +121,8 @@ void start_sysinit(void)
 
 		strncpy(ifr.ifr_name, "eth0", IFNAMSIZ);
 		ioctl(s, SIOCGIFHWADDR, &ifr);
-		nvram_set("et0macaddr", ether_etoa((unsigned char *)ifr.ifr_hwaddr.sa_data, eabuf));
-		nvram_set("et0macaddr_safe", ether_etoa((unsigned char *)ifr.ifr_hwaddr.sa_data, eabuf));
+		nvram_set("et0macaddr", ether_etoa((char *)ifr.ifr_hwaddr.sa_data, eabuf));
+		nvram_set("et0macaddr_safe", ether_etoa((char *)ifr.ifr_hwaddr.sa_data, eabuf));
 		close(s);
 	}
 	detect_wireless_devices();
@@ -146,15 +146,6 @@ void start_sysinit(void)
 	setWirelessLedPhy0(5);
 	setWirelessLedPhy1(5);
 #endif
-
-	led_control(LED_POWER, LED_ON);
-	led_control(LED_SES, LED_OFF);
-	led_control(LED_SES2, LED_OFF);
-	led_control(LED_DIAG, LED_OFF);
-	led_control(LED_BRIDGE, LED_OFF);
-	led_control(LED_WLAN0, LED_OFF);
-	led_control(LED_WLAN1, LED_OFF);
-	led_control(LED_CONNECTED, LED_OFF);
 
 	/*
 	 * Set a sane date 

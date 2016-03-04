@@ -8,7 +8,7 @@
 -- Each vulnerability must have its own state:
 --  <code>NOT_VULN</code>: The program was confirmed to be not vulnerable.
 --  <code>LIKELY_VULN</code>: The program is likely to be vulnerable,
---      this can be the case when we do a simple version comparaison. This
+--      this can be the case when we do a simple version comparison. This
 --      state should cover possible false positive situations.
 --  <code>VULN</code>: The program was confirmed to be vulnerable.
 --  <code>EXPLOIT</code>: The program was confirmed to be vulnerable and
@@ -55,7 +55,7 @@
 --   dates = {
 --      disclosure = { year = 2000, month = 12, day = 18},
 --   },
---   
+--
 --   check_results = { -- A string or a list of strings
 --      -- This field can store the results of the vulnerability check.
 --      -- Did the server return anything ? some specialists can
@@ -157,7 +157,7 @@
 -- </code>
 --
 -- @args vulns.showall  If set, the library will show and report all the
---   registred vulnerabilities which includes the
+--   registered vulnerabilities which includes the
 --   <code>NOT VULNERABLE</code> ones. By default the library will only
 --   report the <code>VULNERABLE</code> entries: <code>VULNERABLE</code>,
 --   <code>LIKELY VULNERABLE</code>, <code>VULNERABLE (DoS)</code>
@@ -179,32 +179,32 @@
 -- collect these last objects.
 --
 -- @author "Djalal Harouni" and "Henri Doreau"
--- @copyright Same as Nmap--See http://nmap.org/book/man-legal.html
+-- @copyright Same as Nmap--See https://nmap.org/book/man-legal.html
 
 
+local bit = require "bit"
+local ipOps = require "ipOps"
+local nmap = require "nmap"
+local stdnse = require "stdnse"
+local string = require "string"
+local table = require "table"
 local type    = type
 local next    = next
 local pairs   = pairs
 local ipairs  = ipairs
 local select  = select
 local tostring = tostring
-local table   = require "table"
 local insert  = table.insert
 local concat  = table.concat
 local sort    = table.sort
 local setmetatable = setmetatable
-local string = require "string"
 local string_format = string.format
 local string_upper = string.upper
 
-local bit = require "bit"
-local ipOps = require "ipOps"
-local nmap  = require "nmap"
-local stdnse = require "stdnse"
-local print_debug = stdnse.print_debug
+local debug = stdnse.debug
 local compare_ip = ipOps.compare_ip
 
-module("vulns")
+_ENV = stdnse.module("vulns", stdnse.seeall)
 
 -- This is the vulnerability database
 -- (it will reference a table in the registry: nmap.registry.VULNS
@@ -245,10 +245,10 @@ local VULNS
 --        ...
 --      },
 --    },
---    
+--
 --    NETWORKS = {
 --      -- list of vulnerabilities that lacks the 'host' table
---      { -- vuln_1 
+--      { -- vuln_1
 --        ...
 --      },
 --      {
@@ -299,7 +299,7 @@ local VULNS
 --                  VULNS.ENTRIES.HOSTS[host_x][vuln_x],
 --              }
 --              [host_y_ip] = {
---                [host_y_targetname_y or host_y_ip] = 
+--                [host_y_targetname_y or host_y_ip] =
 --                  VULNS.ENTRIES.HOSTS[host_y][vuln_z],
 --              }
 --              ...
@@ -336,7 +336,7 @@ local VULNS
 --        },
 --      },
 --
---      -- Entries whithout the vulnerability ID are stored here.
+--      -- Entries without the vulnerability ID are stored here.
 --      'NMAP_ID' = {
 --        'XXXXX' = {
 --          ...
@@ -379,7 +379,7 @@ STATE = {
   LIKELY_VULN = 0x01,
   NOT_VULN = 0x02,
   VULN = 0x04,
-  DoS = 0x08, 
+  DoS = 0x08,
   EXPLOIT = 0x10,
 }
 
@@ -436,7 +436,7 @@ end
 -- construct and return the correct links.
 local POPULAR_IDS_LINKS = {
   CVE = function(id)
-          local link = 'http://cve.mitre.org/cgi-bin/cvename.cgi?name='
+          local link = 'https://cve.mitre.org/cgi-bin/cvename.cgi?name='
           return string_format("%s%s", link, id)
         end,
   OSVDB = function(id)
@@ -511,7 +511,7 @@ end
 --         missing.
 local validate_vuln = function(vuln_table)
   local ret = false
-  
+
   if type(vuln_table) == "table" and vuln_table.title and
   type(vuln_table.title) == "string" and vuln_table.state and
   STATE_MSG[vuln_table.state] then
@@ -600,7 +600,7 @@ local default_filter = function(vuln_table) return true end
 -- This function just inserts the callback filters in the filters_db.
 --
 -- @param filters_db The filters database (a table in the registry).
--- @param filter_callback The callbackk function.
+-- @param filter_callback The callback function.
 -- @return FID  The filter ID associated with the callback function.
 local register_filter = function(filters_db, filter_callback)
   if filter_callback and type(filter_callback) == "function" then
@@ -643,6 +643,22 @@ local l_add_id_type = function(fid_table, id_type)
   fid_table[string_upper(id_type)] = fid_table[id_type] or {}
 end
 
+--- Get simple "targetname:port_number" keys
+local l_get_host_port_key = function(vuln_table)
+  local target = ""
+
+  if vuln_table.host and next(vuln_table.host) then
+    target = stdnse.get_hostname(vuln_table.host)
+
+    if vuln_table.port and next(vuln_table.port) then
+      target = target..string_format(":%d", vuln_table.port.number)
+    end
+
+  end
+
+  return target
+end
+
 --- Update the FILTER ID table references.
 --
 -- When a new vulnerability table is stored in the registry in the
@@ -652,7 +668,7 @@ end
 --
 -- @usage
 -- l_update_id(fid_table, 'CVE', 'CVE-2001-0053', vuln_table)
--- 
+--
 -- @param fid_table  The filter ID table.
 -- @param id_type  String representing the vulnerability ID type.
 --        <code>'CVE'</code>, <code>'OSVDB'</code> ...
@@ -667,34 +683,25 @@ local l_update_id = function(fid_table, id_type, id, vuln_table)
   -- Add the ID vulnerability type if it is missing
   l_add_id_type(fid_table, id_type)
 
-  -- Make sure that we are referecing the correct tables
+  -- Make sure that we are referencing the correct tables
   fid_table[id_type][id] = fid_table[id_type][id] or {}
   fid_table[id_type][id]['ENTRIES'] = fid_table[id_type][id]['ENTRIES'] or {}
   local push_table = fid_table[id_type][id]['ENTRIES']
 
   if vuln_table.host and next(vuln_table.host) then
-    local targetname = ""
-    local host_info = string_format(" (host:%s", vuln_table.host.ip)
-    if vuln_table.host.targetname then
-      targetname = vuln_table.host.targetname
-      if targetname ~= vuln_table.host.ip then
-        host_info = host_info..string_format(" %s", targetname)
-      end
-    else
-      targetname = vuln_table.host.ip
-    end
-    host_info = host_info..")"
+    local target_key = l_get_host_port_key(vuln_table)
+    local host_info = string_format(" (host:%s %s)", vuln_table.host.ip, target_key)
 
-    print_debug(5,
+    debug(5,
       "vulns.lua: Updating VULNS.FILTERS_IDS{} with '%s' ID:%s:%s %s",
       vuln_table.title, id_type, id, host_info)
     push_table.HOSTS = push_table.HOSTS or {}
     push_table.HOSTS[vuln_table.host.ip] =
         push_table.HOSTS[vuln_table.host.ip] or {}
-    push_table.HOSTS[vuln_table.host.ip][targetname] = vuln_table
-    return push_table.HOSTS[vuln_table.host.ip][targetname]
+    push_table.HOSTS[vuln_table.host.ip][target_key] = vuln_table
+    return push_table.HOSTS[vuln_table.host.ip][target_key]
   else
-    print_debug(5,
+    debug(5,
       "vulns.lua: Updating VULNS.FILTERS_IDS{} with '%s' ID:%s:%s",
       vuln_table.title, id_type, id)
     push_table.NETWORKS = push_table.NETWORKS or {}
@@ -985,8 +992,8 @@ local l_add = function(vulndb, vuln_table)
   -- If the vulnerability was already saved in the registry, then
   -- store its references here.
   local old_entries = {}
-  
-  
+
+
   -- Count how many vuln_table.IDS entries should be and should reference
   -- the vulnerability table in the registry
   -- (in all the FILTERS_IDS tables).
@@ -996,24 +1003,16 @@ local l_add = function(vulndb, vuln_table)
   -- vulnerability entry that was already saved in the registry.
   local ids_found = 0
 
-  local host_info, targetname = "", ""
-  if vuln_table.host then
-    host_info = string_format(" (host:%s", vuln_table.host.ip)
-    if vuln_table.host.targetname then
-      targetname = vuln_table.host.targetname
-      if targetname ~= vuln_table.host.ip then
-        host_info = host_info..string_format(" %s", targetname)
-      end
-    else
-      targetname = vuln_table.host.ip
-    end
-    host_info = host_info..")"
+  local host_info, target_key = "", ""
+  if vuln_table.host and next(vuln_table.host) then
+    target_key = l_get_host_port_key(vuln_table)
+    host_info = string_format(" (host:%s %s)", vuln_table.host.ip, target_key)
   end
 
   -- Search the Filters IDS for the vulnerability
   for _, fid in ipairs(FIDS) do
     for id_type, id in pairs(vuln_table.IDS) do
-      -- Count how many IDs should be refenrecing the vulnerability
+      -- Count how many IDs should be referencing the vulnerability
       -- entry in all the FILTERS_IDS tables.
       ids_count = ids_count + 1
 
@@ -1022,7 +1021,7 @@ local l_add = function(vulndb, vuln_table)
       -- variable false.
       local id_not_found = true
 
-      print_debug(5,
+      debug(5,
         "vulns.lua: Searching VULNS.FILTERS_IDS[%d] for '%s' ID:%s:%s",
         fid, vuln_table.title, id_type, id)
 
@@ -1033,19 +1032,12 @@ local l_add = function(vulndb, vuln_table)
           local old_vuln_list = db.ENTRIES.HOSTS[vuln_table.host.ip]
 
           if old_vuln_list then
-            local tmp_vuln = nil
-
             -- Host IP is already affected by this vulnerability.
-            -- Check the targetname now
-            for host_id, old_vuln in pairs(old_vuln_list) do
-              if host_id == targetname then
-                tmp_vuln = old_vuln
-                break
-              end
-            end
+            -- Check the couple "targetname:port" now
+            local tmp_vuln = old_vuln_list[target_key]
 
             if tmp_vuln then
-              print_debug(5,
+              debug(5,
               "vulns.lua: VULNS.FILTERS_IDS[%d] '%s' ID:%s:%s%s: FOUND",
                 fid, vuln_table.title, id_type, id, host_info)
               if old_entries[#old_entries] ~= tmp_vuln then
@@ -1058,15 +1050,15 @@ local l_add = function(vulndb, vuln_table)
               id_not_found = false
             end
           end
-          
-        end        
+
+        end
       end
 
       -- If the ID couple (id_type, id) was not found then save it
       -- in order to make it later reference the saved vulnerability
       -- entry (vulnerability table in the registry).
       if id_not_found then
-        print_debug(5,
+        debug(5,
           "vulns.lua: VULNS.FILTERS_IDS[%d] '%s' ID:%s:%s%s: NOT FOUND",
           fid, vuln_table.title, id_type, id, host_info)
         NEW_IDS[id_type] = {['id'] = id, ['fid'] = fid}
@@ -1083,17 +1075,17 @@ local l_add = function(vulndb, vuln_table)
   -- Old entry, update the vulnerability information
   if ids_found > 0 then
     if #old_entries > 1 then
-      print_debug(3, "vulns.lua: Warning at vuln '%s': "..
+      debug(3, "vulns.lua: Warning at vuln '%s': "..
           "please check the vulnerability IDs field.", vuln_table.title)
       for _, old_vuln in ipairs(old_entries) do
-        print_debug(3, "vulns: Warning at vuln '%s': "..
+        debug(3, "vulns: Warning at vuln '%s': "..
             "please check the vulnerability IDs field.", old_vuln.title)
       end
     end
-    print_debug(3,
+    debug(3,
         "vulns.lua: Updating vulnerability entry: '%s'%s",
         vuln_table.title, host_info)
-    print_debug(3,
+    debug(3,
         "vulns.lua: Vulnerability '%s' referenced by %d IDs from %d (%s)",
         vuln_table.title, ids_found, ids_count,
         ids_found < ids_count and "Bad" or "Good")
@@ -1104,7 +1096,7 @@ local l_add = function(vulndb, vuln_table)
     vuln_ref = l_update_vuln(vulndb, old_entries[1], vuln_table)
   else
     -- New vulnerability entry
-    print_debug(3,
+    debug(3,
         "vulns.lua: Adding new vulnerability entry: '%s'%s",
         vuln_table.title, host_info)
 
@@ -1117,11 +1109,11 @@ local l_add = function(vulndb, vuln_table)
   if ids_found < ids_count then
 
     for _, fid in ipairs(FIDS) do
-      for id_type, new_entry in pairs(NEW_IDS) do  
+      for id_type, new_entry in pairs(NEW_IDS) do
         if new_entry['fid'] == fid then
           -- Add the ID couple (id_type, id) to the
           -- VULNS.FILTERS_IDS[fid] table that lacks them
-          print_debug(5,
+          debug(5,
             "vulns.lua: Updating VULNS.FILTERS_IDS[%d]", new_entry.fid)
           l_update_id(vulndb.FILTERS_IDS[new_entry['fid']],
                       id_type, new_entry.id, vuln_ref)
@@ -1222,13 +1214,13 @@ local l_find_by_id = function(fid_table, vuln_id_type, id)
 
   local db = l_lookup_id(fid_table, vuln_id_type, id)
   if db then
-    print_debug(5,
+    debug(5,
       "vulns.lua: Lookup VULNS.FILTERS_IDS{}  for ID:%s:%s:  FOUND",
       vuln_id_type, id)
     if db.ENTRIES and db.ENTRIES.HOSTS and next(db.ENTRIES.HOSTS) then
       for _, vuln_list in pairs(db.ENTRIES.HOSTS) do
         for _, vuln_table in pairs(vuln_list) do
-          print_debug(5,
+          debug(5,
             "vulns.lua: Vulnerability '%s' (host:%s):  FOUND",
             vuln_table.title, vuln_table.host.ip)
           out[#out + 1] = vuln_table
@@ -1238,7 +1230,7 @@ local l_find_by_id = function(fid_table, vuln_id_type, id)
 
     if db.ENTRIES.NETWORKS and next(db.ENTRIES.NETWORKS) then
       for _, vuln_table in ipairs(db.ENTRIES.NETWOKRS) do
-        print_debug(5,
+        debug(5,
           "vulns.lua: Vulnerability '%s':  FOUND", vuln_table.title)
         out[#out + 1] = vuln_table
       end
@@ -1259,7 +1251,7 @@ local l_find_vulns = function(fid_table, entries, filter)
              l_filter_vuln(vuln_table, filter)
     end
   else
-    check_vuln = function(vuln_table, fid_table) 
+    check_vuln = function(vuln_table, fid_table)
       return vuln_table._FIDS_MATCH[fid_table]
     end
   end
@@ -1267,7 +1259,7 @@ local l_find_vulns = function(fid_table, entries, filter)
   for host_ip, vulns_list in pairs(entries.HOSTS) do
     for _, vuln_table in ipairs(vulns_list) do
       if check_vuln(vuln_table, fid_table, filter) then
-        print_debug(5,
+        debug(5,
           "vulns.lua: Vulnerability '%s' (host: %s):  FOUND",
           vuln_table.title, vuln_table.host.ip)
         out[#out + 1] = vuln_table
@@ -1277,7 +1269,7 @@ local l_find_vulns = function(fid_table, entries, filter)
 
   for _, vuln_table in ipairs(entries.NETWORKS) do
     if check_vuln(vuln_table, fid_table, filter) then
-      print_debug(5,
+      debug(5,
         "vulns.lua: Vulnerability '%s':  FOUND", vuln_table.title)
       out[#out + 1] = vuln_table
     end
@@ -1303,7 +1295,7 @@ end
 --- Report vulnerabilities.
 local l_make_output = function(fid_table, entries, filter)
   local hosts, networks = {}, {vulns = {}, not_vulns = {}}
-  
+
   local save_not_vulns = function(vulns, vuln_table)
   end
   if SHOW_ALL then
@@ -1320,7 +1312,7 @@ local l_make_output = function(fid_table, entries, filter)
              l_filter_vuln(vuln_table, filter)
     end
   else
-    check_vuln = function(vuln_table, fid_table) 
+    check_vuln = function(vuln_table, fid_table)
       return vuln_table._FIDS_MATCH[fid_table]
     end
   end
@@ -1331,10 +1323,10 @@ local l_make_output = function(fid_table, entries, filter)
       vulns = {},
       not_vulns = {},
     }
-    
+
     for _, vuln_table in ipairs(vulns_list) do
       if check_vuln(vuln_table, fid_table, filter) then
-        print_debug(5,
+        debug(5,
           "vulns.lua: Vulnerability '%s' (host: %s):  FOUND",
           vuln_table.title, vuln_table.host.ip)
 
@@ -1353,7 +1345,7 @@ local l_make_output = function(fid_table, entries, filter)
 
   for _, vuln_table in ipairs(entries.NETWORKS) do
     if check_vuln(vuln_table, fid_table, filter) then
-      print_debug(5,
+      debug(5,
         "vulns.lua: Vulnerability '%s':  FOUND", vuln_table.title)
       if bit.band(vuln_table.state, STATE.NOT_VULN) == 0 then
         networks.vulns[#networks.vulns + 1] = vuln_table
@@ -1362,7 +1354,7 @@ local l_make_output = function(fid_table, entries, filter)
       end
     end
   end
- 
+
   local output = {}
   local function sort_hosts(a, b)
     return compare_ip(a.ip, "le", b.ip)
@@ -1376,7 +1368,7 @@ local l_make_output = function(fid_table, entries, filter)
   end
 
   if next(hosts) then
-    stdnse.print_debug(3,
+    debug(3,
       "vulns.lua: sorting vulnerability entries for %d host",
       #hosts)
     sort(hosts, sort_hosts)
@@ -1397,7 +1389,7 @@ local l_make_output = function(fid_table, entries, filter)
         end
         l_push_vuln_output(output, host.not_vulns, SHOW_ALL)
       end
-  
+
       if #hosts > 1 and hidx ~= #hosts then
         insert(output, "")
       end
@@ -1448,7 +1440,7 @@ end
 --- Find vulnerabilities by ID wrapper
 local registry_find_by_id = function(fid, vuln_id_type, id)
   if registry_lookup_id(fid, vuln_id_type, id) then
-    print_debug(5,
+    debug(5,
       "vulns.lua: Lookup VULNS.FILTERS_IDS[%d]  for vulnerabilities",
       fid)
 
@@ -1459,11 +1451,11 @@ end
 --- Find vulnerabilities wrapper
 local registry_find_vulns = function(fid, selection_filter)
   local fid_table = VULNS.FILTERS_IDS[fid]
-  
+
   if fid_table and next(fid_table) then
     -- Normalize the 'selection_filter' fields
     local filter = l_normalize_selection_filter(selection_filter)
-    print_debug(5,
+    debug(5,
       "vulns.lua: Lookup VULNS.FILTERS_IDS[%d]  for vulnerabilities",
       fid)
 
@@ -1477,7 +1469,7 @@ local registry_make_output = function(fid, selection_filter)
 
   if fid_table and next(fid_table) then
     local filter = l_normalize_selection_filter(selection_filter)
-    print_debug(5,
+    debug(5,
       "vulns.lua: Lookup VULNS.FILTERS_IDS[%d]  for vulnerabilities",
       fid)
 
@@ -1500,7 +1492,7 @@ local registry_add_vulns = function(script_name, ...)
     if validate_vuln(vuln_table) then
       normalize_vuln_info(vuln_table)
       vuln_table.script_name = script_name
-      print_debug(3,
+      debug(3,
         "vulns.lua: ***  New Vuln '%s' %sreported by '%s' script  ***",
         vuln_table.title,
         vuln_table.host and
@@ -1569,7 +1561,7 @@ end
 -- This function can be used to see if there are any references to the
 -- specified vulnerability in the database, it will return
 -- <code>True</code> if so which means that one of the scripts has
--- attempted to check this vulnerabilty.
+-- attempted to check this vulnerability.
 --
 -- Scripts must call <code>vulns.save_reports()</code> function first to
 -- setup the vulnerability database.
@@ -1717,7 +1709,7 @@ end
 --
 -- The <code>selection_filter</code> is an optional table parameter of
 -- optional fields which can be used to select which vulnerabilities to
--- report, if it is not set then all vulnerabilites entries will be
+-- report, if it is not set then all vulnerabilities entries will be
 -- returned.
 --
 -- @usage
@@ -1775,7 +1767,11 @@ local format_vuln_special_fields = function(vuln_field)
   if vuln_field then
     if type(vuln_field) == "table" then
       for _, line in ipairs(vuln_field) do
-        tadd(out, stdnse.strsplit("\r?\n", line))
+				if type(line) == "string" then
+          tadd(out, stdnse.strsplit("\r?\n", line))
+				else
+					insert(out, line)
+				end
       end
     elseif type(vuln_field) == "string" then
       out = stdnse.strsplit("\r?\n", vuln_field)
@@ -1804,7 +1800,7 @@ local format_vuln_base = function(vuln_table, showall)
   end
 
   if not showall and bit.band(vuln_table.state, STATE.NOT_VULN) ~= 0 then
-    print_debug(2, "vulns.lua: vulnerability '%s'%s: %s.",
+    debug(2, "vulns.lua: vulnerability '%s'%s: %s.",
         vuln_table.title,
         vuln_table.host and
             string_format(" (host:%s%s)", vuln_table.host.ip,
@@ -1813,24 +1809,26 @@ local format_vuln_base = function(vuln_table, showall)
             or "", STATE_MSG[vuln_table.state])
     return nil
   end
-
+  local output_table = stdnse.output_table()
   local out = {}
+  output_table.title = vuln_table.title
   insert(out, vuln_table.title)
+  output_table.state = STATE_MSG[vuln_table.state]
   insert(out,
       string_format("  State: %s", STATE_MSG[vuln_table.state]))
 
   if vuln_table.IDS and next(vuln_table.IDS) then
-    local ids_str = ""
-
+    local ids_t = {}
     for id_type, id in pairs(vuln_table.IDS) do
       -- ignore internal NMAP IDs
       if id_type ~= 'NMAP_ID' then
-        ids_str = ids_str .. string_format("  %s:%s", id_type, id)
+        table.insert(ids_t, string_format("%s:%s", id_type, id))
       end
     end
 
-    if ids_str:len() > 0 then
-      insert(out, string_format("  IDs:%s", ids_str))
+    if next(ids_t) then
+      insert(out, string_format("  IDs:  %s", table.concat(ids_t, "  ")))
+      output_table.ids = ids_t
     end
   end
 
@@ -1838,8 +1836,9 @@ local format_vuln_base = function(vuln_table, showall)
   if bit.band(vuln_table.state, STATE.NOT_VULN) == 0 then
     if vuln_table.risk_factor then
       local risk_str = ""
-    
+
       if vuln_table.scores and next(vuln_table.scores) then
+        output_table.scores = vuln_table.scores
         for score_type, score in pairs(vuln_table.scores) do
           risk_str = risk_str .. string_format("  %s: %s", score_type, score)
         end
@@ -1852,16 +1851,21 @@ local format_vuln_base = function(vuln_table, showall)
     if vuln_table.description then
       local desc = format_vuln_special_fields(vuln_table.description)
       if desc then
-        insert(out, "  Description:")
         for _, line in ipairs(desc) do
           insert(out, string_format("    %s", line))
         end
+        output_table.description = vuln_table.description
       end
     end
 
     if vuln_table.dates and next(vuln_table.dates) then
+      output_table.dates = vuln_table.dates
       if vuln_table.dates.disclosure and
       next(vuln_table.dates.disclosure) then
+        output_table.disclosure = string_format("%s-%s-%s",
+          vuln_table.dates.disclosure.year,
+          vuln_table.dates.disclosure.month,
+          vuln_table.dates.disclosure.day)
         insert(out, string_format("  Disclosure date: %s-%s-%s",
                         vuln_table.dates.disclosure.year,
                         vuln_table.dates.disclosure.month,
@@ -1870,6 +1874,7 @@ local format_vuln_base = function(vuln_table, showall)
     end
 
     if vuln_table.check_results then
+      output_table.check_results = vuln_table.check_results
       local check = format_vuln_special_fields(vuln_table.check_results)
       if check then
         insert(out, "  Check results:")
@@ -1880,6 +1885,7 @@ local format_vuln_base = function(vuln_table, showall)
     end
 
     if vuln_table.exploit_results then
+      output_table.exploit_results = vuln_table.exploit_results
       local exploit = format_vuln_special_fields(vuln_table.exploit_results)
       if exploit then
         insert(out, "  Exploit results:")
@@ -1890,6 +1896,7 @@ local format_vuln_base = function(vuln_table, showall)
     end
 
     if vuln_table.extra_info then
+      output_table.extra_info = vuln_table.extra_info
       local extra = format_vuln_special_fields(vuln_table.extra_info)
       if extra then
         insert(out, "  Extra information:")
@@ -1922,13 +1929,16 @@ local format_vuln_base = function(vuln_table, showall)
 
     if next(ref_set) then
       insert(out, "  References:")
+      local ref_str = {}
       for link in pairs(ref_set) do
         insert(out, string_format("    %s", link))
+        table.insert(ref_str, link)
       end
+      output_table.refs = ref_str
     end
   end
 
-  return out
+  return out, output_table
 end
 
 --- Format the vulnerability information and return it in a table.
@@ -2084,7 +2094,7 @@ save_reports = function(filter_callback)
     VULNS.SHARED.REFERENCES = VULNS.SHARED.REFERENCES or {}
     VULNS.FILTERS_FUNCS = VULNS.FILTERS_FUNCS or {}
     VULNS.FILTERS_IDS = VULNS.FILTERS_IDS or {}
-  
+
     -- Enable functions
     add_ids = registry_add_ids
     get_ids = registry_get_ids
@@ -2097,7 +2107,7 @@ save_reports = function(filter_callback)
 
   local fid = register_filter(VULNS.FILTERS_FUNCS, filter_callback)
   VULNS.FILTERS_IDS[fid] = {}
-  print_debug(3,
+  debug(3,
       "vulns.lua: New Filter table:  VULNS.FILTERS_IDS[%d]", fid)
   return fid
 end
@@ -2107,7 +2117,7 @@ end
 -- Hostrule and Portrule scripts should use this class to store and
 -- report vulnerabilities.
 Report = {
-  
+
   --- Creates a new Report object
   --
   -- @return report object
@@ -2226,13 +2236,21 @@ Report = {
     local vuln_count = #self.entries.vulns
     local not_vuln_count = #self.entries.not_vulns
     local output = {}
-
+    local output_table = stdnse.output_table()
+    local out_t = stdnse.output_table()
+    local output_t2 = stdnse.output_table()
     -- VULNERABLE: LIKELY_VULN, VULN, DoS, EXPLOIT
     if vuln_count > 0 then
+      output_table.state = "VULNERABLE"
       insert(output, "VULNERABLE:")
       for i, vuln_table in ipairs(self.entries.vulns) do
-        local vuln_out = format_vuln_base(vuln_table)
+        local vuln_out, out_t = format_vuln_base(vuln_table)
+        if type(out_t) == "table" then
+          local ID = vuln_table.IDS.CVE or vuln_table.IDS[next(vuln_table.IDS)]
+          output_t2[ID] = out_t
+        end
         if vuln_out then
+          output_table.report = concat(vuln_out, "\n")
           insert(output, concat(vuln_out, "\n"))
           if vuln_count > 1 and i ~= vuln_count then
             insert(output, "") -- separate several entries
@@ -2240,16 +2258,21 @@ Report = {
         end
       end
     end
-
     -- NOT VULNERABLE: NOT_VULN
     if not_vuln_count > 0 then
       if SHOW_ALL then
         if vuln_count > 0 then insert(output, "") end
+        output_table.state = "NOT VULNERABLE"
         insert(output, "NOT VULNERABLE:")
       end
       for i, vuln_table in ipairs(self.entries.not_vulns) do
-        local vuln_out = format_vuln_base(vuln_table, SHOW_ALL)
+        local vuln_out, out_t = format_vuln_base(vuln_table, SHOW_ALL)
+        if type(out_t) == "table" then
+          local ID = vuln_table.IDS.CVE or vuln_table.IDS[next(vuln_table.IDS)]
+          output_t2[ID] = out_t
+        end
         if vuln_out then
+          output_table.report = concat(vuln_out, "\n")
           insert(output, concat(vuln_out, "\n"))
           if not_vuln_count > 1 and i ~= not_vuln_count then
             insert(output, "") -- separate several entries
@@ -2257,7 +2280,11 @@ Report = {
         end
       end
     end
-
-    return stdnse.format_output(true, output)
+   if #output==0 and #output_t2==0 then
+      return nil
+    end
+    return output_t2, stdnse.format_output(true, output)
   end,
 }
+
+return _ENV;

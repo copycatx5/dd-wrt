@@ -1,7 +1,7 @@
 <?php
 /*
 ** Zabbix
-** Copyright (C) 2001-2013 Zabbix SIA
+** Copyright (C) 2001-2015 Zabbix SIA
 **
 ** This program is free software; you can redistribute it and/or modify
 ** it under the terms of the GNU General Public License as published by
@@ -92,9 +92,6 @@ class CTable extends CTag {
 	}
 
 	public function setHeader($value = null, $class = 'header') {
-		if (isset($_REQUEST['print'])) {
-			hide_form_items($value);
-		}
 		if (is_null($class)) {
 			$class = $this->headerClass;
 		}
@@ -111,9 +108,6 @@ class CTable extends CTag {
 	}
 
 	public function setFooter($value = null, $class = 'footer') {
-		if (isset($_REQUEST['print'])) {
-			hide_form_items($value);
-		}
 		if (is_null($class)) {
 			$class = $this->footerClass;
 		}

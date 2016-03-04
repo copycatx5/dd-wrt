@@ -13,14 +13,16 @@
 #include <errno.h>
 #include <dirent.h>
 #include <sys/stat.h>
+#include <fcntl.h>
 #include <typedefs.h>
 #include <shutils.h>
+#include <utils.h>
 #include <bcmnvram.h>
 
 static bool usb_ufd_connected(char *str);
 static int usb_process_path(char *path, char *fs, char *target);
 static void usb_unmount(char *dev);
-int usb_add_ufd(char *dev);
+static int usb_add_ufd(char *dev);
 
 #define DUMPFILE	"/tmp/disktype.dump"
 #define DUMPFILE_PART	"/tmp/parttype.dump"
@@ -103,8 +105,16 @@ void start_hotplug_usb(void)
 }
 
 /* Optimize performance */
-#define READ_AHEAD_KB_BUF	1024
+#define READ_AHEAD_KB_BUF	"1024"
 #define READ_AHEAD_CONF	"/sys/block/%s/queue/read_ahead_kb"
+static void writestr(char *path, char *a)
+{
+	int fd = open(path, O_WRONLY);
+	if (fd < 0)
+		return;
+	write(fd, a, strlen(a));
+	close(fd);
+}
 
 static void optimize_block_device(char *devname)
 {
@@ -115,7 +125,7 @@ static void optimize_block_device(char *devname)
 	memset(blkdev, 0, sizeof(blkdev));
 	strncpy(blkdev, devname, 3);
 	sprintf(read_ahead_conf, READ_AHEAD_CONF, blkdev);
-	sysprintf("echo %d > %s", READ_AHEAD_KB_BUF, read_ahead_conf);
+	writestr(read_ahead_conf, READ_AHEAD_KB_BUF);
 }
 
 void start_hotplug_block(void)
@@ -226,38 +236,21 @@ static int usb_process_path(char *path, char *fs, char *target)
 		insmod("fuse");
 #endif
 	if (!strcmp(fs, "ext2")) {
-		insmod("mbcache");
-		insmod("ext2");
+		insmod("mbcache ext2");
 	}
 #ifdef HAVE_USB_ADVANCED
 	if (!strcmp(fs, "ext3")) {
-		insmod("mbcache");
-		insmod("ext2");
-		insmod("jbd");
-		insmod("ext3");
+		insmod("mbcache ext2 jbd ext3");
 	}
 	if (!strcmp(fs, "ext4")) {
-		insmod("crc16");
-		insmod("mbcache");
-		insmod("jbd2");
-		insmod("ext4");
+		insmod("crc16 mbcache jbd2 ext4");
 	}
 	if (!strcmp(fs, "btrfs")) {
-		insmod("libcrc32c");
-		insmod("lzo_compress");
-		insmod("lzo_decompress");
-		insmod("btrfs");
+		insmod("libcrc32c crc32c_generic lzo_compress lzo_decompress raid6_pq xor-neon xor btrfs");
 	}
 #endif
 	if (!strcmp(fs, "vfat")) {
-		insmod("nls_base");
-		insmod("nls_cp932");
-		insmod("nls_cp936");
-		insmod("nls_cp950");
-		insmod("nls_cp437");
-		insmod("nls_iso8859-1");
-		insmod("nls_iso8859-2");
-		insmod("nls_utf8");
+		insmod("nls_base nls_cp932 nls_cp936 nls_cp950 nls_cp437 nls_iso8859-1 nls_iso8859-2 nls_utf8");
 		insmod("fat");
 		insmod("vfat");
 		insmod("msdos");
@@ -266,14 +259,13 @@ static int usb_process_path(char *path, char *fs, char *target)
 		insmod("xfs");
 	}
 	if (!strcmp(fs, "udf")) {
-		insmod("crc-itu-t");
-		insmod("udf");
+		insmod("crc-itu-t udf");
 	}
 	if (!strcmp(fs, "iso9660")) {
 		insmod("isofs");
 	}
 	if (target)
-		sysprintf("mkdir -p /tmp/mnt/%s", target);
+		sysprintf("mkdir -p \"/tmp/mnt/%s\"", target);
 	else
 		mkdir("/tmp/mnt", 0700);
 #ifdef HAVE_NTFS3G
@@ -296,6 +288,8 @@ static int usb_process_path(char *path, char *fs, char *target)
 	}
 #ifdef HAVE_80211AC
 	writeproc("/proc/sys/vm/min_free_kbytes", "16384");
+#elif HAVE_IPQ806X
+	writeproc("/proc/sys/vm/min_free_kbytes", "65536");
 #else
 	writeproc("/proc/sys/vm/min_free_kbytes", "4096");
 #endif
@@ -360,7 +354,7 @@ static void usb_unmount(char *path)
 	else
 		strcpy(mount_point, path);
 	eval("/bin/umount", mount_point);
-	eval("rm", "-f", DUMPFILE);
+	unlink(DUMPFILE);
 	eval("startservice_f", "samba3");
 	eval("startservice_f", "ftpsrv");
 	eval("startservice_f", "dlna");
@@ -370,7 +364,7 @@ static void usb_unmount(char *path)
     /* 
      * Handle hotplugging of UFD 
      */
-int usb_add_ufd(char *devpath)
+static int usb_add_ufd(char *devpath)
 {
 	DIR *dir = NULL;
 	FILE *fp = NULL;

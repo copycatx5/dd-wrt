@@ -31,7 +31,7 @@ endif
 
 
 #CFLAGS	+= -g -DDEBUG
-CFLAGS	+= -s $(COPTS) -fPIC
+CFLAGS	+= -s $(COPTS) $(MIPS16_OPT) -fPIC
 LDFLAGS += -L.
 ifeq ($(ARCH),powerpc)
 CFLAGS  += -DHAVE_MAGICBOX -fpic
@@ -45,6 +45,12 @@ CFLAGS  += -DHAVE_GATEWORX
 CFLAGS  += -DHAVE_LAGUNA
 endif
 
+ifeq ($(CONFIG_MVEBU),y)
+CFLAGS += -DHAVE_MVEBU
+endif
+ifeq ($(CONFIG_IPQ806X),y)
+CFLAGS += -DHAVE_IPQ806X
+endif
 ifeq ($(CONFIG_MADWIFI),y)
 CFLAGS += -DHAVE_MADWIFI
 endif
@@ -65,6 +71,9 @@ CFLAGS += -DHAVE_VENTANA
 endif
 ifeq ($(CONFIG_STORM),y)
 CFLAGS += -DHAVE_STORM
+endif
+ifeq ($(CONFIG_UBNTM),y)
+CFLAGS += -DHAVE_UBNTM
 endif
 ifeq ($(CONFIG_WHRAG108),y)
 CFLAGS += -DHAVE_WHRAG108
