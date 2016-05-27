@@ -37,15 +37,17 @@ extern int get_wl_instances(void);
 extern char *get_wl_instance_name(int instance);
 extern int get_maxbssid(char *ifname);
 
-float wifi_getrate(char *ifname);
+int wifi_getrate(char *ifname);
 int wifi_gettxpower(char *ifname);
 int wifi_gettxpoweroffset(char *ifname);
 int bcm_gettxpower(char *wlname);
 
-extern double HTTxRate20_800(unsigned int index);
-extern double HTTxRate20_400(unsigned int index);
-extern double HTTxRate40_800(unsigned int index);
-extern double HTTxRate40_400(unsigned int index);
+extern int HTTxRate20_800(unsigned int index);
+extern int HTTxRate20_400(unsigned int index);
+extern int HTTxRate40_800(unsigned int index);
+extern int HTTxRate40_400(unsigned int index);
+extern int HTTxRate80_800(unsigned int index);
+extern int HTTxRate80_400(unsigned int index);
 
 /*
  * Pass a wlioctl request to the specified interface.
@@ -154,6 +156,8 @@ extern struct mac80211_info *mac80211_assoclist(char *interface);
 extern char *mac80211_get_caps(char *interface, int shortgi);
 extern int has_shortgi(char *interface);
 #ifdef HAVE_ATH10K
+extern int has_vht160(char *interface);
+extern int has_vht80plus80(char *interface);
 extern char *mac80211_get_vhtcaps(char *interface, int shortgi);
 extern unsigned int get_ath10kreg(char *ifname, unsigned int reg);
 extern void set_ath10kreg(char *ifname, unsigned int reg, unsigned int value);
@@ -218,12 +222,14 @@ struct wifi_client_info {
 	char is_40mhz;
 	char is_80mhz;
 	char is_160mhz;
+	char is_80p80mhz;
 	char is_ht;
 	char is_vht;
 	char is_short_gi;
 	char rx_is_40mhz;
 	char rx_is_80mhz;
 	char rx_is_160mhz;
+	char rx_is_80p80mhz;
 	char rx_is_ht;
 	char rx_is_vht;
 	char rx_is_short_gi;

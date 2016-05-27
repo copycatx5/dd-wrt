@@ -1,6 +1,11 @@
 -include $(LINUXDIR)/.config
 CONFIG_WR941=
 CONFIG_WA901=
+CONFIG_WR650AC=
+CONFIG_E355AC=
+CONFIG_WR615N=
+CONFIG_E380AC=
+CONFIG_E325N=
 CONFIG_DIR615I=
 CONFIG_DAP3310=
 #CONFIG_MMS344=
@@ -29,8 +34,10 @@ CONFIG_DIR859=
 CONFIG_WNDR3700=
 CONFIG_WR1043V2=
 CONFIG_WR841V9=
+CONFIG_WR941V6=
 CONFIG_DAP2230=
 CONFIG_DAP3662=
+CONFIG_GL150=
 
 
 
@@ -58,6 +65,13 @@ BCFLAGS	 += $(COPTS) -I. -I$(TOP)/shared  -I$(SRCBASE)/include.bcm -Wall -I$(SRC
 BCFLAGS  += -I$(TOP)/iptables/include -I$(TOP)/rc -I$(TOP)/iptables/include/libipq -I$(TOP)/libnet/include -DL_ENDIAN -DLIBNET_LIL_ENDIAN -DLIB1X_LIL_ENDIAN -I$(LINUXDIR)/brcm/shared/bcmwifi/include -I$(LINUXDIR)/brcm/$(ARCH)/shared/bcmwifi/include
 BCFLAGS  += -fpic -I$(TOP)/services/include
 
+ifeq ($(CONFIG_DIST),"micro")
+#BCFLAGS += -DNEED_NOPRINTF
+endif
+ifneq ($(CONFIG_DIST),"micro-special")
+#BCFLAGS += -DNEED_NOPRINTF
+endif
+
 CFLAGS += $(BCFLAGS)
 
 HCFLAGS	 += -I. -I$(TOP)/shared -I$(SRCBASE)/include.bcm -Wall -I$(SRCBASE)/ 
@@ -65,9 +79,9 @@ HCFLAGS  += -I$(TOP)/iptables/include -I$(TOP)/rc -I$(TOP)/iptables/include/libi
 HCFLAGS  += -fpic -I$(TOP)/services/include -I$(LINUXDIR)/brcm/wl/bcmwifi/include -I$(LINUXDIR)/brcm/shared/bcmwifi/include  -I$(LINUXDIR)/brcm/$(ARCH)/wl/bcmwifi/include -I$(LINUXDIR)/brcm/$(ARCH)/shared/bcmwifi/include
 
 
-OBJS = services.o network.o firewall.o mssid.o wshaper.o ddns.o devinit.o sysinit.o sysinit-$(ARCHITECTURE).o interface.o udhcpc.o mkfiles.o iptable.o defaults.o \
-       bridgetools.o igmp.o udpxy.o wpa.o vlantagging.o httpd.o setuserpw.o gpio.o mask.o reset_defaults.o vpn.o cron.o syslog.o redial.o	\
-       pppoe_dual.o pppoe.o pptpclient.o l2tp.o hwmon.o ttraff.o radiotimer.o processmonitor.o wland.o radiofunctions.o apserv.o aoss.o processmanager.o utils.o minidlna.o tor.o gps.o
+OBJS = services.o network.o firewall.o mssid.o wshaper.o ddns.o devinit.o sysinit.o sysinit-$(ARCHITECTURE).o interface.o udhcpc.o mkfiles.o defaults.o \
+       bridgetools.o igmp.o wpa.o vlantagging.o httpd.o setuserpw.o gpio.o mask.o reset_defaults.o vpn.o cron.o syslog.o redial.o	\
+       pppoe_dual.o pppoe.o pptpclient.o ttraff.o radiotimer.o processmonitor.o wland.o radiofunctions.o processmanager.o utils.o iptable.o
 
 
 ifeq ($(CONFIG_WHRAG108),y)
@@ -120,6 +134,21 @@ endif
 CFLAGS_EXTRA += -DARCH_$(ARCHITECTURE)
 ifeq ($(CONFIG_TRIMAX),y)
 CFLAGS_EXTRA += -DHAVE_TRIMAX
+endif
+ifeq ($(CONFIG_WR650AC),y)
+CFLAGS_EXTRA += -DHAVE_WR650AC
+endif
+ifeq ($(CONFIG_E355AC),y)
+CFLAGS_EXTRA += -DHAVE_E355AC
+endif
+ifeq ($(CONFIG_WR615N),y)
+CFLAGS_EXTRA += -DHAVE_WR615N
+endif
+ifeq ($(CONFIG_E380AC),y)
+CFLAGS_EXTRA += -DHAVE_E380AC
+endif
+ifeq ($(CONFIG_E325N),y)
+CFLAGS_EXTRA += -DHAVE_E325N
 endif
 ifeq ($(CONFIG_F5D8235),y)
 CFLAGS_EXTRA += -DHAVE_F5D8235
@@ -240,6 +269,10 @@ endif
 ifeq ($(CONFIG_KAID),y)
 CFLAGS_EXTRA += -DHAVE_KAID
 endif
+ifeq ($(CONFIG_UDPXY),y)
+CFLAGS_EXTRA += -DHAVE_UDPXY
+OBJS += udpxy.o
+endif
 ifeq ($(CONFIG_USBIP),y)
 CFLAGS_EXTRA += -DHAVE_USBIP
 endif
@@ -257,17 +290,20 @@ ifeq ($(CONFIG_LAGUNA),y)
 CFLAGS_EXTRA += -DHAVE_LAGUNA
 CFLAGS_EXTRA += -DHAVE_CPUTEMP
 CFLAGS_EXTRA += -DHAVE_VOLT
+OBJS += hwmon.o
 endif
 ifeq ($(CONFIG_VENTANA),y)
 CFLAGS_EXTRA += -DHAVE_VENTANA
 CFLAGS_EXTRA += -DHAVE_CPUTEMP
 CFLAGS_EXTRA += -DHAVE_VOLT
+OBJS += hwmon.o
 endif
 ifeq ($(CONFIG_TONZE),y)
 CFLAGS_EXTRA += -DHAVE_TONZE
 endif
 ifeq ($(CONFIG_GPSI),y)
   CFLAGS_EXTRA += -DHAVE_GPSI
+  OBJS+=gps.o
 endif
 ifeq ($(CONFIG_SYSLOG),y)
 CFLAGS_EXTRA += -DHAVE_SYSLOG
@@ -483,6 +519,9 @@ endif
 ifeq ($(CONFIG_WR741),y)
 CFLAGS_EXTRA += -DHAVE_WR741
 endif
+ifeq ($(CONFIG_GL150),y)
+CFLAGS_EXTRA += -DHAVE_GL150
+endif
 ifeq ($(CONFIG_WA7510),y)
 CFLAGS_EXTRA += -DHAVE_WA7510
 endif
@@ -554,11 +593,15 @@ endif
 ifeq ($(CONFIG_DIR859),y)
 CFLAGS_EXTRA += -DHAVE_DIR859
 endif
+ifeq ($(CONFIG_DIR869),y)
+CFLAGS_EXTRA += -DHAVE_DIR869
+endif
 ifeq ($(CONFIG_WDR2543),y)
 CFLAGS_EXTRA += -DHAVE_WDR2543
 endif
 ifeq ($(CONFIG_TOR),y)
 CFLAGS_EXTRA += -DHAVE_TOR
+OBJS += tor.o
 endif
 ifeq ($(CONFIG_WDR4300),y)
 CFLAGS_EXTRA += -DHAVE_WDR4300
@@ -598,6 +641,9 @@ CFLAGS_EXTRA += -DHAVE_WR1043V2
 endif
 ifeq ($(CONFIG_WR841V9),y)
 CFLAGS_EXTRA += -DHAVE_WR841V9
+endif
+ifeq ($(CONFIG_WR941V6),y)
+CFLAGS_EXTRA += -DHAVE_WR941V6
 endif
 ifeq ($(CONFIG_AC622),y)
 CFLAGS_EXTRA += -DHAVE_AC622
@@ -681,9 +727,11 @@ CFLAGS_EXTRA += -DHAVE_WIVIZ
 endif
 ifeq ($(CONFIG_AP_SERV),y)
 CFLAGS_EXTRA += -DHAVE_AP_SERV
+OBJS += apserv.o
 endif
 ifeq ($(CONFIG_AOSS),y)
 CFLAGS_EXTRA += -DHAVE_AOSS
+OBJS += aoss.o
 endif
 ifeq ($(CONFIG_IAS),y)
 CFLAGS_EXTRA += -DHAVE_IAS
@@ -801,12 +849,14 @@ ifeq ($(CONFIG_RADIOOFF),y)
 endif
 ifeq ($(CONFIG_MINIDLNA),y)
   CFLAGS_EXTRA += -DHAVE_MINIDLNA
+OBJS += minidlna.o
 endif
 ifeq ($(CONFIG_MEDIASERVER),y)
 CFLAGS_EXTRA += -DHAVE_MEDIASERVER
 endif
 ifeq ($(CONFIG_L2TP),y)
 CFLAGS_EXTRA += -DHAVE_L2TP
+OBJS += l2tp.o
 endif
 ifeq ($(CONFIG_NOWIFI),y)
 CFLAGS_EXTRA += -DHAVE_NOWIFI
@@ -922,6 +972,7 @@ CFLAGS_EXTRA += -DHAVE_PORTSETUP
 endif
 ifeq ($(CONFIG_CPUTEMP),y)
 CFLAGS_EXTRA += -DHAVE_CPUTEMP
+OBJS += hwmon.o
 endif
 ifeq ($(CONFIG_WRT54G2),y)
 CFLAGS_EXTRA += -DHAVE_WRT54G2
@@ -932,6 +983,7 @@ endif
 ifeq ($(CONFIG_MAGICBOX),y)
 CFLAGS_EXTRA += -DHAVE_MAGICBOX
 CFLAGS_EXTRA += -DHAVE_CPUTEMP
+OBJS += hwmon.o
 endif
 ifeq ($(CONFIG_RB600),y)
 CFLAGS_EXTRA += -DHAVE_RB600
@@ -1225,6 +1277,7 @@ CFLAGS_EXTRA += -DHAVE_GATEWORX
 ifneq ($(CONFIG_WRT300NV2),y)
 CFLAGS_EXTRA += -DHAVE_CPUTEMP
 CFLAGS_EXTRA += -DHAVE_VOLT
+OBJS += hwmon.o
 endif
 endif
 endif

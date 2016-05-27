@@ -21,15 +21,18 @@ python-configure: libffi-configure libffi libffi-install
 python-clean:
 	make -C python clean
 
-python: libffi libffi-install
+python: libffi
+	make -C libffi install DESTDIR=$(INSTALLDIR)/libffi
 	make -C python python Parser/pgen
 	make -C python sharedmods
 
 python-install:
+	make -C libffi install DESTDIR=$(INSTALLDIR)/libffi
 	make -C python install DESTDIR=$(INSTALLDIR)/python
 	rm -rf $(INSTALLDIR)/python/usr/include
 	rm -rf $(INSTALLDIR)/python/usr/share
 	rm -f $(INSTALLDIR)/python/usr/lib/python3.4/config-3.4m/*.a
+	-rm -rf $(INSTALLDIR)/libffi/usr/lib/libffi-3.2.1
 #18M...
 	rm -rf $(INSTALLDIR)/python/usr/lib/python3.4/test
 

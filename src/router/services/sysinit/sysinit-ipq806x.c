@@ -321,7 +321,7 @@ void start_sysinit(void)
 	char buf[PATH_MAX];
 	struct stat tmp_stat;
 	time_t tm = 0;
-	FILE *fp;
+	FILE *fp = NULL;
 	if (!nvram_match("disable_watchdog", "1"))
 		eval("watchdog");
 
@@ -339,9 +339,10 @@ void start_sysinit(void)
 	int mtd = getMTD("art");
 	char *maddr = NULL;
 	sprintf(mtdpath, "/dev/mtdblock/%d", mtd);
+
 	if (board != ROUTER_NETGEAR_R7500)
 		fp = fopen(mtdpath, "rb");
-	if (fp) {
+	if (fp != NULL) {
 		int newmac[6];
 		if (board == ROUTER_TRENDNET_TEW827)
 			maddr = getUEnv("lan_mac");
@@ -369,10 +370,10 @@ void start_sysinit(void)
 		calcchecksum(&smem[0x4000]);
 
 		fp = fopen("/tmp/board1.bin", "wb");
-		fwrite(smem, 0x4000, 1, fp);
+		fwrite(smem, 12064, 1, fp);
 		fclose(fp);
 		fp = fopen("/tmp/board2.bin", "wb");
-		fwrite(&smem[0x4000], 0x4000, 1, fp);
+		fwrite(&smem[0x4000], 12064, 1, fp);
 		fclose(fp);
 		free(smem);
 
@@ -392,6 +393,8 @@ void start_sysinit(void)
 	insmod("tmp421");
 	insmod("mii");
 	insmod("stmmac");	//for debugging purposes compiled as module
+	insmod("qcom-wdt");
+	
 	/*
 	 * network drivers 
 	 */
@@ -436,6 +439,16 @@ void start_sysinit(void)
 		eval("vconfig", "add", "eth0", "1");
 		eval("vconfig", "add", "eth0", "2");
 		break;
+/*	case ROUTER_NETGEAR_R7800:
+		system("swconfig dev switch0 set reset 1");
+		system("swconfig dev switch0 set enable_vlan 1");
+		system("swconfig dev switch0 vlan 1 set ports \"6 1 2 3 4\"");
+		system("swconfig dev switch0 vlan 2 set ports \"0 5\"");
+		system("swconfig dev switch0 set apply");
+		eval("ifconfig", "eth1", "up");
+		eval("vconfig", "set_name_type", "VLAN_PLUS_VID_NO_PAD");
+		eval("vconfig", "add", "eth1", "1");
+		eval("vconfig", "add", "eth1", "2");*/
 	default:
 		system("swconfig dev switch0 set reset 1");
 		system("swconfig dev switch0 set enable_vlan 0");

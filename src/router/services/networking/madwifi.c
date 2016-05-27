@@ -796,7 +796,7 @@ void setupHS20(FILE * fp, char *prefix)
 void addWPS(FILE * fp, char *prefix, int configured)
 {
 #ifdef HAVE_WPS
-	char *config_methods = safe_malloc(sizeof("label keypad") + 1);
+	char *config_methods = safe_malloc(strlen("label keypad") + 1);
 	memset(config_methods, 0, strlen(config_methods));
 	strcpy(config_methods, "label keypad");
 	fprintf(fp, "ctrl_interface=/var/run/hostapd\n");	// for cli
@@ -804,7 +804,7 @@ void addWPS(FILE * fp, char *prefix, int configured)
 	    || !strcmp(prefix, "ath1")) {
 		fprintf(fp, "eap_server=1\n");
 		if (nvram_match("wps_enabled", "1")) {
-			config_methods = (char *)realloc(config_methods, strlen(config_methods) + sizeof(" push_button") + 1);
+			config_methods = (char *)realloc(config_methods, strlen(config_methods) + strlen(" push_button") + 1);
 			strcat(config_methods, " push_button");
 		}
 //# WPS configuration (AP configured, do not allow external WPS Registrars)
@@ -858,7 +858,7 @@ void addWPS(FILE * fp, char *prefix, int configured)
 		fprintf(fp, "device_type=6-0050F204-1\n");
 		fprintf(fp, "os_version=01020300\n");
 #ifdef HAVE_BUFFALO
-		fprintf(fp, "friendly_name=BUFFALO %s\n", nvram_get("DD_BOARD"));
+		fprintf(fp, "friendly_name=BUFFALO %s\n", nvram_safe_get("DD_BOARD"));
 #else
 		fprintf(fp, "friendly_name=DD-WRT WPS Access Point\n");
 #endif
@@ -2424,11 +2424,11 @@ void configure_wifi(void)	// madwifi implementation for atheros based
 		eval("nldstart.sh");
 	}
 #endif
-#if defined(HAVE_MAKSAT) || defined(HAVE_TMK) || defined(HAVE_BKM)
-	if (registered_has_cap(19)) {
-		eval("batstart.sh");
-	}
-#endif
+// #if defined(HAVE_MAKSAT) || defined(HAVE_TMK) || defined(HAVE_BKM)
+	//if (registered_has_cap(19)) {
+	//	eval("batstart.sh");
+	//}
+// #endif
 #ifdef HAVE_WPS
 	nvram_unset("wps_forcerelease");
 #endif

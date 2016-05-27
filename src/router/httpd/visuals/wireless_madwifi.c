@@ -390,7 +390,7 @@ void ej_show_acktiming(webs_t wp, int argc, char_t ** argv)
 	websWrite(wp, "</div>\n");
 }
 
-extern float wifi_getrate(char *ifname);
+extern int wifi_getrate(char *ifname);
 
 #define KILO	1e3
 #define MEGA	1e6
@@ -406,21 +406,16 @@ void ej_get_currate(webs_t wp, int argc, char_t ** argv)
 		websWrite(wp, "%s", live_translate("share.disabled"));
 		return;
 	}
-	float rate = wifi_getrate(ifname);
+	int rate = wifi_getrate(ifname);
 	char scale;
 	int divisor;
 
-	if (rate >= GIGA) {
-		scale = 'G';
-		divisor = GIGA;
+	if (rate >= MEGA) {
+		scale = 'M';
+		divisor = MEGA;
 	} else {
-		if (rate >= MEGA) {
-			scale = 'M';
-			divisor = MEGA;
-		} else {
-			scale = 'k';
-			divisor = KILO;
-		}
+		scale = 'k';
+		divisor = KILO;
 	}
 	sprintf(mode, "%s_channelbw", ifname);
 #ifdef HAVE_ATH9K
@@ -432,7 +427,7 @@ void ej_get_currate(webs_t wp, int argc, char_t ** argv)
 			rate *= 2;
 	}
 	if (rate > 0.0) {
-		websWrite(wp, "%g %cb/s", rate / divisor, scale);
+		websWrite(wp, "%d %cb/s", rate / divisor, scale);
 	} else
 		websWrite(wp, "%s", live_translate("share.auto"));
 }
@@ -462,8 +457,33 @@ void ej_get_curchannel(webs_t wp, int argc, char_t ** argv)
 		{
 			websWrite(wp, "%d", channel);
 		}
+    		websWrite(wp, " (%d MHz", freq);
+#ifdef HAVE_ATH9K
+		if (is_ath9k(prefix)) {
+			switch (interface->width) {
+			case 2:
+				websWrite(wp, " NOHT");
+				break;
+			case 20:
+				websWrite(wp, " HT20");
+				break;
+			case 40:
+				websWrite(wp, " HT40");
+				break;
+			case 80:
+				websWrite(wp, " VHT80");
+				break;
+			case 8080:
+				websWrite(wp, " VHT80+80");
+				break;
+			case 160:
+				websWrite(wp, " VHT160");
+				break;
+			}
+		}
+#endif
+    		websWrite(wp, ")");
 		free(interface);
-		websWrite(wp, " (%d MHz)", freq);
 
 	} else
 		websWrite(wp, "%s", live_translate("share.unknown"));

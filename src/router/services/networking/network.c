@@ -85,6 +85,7 @@ extern int br_del_interface(const char *br, const char *dev);
 extern int br_set_stp_state(const char *br, int stp_state);
 void start_set_routes(void);
 void config_macs(char *wlifname);
+static void stop_ipv6_tunnel(char *wan_ifname);
 
 #define PTABLE_MAGIC 0xbadc0ded
 #define PTABLE_SLT1 1
@@ -1010,6 +1011,7 @@ void start_lan(void)
 		}
 		strncpy(ifr.ifr_name, "eth1", IFNAMSIZ);
 		break;
+//	case ROUTER_NETGEAR_R7800:
 	case ROUTER_LINKSYS_EA8500:
 		if (getSTA() || getWET() || CANBRIDGE()) {
 			nvram_setz(lan_ifnames, "vlan1 vlan2 ath0 ath1");
@@ -1022,10 +1024,10 @@ void start_lan(void)
 		break;
 	default:
 		if (getSTA() || getWET() || CANBRIDGE()) {
-			nvram_setz(lan_ifnames, "eth0 eth1 ath0");
+			nvram_setz(lan_ifnames, "eth0 eth1 ath0 ath1");
 			PORTSETUPWAN("");
 		} else {
-			nvram_setz(lan_ifnames, "eth0 eth1 ath0");
+			nvram_setz(lan_ifnames, "eth0 eth1 ath0 ath1");
 			PORTSETUPWAN("eth0");
 		}
 		strncpy(ifr.ifr_name, "eth1", IFNAMSIZ);
@@ -1285,14 +1287,74 @@ void start_lan(void)
 	if (nvram_match("et0macaddr", ""))
 		nvram_set("et0macaddr", ether_etoa(ifr.ifr_hwaddr.sa_data, eabuf));
 	strcpy(mac, nvram_safe_get("et0macaddr"));
-#elif HAVE_DIR862
+#elif HAVE_E325N
+	nvram_setz(lan_ifnames, "eth0 eth1 ath0 ath1");
+	if (getSTA() || getWET() || CANBRIDGE()) {
+		PORTSETUPWAN("");
+	} else {
+		PORTSETUPWAN("eth1");
+	}
+	strncpy(ifr.ifr_name, "eth0", IFNAMSIZ);
+	ioctl(s, SIOCGIFHWADDR, &ifr);
+	if (nvram_match("et0macaddr", ""))
+		nvram_set("et0macaddr", ether_etoa(ifr.ifr_hwaddr.sa_data, eabuf));
+	strcpy(mac, nvram_safe_get("et0macaddr"));
+#elif HAVE_WR615N
+	nvram_setz(lan_ifnames, "eth0 eth1 ath0 ath1");
+	if (getSTA() || getWET() || CANBRIDGE()) {
+		PORTSETUPWAN("");
+	} else {
+		PORTSETUPWAN("eth1");
+	}
+	strncpy(ifr.ifr_name, "eth0", IFNAMSIZ);
+	ioctl(s, SIOCGIFHWADDR, &ifr);
+	if (nvram_match("et0macaddr", ""))
+		nvram_set("et0macaddr", ether_etoa(ifr.ifr_hwaddr.sa_data, eabuf));
+	strcpy(mac, nvram_safe_get("et0macaddr"));
+#elif HAVE_E355AC
+	nvram_setz(lan_ifnames, "eth0 eth1 ath0 ath1");
+	if (getSTA() || getWET() || CANBRIDGE()) {
+		PORTSETUPWAN("");
+	} else {
+		PORTSETUPWAN("eth1");
+	}
+	strncpy(ifr.ifr_name, "eth0", IFNAMSIZ);
+	ioctl(s, SIOCGIFHWADDR, &ifr);
+	if (nvram_match("et0macaddr", ""))
+		nvram_set("et0macaddr", ether_etoa(ifr.ifr_hwaddr.sa_data, eabuf));
+	strcpy(mac, nvram_safe_get("et0macaddr"));
+#elif HAVE_E380AC
 	nvram_setz(lan_ifnames, "eth0 eth1 ath0 ath1");
 	if (getSTA() || getWET() || CANBRIDGE()) {
 		PORTSETUPWAN("");
 	} else {
 		PORTSETUPWAN("eth0");
 	}
-	strncpy(ifr.ifr_name, "eth1", IFNAMSIZ);
+	strncpy(ifr.ifr_name, "eth0", IFNAMSIZ);
+	ioctl(s, SIOCGIFHWADDR, &ifr);
+	if (nvram_match("et0macaddr", ""))
+		nvram_set("et0macaddr", ether_etoa(ifr.ifr_hwaddr.sa_data, eabuf));
+	strcpy(mac, nvram_safe_get("et0macaddr"));
+#elif HAVE_WR650AC
+	nvram_setz(lan_ifnames, "eth0 eth1 ath0 ath1");
+	if (getSTA() || getWET() || CANBRIDGE()) {
+		PORTSETUPWAN("");
+	} else {
+		PORTSETUPWAN("eth1");
+	}
+	strncpy(ifr.ifr_name, "eth0", IFNAMSIZ);
+	ioctl(s, SIOCGIFHWADDR, &ifr);
+	if (nvram_match("et0macaddr", ""))
+		nvram_set("et0macaddr", ether_etoa(ifr.ifr_hwaddr.sa_data, eabuf));
+	strcpy(mac, nvram_safe_get("et0macaddr"));
+#elif HAVE_DIR862
+	nvram_setz(lan_ifnames, "eth0 eth1 ath0 ath1");
+	if (getSTA() || getWET() || CANBRIDGE()) {
+		PORTSETUPWAN("");
+	} else {
+		PORTSETUPWAN("eth1");
+	}
+	strncpy(ifr.ifr_name, "eth0", IFNAMSIZ);
 	ioctl(s, SIOCGIFHWADDR, &ifr);
 	if (nvram_match("et0macaddr", ""))
 		nvram_set("et0macaddr", ether_etoa(ifr.ifr_hwaddr.sa_data, eabuf));
@@ -1485,6 +1547,18 @@ void start_lan(void)
 		PORTSETUPWAN("eth0");
 	}
 	strncpy(ifr.ifr_name, "eth0", IFNAMSIZ);
+	ioctl(s, SIOCGIFHWADDR, &ifr);
+	if (nvram_match("et0macaddr", ""))
+		nvram_set("et0macaddr", ether_etoa(ifr.ifr_hwaddr.sa_data, eabuf));
+	strcpy(mac, nvram_safe_get("et0macaddr"));
+#elif HAVE_WR941V6
+	nvram_setz(lan_ifnames, "eth0 eth1 ath0");
+	if (getSTA() || getWET() || CANBRIDGE()) {
+		PORTSETUPWAN("");
+	} else {
+		PORTSETUPWAN("eth0");
+	}
+	strncpy(ifr.ifr_name, "eth1", IFNAMSIZ);
 	ioctl(s, SIOCGIFHWADDR, &ifr);
 	if (nvram_match("et0macaddr", ""))
 		nvram_set("et0macaddr", ether_etoa(ifr.ifr_hwaddr.sa_data, eabuf));
@@ -1762,7 +1836,11 @@ void start_lan(void)
 	strcpy(mac, nvram_safe_get("et0macaddr"));
 #endif
 #ifdef HAVE_NORTHSTAR
+#ifdef HAVE_DHDAP
 	nvram_setz(lan_ifnames, "vlan1 vlan2 eth1 eth2 eth3");
+#else
+	nvram_setz(lan_ifnames, "vlan1 vlan2 eth1 eth2");
+#endif
 	if (getSTA() || getWET() || CANBRIDGE()) {
 		PORTSETUPWAN("");
 	} else {
@@ -3082,6 +3160,9 @@ void start_wan(int status)
 #elif HAVE_WR841V9
 	char *pppoe_wan_ifname = nvram_invmatch("pppoe_wan_ifname",
 						"") ? nvram_safe_get("pppoe_wan_ifname") : "eth1";
+#elif HAVE_WR941V6
+	char *pppoe_wan_ifname = nvram_invmatch("pppoe_wan_ifname",
+						"") ? nvram_safe_get("pppoe_wan_ifname") : "eth0";
 #elif HAVE_DIR615I
 	char *pppoe_wan_ifname = nvram_invmatch("pppoe_wan_ifname",
 						"") ? nvram_safe_get("pppoe_wan_ifname") : "eth0";
@@ -3094,6 +3175,21 @@ void start_wan(int status)
 #elif HAVE_WZRG450
 	char *pppoe_wan_ifname = nvram_invmatch("pppoe_wan_ifname",
 						"") ? nvram_safe_get("pppoe_wan_ifname") : "vlan2";
+#elif HAVE_E380AC
+	char *pppoe_wan_ifname = nvram_invmatch("pppoe_wan_ifname",
+						"") ? nvram_safe_get("pppoe_wan_ifname") : "eth0";
+#elif HAVE_WR615N
+	char *pppoe_wan_ifname = nvram_invmatch("pppoe_wan_ifname",
+						"") ? nvram_safe_get("pppoe_wan_ifname") : "eth1";
+#elif HAVE_E325N
+	char *pppoe_wan_ifname = nvram_invmatch("pppoe_wan_ifname",
+						"") ? nvram_safe_get("pppoe_wan_ifname") : "eth1";
+#elif HAVE_E355AC
+	char *pppoe_wan_ifname = nvram_invmatch("pppoe_wan_ifname",
+						"") ? nvram_safe_get("pppoe_wan_ifname") : "eth1";
+#elif HAVE_WR650AC
+	char *pppoe_wan_ifname = nvram_invmatch("pppoe_wan_ifname",
+						"") ? nvram_safe_get("pppoe_wan_ifname") : "eth1";
 #elif HAVE_DIR632
 	char *pppoe_wan_ifname = nvram_invmatch("pppoe_wan_ifname",
 						"") ? nvram_safe_get("pppoe_wan_ifname") : "eth1";
@@ -4367,6 +4463,7 @@ static const char *ipv6_router_address(struct in6_addr *in6addr, char *addr6)
 
 static void start_ipv6_tunnel(char *wan_ifname)
 {
+	 
 	char *remote_endpoint = nvram_safe_get("ipv6_tun_end_ipv4");
 	char *tun_client_ipv6 = nvram_safe_get("ipv6_tun_client_addr");
 	char *tun_client_pref = nvram_safe_get("ipv6_tun_client_addr_pref");
@@ -4374,6 +4471,8 @@ static void start_ipv6_tunnel(char *wan_ifname)
 	char *ipv6_pf_len = nvram_safe_get("ipv6_pf_len");
 
 	int mtu = atoi(nvram_default_get("wan_mtu", "1500")) - 20;
+	
+	stop_ipv6_tunnel(wan_ifname);
 
 	if (nvram_invmatch("ipv6_mtu", ""))
 		mtu = atoi(nvram_safe_get("ipv6_mtu"));
@@ -4411,6 +4510,8 @@ static void start_wan6_done(char *wan_ifname)
 {
 	if (nvram_match("ipv6_enable", "0"))
 		return;
+	
+	eval("ip", "-6", "addr", "flush", "scope", "global");
 
 	if (nvram_match("ipv6_typ", "ipv6native")) {
 		if (nvram_match("wan_proto", "disabled")) {
@@ -4537,13 +4638,21 @@ void start_wan_done(char *wan_ifname)
 	stop_udhcpd();
 	start_udhcpd();
 #endif
+#ifdef HAVE_UNBOUND
+	stop_unbound();
+	start_unbound();
+#endif
 #ifdef HAVE_IPV6
 	start_wan6_done(wan_ifname);
 #endif
 	cprintf("restart dns proxy\n");
 	/*
-	 * Restart DNS proxy stop_dnsmasq (); start_dnsmasq (); 
+	 * Restart DNS proxy 
 	 */
+
+	//stop_dnsmasq (); 
+	//start_dnsmasq (); 
+	
 	cprintf("start firewall\n");
 	/*
 	 * Start firewall 
@@ -4677,15 +4786,14 @@ void start_wan_done(char *wan_ifname)
 		dd_syslog(LOG_INFO, "WAN is up. IP: %s\n", get_wan_ipaddr());
 	}
 
-	float sys_uptime;
+	unsigned sys_uptime;
+	struct sysinfo info;
+	sysinfo(&info);
+	sys_uptime = info.uptime;
 	FILE *up;
 
-	up = fopen("/proc/uptime", "r");
-	fscanf(up, "%f", &sys_uptime);
-	fclose(up);
-
 	up = fopen("/tmp/.wanuptime", "w");
-	fprintf(up, "%f", sys_uptime);
+	fprintf(up, "%u", sys_uptime);
 	fclose(up);
 
 	cprintf("done\n");
@@ -4761,6 +4869,12 @@ void start_wan_done(char *wan_ifname)
 		eval("/usr/bin/curl", "-s", "-k", nvram_safe_get("ipv6_tun_upd_url"), "-o", "/tmp/tunnelstat");
 #else
 		eval("wget", nvram_safe_get("ipv6_tun_upd_url"), "-O", "/tmp/tunnelstat");
+#endif
+#ifdef HAVE_IPV6
+		if (nvram_match("wshaper_enable", "1")){
+			stop_ipv6_tunnel(wan_ifname);
+			start_ipv6_tunnel(wan_ifname);
+		}
 #endif
 	}
 }

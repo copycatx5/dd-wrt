@@ -519,19 +519,12 @@ static void buffalo_defaults(int force)
 		char mountpoint[20] = "/tmp/sysdefaults";
 		char conffile[16] = "mac.dat";
 
-		fp = fopen(script, "w");
-		if (fp) {
-			fprintf(fp, "#!/bin/sh\n");
-			fprintf(fp, "insmod lzma_compress\n");
-			fprintf(fp, "insmod jffs2\n");
-			fprintf(fp, "mkdir %s\n", mountpoint);
-			fprintf(fp, "mount -t jffs2 %s %s\n", partition, mountpoint);
-			fprintf(fp, "cat %s/%s > %s\n", mountpoint, conffile, config);
-			fclose(fp);
-		}
-
-		chmod(script, 0755);
-		eval(script);
+		insmod("lzma_compress");
+		insmod("lzma_decompress");
+		insmod("jffs2");
+		eval("mkdir", mountpoint);
+		eval("mount", "-t", "jffs2", partition, mountpoint);
+		sysprintf("cat %s/%s > %s", mountpoint, conffile, config);
 
 		fp = fopen(config, "r");
 		if (fp) {
@@ -1004,8 +997,7 @@ void start_restore_defaults(void)
 	struct nvram_param generic[] = {
 		{"lan_ifname", "br0"},
 		{"lan_ifnames",
-		 "eth1 eth2 eth3 eth4 eth5 eth6 eth7 eth8 ath0 ath1 ath2 ath3 ath4 ath5",
-		 0},
+		 "eth1 eth2 eth3 eth4 eth5 eth6 eth7 eth8 ath0 ath1 ath2 ath3 ath4 ath5"},
 		{"wan_ifname", "eth0"},
 		{"wan_ifnames", "eth0"},
 		{0, 0}
@@ -1037,8 +1029,7 @@ void start_restore_defaults(void)
 #elif HAVE_EAP9550
 	struct nvram_param generic[] = {
 		{"lan_ifname", "br0"},
-		{"lan_ifnames", "eth2 ra0",
-		 0},
+		{"lan_ifnames", "eth2 ra0"},
 		{"wan_ifname2", "eth2"},
 		{"wan_ifname", "eth2"},
 		{"wan_default", "eth2"},
@@ -1048,8 +1039,7 @@ void start_restore_defaults(void)
 #elif HAVE_HAMEA15
 	struct nvram_param generic[] = {
 		{"lan_ifname", "br0"},
-		{"lan_ifnames", "vlan1 ra0",
-		 0},
+		{"lan_ifnames", "vlan1 ra0"},
 		{"wan_ifname2", "vlan1"},
 		{"wan_ifname", "vlan1"},
 		{"wan_default", "vlan1"},
@@ -1059,8 +1049,7 @@ void start_restore_defaults(void)
 #elif HAVE_RT2880
 	struct nvram_param generic[] = {
 		{"lan_ifname", "br0"},
-		{"lan_ifnames", "vlan1 vlan2 ra0 ba0",
-		 0},
+		{"lan_ifnames", "vlan1 vlan2 ra0 ba0"},
 		{"wan_ifname2", "vlan2"},
 		{"wan_ifname", "vlan2"},
 		{"wan_default", "vlan2"},
@@ -1071,8 +1060,7 @@ void start_restore_defaults(void)
 #if defined(HAVE_XIOCOM) || defined(HAVE_MI424WR)
 	struct nvram_param generic[] = {
 		{"lan_ifname", "br0"},
-		{"lan_ifnames", "ixp1 ath0 ath1 ath2 ath3",
-		 0},
+		{"lan_ifnames", "ixp1 ath0 ath1 ath2 ath3"},
 		{"wan_ifname2", "ixp0"},
 		{"wan_ifname", "ixp0"},
 		{"wan_default", "ixp0"},
@@ -1082,8 +1070,7 @@ void start_restore_defaults(void)
 #else
 	struct nvram_param generic[] = {
 		{"lan_ifname", "br0"},
-		{"lan_ifnames", "ixp0 ath0 ath1 ath2 ath3",
-		 0},
+		{"lan_ifnames", "ixp0 ath0 ath1 ath2 ath3"},
 		{"wan_ifname2", "ixp1"},
 		{"wan_ifname", "ixp1"},
 		{"wan_default", "ixp1"},
@@ -1532,6 +1519,56 @@ void start_restore_defaults(void)
 		{"wan_default", ""},
 		{0, 0}
 	};
+#elif HAVE_WR615N
+	struct nvram_param generic[] = {
+		{"lan_ifname", "br0"},
+		{"lan_ifnames", "eth0 eth1 ath0"},
+		{"wan_ifname", ""},
+		{"wan_ifname2", ""},
+		{"wan_ifnames", ""},
+		{"wan_default", ""},
+		{0, 0}
+	};
+#elif HAVE_E325N
+	struct nvram_param generic[] = {
+		{"lan_ifname", "br0"},
+		{"lan_ifnames", "eth0 eth1 ath0 ath1"},
+		{"wan_ifname", ""},
+		{"wan_ifname2", ""},
+		{"wan_ifnames", ""},
+		{"wan_default", ""},
+		{0, 0}
+	};
+#elif HAVE_E355AC
+	struct nvram_param generic[] = {
+		{"lan_ifname", "br0"},
+		{"lan_ifnames", "eth0 eth1 ath0 ath1"},
+		{"wan_ifname", ""},
+		{"wan_ifname2", ""},
+		{"wan_ifnames", ""},
+		{"wan_default", ""},
+		{0, 0}
+	};
+#elif HAVE_E380AC
+	struct nvram_param generic[] = {
+		{"lan_ifname", "br0"},
+		{"lan_ifnames", "eth0 ath0 ath1"},
+		{"wan_ifname", ""},
+		{"wan_ifname2", ""},
+		{"wan_ifnames", ""},
+		{"wan_default", ""},
+		{0, 0}
+	};
+#elif HAVE_WR650AC
+	struct nvram_param generic[] = {
+		{"lan_ifname", "br0"},
+		{"lan_ifnames", "eth0 eth1 ath0 ath1"},
+		{"wan_ifname", ""},
+		{"wan_ifname2", ""},
+		{"wan_ifnames", ""},
+		{"wan_default", ""},
+		{0, 0}
+	};
 #elif HAVE_DIR862
 	struct nvram_param generic[] = {
 		{"lan_ifname", "br0"},
@@ -1583,6 +1620,16 @@ void start_restore_defaults(void)
 		{0, 0}
 	};
 #elif HAVE_WHRHPGN
+	struct nvram_param generic[] = {
+		{"lan_ifname", "br0"},
+		{"lan_ifnames", "eth0 eth1 ath0"},
+		{"wan_ifname", ""},
+		{"wan_ifname2", ""},
+		{"wan_ifnames", ""},
+		{"wan_default", ""},
+		{0, 0}
+	};
+#elif HAVE_WR941V6
 	struct nvram_param generic[] = {
 		{"lan_ifname", "br0"},
 		{"lan_ifnames", "eth0 eth1 ath0"},
@@ -2401,6 +2448,15 @@ void start_restore_defaults(void)
 			nvram_set("vlan2ports", "0 8u");
 		}
 		break;
+
+	case ROUTER_ASUS_AC1200:
+		if (!nvram_get("vlan1ports") || nvram_match("vlan1ports", "")
+		    || !nvram_get("vlan2ports")
+		    || nvram_match("vlan2ports", "")) {
+			nvram_set("vlan1ports", "1 2 3 4 8*");
+			nvram_set("vlan2ports", "0 8*");
+		}
+		break;
 	case ROUTER_BUFFALO_WZR600DHP2:
 	case ROUTER_BUFFALO_WZR900DHP:
 	case ROUTER_BUFFALO_WZR1750:
@@ -2848,7 +2904,7 @@ void start_drivers(void)
 		led_control(LED_USB1, LED_ON);
 
 		insmod
-		    ("nls_base usb-common usbcore ehci-hcd ehci-platform ehci-pci usb-uhci uhci-hcd usb-ohci ohci-hcd xhci-hcd xhci-pci xhci-plat-hcd dwc_otg usb-libusual fsl-mph-dr-of phy-mxs-usb extcon ci_hdrc ci13xxx_imx usbmisc_imx ci_hdrc_imx dwc3 dwc3-qcom phy-qcom-hsusb phy-qcom-ssusb");
+		    ("nls_base usb-common usbcore ehci-hcd ehci-platform ehci-fsl ehci-pci usb-uhci uhci-hcd usb-ohci ohci-hcd xhci-hcd xhci-pci xhci-plat-hcd dwc_otg usb-libusual fsl-mph-dr-of phy-mxs-usb extcon ci_hdrc ci13xxx_imx usbmisc_imx ci_hdrc_imx dwc3 dwc3-qcom phy-qcom-hsusb phy-qcom-ssusb");
 
 #ifdef HAVE_IPQ806X
 		sleep(5);
@@ -2899,7 +2955,7 @@ void start_drivers(void)
 		rmmod("extcon");
 		rmmod("phy-mxs-usb");
 		rmmod("fsl-mph-dr-of");
-
+		rmmod("ehci-fsl");
 		rmmod("usb-libusual");
 		rmmod("dwc_otg");	// usb
 		rmmod("xhci-pci");

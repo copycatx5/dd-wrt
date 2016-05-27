@@ -303,6 +303,17 @@ sys_upgrade(char *url, webs_t stream, int *total, int type)	// jimmy,
 				fprintf(stderr, "found seama header, skip seal header of %d bytes\n", skip);
 				if (skip > count)
 					goto err;
+#ifdef HAVE_DIR869
+#define signature "signature=wrgac54_dlink.2015_dir869"
+#elif HAVE_DIR859
+#define signature "signature=wrgac37_dlink.2013gui_dir859"
+#else
+#define signature "signature=wrgac13_dlink.2013gui_dir860lb"
+#endif
+				if (memcmp(buf + sizeof(seamahdr_t), signature, sizeof(signature))) {
+					fprintf(stderr, "firmware signature must be %s\n", signature);
+					goto err;
+				}
 				memcpy(buf, buf + skip, count - skip);
 				count -= skip;
 				char *write_argv_buf[8];
@@ -370,7 +381,7 @@ sys_upgrade(char *url, webs_t stream, int *total, int type)	// jimmy,
 				goto write_data;
 			}
 #endif
-#ifdef HAVE_BUFFALO
+#if defined(HAVE_BUFFALO) || defined(HAVE_IDEXX)
 			ralink_firmware_header fh;
 			memcpy(&fh, buf, sizeof(fh));
 			char *str;
@@ -388,11 +399,17 @@ sys_upgrade(char *url, webs_t stream, int *total, int type)	// jimmy,
 				str[idx] ^= ch;
 			if (!strncmp(buf, "bgn", 3) || !strncmp(buf, "WZR", 3)
 			    || !strncmp(buf, "WHR", 3)
-			    || !strncmp(buf, "WLA", 3)) {
+			    || !strncmp(buf, "WLA", 3)
+				) {
 				char *write_argv_buf[4];
 				write_argv_buf[0] = "buffalo_flash";
 				write_argv_buf[1] = upload_fifo;
+#if defined(HAVE_IDEXX) || defined(HAVE_IDEXX_SIGNATUR)
+				write_argv_buf[2] = "verify";
+				write_argv_buf[3] = NULL;
+#else
 				write_argv_buf[2] = NULL;
+#endif
 				if (!mktemp(upload_fifo) || mkfifo(upload_fifo, S_IRWXU) < 0 || (ret = _evalpid(write_argv_buf, NULL, 0, &pid))
 				    || !(fifo = fopen(upload_fifo, "w"))) {
 					if (!ret)
@@ -405,8 +422,12 @@ sys_upgrade(char *url, webs_t stream, int *total, int type)	// jimmy,
 				write_argv_buf[0] = "buffalo_flash";
 				write_argv_buf[1] = upload_fifo;
 				write_argv_buf[2] = "ralink";
+#if defined(HAVE_IDEXX) || defined(HAVE_IDEXX_SIGNATUR)
+				write_argv_buf[3] = "verify";
+				write_argv_buf[4] = NULL;
+#else
 				write_argv_buf[3] = NULL;
-				memcpy(buf, &fh, sizeof(fh));	//write back decrypted content
+#endif
 				if (!mktemp(upload_fifo) || mkfifo(upload_fifo, S_IRWXU) < 0 || (ret = _evalpid(write_argv_buf, NULL, 0, &pid))
 				    || !(fifo = fopen(upload_fifo, "w"))) {
 					if (!ret)
@@ -415,6 +436,9 @@ sys_upgrade(char *url, webs_t stream, int *total, int type)	// jimmy,
 				}
 				goto write_data;
 			} else {
+#ifdef HAVE_IDEXX_SIGNATUR
+				goto err;
+#endif
 				if (!mktemp(upload_fifo) || mkfifo(upload_fifo, S_IRWXU) < 0 || (ret = _evalpid(write_argv, NULL, 0, &pid))
 				    || !(fifo = fopen(upload_fifo, "w"))) {
 					if (!ret)

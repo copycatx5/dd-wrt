@@ -7,7 +7,7 @@ DNSMASQ_COPTS += $(MIPS16_OPT) -DNO_AUTH
 
 dnsmasq-clean:
 	$(MAKE) -j 4 -C dnsmasq CFLAGS="$(COPTS)" clean
-	$(MAKE) -j 4 -C dnsmasq/contrib/wrt CFLAGS="$(COPTS)" clean
+	$(MAKE) -j 4 -C dnsmasq/contrib/lease-tools CFLAGS="$(COPTS)" clean
 
 
 
@@ -26,12 +26,12 @@ else
 endif
 endif
 endif
-	$(MAKE) -j 4 -C dnsmasq/contrib/wrt CFLAGS="$(COPTS) $(DNSMASQ_COPTS) -ffunction-sections -fdata-sections -Wl,--gc-sections" LDFLAGS="$(COPTS) $(DNSMASQ_COPTS) -DNO_LOG -ffunction-sections -fdata-sections -Wl,--gc-sections"
+	$(MAKE) -j 4 -C dnsmasq/contrib/lease-tools CFLAGS="$(COPTS) $(DNSMASQ_COPTS) -ffunction-sections -fdata-sections -Wl,--gc-sections" LDFLAGS="$(COPTS) $(DNSMASQ_COPTS) -DNO_LOG -ffunction-sections -fdata-sections -Wl,--gc-sections"
 
 dnsmasq-install:
 	install -D dnsmasq/contrib/wrt/lease_update.sh $(INSTALLDIR)/dnsmasq/etc/lease_update.sh
-	install -D dnsmasq/contrib/wrt/dhcp_release $(INSTALLDIR)/dnsmasq/usr/sbin/dhcp_release
-	install -D dnsmasq/contrib/wrt/dhcp_lease_time $(INSTALLDIR)/dnsmasq/usr/sbin/dhcp_lease_time
+	install -D dnsmasq/contrib/lease-tools/dhcp_release $(INSTALLDIR)/dnsmasq/usr/sbin/dhcp_release
+	install -D dnsmasq/contrib/lease-tools/dhcp_lease_time $(INSTALLDIR)/dnsmasq/usr/sbin/dhcp_lease_time
 	install -D dnsmasq/src/dnsmasq $(INSTALLDIR)/dnsmasq/usr/sbin/dnsmasq
 #ifeq ($(CONFIG_BUFFALO),y)
 #	install -D udhcpd/config/dhcpd.webservices.buffalo $(INSTALLDIR)/dnsmasq/etc/config/dhcpd.webservices

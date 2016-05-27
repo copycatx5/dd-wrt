@@ -515,6 +515,9 @@ static int mac80211_cb_stations(struct nl_msg *msg, void *data)
 			if (rinfo[NL80211_RATE_INFO_160_MHZ_WIDTH]) {
 				mac80211_info->wci->is_160mhz = 1;
 			}
+			if (rinfo[NL80211_RATE_INFO_80P80_MHZ_WIDTH]) {
+				mac80211_info->wci->is_80p80mhz = 1;
+			}
 			if (rinfo[NL80211_RATE_INFO_VHT_MCS]) {
 				mac80211_info->wci->is_vht = 1;
 			}
@@ -552,6 +555,9 @@ static int mac80211_cb_stations(struct nl_msg *msg, void *data)
 			}
 			if (rinfo[NL80211_RATE_INFO_160_MHZ_WIDTH]) {
 				mac80211_info->wci->rx_is_160mhz = 1;
+			}
+			if (rinfo[NL80211_RATE_INFO_80P80_MHZ_WIDTH]) {
+				mac80211_info->wci->rx_is_80p80mhz = 1;
 			}
 			if (rinfo[NL80211_RATE_INFO_VHT_MCS]) {
 				mac80211_info->wci->rx_is_vht = 1;
@@ -700,6 +706,32 @@ nla_put_failure:
 }
 #endif
 
+int has_vht160(char *interface)
+{
+#if defined(HAVE_ATH10K) || defined(HAVE_MVEBU)
+	char *vhtcaps = mac80211_get_vhtcaps(interface, 1);
+	if (strstr(vhtcaps, "VHT160")) {
+		free(vhtcaps);
+		return 1;
+	}
+	free(vhtcaps);
+#endif
+	return 0;
+}
+
+int has_vht80plus80(char *interface)
+{
+#if defined(HAVE_ATH10K) || defined(HAVE_MVEBU)
+	char *vhtcaps = mac80211_get_vhtcaps(interface, 1);
+	if (strstr(vhtcaps, "VHT160-80PLUS80")) {
+		free(vhtcaps);
+		return 1;
+	}
+	free(vhtcaps);
+#endif
+	return 0;
+}
+
 int has_shortgi(char *interface)
 {
 	char *htcaps = mac80211_get_caps(interface, 1);
@@ -788,7 +820,7 @@ struct wifi_channels *mac80211_get_channels(char *interface, char *country, int 
 	int skip = 1;
 	int rrdcount = 0;
 	if (max_bandwidth_khz == 80)
-		htrange = 60;
+		htrange = 90;
 	phy = mac80211_get_phyidx_by_vifname(interface);
 	if (phy == -1)
 		return NULL;
@@ -837,19 +869,20 @@ struct wifi_channels *mac80211_get_channels(char *interface, char *country, int 
 					rrdcount = rd->n_reg_rules;
 				for (rrc = 0; rrc < rrdcount; rrc++) {
 					regfreq = rd->reg_rules[rrc].freq_range;
-					startfreq = (int)((float)(regfreq.start_freq_khz) / 1000.0);
-					stopfreq = (int)((float)(regfreq.end_freq_khz) / 1000.0);
-					regmaxbw = (int)((float)(regfreq.max_bandwidth_khz) / 1000.0);
+					startfreq = regfreq.start_freq_khz / 1000;
+					stopfreq = regfreq.end_freq_khz / 1000;
+					regmaxbw = regfreq.max_bandwidth_khz / 1000;
 					if (!skip)
 						regmaxbw = 40;
 					else
-						regmaxbw = (int)((float)(regfreq.max_bandwidth_khz) / 1000.0);
+						regmaxbw = regfreq.max_bandwidth_khz / 1000;
 					if (!skip || ((freq_mhz - range) >= startfreq && (freq_mhz + range) <= stopfreq)) {
 						if (run == 1) {
 							regpower = rd->reg_rules[rrc].power_rule;
 #if defined(HAVE_BUFFALO_SA) && defined(HAVE_ATH9K)
-							if ((!strcmp(getUEnv("region"), "AP")
-							     || !strcmp(getUEnv("region"), "US"))
+							char *sa_region = getUEnv(region);
+							if (sa_region != NULL && (!strcmp(sa_region, "AP")
+										  || !strcmp(sa_region, "US"))
 							    && ieee80211_mhz2ieee(freq_mhz) > 11 && ieee80211_mhz2ieee(freq_mhz) < 14 && nvram_default_match("region", "SA", ""))
 								continue;
 #endif
@@ -857,12 +890,12 @@ struct wifi_channels *mac80211_get_channels(char *interface, char *country, int 
 								continue;
 							if (checkband == 5 && freq_mhz < 4000)
 								continue;
-
 							list[count].channel = ieee80211_mhz2ieee(freq_mhz);
 							list[count].freq = freq_mhz;
+
 							// todo: wenn wir das ueberhaupt noch verwenden
 							list[count].noise = 0;
-							list[count].max_eirp = (int)((float)(regpower.max_eirp) / 100.0);
+							list[count].max_eirp = regpower.max_eirp / 100;
 							if (rd->reg_rules[rrc].flags & RRF_NO_OFDM)
 								list[count].no_ofdm = 1;
 							if (rd->reg_rules[rrc].flags & RRF_NO_CCK)
@@ -881,7 +914,8 @@ struct wifi_channels *mac80211_get_channels(char *interface, char *country, int 
 								list[count].passive_scan = 1;
 							if (rd->reg_rules[rrc].flags & RRF_NO_IBSS)
 								list[count].no_ibss = 1;
-							if (regmaxbw == 40 || regmaxbw == 80) {
+							//                              fprintf(stderr,"freq %d, htrange %d, startfreq %d, stopfreq %d\n", freq_mhz, htrange, startfreq, stopfreq);
+							if (regmaxbw == 40 || regmaxbw == 80 || regmaxbw == 160) {
 								if ((freq_mhz - htrange) >= startfreq) {
 									list[count].ht40minus = 1;
 								}

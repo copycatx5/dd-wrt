@@ -235,13 +235,39 @@ static void qca956x_usb_setup(void)
 			   &ath79_ehci_pdata_v2, sizeof(ath79_ehci_pdata_v2));
 }
 
+static void __init qca953x_usb_setup(void)
+{
+	u32 bootstrap;
+
+	bootstrap = ar71xx_reset_rr(QCA953X_RESET_REG_BOOTSTRAP);
+
+	ar71xx_device_stop(QCA953X_RESET_USBSUS_OVERRIDE);
+	udelay(1000);
+
+	ar71xx_device_start(QCA953X_RESET_USB_PHY);
+	udelay(1000);
+
+	ar71xx_device_start(QCA953X_RESET_USB_PHY_ANALOG);
+	udelay(1000);
+
+	ar71xx_device_start(QCA953X_RESET_USB_HOST);
+	udelay(1000);
+
+	ath79_usb_register("ehci-platform", -1,
+			   QCA953X_EHCI_BASE, QCA953X_EHCI_SIZE,
+			   AR934X_IP3_IRQ(0),
+			   &ath79_ehci_pdata_v2, sizeof(ath79_ehci_pdata_v2));
+}
+
 
 
 
 static void qca_usbregister(void) {
 
 
-	if (is_qca956x()) {
+	if (is_qca953x())
+		qca953x_usb_setup();
+	else if (is_qca956x()) {
 		qca956x_usb_setup();
 	} else {
 	    
@@ -425,6 +451,21 @@ static struct mdio_board_info dap2330_mdio0_info[] = {
 	},
 };
 
+
+static struct at803x_platform_data cf_e380ac_at803x_data = {
+	.disable_smarteee = 1,
+//	.enable_rgmii_rx_delay = 1,
+//	.enable_rgmii_tx_delay = 1,
+};
+
+static struct mdio_board_info cf_e380ac_mdio0_info[] = {
+	{
+		.bus_id = "ag71xx-mdio.0",
+		.phy_addr = 0,
+		.platform_data = &cf_e380ac_at803x_data,
+	},
+};
+
 static void __init ap136_gmac_setup(u32 mask)
 {
 	void __iomem *base;
@@ -442,6 +483,49 @@ static void __init ap136_gmac_setup(u32 mask)
 	iounmap(base);
 }
 
+
+static struct ar8327_pad_cfg cf_wr650ac_ar8327_pad0_cfg = {
+	/* GMAC0 of the AR8337 switch is connected to GMAC0 via RGMII */
+	.mode = AR8327_PAD_MAC_RGMII,
+	.txclk_delay_en = true,
+	.rxclk_delay_en = true,
+	.txclk_delay_sel = AR8327_CLK_DELAY_SEL1,
+	.rxclk_delay_sel = AR8327_CLK_DELAY_SEL2,
+};
+
+static struct ar8327_pad_cfg cf_wr650ac_ar8327_pad6_cfg = {
+	/* GMAC6 of the AR8337 switch is connected to GMAC1 via SGMII */
+	.mode = AR8327_PAD_MAC_SGMII,
+	.rxclk_delay_en = true,
+	.rxclk_delay_sel = AR8327_CLK_DELAY_SEL0,
+};
+
+static struct ar8327_platform_data cf_wr650ac_ar8327_data = {
+	.pad0_cfg = &cf_wr650ac_ar8327_pad0_cfg,
+	.pad6_cfg = &cf_wr650ac_ar8327_pad6_cfg,
+	.port0_cfg = {
+		.force_link = 1,
+		.speed = AR8327_PORT_SPEED_1000,
+		.duplex = 1,
+		.txpause = 1,
+		.rxpause = 1,
+	},
+	.port6_cfg = {
+		.force_link = 1,
+		.speed = AR8327_PORT_SPEED_1000,
+		.duplex = 1,
+		.txpause = 1,
+		.rxpause = 1,
+	},
+};
+
+static struct mdio_board_info cf_wr650ac_mdio0_info[] = {
+	{
+		.bus_id = "ag71xx-mdio.0",
+		.phy_addr = 0,
+		.platform_data = &cf_wr650ac_ar8327_data,
+	},
+};
 
 
 static struct ar8327_pad_cfg db120_ar8327_pad0_cfg = {
@@ -551,10 +635,11 @@ static struct mdio_board_info wdr4300_mdio0_info[] = {
 
 static struct ar8327_pad_cfg ap152_ar8337_pad0_cfg = {
 	.mode = AR8327_PAD_MAC_SGMII,
-	.txclk_delay_en = true,
-	.rxclk_delay_en = true,
-	.txclk_delay_sel = AR8327_CLK_DELAY_SEL1,
-	.rxclk_delay_sel = AR8327_CLK_DELAY_SEL2,
+	.sgmii_delay_en = true,
+//	.txclk_delay_en = true,
+//	.rxclk_delay_en = true,
+//	.txclk_delay_sel = AR8327_CLK_DELAY_SEL1,
+//	.rxclk_delay_sel = AR8327_CLK_DELAY_SEL2,
 };
 
 static struct ar8327_platform_data ap152_ar8337_data = {
@@ -838,8 +923,8 @@ void ap91_set_tx_gain_buffalo(void);
 int __init ar7240_platform_init(void)
 {
 	int ret;
-	void *ee;
-#if defined(CONFIG_WR741) || defined(CONFIG_WDR4300) || defined(CONFIG_WDR2543) || defined(CONFIG_WR841V8)
+	void *ee = NULL;
+#if defined(CONFIG_WR741) || defined(CONFIG_WDR4300) || defined(CONFIG_WDR2543) || defined(CONFIG_WR841V8) && !defined(CONFIG_GL150)
 	u8 *mac = (u8 *)KSEG1ADDR(0x1f01fc00);
 #else
 	u8 *mac = NULL;		//(u8 *) KSEG1ADDR(0x1fff0000);
@@ -858,11 +943,34 @@ int __init ar7240_platform_init(void)
 #endif
 	enable_uart();
 #ifdef CONFIG_MACH_HORNET
-#if defined(CONFIG_WR710) || defined(CONFIG_ERC)
+#if defined(CONFIG_WR710) || defined(CONFIG_ERC) || defined(CONFIG_GL150)
        ath79_setup_ar933x_phy4_switch(false, false);
 #else
        ath79_setup_ar933x_phy4_switch(true, true);
 #endif
+#endif
+#ifdef CONFIG_GL150
+	mac = (u8 *)KSEG1ADDR(0x1fff0000);
+#endif
+#ifdef CONFIG_E325N
+	mac = (u8 *)KSEG1ADDR(0x1f010000);
+	ee = (u8 *)KSEG1ADDR(0x1f011000);
+#endif
+#ifdef CONFIG_WR650AC
+	mac = (u8 *)KSEG1ADDR(0x1f020000);
+	ee = (u8 *)KSEG1ADDR(0x1f021000);
+#endif
+#ifdef CONFIG_WR615N
+	mac = (u8 *)KSEG1ADDR(0x1f010000);
+	ee = (u8 *)KSEG1ADDR(0x1f011000);
+#endif
+#ifdef CONFIG_E355AC
+	mac = (u8 *)KSEG1ADDR(0x1f010000);
+	ee = (u8 *)KSEG1ADDR(0x1f011000);
+#endif
+#ifdef CONFIG_E380AC
+	mac = (u8 *)KSEG1ADDR(0x1f020000);
+	ee = (u8 *)KSEG1ADDR(0x1f021000);
 #endif
 
 #ifdef CONFIG_WASP_SUPPORT
@@ -883,6 +991,26 @@ int __init ar7240_platform_init(void)
 	mac = (u8 *)KSEG1ADDR(0x1fff0000);
 	ath79_init_mac(mac0, mac, -1);
 	ath79_init_mac(mac1, mac, 0);
+    #elif CONFIG_E380AC
+	mac = (u8 *)KSEG1ADDR(0x1f020000);
+	ath79_init_mac(mac0, mac, -1);
+	ath79_init_mac(mac1, mac, 0);	
+    #elif CONFIG_WR615N
+	mac = (u8 *)KSEG1ADDR(0x1f010000);
+	ath79_init_mac(mac0, mac, -1);
+	ath79_init_mac(mac1, mac, 0);	
+    #elif CONFIG_E355AC
+	mac = (u8 *)KSEG1ADDR(0x1f010000);
+	ath79_init_mac(mac0, mac, -1);
+	ath79_init_mac(mac1, mac, 0);	
+    #elif CONFIG_E325N
+	mac = (u8 *)KSEG1ADDR(0x1f010000);
+	ath79_init_mac(mac0, mac, -1);
+	ath79_init_mac(mac1, mac, 0);	
+    #elif CONFIG_WR650AC
+	mac = (u8 *)KSEG1ADDR(0x1f020000);
+	ath79_init_mac(mac0, mac, -1);
+	ath79_init_mac(mac1, mac, 0);	
     #elif CONFIG_UAPAC
 	mac = (u8 *)KSEG1ADDR(0x1fff0000);
 	ath79_init_mac(mac0, mac, -1);
@@ -964,6 +1092,7 @@ int __init ar7240_platform_init(void)
 	iounmap(base);
     #elif CONFIG_DAP2230
        ath79_setup_ar933x_phy4_switch(false, false);
+    #elif CONFIG_WR941V6
     #elif CONFIG_WR841V9
        ath79_setup_ar933x_phy4_switch(false, false);
 
@@ -994,6 +1123,13 @@ int __init ar7240_platform_init(void)
 	/* flush write */
 	__raw_readl(base + AR934X_GMAC_REG_ETH_CFG);
 	iounmap(base);
+    #elif CONFIG_E380AC
+    	ap136_gmac_setup(QCA955X_ETH_CFG_RGMII_EN);
+    #elif CONFIG_WR615N
+    #elif CONFIG_E325N
+    #elif CONFIG_E355AC
+    #elif CONFIG_WR650AC	
+    	ap136_gmac_setup(QCA955X_ETH_CFG_RGMII_EN);
     #elif CONFIG_UAPAC
     	ap136_gmac_setup(QCA955X_ETH_CFG_RGMII_EN | QCA955X_ETH_CFG_GE0_SGMII | (3 << QCA955X_ETH_CFG_RXD_DELAY_SHIFT) | (3 << QCA955X_ETH_CFG_RDV_DELAY_SHIFT));
     #elif CONFIG_UBNTXW
@@ -1036,7 +1172,6 @@ int __init ar7240_platform_init(void)
 #endif
 	#endif
     #endif
-
     #ifdef CONFIG_DIR615I
 
 
@@ -1083,6 +1218,104 @@ int __init ar7240_platform_init(void)
 	/* GMAC1 is connected to the internal switch */
 	ar71xx_eth1_data.phy_if_mode = PHY_INTERFACE_MODE_GMII;
 	ar71xx_add_device_eth(1);
+    #elif CONFIG_E325N
+	ath79_setup_ar934x_eth_cfg(AR934X_ETH_CFG_SW_PHY_SWAP);
+
+	ar71xx_add_device_mdio(1, 0x0);
+
+	ar71xx_init_mac(ar71xx_eth0_data.mac_addr, mac, 0);
+	ar71xx_init_mac(ar71xx_eth1_data.mac_addr, mac, 2);
+
+	/* GMAC0 is connected to the PHY0 of the internal switch */
+	ar71xx_switch_data.phy4_mii_en = 1;
+	ar71xx_switch_data.phy_poll_mask = BIT(0);
+	ar71xx_eth0_data.phy_if_mode = PHY_INTERFACE_MODE_MII;
+	ar71xx_eth0_data.phy_mask = BIT(0);
+	ar71xx_eth0_data.speed = SPEED_100;
+	ar71xx_eth0_data.mii_bus_dev = &ar71xx_mdio1_device.dev;
+	ar71xx_add_device_eth(0);
+
+	/* GMAC1 is connected to the internal switch */
+	ar71xx_eth1_data.phy_if_mode = PHY_INTERFACE_MODE_GMII;	
+	ar71xx_eth1_data.duplex = DUPLEX_FULL;
+	ar71xx_eth1_data.speed = SPEED_100;
+	
+	ar71xx_add_device_eth(1);
+    #elif CONFIG_WR615N
+	ath79_setup_ar933x_phy4_switch(false, false);
+
+	ar71xx_init_mac(ar71xx_eth0_data.mac_addr, mac0, 2);
+	ar71xx_init_mac(ar71xx_eth1_data.mac_addr, mac1, 0);
+	ar71xx_add_device_mdio(0, 0x0);	
+	ar71xx_eth1_data.phy_if_mode = PHY_INTERFACE_MODE_GMII;
+//	ar71xx_eth1_data.duplex = DUPLEX_FULL;
+	// wan
+	ar71xx_add_device_eth(1);
+
+	// lan
+	ar71xx_switch_data.phy4_mii_en = 1;
+	ar71xx_eth0_data.phy_if_mode = PHY_INTERFACE_MODE_MII;
+	ar71xx_eth0_data.duplex = DUPLEX_FULL;
+	ar71xx_eth0_data.speed = SPEED_100;
+	ar71xx_add_device_eth(0);	
+    #elif CONFIG_E355AC
+	ath79_setup_ar933x_phy4_switch(false, false);
+
+	ar71xx_init_mac(ar71xx_eth0_data.mac_addr, mac0, 2);
+	ar71xx_init_mac(ar71xx_eth1_data.mac_addr, mac1, 0);
+	ar71xx_add_device_mdio(0, 0x0);	
+	ar71xx_eth1_data.phy_if_mode = PHY_INTERFACE_MODE_GMII;
+//	ar71xx_eth1_data.duplex = DUPLEX_FULL;
+	// wan
+	ar71xx_add_device_eth(1);
+
+	// lan
+	ar71xx_switch_data.phy4_mii_en = 1;
+	ar71xx_eth0_data.phy_if_mode = PHY_INTERFACE_MODE_MII;
+	ar71xx_eth0_data.duplex = DUPLEX_FULL;
+	ar71xx_eth0_data.speed = SPEED_100;
+	ar71xx_add_device_eth(0);	
+    #elif CONFIG_E380AC
+#define CF_WR680AC_LAN_PHYMASK              BIT(0)
+#define CF_WR680AC_WAN_PHYMASK              BIT(5)
+	ar71xx_add_device_mdio(0, 0x0);
+	mdiobus_register_board_info(cf_e380ac_mdio0_info,
+				    ARRAY_SIZE(cf_e380ac_mdio0_info));
+
+	ar71xx_init_mac(ar71xx_eth0_data.mac_addr, mac0, 1);
+	ar71xx_init_mac(ar71xx_eth1_data.mac_addr, mac1, 3);
+	/* GMAC0 is connected to the RMGII interface */
+	ar71xx_eth0_data.mii_bus_dev = &ar71xx_mdio0_device.dev;
+	ar71xx_eth0_data.phy_if_mode = PHY_INTERFACE_MODE_RGMII;
+	ar71xx_eth0_data.phy_mask = BIT(0);
+	ar71xx_eth0_pll_data.pll_10 = 0xB0001313;
+	ar71xx_eth0_pll_data.pll_100 = 0xB0000101;
+	ar71xx_eth0_pll_data.pll_1000 = 0xBE000000;	
+	
+	ar71xx_add_device_eth(0);
+    #elif CONFIG_WR650AC
+#define CF_WR650AC_LAN_PHYMASK              BIT(0)
+#define CF_WR650AC_WAN_PHYMASK              BIT(5)
+	ar71xx_add_device_mdio(0, 0x0);
+
+	mdiobus_register_board_info(cf_wr650ac_mdio0_info,
+				    ARRAY_SIZE(cf_wr650ac_mdio0_info));
+
+	ar71xx_init_mac(ar71xx_eth0_data.mac_addr, mac0, 1);
+	ar71xx_init_mac(ar71xx_eth1_data.mac_addr, mac1, 3);
+	/* GMAC0 is connected to the RMGII interface */
+	ar71xx_eth0_data.phy_if_mode = PHY_INTERFACE_MODE_RGMII;
+	ar71xx_eth0_data.phy_mask = CF_WR650AC_LAN_PHYMASK;
+	ar71xx_eth0_data.mii_bus_dev = &ar71xx_mdio0_device.dev;
+	ar71xx_eth0_pll_data.pll_1000 = 0xa6000000;
+	ar71xx_add_device_eth(0);
+
+	/* GMAC1 is connected to the SGMII interface */
+	ar71xx_eth1_data.phy_if_mode = PHY_INTERFACE_MODE_SGMII;
+	ar71xx_eth1_data.speed = SPEED_1000;
+	ar71xx_eth1_data.duplex = DUPLEX_FULL;
+	ar71xx_eth1_pll_data.pll_1000 = 0x03000101;
+	ar71xx_add_device_eth(1);
     #elif CONFIG_UAPAC
 	ar71xx_add_device_mdio(0, ~BIT(4));	
 
@@ -1121,17 +1354,31 @@ int __init ar7240_platform_init(void)
 	ar71xx_switch_data.phy4_mii_en = 1;
 	ar71xx_eth0_data.phy_if_mode = PHY_INTERFACE_MODE_MII;
 	ar71xx_add_device_eth(0);
+    #elif CONFIG_WR941V6
+	ar71xx_add_device_mdio(0, 0x0);
+	ar71xx_init_mac(ar71xx_eth0_data.mac_addr, mac, 1);
+	ar71xx_init_mac(ar71xx_eth1_data.mac_addr, mac, -1);
+	ar71xx_add_device_eth(1);
+	/* WAN */
+	ar71xx_switch_data.phy4_mii_en = 1;
+	ar71xx_add_device_eth(0);
     #elif CONFIG_WR841V9
 	ar71xx_add_device_mdio(0, 0x0);
 	ar71xx_init_mac(ar71xx_eth0_data.mac_addr, mac, 1);
 	ar71xx_init_mac(ar71xx_eth1_data.mac_addr, mac, 0);
 
+	ar71xx_eth1_data.phy_if_mode = PHY_INTERFACE_MODE_GMII;
+	ar71xx_eth1_data.duplex = DUPLEX_FULL;
+	ar71xx_switch_data.phy_poll_mask |= BIT(4);
 	/* LAN */
 	ar71xx_add_device_eth(1);
 
 	/* WAN */
 	ar71xx_switch_data.phy4_mii_en = 1;
 	ar71xx_eth0_data.phy_if_mode = PHY_INTERFACE_MODE_MII;
+	ar71xx_eth0_data.duplex = DUPLEX_FULL;
+	ar71xx_eth0_data.speed = SPEED_100;
+	ar71xx_eth0_data.phy_mask = BIT(4);
 	ar71xx_add_device_eth(0);
     #elif CONFIG_WR841V8
 	ar71xx_add_device_mdio(1, 0x0);
@@ -1281,6 +1528,11 @@ int __init ar7240_platform_init(void)
 	ar71xx_add_device_mdio(1, 0x0);
 		    #endif
 		#endif
+	#ifndef CONFIG_WR650AC
+	#ifndef CONFIG_E355AC
+	#ifndef CONFIG_WR615N
+	#ifndef CONFIG_E380AC
+	#ifndef CONFIG_E325N
 	#ifdef CONFIG_DIR859
 	printk(KERN_INFO "gpio mdio for AP152\n");
 	ath79_gpio_output_select(3,33);
@@ -1311,7 +1563,7 @@ int __init ar7240_platform_init(void)
 	ar71xx_eth0_data.duplex = DUPLEX_FULL;
 	ar71xx_eth0_data.force_link = 1;
 	ar71xx_eth0_data.mii_bus_dev = &ar71xx_mdio0_device.dev;
-	ar71xx_eth0_pll_data.pll_1000 = 0x06000000;
+//	ar71xx_eth0_pll_data.pll_1000 = 0x06000000;
 	ar71xx_add_device_eth(0);
 	#else		
 	ar71xx_eth0_data.phy_if_mode = PHY_INTERFACE_MODE_RGMII;
@@ -1319,6 +1571,11 @@ int __init ar7240_platform_init(void)
 	ar71xx_eth0_data.mii_bus_dev = &ar71xx_mdio0_device.dev;
 	ar71xx_eth0_pll_data.pll_1000 = 0x06000000;
 	ar71xx_add_device_eth(0);
+	#endif
+	#endif
+	#endif
+	#endif
+	#endif
 	#endif
 		#ifndef CONFIG_WDR4300
 		    #ifndef CONFIG_DIR825C1
@@ -1350,7 +1607,7 @@ int __init ar7240_platform_init(void)
 	if (is_ar933x()) {
 		ar933x_usb_setup();
 	}
-	if (is_qca955x() || is_qca956x()) {
+	if (is_qca955x() || is_qca956x() || is_qca953x()) {
 		qca_usbregister();
 	}
 
@@ -1361,7 +1618,8 @@ int __init ar7240_platform_init(void)
 	ar9xxx_add_device_wmac(ee, mac);
 #elif CONFIG_WASP_SUPPORT
 #if !defined(CONFIG_MTD_NAND_ATH)
-	ee = (u8 *)KSEG1ADDR(0x1fff1000);
+	if (!ee)
+	    ee = (u8 *)KSEG1ADDR(0x1fff1000);
 #if defined(CONFIG_DIR862)
 	ar9xxx_add_device_wmac(ee, mac0);
 #elif defined(CONFIG_MMS344)

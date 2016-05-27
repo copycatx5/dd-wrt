@@ -24,6 +24,10 @@ CONFIG_DIR825=
 CONFIG_WNDR3700=
 CONFIG_WR1043V2=
 CONFIG_WR841V9=
+CONFIG_WR650AC=
+CONFIG_E355AC=
+CONFIG_E380AC=
+CONFIG_E325N=
 
 #
 # milli_httpd Makefile
@@ -71,6 +75,14 @@ LDFLAGS	+= -L$(TOP)/nvram -L$(INSTALLDIR)/nvram/usr/lib -lnvram -L$(TOP)/shared 
 #LDFLAGS	+= -L$(TOP)/nvram -L$(INSTALLDIR)/nvram/usr/lib -lnvram -L$(TOP)/shared  -L$(TOP)/libutils -lcrypt -ldl -lutils -lwireless -L$(TOP)/jansson/src/.libs/ -ljansson
 
 BCFLAGS += -DLINUX -ffunction-sections -fdata-sections -Wl,--gc-sections
+
+ifeq ($(CONFIG_DIST),"micro")
+BCFLAGS += -DNEED_NOPRINTF
+endif
+ifneq ($(CONFIG_DIST),"micro-special")
+BCFLAGS += -DNEED_NOPRINTF
+endif
+
 
 CFLAGS = $(BCFLAGS) -I$(LINUXDIR)/brcm/shared/bcmwifi/include -I$(LINUXDIR)/brcm/$(ARCH)/shared/bcmwifi/include
 
@@ -175,6 +187,9 @@ endif
 ifeq ($(CONFIG_DIR859),y)
 CFLAGS += -DHAVE_DIR859
 endif
+ifeq ($(CONFIG_DIR869),y)
+CFLAGS += -DHAVE_DIR869
+endif
 ifeq ($(CONFIG_IPVS),y)
 CFLAGS += -DHAVE_IPVS
 endif
@@ -247,6 +262,9 @@ ifeq ($(CONFIG_IPQ806X),y)
 CFLAGS += -DHAVE_IPQ806X
 CFLAGS += -DHAVE_CPUTEMP
 endif
+ifeq ($(CONFIG_ATH10K),y)
+CFLAGS += -DHAVE_CPUTEMP
+endif
 include $(TOP)/rules/generic.mk
 CFLAGS += $(DD_CFLAGS)
 
@@ -278,6 +296,10 @@ CFLAGS += -DHAVE_IDEXX
 ifeq ($(CONFIG_IDEXX_WORLD),y)
 CFLAGS += -DHAVE_IDEXX_WORLD
 endif
+endif
+
+ifeq ($(CONFIG_IDEXX_SIGNATUR),y)
+CFLAGS += -DHAVE_IDEXX_SIGNATUR
 endif
 
 ifeq ($(CONFIG_FREECWMP),y)
@@ -1042,6 +1064,9 @@ endif
 ifeq ($(CONFIG_WZRG300NH),y)
 CFLAGS += -DHAVE_WZRG300NH
 endif
+ifeq ($(CONFIG_WHR300HP2),y)
+CFLAGS += -DHAVE_WHR300HP2
+endif
 ifeq ($(CONFIG_WHRHPGN),y)
 CFLAGS += -DHAVE_WHRHPGN
 endif
@@ -1059,6 +1084,18 @@ CFLAGS += -DHAVE_HORNET
 endif
 ifeq ($(CONFIG_WASP),y)
 CFLAGS += -DHAVE_WASP
+endif
+ifeq ($(CONFIG_WR650AC),y)
+CFLAGS += -DHAVE_WR650AC
+endif
+ifeq ($(CONFIG_E355AC),y)
+CFLAGS += -DHAVE_E355AC
+endif
+ifeq ($(CONFIG_E325N),y)
+CFLAGS += -DHAVE_E325N
+endif
+ifeq ($(CONFIG_E380AC),y)
+CFLAGS += -DHAVE_E380AC
 endif
 ifeq ($(CONFIG_DANUBE),y)
 CFLAGS += -DHAVE_DANUBE
@@ -1266,6 +1303,7 @@ clean:
 
 install:
 #	lzma e www www.lz
+ifneq ($(CONFIG_LITE),y)
 	install -D www $(INSTALLDIR)/etc/www
 	install -D httpd $(INSTALLDIR)/usr/sbin/httpd
 	mkdir -p $(INSTALLDIR)/usr/lib
@@ -1274,6 +1312,7 @@ install:
 ifneq ($(CONFIG_NOSSL),y)
 	install -d $(INSTALLDIR)/etc
 	install *.pem $(INSTALLDIR)/etc
+endif
 endif
 #	cd $(INSTALLDIR)/usr/sbin && ln -sf httpd httpsclient
 

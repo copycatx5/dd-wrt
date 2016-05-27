@@ -1033,7 +1033,13 @@ void setRouter(char *name)
 #elif HAVE_POWERNOC_WOAP54G
 	nvram_set(NVROUTER, "WOAP54G");
 #elif HAVE_ERC
-	nvram_set(NVROUTER, "ServiceGate v1.0");
+	char *pic=NULL;
+	pic = nvram_safe_get("ree_pic");
+
+	if (!strncmp(pic, "1", 1))
+		nvram_set(NVROUTER, "ServiceGate v1.0");
+	else
+		nvram_set(NVROUTER, "ServiceGate Lite v2.0");
 #elif HAVE_OMNI
 	nvram_set(NVROUTER, "Omni Wifi Router");
 #elif HAVE_ALFA_BRANDING
@@ -1232,6 +1238,12 @@ int internal_getRouterBrand()
 		return ROUTER_LINKSYS_EA6350;
 	}
 
+	if (nvram_match("boardtype", "0xE646") && nvram_match("boardrev", "0x1100") && nvram_match("boardnum", "20130125")) {
+		setRouter("Linksys EA6200");
+
+		return ROUTER_LINKSYS_EA6350;
+	}
+
 	if (nvram_match("boardtype", "0xF646") && nvram_match("boardrev", "0x1100")) {
 		setRouter("Linksys EA6500 V2");
 
@@ -1251,6 +1263,11 @@ int internal_getRouterBrand()
 	if (nvram_match("odmpid", "RT-AC68R")) {
 		setRouter("Asus RT-AC68R");
 		return ROUTER_ASUS_AC67U;
+	}
+
+	if (nvram_match("model", "RT-AC1200G+")) {
+		setRouter("Asus RT-AC1200G+");
+		return ROUTER_ASUS_AC1200;
 	}
 
 	if (nvram_match("productid", "RT-AC68U") && nvram_match("boardrev", "0x1100")) {
@@ -2040,8 +2057,12 @@ int internal_getRouterBrand()
 	char modelstr[32];
 	fscanf(fp, "%s %s", &vendorstr[0], &modelstr[0]);
 	fclose(fp);
+	if (!strcmp(modelstr, "R7800")) {
+		setRouter("Netgear R7800");
+		return ROUTER_NETGEAR_R7800;
+	}
 
-	if (!strcmp(modelstr, "Nighthawk")) {
+	if (!strcmp(modelstr, "R7500")) {
 		setRouter("Netgear R7500");
 		return ROUTER_NETGEAR_R7500;
 	}
@@ -2240,6 +2261,40 @@ int internal_getRouterBrand()
 	nvram_default_get("ath0_rxantenna", "3");
 	nvram_default_get("ath0_txantenna", "3");
 	return ROUTER_BOARD_WHRHPGN;
+#elif HAVE_WR615N
+	setRouter("Comfast WR615N");
+	nvram_default_get("ath0_rxantenna", "3");
+	nvram_default_get("ath0_txantenna", "3");
+	return ROUTER_BOARD_WHRHPGN;
+#elif HAVE_E325N
+	setRouter("Comfast E325N");
+	nvram_default_get("ath0_rxantenna", "3");
+	nvram_default_get("ath0_txantenna", "3");
+	return ROUTER_BOARD_WHRHPGN;
+#elif HAVE_E355AC
+	setRouter("Comfast E355AC");
+	nvram_default_get("ath0_rxantenna", "3");
+	nvram_default_get("ath0_txantenna", "3");
+	return ROUTER_BOARD_WHRHPGN;
+#elif HAVE_E380AC
+	setRouter("Comfast E380AC");
+	nvram_default_get("ath0_rxantenna", "7");
+	nvram_default_get("ath0_txantenna", "7");
+	nvram_default_get("ath1_rxantenna", "7");
+	nvram_default_get("ath1_txantenna", "7");
+	return ROUTER_BOARD_WHRHPGN;
+#elif HAVE_WR650AC
+	setRouter("Comfast WR650AC");
+	nvram_default_get("ath0_rxantenna", "7");
+	nvram_default_get("ath0_txantenna", "7");
+	nvram_default_get("ath1_rxantenna", "7");
+	nvram_default_get("ath1_txantenna", "7");
+	return ROUTER_BOARD_WHRHPGN;
+#elif HAVE_DIR869
+	setRouter("Dlink DIR869");
+	nvram_default_get("ath0_rxantenna", "7");
+	nvram_default_get("ath0_txantenna", "7");
+	return ROUTER_BOARD_WHRHPGN;
 #elif HAVE_DIR859
 	setRouter("Dlink DIR859");
 	nvram_default_get("ath0_rxantenna", "7");
@@ -2391,21 +2446,21 @@ int internal_getRouterBrand()
 		{"Rocket M900", 0xe1b9, 3, 3, 0, 0, ROUTER_BOARD_R2M, M900, 10},	//
 		{"Rocket M900", 0xe1d9, 3, 3, 0, 0, ROUTER_BOARD_R2M, M900, 10},	//
 		{"Airbeam 5", 0xe1e5, 3, 3, 0, 0, ROUTER_BOARD_R5M, 0, 10},	//
-		{"Bullet M2", 0xe202, 1, 1, ROUTER_BOARD_BS5M, 0, 10},	//
-		{"Bullet M5", 0xe205, 1, 1, ROUTER_BOARD_BS5M, 0, 10},	//
+		{"Bullet M2", 0xe202, 1, 1, 0, 0, ROUTER_BOARD_BS5M, 0, 10},	//
+		{"Bullet M5", 0xe205, 1, 1, 0, 0, ROUTER_BOARD_BS5M, 0, 10},	//
 		{"Bullet M2 Titanium", 0xe2d2, 3, 3, 0, 0, ROUTER_BOARD_TI, 0, 10},	// Titanium
 		{"Bullet M5 Titanium", 0xe2d5, 3, 3, 0, 0, ROUTER_BOARD_TI, 0, 10},	// Titanium
-		{"Airgrid M2", 0xe212, 1, 1, ROUTER_BOARD_BS2M, 0, 10},	//
-		{"Airgrid M2", 0xe242, 1, 1, ROUTER_BOARD_BS2M, 0, 10},	//
-		{"Airgrid M2HP", 0xe252, 1, 1, ROUTER_BOARD_BS2M, 0, 10},	//
-		{"Airgrid M5", 0xe215, 1, 1, ROUTER_BOARD_BS5M, 0, 10},	//
-		{"Airgrid M5", 0xe245, 1, 1, ROUTER_BOARD_BS5M, 0, 10},	//
-		{"Airgrid M5", 0xe255, 1, 1, ROUTER_BOARD_BS5M, 0, 10},	//
-		{"Airgrid M5 XW", 0xe835, 1, 1, ROUTER_BOARD_BS5M, 0, 10},	//
-		{"AirRouter", 0xe4a2, 1, 1, ROUTER_BOARD_AIRROUTER, 0, 10},	//
-		{"AirRouter", 0xe4b2, 1, 1, ROUTER_BOARD_AIRROUTER, 0, 10},	//
-		{"Pico M2", 0xe302, 1, 1, ROUTER_BOARD_BS2M, 0, 10},	//
-		{"Pico M5", 0xe305, 1, 1, ROUTER_BOARD_BS5M, 0, 10},	//
+		{"Airgrid M2", 0xe212, 1, 1, 0, 0, ROUTER_BOARD_BS2M, 0, 10},	//
+		{"Airgrid M2", 0xe242, 1, 1, 0, 0, ROUTER_BOARD_BS2M, 0, 10},	//
+		{"Airgrid M2HP", 0xe252, 1, 1, 0, 0, ROUTER_BOARD_BS2M, 0, 10},	//
+		{"Airgrid M5", 0xe215, 1, 1, 0, 0, ROUTER_BOARD_BS5M, 0, 10},	//
+		{"Airgrid M5", 0xe245, 1, 1, 0, 0, ROUTER_BOARD_BS5M, 0, 10},	//
+		{"Airgrid M5", 0xe255, 1, 1, 0, 0, ROUTER_BOARD_BS5M, 0, 10},	//
+		{"Airgrid M5 XW", 0xe835, 1, 1, 0, 0, ROUTER_BOARD_BS5M, 0, 10},	//
+		{"AirRouter", 0xe4a2, 1, 1, 0, 0, ROUTER_BOARD_AIRROUTER, 0, 10},	//
+		{"AirRouter", 0xe4b2, 1, 1, 0, 0, ROUTER_BOARD_AIRROUTER, 0, 10},	//
+		{"Pico M2", 0xe302, 1, 1, 0, 0, ROUTER_BOARD_BS2M, 0, 10},	//
+		{"Pico M5", 0xe305, 1, 1, 0, 0, ROUTER_BOARD_BS5M, 0, 10},	//
 		{"Airwire", 0xe405, 3, 3, 0, 0, ROUTER_BOARD_BS5M, 0, 10},	//
 		{"Airwire", 0xe4a5, 3, 3, 0, 0, ROUTER_BOARD_BS5M, 0, 10},	//
 		{"Loco M5", 0xe0a5, 3, 3, 0, 0, ROUTER_BOARD_NS5M, 0, 10},	//
@@ -2433,8 +2488,8 @@ int internal_getRouterBrand()
 		{"NanoBridge M5", 0xe2e5, 3, 3, 0, 0, ROUTER_BOARD_BS5M, 0, 10},	//
 		{"NanoBridge M2", 0xe232, 3, 3, 0, 0, ROUTER_BOARD_BS2M, 0, 10},	//
 		{"NanoBridge M2", 0xe2b2, 3, 3, 0, 0, ROUTER_BOARD_BS2M, 0, 10},	//
-		{"PicoStation M2", 0xe302, 1, 1, ROUTER_BOARD_BS2M, 0, 10},	//
-		{"PicoStation M5", 0xe305, 1, 1, ROUTER_BOARD_BS2M, 0, 10},	//
+		{"PicoStation M2", 0xe302, 1, 1, 0, 0, ROUTER_BOARD_BS2M, 0, 10},	//
+		{"PicoStation M5", 0xe305, 1, 1, 0, 0, ROUTER_BOARD_BS2M, 0, 10},	//
 		{"3G Station", 0xe6a2, 3, 3, 0, 0, ROUTER_BOARD_BS2M, 0, 10},	//
 		{"3G Station Professional", 0xe6b2, 3, 3, 0, 0, ROUTER_BOARD_BS2M, 0, 10},	//
 		{"3G Station Outdoor", 0xe6c2, 3, 3, 0, 0, ROUTER_BOARD_BS2M, 0, 10},	//
@@ -2450,13 +2505,13 @@ int internal_getRouterBrand()
 		{"UniFi UAP-AC v2", 0xe912, 7, 7, 7, 7, ROUTER_BOARD_UNIFI, 0, 10},	//
 		{"UniFi UAP v2", 0xe572, 3, 3, 0, 0, ROUTER_BOARD_UNIFI, 0, 10},	//
 		{"UniFi UAP-LR v2", 0xe582, 3, 3, 0, 0, ROUTER_BOARD_UNIFI, 0, 10},	//
+		{"UniFi UAP-AC-Lite", 0xe517, 3, 3, 3, 3, ROUTER_UBNT_UAPAC, 0, 10},	//
 		{"UniFi UAP-AC-LR", 0xe527, 7, 7, 3, 3, ROUTER_UBNT_UAPAC, 0, 10},	//
 		{"UniFi UAP-AC-Pro-Gen2", 0xe537, 7, 7, 7, 7, ROUTER_UBNT_UAPAC, 0, 10},	//
-		{"UniFi UAP-AC-Lite", 0xe517, 3, 3, 3, 3, ROUTER_UBNT_UAPAC, 0, 10},	//
 		{"UniFi UAP-AC-EDU", 0xe547, 7, 7, 7, 7, ROUTER_UBNT_UAPAC, 0, 10},	//
 		{"UniFi UAP-AC-PICO", 0xe557, 7, 7, 3, 3, ROUTER_UBNT_UAPAC, 0, 10},	//
 		{"UniFi UAP-AC-LR-OUTDOOR", 0xe567, 7, 7, 7, 7, ROUTER_UBNT_UAPAC, 0, 10},	//
-		{"UniFi UAP-InWall", 0xe592, 3, 3, 0, 0, ROUTER_UBNT_UNIFI, 0, 10},	//
+		{"UniFi UAP-InWall", 0xe592, 3, 3, 0, 0, ROUTER_BOARD_UNIFI, 0, 10},	//
 		{NULL, 0, 0, 0, 0, 0, 0},	//
 	};
 
@@ -2736,6 +2791,11 @@ int internal_getRouterBrand()
 	nvram_default_get("ath0_txantenna", "3");
 	setRouter("Dlink DAP-2230");
 	return ROUTER_BOARD_PB42;
+#elif HAVE_WR941V6
+	nvram_default_get("ath0_rxantenna", "3");
+	nvram_default_get("ath0_txantenna", "3");
+	setRouter("TP-Link TL-WR941ND v6");
+	return ROUTER_BOARD_PB42;
 #elif HAVE_WR841V11
 	nvram_default_get("ath0_rxantenna", "3");
 	nvram_default_get("ath0_txantenna", "3");
@@ -2848,6 +2908,11 @@ int internal_getRouterBrand()
 	nvram_default_get("ath0_rxantenna", "1");
 	nvram_default_get("ath0_txantenna", "1");
 	setRouter("TP-Link TL-MR3020");
+	return ROUTER_BOARD_PB42;
+#elif HAVE_GL150
+	nvram_default_get("ath0_rxantenna", "1");
+	nvram_default_get("ath0_txantenna", "1");
+	setRouter("GL.iNet-AR150");
 	return ROUTER_BOARD_PB42;
 #elif HAVE_WR71021
 	nvram_default_get("ath0_rxantenna", "1");
@@ -4950,9 +5015,14 @@ static int gstrcmp(char *str1, char *str2)
 	return 0;
 }
 
+int getIfList(char *buffer, const char *ifprefix)
+{
+	getIfListB(buffer, ifprefix, 0);
+}
+
 // returns a physical interfacelist filtered by ifprefix. if ifprefix is
 // NULL, all valid interfaces will be returned
-int getIfList(char *buffer, const char *ifprefix)
+int getIfListB(char *buffer, const char *ifprefix, int bridgesonly)
 {
 	FILE *in = fopen("/proc/net/dev", "rb");
 	char ifname[32];
@@ -4975,7 +5045,8 @@ int getIfList(char *buffer, const char *ifprefix)
 		if (c == ':' || ifcount == 30) {
 			ifname[ifcount++] = 0;
 			int skip = 0;
-
+			if (bridgesonly && !isbridge(ifname))
+				skip = 1;
 			if (ifprefix) {
 				if (strncmp(ifname, ifprefix, strlen(ifprefix))) {
 					skip = 1;
@@ -5103,7 +5174,7 @@ char *cpustring(void)
 	}
 	return buf;
 #elif HAVE_IPQ806X
-	strcpy(buf, "QCA IPQ8064");
+	strcpy(buf, "QCA IPQ806X");
 	return buf;
 #elif HAVE_UNIWIP
 	strcpy(buf, "FreeScale MPC8314");
@@ -5137,6 +5208,8 @@ char *cpustring(void)
 			strcpy(buf, "Broadcom BCM4707");
 		if (packageoption == 2)
 			strcpy(buf, "Broadcom BCM4708");
+	} else if (chipid == 53573) {
+		strcpy(buf, "Broadcom BCM47189");
 	} else
 		strcpy(buf, "Broadcom BCM470X");
 
@@ -5212,7 +5285,7 @@ int isap8x(void)
 int led_control(int type, int act)
 /*
  * type: LED_POWER, LED_DIAG, LED_DMZ, LED_CONNECTED, LED_BRIDGE, LED_VPN,
- * LED_SES, LED_SES2, LED_WLAN0, LED_WLAN1, LED_WLAN2, LED_SEC0, LED_SEC1, USB_POWER
+ * LED_SES, LED_SES2, LED_WLAN0, LED_WLAN1, LED_WLAN2, LED_SEC0, LED_SEC1, USB_POWER, USB_POWER1
  * act: LED_ON, LED_OFF, LED_FLASH 
  * 1st hex number: 1 = inverted, 0 = normal
  */
@@ -5305,6 +5378,7 @@ int led_control(int type, int act)
 		diag_gpio = 0x000;
 		usb_gpio = 0x001;
 		usb_gpio1 = 0x002;
+		usb_power = 0x103;
 		break;
 #endif
 #ifdef HAVE_WRT1900AC
@@ -5336,6 +5410,10 @@ int led_control(int type, int act)
 		connected_gpio = 0x11b;
 		diag_gpio = 0x11a;
 		usb_power = 0x008;
+#elif HAVE_GL150
+//              power_gpio = 0x11b;
+//              diag_gpio = 0x01b;
+//              usb_power = 0x008;
 #elif HAVE_WR710
 		power_gpio = 0x11b;
 		diag_gpio = 0x01b;
@@ -5456,6 +5534,10 @@ int led_control(int type, int act)
 #ifdef HAVE_DAP2230
 		diag_gpio = 0x00b;
 		power_gpio = 0x10b;
+#elif HAVE_WR941V6
+		disconnected_gpio = 0x00f;
+		power_gpio = 0x112;
+		diag_gpio = 0x012;
 #elif HAVE_WR841V9
 		diag_gpio = 0x103;
 #elif HAVE_WR842V2
@@ -5851,11 +5933,44 @@ int led_control(int type, int act)
 		usb_gpio = 0x10b;
 		ses_gpio = 0x10f;
 		break;
+#elif HAVE_E325N
+	case ROUTER_BOARD_WHRHPGN:
+		connected_gpio = 0x003;
+		disconnected_gpio = 0x002;
+		break;
+#elif HAVE_E380AC
+	case ROUTER_BOARD_WHRHPGN:
+		diag_gpio = 0x003;
+		break;
+#elif HAVE_WR615N
+	case ROUTER_BOARD_WHRHPGN:
+		diag_gpio = 0x101;
+		connected_gpio = 0x102;
+		disconnected_gpio = 0x103;
+		ses_gpio = 0x10c;
+		sec0_gpio = 0x10c;
+		break;
+#elif HAVE_E355AC
+	case ROUTER_BOARD_WHRHPGN:
+		diag_gpio = 0x002;
+		break;
+#elif HAVE_WR650AC
+	case ROUTER_BOARD_WHRHPGN:
+		ses_gpio = 0x114;
+		sec0_gpio = 0x114;
+		connected_gpio = 0x104;
+		diag_gpio = 0x004;
+		break;
+#elif HAVE_DIR869
+	case ROUTER_BOARD_WHRHPGN:
+		disconnected_gpio = 0x10f;
+		connected_gpio = 0x110;
+		diag_gpio = 0x00f;
+		break;
 #elif HAVE_DIR859
 	case ROUTER_BOARD_WHRHPGN:
 		power_gpio = 0x10f;
 		connected_gpio = 0x110;
-
 		diag_gpio = 0x00f;
 		break;
 #elif HAVE_JWAP606
@@ -6418,6 +6533,12 @@ int led_control(int type, int act)
 		diag_gpio = 0x003;
 		// wps gpio = 14
 		break;
+	case ROUTER_ASUS_AC1200:
+		usb_power = 0x10a;
+		diag_gpio = 0x00a;
+		diag_gpio_disabled = 0x10a;
+		usb_gpio = 0x10f;
+		break;
 	case ROUTER_ASUS_AC88U:
 	case ROUTER_ASUS_AC5300:
 		usb_power = 0x009;
@@ -6509,6 +6630,19 @@ int led_control(int type, int act)
 		wlan_gpio = 0x008;	// wifi button led
 		usb_gpio = 0x004;	//usb1 
 		usb_gpio1 = 0x005;	//usb2 
+		break;
+	case ROUTER_NETGEAR_R7800:
+		power_gpio = 0x000;	// power led 
+		diag_gpio = 0x010;	// power led orange     
+		connected_gpio = 0x007;	// wan led
+		usb_power = 0x010;    // usb enable
+		usb_power1 = 0x00f;
+		wlan0_gpio = 0x009;	// radio 5G 
+		wlan1_gpio = 0x008;	// radio 2G
+		//ses_gpio = 0x109;	// wps button led used for 2G
+		//wlan_gpio = 0x008;	// wifi button led used for 5G
+		usb_gpio = 0x004;	//usb1 
+		usb_gpio1 = 0x005;	//usb2
 		break;
 	case ROUTER_TRENDNET_TEW827:
 		power_gpio = 0x135;	// power led 
@@ -6755,7 +6889,12 @@ int getMTD(char *name)
 		return -1;
 	while (!feof(fp) && fscanf(fp, "%s %s %s %s", dev, size, esize, n) == 4) {
 		if (!strcmp(n, buf)) {
-			device = dev[3] - '0';
+			if (dev[4] == ':') {
+				device = dev[3] - '0';
+			} else {
+				device = 10 + (dev[4] - '0');
+			}
+
 			break;
 		}
 	}
@@ -7186,90 +7325,107 @@ int is_ath10k(const char *prefix)
 
 #endif
 
-double HTTxRate20_800(unsigned int index)
+int HTTxRate20_800(unsigned int index)
 {
-	static const double vHTTxRate20_800[32] = {
-		6.5, 13.0, 19.5, 26.0, 39.0, 52.0, 58.5, 65.0,	// MCS 0 -8 
-		13.0, 26.0, 39.0, 52.0, 78.0, 104.0, 117.0, 130.0,	// MCS 8 - 15
-		19.5, 39.0, 58.5, 78.0, 117.0, 156.0, 175.5, 195.0,	// MCS 16 - 23
-		26.0, 52.0, 78.0, 104.0, 156.0, 208.0, 234.0, 260.0	// MCS 24 - 31
+	static const int vHTTxRate20_800[32] = {
+		6500, 13000, 19500, 26000, 39000, 52000, 58500, 65000,	// MCS 0 -8 
+		13000, 26000, 39000, 52000, 78000, 104000, 117000, 130000,	// MCS 8 - 15
+		19500, 39000, 58500, 78000, 117000, 156000, 175500, 195000,	// MCS 16 - 23
+		26000, 52000, 78000, 104000, 156000, 208000, 234000, 260000	// MCS 24 - 31
 	};
-	if (index > sizeof(HTTxRate20_800) / sizeof(double) - 1) {
+	if (index > sizeof(HTTxRate20_800) / sizeof(int) - 1) {
 		fprintf(stderr, "utils.c HTTxRate20_800() index overflow\n");
-		return 0.0;
+		return 0;
 	}
 	return vHTTxRate20_800[index];
 }
 
-double HTTxRate20_400(unsigned int index)
+int HTTxRate20_400(unsigned int index)
 {
-	static const double vHTTxRate20_400[32] = { 7.2, 14.4, 21.7, 28.9, 43.3, 57.8, 65.0, 72.2,	//
-		14.444, 28.889, 43.333, 57.778, 86.667, 115.556, 130.000, 144.444,	//
-		21.7, 43.3, 65.0, 86.7, 130.0, 173.3, 195.0, 216.7,	//
-		28.9, 57.8, 86.7, 115.6, 173.3, 231.1, 260.0, 288.9	//
+	static const int vHTTxRate20_400[32] = { 7200, 14400, 21700, 28900, 43300, 57800, 65000, 72200,	//
+		14444, 28889, 43333, 57778, 86667, 115556, 130000, 144444,	//
+		21700, 43300, 65000, 86700, 130000, 173300, 195000, 216700,	//
+		28900, 57800, 86700, 115600, 173300, 231100, 260000, 288900	//
 	};
-	if (index > sizeof(vHTTxRate20_400) / sizeof(double) - 1) {
+	if (index > sizeof(vHTTxRate20_400) / sizeof(int) - 1) {
 		fprintf(stderr, "utils.c HTTxRate20_400() index overflow\n");
-		return 0.0;
+		return 0;
 	}
 	return vHTTxRate20_400[index];
 }
 
-double HTTxRate40_800(unsigned int index)
+int HTTxRate40_800(unsigned int index)
 {
-	static const double vHTTxRate40_800[32] = { 13.5, 27.0, 40.5, 54.0, 81.0, 108.0, 121.5, 135.0,	//
-		27.0, 54.0, 81.0, 108.0, 162.0, 216.0, 243.0, 270.0,	//
-		40.5, 81.0, 121.5, 162.0, 243.0, 324.0, 364.5, 405.0,	//
-		54.0, 108.0, 162.0, 216.0, 324.0, 432.0, 486.0, 540.0	//
+	static const int vHTTxRate40_800[32] = { 13500, 27000, 40500, 54000, 81000, 108000, 121500, 135000,	//
+		27000, 54000, 81000, 108000, 162000, 216000, 243000, 270000,	//
+		40500, 81000, 121500, 162000, 243000, 324000, 364500, 405000,	//
+		54000, 108000, 162000, 216000, 324000, 432000, 486000, 540000	//
 	};
-	if (index > sizeof(vHTTxRate40_800) / sizeof(double) - 1) {
+	if (index > sizeof(vHTTxRate40_800) / sizeof(int) - 1) {
 		fprintf(stderr, "utils.c HTTxRate40_800() index overflow\n");
-		return 0.0;
+		return 0;
 	}
 	return vHTTxRate40_800[index];
 }
 
-double HTTxRate40_400(unsigned int index)
+int HTTxRate40_400(unsigned int index)
 {
-	static const double vHTTxRate40_400[32] = { 15.0, 30.0, 45.0, 60.0, 90.0, 120.0, 135.0, 150.0,	//
-		30.0, 60.0, 90.0, 120.0, 180.0, 240.0, 270.0, 300.0,	//
-		45.0, 90.0, 135.0, 180.0, 270.0, 360.0, 405.0, 450.0,	//
-		60.0, 120.0, 180.0, 240.0, 360.0, 480.0, 540.0, 600.0	//
+	static const int vHTTxRate40_400[32] = { 15000, 30000, 45000, 60000, 90000, 120000, 135000, 150000,	//
+		30000, 60000, 90000, 120000, 180000, 240000, 270000, 300000,	//
+		45000, 90000, 135000, 180000, 270000, 360000, 405000, 450000,	//
+		60000, 120000, 180000, 240000, 360000, 480000, 540000, 600000	//
 	};
-	if (index > sizeof(vHTTxRate40_400) / sizeof(double) - 1) {
+	if (index > sizeof(vHTTxRate40_400) / sizeof(int) - 1) {
 		fprintf(stderr, "utils.c HTTxRate40_400() index overflow\n");
-		return 0.0;
+		return 0;
 	}
 	return vHTTxRate40_400[index];
 }
 
-double HTTxRate80_800(unsigned int index)
+int HTTxRate80_800(unsigned int index)
 {
-	static const double vHTTxRate80_800[32] = {
-		29.3, 58.5, 87.8, 117.0, 175.5, 234.0, 263.3, 292.5,	//
-		58.5, 117.0, 175.5, 234.0, 351.0, 468.0, 526.5, 585.0,
-		87.8, 175.5, 263.3, 351.0, 526.5, 702.0, 0.0, 877.5,	//
-		117.0, 234.0, 351.0, 468.0, 702.0, 936.0, 1053.0, 1170.0
+	static const int vHTTxRate80_800[32] = {
+		29300, 58500, 87800, 117000, 175500, 234000, 263300, 292500,	//
+		58500, 117000, 175500, 234000, 351000, 468000, 526500, 585000,
+		87800, 175500, 263300, 351000, 526500, 702000, 0, 877500,	//
+		117000, 234000, 351000, 468000, 702000, 936000, 1053000, 1170000
 	};
-	if (index > sizeof(vHTTxRate80_800) / sizeof(double) - 1) {
+	if (index > sizeof(vHTTxRate80_800) / sizeof(int) - 1) {
 		fprintf(stderr, "utils.c HTTxRate80_800() index overflow\n");
-		return 0.0;
+		return 0;
 	}
+	if (index == 7)
+		return 390000;
+	if (index == 15)
+		return 780000;
+	if (index == 23)
+		return 1170000;
+	if (index == 31)
+		return 1560000;
 	return vHTTxRate80_800[index];
 }
 
-double HTTxRate80_400(unsigned int index)
+int HTTxRate80_400(unsigned int index)
 {
-	static const double vHTTxRate80_400[32] = {
-		32.5, 65.0, 97.5, 130.0, 195.0, 260.0, 292.5, 325.0,	//
-		65.0, 130.0, 195.0, 260.0, 390.0, 520.0, 585.0, 650.0,	//
-		97.5, 195.0, 292.5, 390.0, 585.0, 780.0, 0.0, 975.0,	//
-		130.0, 260.0, 390.0, 520.0, 780.0, 1040.0, 1170.0, 1300.0
+	static const int vHTTxRate80_400[32] = {
+		32500, 65000, 97500, 130000, 195000, 260000, 292500, 325000,	//
+		65000, 130000, 195000, 260000, 390000, 520000, 585000, 650000,	//
+		97500, 195000, 292500, 390000, 585000, 780000, 0, 975000,	//
+		130000, 260000, 390000, 520000, 780000, 1040000, 1170000, 1300000
 	};
-	if (index > sizeof(vHTTxRate80_400) / sizeof(double) - 1) {
+	if (index > sizeof(vHTTxRate80_400) / sizeof(int) - 1) {
 		fprintf(stderr, "utils.c HTTxRate80_400() index overflow\n");
-		return 0.0;
+		return 0;
 	}
+	if (index == 7)
+		return 433300;
+	if (index == 15)
+		return 866700;
+	if (index == 23)
+		return 1300000;
+	if (index == 31)
+		return 1733300;
+
 	return vHTTxRate80_400[index];
 }
 
@@ -7740,3 +7896,49 @@ char *foreach_last(char *next, char *word)
 	next = strchr(next, ' ');
 	return next;
 }
+
+#define MAX_BRIDGES	1024
+
+#include <linux/if_bridge.h>
+int isbridge(char *name)
+{
+	int i, ret = 0, num;
+	char ifname[IFNAMSIZ];
+	int ifindices[MAX_BRIDGES];
+	int br_socket_fd = -1;
+	unsigned long args[3] = { BRCTL_GET_BRIDGES,
+		(unsigned long)ifindices, MAX_BRIDGES
+	};
+
+	if ((br_socket_fd = socket(AF_INET, SOCK_STREAM, 0)) < 0)
+		return 0;
+
+	num = ioctl(br_socket_fd, SIOCGIFBR, args);
+	close(br_socket_fd);
+	if (num < 0) {
+		return 0;
+	}
+
+	for (i = 0; i < num; i++) {
+		if (!if_indextoname(ifindices[i], ifname)) {
+			return 0;
+		}
+
+		if (!strcmp(ifname, name))
+			return 1;
+	}
+	return 0;
+
+}
+
+#if 0
+int isbridge(char *name)
+{
+	char path[64];
+	struct stat st;
+	memset(&st, 0, sizeof(struct stat));
+	sprintf(path, "/sys/class/net/%s/bridge", name);
+	return (stat(path, &st) == 0) && (S_ISDIR(st.st_mode));
+
+}
+#endif

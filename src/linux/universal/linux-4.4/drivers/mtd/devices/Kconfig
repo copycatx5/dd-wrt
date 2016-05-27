@@ -233,6 +233,9 @@ config BCH_CONST_T
 	default 4
 endif
 
+config COMFAST_WATCHDOG
+	bool
+
 config MTD_SPIFLASH
 	tristate "Atheros AR2315/6/7 SPI Flash support"
 	depends on MTD && ATHEROS
@@ -285,8 +288,28 @@ config DIR862
 	bool "support for DIR862"
 	depends on DIR825C1
 config DIR859
-	bool "support for MMS344"
+	bool "support for DIR859"
 	depends on DIR825C1
+config WR650AC
+	bool "support for WR650AC"
+	depends on DIR859
+	select COMFAST_WATCHDOG
+config WR615N
+	bool "support for WR615N"
+	depends on DIR859
+	select COMFAST_WATCHDOG
+config E355AC
+	bool "support for E355AC"
+	depends on DIR859
+	select COMFAST_WATCHDOG
+config E380AC
+	bool "support for E380AC"
+	depends on DIR859
+	select COMFAST_WATCHDOG
+config E325N
+	bool "support for E325N"
+	depends on DIR859
+	select COMFAST_WATCHDOG
 config WDR4300
 	bool "support for WDR4300"
 	depends on DIR825C1
@@ -311,12 +334,18 @@ config DAP3310
 config WR710
 	bool "support for TPLink WR710"
 	depends on MACH_HORNET && WR741
+config GL150
+	bool "support for AR-GL-150"
+	depends on MACH_HORNET && WR710
 config ERC
 	bool "support for ERC Device"
 	depends on MACH_HORNET && !WR741
 config WR841V9
 	bool "support for TPLink WR841V9"
 	depends on WR841V8
+config WR941V6
+	bool "support for TPLink WR941V6"
+	depends on WR841V9
 config WR1043V2
 	bool "support for WR1043 V2"
 	depends on AP135

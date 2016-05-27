@@ -52,6 +52,70 @@
 #include <linux/sockios.h>
 #include <linux/mii.h>
 #include "devices/wireless.c"
+#include "devices/ethtools.c"
+
+#ifdef HAVE_DIR869
+struct regiondef {
+	char *match;
+	char *region;
+};
+static struct regiondef regions[] = {
+	{"AU", "AUSTRALIA"},
+	{"NA", "UNITED_STATES"},
+	{"US", "UNITED_STATES"},
+	{"CA", "CANADA"},
+	{"LA", "BRAZIL"},
+	{"BR", "BRAZIL"},
+	{"EU", "GERMANY"},
+	{"GB", "UNITED_KINGDOM"},
+	{"CN", "CHINA"},
+	{"SG", "SINGAPORE"},
+	{"KR", "KOREA_REPUBLIC"},
+	{"FR", "FRANCE"},
+	{"JP", "JAPAN"},
+	{"IL", "ISRAEL"},
+	{"RU", "RUSSIA"},
+	{"TH", "THAILAND"},
+	{"MY", "MALASIA"},
+	{"IN", "INDIA"},
+	{"EG", "EGYPT"},
+	{"TW", "TAIWAN"},
+	{NULL, NULL}
+};
+
+static void setdlinkcountry(void)
+{
+	char buf[32];
+	char c[32];
+	char *set = NULL;
+	FILE *fp = popen("cat /dev/mtdblock0|grep countrycode=", "r");
+	fread(buf, 1, 27, fp);
+	pclose(fp);
+	buf[27] = 0;
+	memset(c, 0, sizeof(c));
+	strncpy(c, &buf[12], 2);
+	if (!strlen(c))
+		return;
+	int cnt = 0;
+	while (regions[cnt].match) {
+
+		if (!strcmp(regions[cnt].match, c)) {
+			set = regions[cnt].region;
+			break;
+		}
+		cnt++;
+	}
+	if (set) {
+		if (!nvram_get("nocountrysel"))
+			nvram_set("nocountrysel", "1");
+		nvram_set("ath0_regdomain",set);
+		nvram_set("ath1_regdomain",set);
+	}
+}
+
+
+#endif
+
 
 void start_sysinit(void)
 {
@@ -87,6 +151,18 @@ void start_sysinit(void)
 	eval("swconfig", "dev", "eth0", "set", "enable_vlan", "1");
 	eval("swconfig", "dev", "eth0", "vlan", "1", "set", "ports", "0t 2 3 4 5");
 	eval("swconfig", "dev", "eth0", "vlan", "2", "set", "ports", "0t 1");
+#elif defined (HAVE_E325N)
+	eval("swconfig", "dev", "eth0", "set", "reset", "1");
+	eval("swconfig", "dev", "eth0", "set", "enable_vlan", "0");
+	eval("swconfig", "dev", "eth0", "vlan", "1", "set", "ports", "0 1 2 3 4");
+#elif defined (HAVE_E355AC)
+#elif defined (HAVE_WR615N)
+#elif defined (HAVE_E380AC)
+#elif defined (HAVE_WR650AC)
+	eval("swconfig", "dev", "eth0", "set", "reset", "1");
+	eval("swconfig", "dev", "eth0", "set", "enable_vlan", "0");
+	eval("swconfig", "dev", "eth0", "vlan", "1", "set", "ports", "0 2 3 4 5");
+	eval("swconfig", "dev", "eth0", "vlan", "2", "set", "ports", "1 6");
 #elif defined (HAVE_JWAP606)
 	// nothing
 #elif defined (HAVE_DAP3662)
@@ -160,6 +236,7 @@ void start_sysinit(void)
 	}
 #endif
 
+#if !defined(HAVE_WR650AC) && !defined(HAVE_E355AC) && !defined(HAVE_E325N) && !defined(HAVE_E380AC) && !defined(HAVE_WR615N)
 #ifndef HAVE_JWAP606
 	eval("ifconfig", "eth0", "up");
 #if defined(HAVE_MMS344) && !defined(HAVE_DIR862)
@@ -174,6 +251,7 @@ void start_sysinit(void)
 	eval("vconfig", "add", "eth0", "2");
 #endif
 #endif
+#endif
 	if ((s = socket(AF_INET, SOCK_RAW, IPPROTO_RAW))) {
 		char eabuf[32];
 
@@ -183,7 +261,46 @@ void start_sysinit(void)
 		nvram_set("et0macaddr_safe", ether_etoa((char *)ifr.ifr_hwaddr.sa_data, eabuf));
 		close(s);
 	}
-#if defined(HAVE_ARCHERC7) || defined(HAVE_DIR859) || defined(HAVE_DAP3662)
+#if defined(HAVE_E355AC)
+	FILE *fp = fopen("/dev/mtdblock/0", "rb");
+	FILE *out = fopen("/tmp/archerc7-board.bin", "wb");
+	if (fp) {
+		fseek(fp, 0x10000 + 0x5000, SEEK_SET);
+		int i;
+		for (i = 0; i < 2116; i++)
+			putc(getc(fp), out);
+		fclose(fp);
+		fclose(out);
+		eval("rm", "-f", "/tmp/ath10k-board.bin");
+		eval("ln", "-s", "/tmp/archerc7-board.bin", "/tmp/ath10k-board.bin");
+	}
+#elif defined(HAVE_E380AC)
+	FILE *fp = fopen("/dev/mtdblock/0", "rb");
+	FILE *out = fopen("/tmp/archerc7-board.bin", "wb");
+	if (fp) {
+		fseek(fp, 0x20000 + 0x5000, SEEK_SET);
+		int i;
+		for (i = 0; i < 2116; i++)
+			putc(getc(fp), out);
+		fclose(fp);
+		fclose(out);
+		eval("rm", "-f", "/tmp/ath10k-board.bin");
+		eval("ln", "-s", "/tmp/archerc7-board.bin", "/tmp/ath10k-board.bin");
+	}
+#elif defined(HAVE_WR650AC)
+	FILE *fp = fopen("/dev/mtdblock/0", "rb");
+	FILE *out = fopen("/tmp/archerc7-board.bin", "wb");
+	if (fp) {
+		fseek(fp, 0x20000 + 0x5000, SEEK_SET);
+		int i;
+		for (i = 0; i < 2116; i++)
+			putc(getc(fp), out);
+		fclose(fp);
+		fclose(out);
+		eval("rm", "-f", "/tmp/ath10k-board.bin");
+		eval("ln", "-s", "/tmp/archerc7-board.bin", "/tmp/ath10k-board.bin");
+	}
+#elif defined(HAVE_ARCHERC7) || defined(HAVE_DIR859) || defined(HAVE_DAP3662)
 	FILE *fp = fopen("/dev/mtdblock/5", "rb");
 	FILE *out = fopen("/tmp/archerc7-board.bin", "wb");
 	if (fp) {
@@ -256,6 +373,21 @@ void start_sysinit(void)
 #endif
 #elif  HAVE_WZR450HP2
 	setWirelessLed(0, 18);
+#elif  HAVE_WR615N
+	setWirelessLed(0, 12);
+#elif  HAVE_E325N
+	setWirelessLed(0, 0);
+#elif  HAVE_E380AC
+	setWirelessLed(0, 0);
+	setWirelessLed(1, 2);
+#elif  HAVE_E355AC
+	setWirelessLed(0, 0);
+	setWirelessLed(1, 3);
+#elif  HAVE_WR650AC
+	setWirelessLed(0, 13);
+	setWirelessLed(1, 2);
+#elif  HAVE_DIR869
+	setdlinkcountry();
 #elif  HAVE_DIR859
 	setWirelessLed(0, 19);
 //      setWirelessLed(1, 32);

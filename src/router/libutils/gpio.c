@@ -125,13 +125,16 @@ void set_gpio(int gpio, int value)
 {
 	switch (gpio) {
 	case 0:		// system
-		sysprintf("echo %d > /sys/devices/leds/leds/tp-link\\:blue\\:system/brightness", value);
+		sysprintf("echo %d > /sys/devices/platform/leds/leds/tp-link\\:blue\\:system/brightness", value);
 		break;
 	case 1:		// usb1
-		sysprintf("echo %d > /sys/devices/leds/leds/tp-link\\:green\\:usb1/brightness", value);
+		sysprintf("echo %d > /sys/devices/platform/leds/leds/tp-link\\:green\\:usb1/brightness", value);
 		break;
 	case 2:		// usb2
-		sysprintf("echo %d > /sys/devices/leds/leds/tp-link\\:green\\:usb2/brightness", value);
+		sysprintf("echo %d > /sys/devices/platform/leds/leds/tp-link\\:green\\:usb2/brightness", value);
+		break;
+	case 3:		// usbpower
+		sysprintf("echo %d > /sys/devices/platform/leds/leds/tp-link\\:usb\\:power/brightness", value);
 		break;
 
 	}
@@ -356,40 +359,39 @@ void set_gpio(int gpio, int value)
 		value = 255;
 	//fprintf(stderr, "GPIO %d value %d\n", gpio, value);
 	int brand = getRouterBrand();
-	if (brand == ROUTER_NETGEAR_R7500) {
+	  
+	if (brand == ROUTER_NETGEAR_R7500 || brand == ROUTER_NETGEAR_R7800) {
 		switch (gpio) {
 		case 0:	// power
-			sysprintf("echo %d > /sys/class/leds/r7500\\:white\\:power/brightness", value);
+			sysprintf("echo %d > /sys/class/leds/r7X00\\:white\\:power/brightness", value);
 			break;
 		case 1:	// 2G
-			//
 			break;
 		case 2:	// 5G
-			sysprintf("echo %d > /sys/class/leds/r7500\\:white\\:wifi5g/brightness", value);
 			break;
 		case 3:
-			sysprintf("echo %d > /sys/class/leds/r7500\\:white\\:esata/brightness", value);
+			sysprintf("echo %d > /sys/class/leds/r7X00\\:white\\:esata/brightness", value);
 			break;
 		case 4:
-			sysprintf("echo %d > /sys/class/leds/r7500\\:amber\\:usb1/brightness", value);
+			sysprintf("echo %d > /sys/class/leds/r7X00\\:amber\\:usb1/brightness", value);
 			break;
 		case 5:
-			sysprintf("echo %d > /sys/class/leds/r7500\\:amber\\:usb3/brightness", value);
+			sysprintf("echo %d > /sys/class/leds/r7X00\\:amber\\:usb3/brightness", value);
 			break;
 		case 6:
-			sysprintf("echo %d > /sys/class/leds/r7500\\:white\\:wan/brightness", value);
+			sysprintf("echo %d > /sys/class/leds/r7X00\\:white\\:wan/brightness", value);
 			break;
 		case 7:
-			sysprintf("echo %d > /sys/class/leds/r7500\\:white\\:internet/brightness", value);
+			sysprintf("echo %d > /sys/class/leds/r7X00\\:white\\:internet/brightness", value);
 			break;
 		case 8:
-			sysprintf("echo %d > /sys/class/leds/r7500\\:white\\:rfkill/brightness", value);
+			sysprintf("echo %d > /sys/class/leds/r7X00\\:white\\:rfkill/brightness", value);
 			break;
 		case 9:
-			sysprintf("echo %d > /sys/class/leds/r7500\\:white\\:wps/brightness", value);
+			sysprintf("echo %d > /sys/class/leds/r7X00\\:white\\:wps/brightness", value);
 			break;
 		case 10:
-			sysprintf("echo %d > /sys/class/leds/r7500\\:amber\\:status/brightness", value);
+			sysprintf("echo %d > /sys/class/leds/r7X00\\:amber\\:status/brightness", value);
 			break;
 		default:
 			set_linux_gpio(gpio, value);
@@ -428,6 +430,13 @@ void set_gpio(int gpio, int value)
 #define GPIOMAX 32
 #endif
 	if (gpio < GPIOMAX) {
+#ifdef HAVE_E380AC
+		if (gpio == 3) { // the red led on gpio 3 cannot be controlled by output register. it will switch on if direction is set to output and will go off if direction is input
+			sprintf(buf, "/proc/gpio/%d_dir", gpio);
+			writeint(buf, value);
+			return;
+		}
+#endif
 		sprintf(buf, "/proc/gpio/%d_dir", gpio);
 		if (writestr(buf, "1"))
 			return;
@@ -1222,72 +1231,6 @@ int get_gpio(int pin)
 }
 
 #elif HAVE_LAGUNA
-#include <linux/mii.h>
-#include <linux/sockios.h>
-#include <net/if.h>
-#include <arpa/inet.h>
-#include <sys/socket.h>
-#include <linux/sockios.h>
-#include <linux/mii.h>
-
-#define IOC_GPIODEV_MAGIC  'B'
-
-#define _IOC_NRBITS	8
-#define _IOC_TYPEBITS	8
-
-/*
- * Let any architecture override either of the following before
- * including this file.
- */
-
-#ifndef _IOC_SIZEBITS
-# define _IOC_SIZEBITS	14
-#endif
-
-#ifndef _IOC_DIRBITS
-# define _IOC_DIRBITS	2
-#endif
-
-#define _IOC_NRMASK	((1 << _IOC_NRBITS)-1)
-#define _IOC_TYPEMASK	((1 << _IOC_TYPEBITS)-1)
-#define _IOC_SIZEMASK	((1 << _IOC_SIZEBITS)-1)
-#define _IOC_DIRMASK	((1 << _IOC_DIRBITS)-1)
-
-#define _IOC_NRSHIFT	0
-#define _IOC_TYPESHIFT	(_IOC_NRSHIFT+_IOC_NRBITS)
-#define _IOC_SIZESHIFT	(_IOC_TYPESHIFT+_IOC_TYPEBITS)
-#define _IOC_DIRSHIFT	(_IOC_SIZESHIFT+_IOC_SIZEBITS)
-
-/*
- * Direction bits, which any architecture can choose to override
- * before including this file.
- */
-
-#ifndef _IOC_NONE
-# define _IOC_NONE	0U
-#endif
-
-#ifndef _IOC_WRITE
-# define _IOC_WRITE	1U
-#endif
-
-#ifndef _IOC_READ
-# define _IOC_READ	2U
-#endif
-
-#define _IOC(dir,type,nr,size) \
-	(((dir)  << _IOC_DIRSHIFT) | \
-	 ((type) << _IOC_TYPESHIFT) | \
-	 ((nr)   << _IOC_NRSHIFT) | \
-	 ((size) << _IOC_SIZESHIFT))
-
-#define _IO(type,nr)		_IOC(_IOC_NONE,(type),(nr),0)
-
-#define GPIO_GET        _IO(IOC_GPIODEV_MAGIC, 10)
-#define GPIO_SET        _IO(IOC_GPIODEV_MAGIC, 11)
-#define GPIO_CLEAR      _IO(IOC_GPIODEV_MAGIC, 12)
-#define GPIO_DIR_IN     _IO(IOC_GPIODEV_MAGIC, 13)
-#define GPIO_DIR_OUT    _IO(IOC_GPIODEV_MAGIC, 14)
 
 void set_gpio(int pin, int value)
 {
@@ -1297,31 +1240,14 @@ void set_gpio(int pin, int value)
 		sysprintf("echo %d > /sys/devices/platform/leds-gpio/leds/user1/brightness", value);
 		break;
 	default:
-		if ((fd = open("/dev/misc/gpio", O_RDWR)) < 0) {
-			printf("Error whilst opening /dev/gpio\n");
-			return;
-		}
-		ioctl(fd, GPIO_DIR_OUT, pin);
-		if (value)
-			ioctl(fd, GPIO_SET, pin);
-		else
-			ioctl(fd, GPIO_CLEAR, pin);
-		close(fd);
+		set_linux_gpio(pin, value);
 		break;
 	}
 }
 
 int get_gpio(int pin)
 {
-	int fd;
-	if ((fd = open("/dev/misc/gpio", O_RDWR)) < 0) {
-		printf("Error whilst opening /dev/gpio\n");
-		return -1;
-	}
-	ioctl(fd, GPIO_DIR_IN, pin);
-	int ret = ioctl(fd, GPIO_GET, pin);
-	close(fd);
-	return ret;
+	return get_linux_gpio(pin);
 
 }
 

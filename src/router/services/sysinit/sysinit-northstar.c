@@ -62,27 +62,30 @@ static void set_regulation(int card, char *code, char *rev);
 struct regiondef {
 	char *match;
 	char *region24;
+	char *region24rev;
 	char *region5;
+	char *region5rev;
 };
 static struct regiondef regions[] = {
-	{"AU", "AU", NULL},
-	{"NA", "US", NULL},
-	{"CA", "US", "CA"},
-	{"LA", "AU", "BR"},
-	{"BR", "AU", "BR"},
-	{"EU", "EU", "EU"},
-	{"GB", "EU", "GB"},
-	{"CN", "CN", NULL},
-	{"SG", "SG", NULL},
-	{"KR", "EU", "KR"},
-	{"FR", "EU", NULL},
-	{"JP", "JP", NULL},
-	{"IL", "EU", "IL"},
-	{"RU", "EU", "RU"},
-	{"TH", "TH", NULL},
-	{"MY", "MY", NULL},
-	{"IN", "AU", "IN"},
-	{"EG", "EG", "EG"},
+	{"AU", "AU", "0", NULL},
+	{"NA", "US", "0", NULL},
+	{"US", "US", "0", NULL},
+	{"CA", "CA", "0", "CA", "0"},
+	{"LA", "BR", "0", "BR", "0"},
+	{"BR", "BR", "0", "BR", "0"},
+	{"EU", "EU", "13", "EU", "13"},
+	{"GB", "GB", "0", "GB", "0"},
+	{"CN", "CN", "0", NULL},
+	{"SG", "SG", "0", NULL},
+	{"KR", "KR", "0", "KR", "0"},
+	{"FR", "EU", "0", NULL},
+	{"JP", "JP", "0", NULL},
+	{"IL", "IL", "0", "IL", "0"},
+	{"RU", "RU", "0", "RU", "0"},
+	{"TH", "TH", "0", NULL},
+	{"MY", "MY", "0", NULL},
+	{"IN", "AU", "0", "IN", "0"},
+	{"EG", "EG", "0", "EG", "0"},
 	{NULL, NULL, NULL}
 };
 
@@ -92,6 +95,8 @@ static void setdlinkcountry(int count, int offset24)
 	char c[32];
 	char *set = NULL;
 	char *set5 = NULL;
+	char *rev = NULL;
+	char *rev5 = NULL;
 	FILE *fp = popen("cat /dev/mtdblock0|grep countrycode=", "r");
 	fread(buf, 1, 27, fp);
 	pclose(fp);
@@ -105,8 +110,11 @@ static void setdlinkcountry(int count, int offset24)
 
 		if (!strcmp(regions[cnt].match, c)) {
 			set = regions[cnt].region24;
-			if (regions[cnt].region5)
+			rev = regions[cnt].region24rev;
+			if (regions[cnt].region5) {
 				set5 = regions[cnt].region5;
+				rev5 = regions[cnt].region5rev;
+			}
 			break;
 		}
 		cnt++;
@@ -114,17 +122,19 @@ static void setdlinkcountry(int count, int offset24)
 	if (set) {
 		if (!nvram_get("nocountrysel"))
 			nvram_set("nocountrysel", "1");
-		set_regulation(offset24, set, "0");
-		if (!set5)
+		set_regulation(offset24, set, rev);
+		if (!set5) {
 			set5 = set;
+			rev5 = rev;
+		}
 		if (!offset24)
 			offset24 = 1;
 		else
 			offset24 = 0;
 
-		set_regulation(offset24, set5, "0");
+		set_regulation(offset24, set5, rev5);
 		if (count == 3)
-			set_regulation(offset24 + 1, set5, "0");
+			set_regulation(offset24 + 1, set5, rev5);
 
 	}
 }
@@ -132,7 +142,6 @@ static void setdlinkcountry(int count, int offset24)
 static void set_regulation(int card, char *code, char *rev)
 {
 	char path[32];
-
 	sprintf(path, "wl%d_country_rev", card);
 	if (nvram_match(path, ""))
 		return;
@@ -4536,6 +4545,15 @@ void start_sysinit(void)
 			if (out)
 				fclose(out);
 		}
+		nvram_unset("et1macaddr");
+		nvram_set("bootpartition", "0");
+		break;
+	case ROUTER_ASUS_AC1200:
+		nvram_unset("et1macaddr");
+		nvram_set("vlan1hwname", "et0");
+		nvram_set("vlan2hwname", "et0");
+		nvram_set("vlan1ports", "1 2 3 4 8*");
+		nvram_set("vlan2ports", "0 8*");
 		break;
 
 	default:
@@ -4551,7 +4569,8 @@ void start_sysinit(void)
 	eval("vconfig", "add", "eth0", "1");
 	eval("vconfig", "add", "eth0", "2");
 	insmod("switch-core");
-	insmod("switch-robo");
+	if (getRouterBrand() != ROUTER_ASUS_AC1200)
+		insmod("switch-robo");
 	/*
 	 * network drivers 
 	 */
@@ -4611,7 +4630,7 @@ void start_overclocking(void)
 
 	int rev = cpu_plltype();
 
-	if (rev == 0)
+	if (rev != 9 && rev != 11)
 		return;		// unsupported
 
 	char *ov = nvram_get("overclocking");
@@ -4640,19 +4659,30 @@ void start_overclocking(void)
 	}
 	int set = 1;
 	char clkfr[16];
-	switch (clk) {
-	case 600:
-	case 800:
-	case 1000:
-	case 1200:
-	case 1400:
-	case 1600:
-		break;
-	default:
-		set = 0;
-		break;
+	if (rev == 9) {
+		switch (clk) {
+		case 600:
+		case 800:
+		case 1000:
+		case 1200:
+		case 1400:
+		case 1600:
+			break;
+		default:
+			set = 0;
+			break;
+		}
+	} else {
+		switch (clk) {
+		case 600:
+		case 800:
+		case 900:
+			break;
+		default:
+			set = 0;
+			break;
+		}
 	}
-
 	if (set) {
 		cprintf("clock frequency adjusted from %d to %d, reboot needed\n", cclk, clk);
 		sprintf(clkfr, "%d", clk);

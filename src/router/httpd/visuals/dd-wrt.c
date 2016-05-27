@@ -56,11 +56,10 @@ static unsigned int type3_clocks[3] = { 150, 200, 0 };
 static unsigned int type4_clocks[10] = { 192, 200, 216, 228, 240, 252, 264, 280, 300, 0 };
 static unsigned int type7_clocks[10] = { 183, 187, 198, 200, 216, 225, 233, 237, 250, 0 };
 static unsigned int type8_clocks[9] = { 200, 300, 400, 500, 600, 632, 650, 662, 0 };
-
 static unsigned int type9_clocks[7] =	// 1200 seem to be the last value which works stable
 { 600, 800, 1000, 1200, 1400, 1600, 0 };
-
 static unsigned int type10_clocks[7] = { 300, 333, 400, 480, 500, 533, 0 };
+static unsigned int type11_clocks[4] = { 600, 800, 900, 0 };
 
 #endif
 
@@ -115,6 +114,8 @@ void ej_show_clocks(webs_t wp, int argc, char_t ** argv)
 		c = type9_clocks;
 	else if (rev == 10)
 		c = type10_clocks;
+	else if (rev == 11)
+		c = type11_clocks;
 	else {
 		websWrite(wp, "<script type=\"text/javascript\">Capture(management.clock_support)</script>\n</div>\n");
 		return;
@@ -1199,7 +1200,7 @@ void ej_show_usb_diskinfo(webs_t wp, int argc, char_t ** argv)
 	if (!nvram_match("usb_automnt", "1"))
 		return;
 	//exclude proftpd bind mount points and don't display the first 3 lines which are header and rootfs
-	sysprintf("df -h | grep -v proftpd | awk '{ print $3 \" \" $4 \" \" $5 \" \" $6}' | tail -n +4 > /tmp/df");
+	sysprintf("df -P -h | grep -v proftpd | awk '{ print $3 \" \" $4 \" \" $5 \" \" $6}' | tail -n +4 > /tmp/df");
 
 	if ((fp = fopen("/tmp/df", "r"))) {
 
@@ -1488,15 +1489,15 @@ static void show_channel(webs_t wp, char *dev, char *prefix, int type)
 
 			websWrite(wp, "document.write(\"<option value=\\\"0\\\" %s>\" + share.auto + \"</option>\");\n", nvram_nmatch("0", "%s_channel", prefix) ? "selected=\\\"selected\\\"" : "");
 			for (i = 0; i < chancount; i++) {
-				float ofs;
+				int ofs;
 
 				if (chanlist[i] < 25)
-					ofs = 2.407f;
+					ofs = 2407;
 				else
-					ofs = 5.000f;
-				ofs += (float)(chanlist[i] * 0.005f);
-				if (ofs == 2.477f)
-					ofs = 2.484f;	// fix: ch 14 is 2.484, not 2.477 GHz
+					ofs = 5000;
+				ofs += (chanlist[i] * 5);
+				if (ofs == 2477)
+					ofs = 2484;	// fix: ch 14 is 2.484, not 2.477 GHz
 //              websWrite( wp, ", \"%0.3f\"", ofs );
 				char channelstring[32];
 
@@ -1560,8 +1561,8 @@ static void show_channel(webs_t wp, char *dev, char *prefix, int type)
 				sprintf(channelstring, "%d", chanlist[i]);
 				if (showit) {
 					websWrite(wp,
-						  "document.write(\"<option value=\\\"%d\\\" %s>%d - %0.3f \"+wl_basic.ghz+\"</option>\");\n",
-						  chanlist[i], nvram_nmatch(channelstring, "%s_channel", prefix) ? "selected=\\\"selected\\\"" : "", chanlist[i], ofs);
+						  "document.write(\"<option value=\\\"%d\\\" %s>%d - %d.%d \"+wl_basic.ghz+\"</option>\");\n",
+						  chanlist[i], nvram_nmatch(channelstring, "%s_channel", prefix) ? "selected=\\\"selected\\\"" : "", chanlist[i], ofs / 1000, ofs % 1000);
 				}
 			}
 //          websWrite( wp, ");\n" );
@@ -2968,8 +2969,13 @@ void ej_show_wireless_single(webs_t wp, char *prefix)
 		websWrite(wp, "document.write(\"<option value=\\\"40\\\" %s >\" + share.turbo + \"</option>\");\n", nvram_match(wl_width, "40") ? "selected=\\\"selected\\\"" : "");
 #endif
 #if defined(HAVE_ATH10K)
-		if (has_ac(prefix) && nvram_nmatch("mixed", "%s_net_mode", prefix) || nvram_nmatch("ac-only", "%s_net_mode", prefix) || nvram_nmatch("acn-mixed", "%s_net_mode", prefix))
-			websWrite(wp, "document.write(\"<option value=\\\"80\\\" %s >\" + share.ht80 + \"</option>\");\n", nvram_match(wl_width, "80") ? "selected=\\\"selected\\\"" : "");
+		if (has_ac(prefix) && nvram_nmatch("mixed", "%s_net_mode", prefix) || nvram_nmatch("ac-only", "%s_net_mode", prefix) || nvram_nmatch("acn-mixed", "%s_net_mode", prefix)) {
+			websWrite(wp, "document.write(\"<option value=\\\"80\\\" %s >\" + share.vht80 + \"</option>\");\n", nvram_match(wl_width, "80") ? "selected=\\\"selected\\\"" : "");
+			if (has_vht160(prefix))
+			    websWrite(wp, "document.write(\"<option value=\\\"160\\\" %s >\" + share.vht160 + \"</option>\");\n", nvram_match(wl_width, "160") ? "selected=\\\"selected\\\"" : "");
+			if (has_vht80plus80(prefix))
+			    websWrite(wp, "document.write(\"<option value=\\\"80+80\\\" %s >\" + share.vht80plus + \"</option>\");\n", nvram_match(wl_width, "80+80") ? "selected=\\\"selected\\\"" : "");
+		}
 #endif
 	}
 	websWrite(wp, "document.write(\"<option value=\\\"20\\\" %s >\" + share.full + \"</option>\");\n", nvram_match(wl_width, "20") ? "selected=\\\"selected\\\"" : "");
@@ -3206,7 +3212,7 @@ if (nvram_match(wl_mode, "ap") || nvram_match(wl_mode, "wdsap")
 		websWrite(wp, "<option value=\"20\" %s>20 <script type=\"text/javascript\">Capture(wl_basic.mhz);</script></option>\n", nvram_nmatch("20", "%s_nbw", prefix) ? "selected=\\\"selected\\\"" : "");
 		websWrite(wp, "<option value=\"40\" %s><script type=\"text/javascript\">Capture(share.ht40);</script></option>\n", nvram_nmatch("40", "%s_nbw", prefix) ? "selected=\\\"selected\\\"" : "");
 		if (has_ac(prefix) && has_5ghz(prefix) && nvram_nmatch("mixed", "%s_net_mode", prefix) || nvram_nmatch("ac-only", "%s_net_mode", prefix) || nvram_nmatch("acn-mixed", "%s_net_mode", prefix))
-			websWrite(wp, "<option value=\"80\" %s><script type=\"text/javascript\">Capture(share.ht80);</script></option>\n", nvram_nmatch("80", "%s_nbw", prefix) ? "selected=\\\"selected\\\"" : "");
+			websWrite(wp, "<option value=\"80\" %s><script type=\"text/javascript\">Capture(share.vht80);</script></option>\n", nvram_nmatch("80", "%s_nbw", prefix) ? "selected=\\\"selected\\\"" : "");
 
 		websWrite(wp, "</select>\n");
 		websWrite(wp, "</div>\n");
@@ -3241,7 +3247,7 @@ if (nvram_match(wl_mode, "ap") || nvram_match(wl_mode, "wdsap")
 		show_channel(wp, prefix, prefix, 0);
 #if defined(HAVE_MADWIFI_MIMO) || defined(HAVE_ATH9K)
 		if (is_ath11n(prefix)
-		    && (nvram_match(wl_width, "40") || nvram_match(wl_width, "80")
+		    && (nvram_match(wl_width, "40") || nvram_match(wl_width, "80") || nvram_match(wl_width, "160") || nvram_match(wl_width, "80+80")
 			|| nvram_match(wl_width, "2040"))) {
 			fprintf(stderr, "[CHANNEL WIDTH] 20/40 (2)\n");
 			websWrite(wp, "<div class=\"setting\">\n");
@@ -3550,7 +3556,11 @@ if (!strcmp(prefix, "wl2"))
 
 #if defined(HAVE_ATH10K)
 		if (has_ac(prefix) && nvram_nmatch("mixed", "%s_net_mode", prefix) || nvram_nmatch("ac-only", "%s_net_mode", prefix) || nvram_nmatch("acn-mixed", "%s_net_mode", prefix))
-			websWrite(wp, "document.write(\"<option value=\\\"80\\\" %s >\" + share.ht80 + \"</option>\");\n", nvram_match(wl_width, "80") ? "selected=\\\"selected\\\"" : "");
+			websWrite(wp, "document.write(\"<option value=\\\"80\\\" %s >\" + share.vht80 + \"</option>\");\n", nvram_match(wl_width, "80") ? "selected=\\\"selected\\\"" : "");
+			if (has_vht160(prefix))
+			    websWrite(wp, "document.write(\"<option value=\\\"160\\\" %s >\" + share.vht160 + \"</option>\");\n", nvram_match(wl_width, "160") ? "selected=\\\"selected\\\"" : "");
+			if (has_vht80plus80(prefix))
+			    websWrite(wp, "document.write(\"<option value=\\\"80+80\\\" %s >\" + share.vht80plus + \"</option>\");\n", nvram_match(wl_width, "80+80") ? "selected=\\\"selected\\\"" : "");
 #endif
 	}
 	websWrite(wp, "document.write(\"<option value=\\\"20\\\" %s >\" + share.full + \"</option>\");\n", nvram_match(wl_width, "20") ? "selected=\\\"selected\\\"" : "");
@@ -3643,7 +3653,7 @@ if (!strcmp(prefix, "wl2"))
 			show_channel(wp, prefix, prefix, 0);
 #if defined(HAVE_MADWIFI_MIMO) || defined(HAVE_ATH9K)
 			if (is_ath11n(prefix)
-			    && (nvram_match(wl_width, "40") || nvram_match(wl_width, "80")
+			    && (nvram_match(wl_width, "40") || nvram_match(wl_width, "80") || nvram_match(wl_width, "160") || nvram_match(wl_width, "80+80")
 				|| nvram_match(wl_width, "2040"))) {
 				websWrite(wp, "<div class=\"setting\">\n");
 				websWrite(wp, "<div class=\"label\"><script type=\"text/javascript\">Capture(wl_basic.channel_wide)</script></div>\n");
@@ -5063,8 +5073,8 @@ void ej_get_uptime(webs_t wp, int argc, char_t ** argv)
 
 void ej_get_wan_uptime(webs_t wp, int argc, char_t ** argv)
 {
-	float sys_uptime;
-	float uptime;
+	unsigned sys_uptime;
+	unsigned uptime;
 	int days, minutes;
 	FILE *fp, *fp2;
 
@@ -5078,10 +5088,10 @@ void ej_get_wan_uptime(webs_t wp, int argc, char_t ** argv)
 		websWrite(wp, "%s", live_translate("status_router.notavail"));
 		return;
 	}
-	if (!feof(fp) && fscanf(fp, "%f", &uptime) == 1) {
-		fp2 = fopen("/proc/uptime", "r");
-		fscanf(fp2, "%f", &sys_uptime);
-		fclose(fp2);
+	if (!feof(fp) && fscanf(fp, "%u", &uptime) == 1) {
+		struct sysinfo info;
+		sysinfo(&info);
+		sys_uptime = info.uptime;
 		uptime = sys_uptime - uptime;
 		days = (int)uptime / (60 * 60 * 24);
 		if (days)
@@ -5391,7 +5401,7 @@ void ej_statnv(webs_t wp, int argc, char_t ** argv)
 	int space = 0;
 	int used = nvram_used(&space);
 
-	websWrite(wp, "%.2f KB / %d KB", (float)used / 1024, space / 1024);
+	websWrite(wp, "%d KB / %d KB", used / 1024, space / 1024);
 
 }
 
@@ -5495,7 +5505,7 @@ void ej_show_ifselect(webs_t wp, int argc, char_t ** argv)
 		if (!strcmp(nvram_safe_get("lan_ifname"), var))
 			continue;
 		if (!nvram_nmatch("0", "%s_bridged", var)
-		    && strncmp(var, "br", 2))
+		    && !isbridge(var))
 			continue;
 		websWrite(wp, "<option value=\"%s\" %s >%s</option>\n", var, nvram_match(ifname, var) ? "selected" : "", getNetworkLabel(var));
 	}

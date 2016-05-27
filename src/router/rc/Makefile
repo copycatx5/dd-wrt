@@ -52,13 +52,18 @@ CFLAGS += -DARCHITECTURE="\"$(ARCHITECTURE)\""
 ifneq ($(CONFIG_TW6600),y)
 ifeq ($(CONFIG_DIST),"micro")
 CFLAGS += -DHAVE_MICRO
+CFLAGS += -DNEED_NOPRINTF
 endif
 endif
 ifeq ($(CONFIG_DIST),"micro-special")
 CFLAGS += -DHAVE_MICRO
+CFLAGS += -DNEED_NOPRINTF
 endif
 ifeq ($(CONFIG_DNSMASQ),y)
 CFLAGS += -DHAVE_DNSMASQ
+endif
+ifeq ($(CONFIG_NOWIFI),y)
+CFLAGS += -DHAVE_NOWIFI
 endif
 ifeq ($(CONFIG_RSTATS),y)
 CFLAGS += -DHAVE_RSTATS
@@ -90,6 +95,21 @@ CFLAGS += -DHAVE_ACK
 endif
 ifeq ($(CONFIG_JFFS2),y)
 CFLAGS += -DHAVE_JFFS2
+endif
+ifeq ($(CONFIG_WR650AC),y)
+CFLAGS += -DHAVE_WR650AC
+endif
+ifeq ($(CONFIG_E355AC),y)
+CFLAGS += -DHAVE_E355AC
+endif
+ifeq ($(CONFIG_E380AC),y)
+CFLAGS += -DHAVE_E380AC
+endif
+ifeq ($(CONFIG_E325N),y)
+CFLAGS += -DHAVE_E325N
+endif
+ifeq ($(CONFIG_WR615N),y)
+CFLAGS += -DHAVE_WR615N
 endif
 ifeq ($(CONFIG_MI424WR),y)
 CFLAGS += -DHAVE_MI424WR
@@ -156,6 +176,9 @@ CFLAGS += -DHAVE_DIR825C1
 endif
 ifeq ($(CONFIG_DIR859),y)
 CFLAGS += -DHAVE_DIR859
+endif
+ifeq ($(CONFIG_DIR869),y)
+CFLAGS += -DHAVE_DIR869
 endif
 ifeq ($(CONFIG_DAP2230),y)
 CFLAGS += -DHAVE_DAP2230
@@ -466,6 +489,9 @@ endif
 ifeq ($(CONFIG_WR741V4),y)
 CFLAGS += -DHAVE_WR741V4
 endif
+ifeq ($(CONFIG_GL150),y)
+CFLAGS += -DHAVE_GL150
+endif
 ifeq ($(CONFIG_WR703),y)
 CFLAGS += -DHAVE_WR703
 endif
@@ -601,6 +627,9 @@ CFLAGS += -DHAVE_DIR615E
 endif
 ifeq ($(CONFIG_WR841V9),y)
 CFLAGS += -DHAVE_WR841V9
+endif
+ifeq ($(CONFIG_WR941V6),y)
+CFLAGS += -DHAVE_WR941V6
 endif
 ifeq ($(CONFIG_DIR615I),y)
 CFLAGS += -DHAVE_DIR615I
@@ -1127,6 +1156,9 @@ endif
 	$(CC) $(CFLAGS) -o process_monitor process_monitor.c ntp.c $(LDFLAGS)
 	$(CC) $(CFLAGS) -o resetbutton resetbutton.c $(LDFLAGS) -lwireless
 	$(CC) $(CFLAGS) -o gpiowatcher gpiowatcher.c $(LDFLAGS)
+ifeq ($(CONFIG_NORTHSTAR),y)
+	$(CC) $(CFLAGS) -I$(LINUXDIR)/brcm/arm/include  -o et et.c   $(LDFLAGS)
+endif
 #ifeq ($(CONFIG_LSX),y)
 #	$(CC) $(CFLAGS) $(INITCFLAGS) -L$(TOP)/libutils -L$(TOP)/nvram -I$(LINUXDIR) -L$(INSTALLDIR)/nvram/usr/lib -o init init.c $(TOP)/nvram/libnvram.a $(TOP)/libutils/libutils.a
 #else

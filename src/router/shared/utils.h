@@ -736,6 +736,10 @@
 
 #define ROUTER_UBNT_UAPAC 0xf912
 
+#define ROUTER_ASUS_AC1200 0xfa15
+
+#define ROUTER_NETGEAR_R7800 0xfb0e
+
 #define NVROUTER "DD_BOARD"
 
 static inline int startswith(char *source, char *cmp)
@@ -1026,6 +1030,7 @@ int sv_valid_ipaddr(char *value);
 int sv_valid_range(char *value, int low, int high);
 int sv_valid_statics(char *value);
 void get_network(char *ipaddr, char *netmask);
+int isbridge(char *name);
 int get_net(char *netmask);
 void get_broadcast(char *ipaddr, char *netmask);
 int route_manip(int cmd, char *name, int metric, char *dst, char *gateway, char *genmask);
@@ -1036,6 +1041,7 @@ extern int pidof(const char *name);
 extern int killall(const char *name, int sig);
 extern int getifcount(const char *ifprefix);
 extern int getIfList(char *buffer, const char *ifprefix);
+extern int getIfListB(char *buffer, const char *ifprefix, int bridgesonly);
 extern void getIfLists(char *eths, int size);
 extern int ifexists(const char *ifname);
 extern void getinterfacelist(const char *ifprefix, char *buffer);

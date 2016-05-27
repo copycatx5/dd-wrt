@@ -166,6 +166,8 @@ int getbuttonstate()
 	int ret = 0;
 	if (getRouterBrand() == ROUTER_NETGEAR_R7500)
 		ret = get_gpio(54);
+	else if (getRouterBrand() == ROUTER_NETGEAR_R7800)
+		ret = get_gpio(54);
 	else if (getRouterBrand() == ROUTER_TRENDNET_TEW827)
 		ret = get_gpio(54);
 	else if (getRouterBrand() == ROUTER_LINKSYS_EA8500)
@@ -227,6 +229,36 @@ int getbuttonstate()
 int getbuttonstate()
 {
 	return !get_gpio(17);
+}
+#elif defined(HAVE_WR615N)
+int getbuttonstate()
+{
+	return !get_gpio(17);
+}
+#elif defined(HAVE_E325N)
+int getbuttonstate()
+{
+	return !get_gpio(20);
+}
+#elif defined(HAVE_E355AC)
+int getbuttonstate()
+{
+	return !get_gpio(17);
+}
+#elif defined(HAVE_WR650AC)
+int getbuttonstate()
+{
+	return !get_gpio(19);
+}
+#elif defined(HAVE_E380AC)
+int getbuttonstate()
+{
+	return !get_gpio(19);
+}
+#elif defined(HAVE_DIR869)
+int getbuttonstate()
+{
+	return !get_gpio(1);
 }
 #elif defined(HAVE_DIR859)
 int getbuttonstate()
@@ -301,6 +333,11 @@ int getbuttonstate()
 int getbuttonstate()
 {
 	return !get_gpio(17);
+}
+#elif defined(HAVE_WR941V6)
+int getbuttonstate()
+{
+	return !get_gpio(1);
 }
 #elif defined(HAVE_WR841V9)
 int getbuttonstate()
@@ -998,6 +1035,14 @@ void period_check(int sig)
 #elif defined(HAVE_WZR450HP2)
 	sesgpio = 0x115;
 	val |= get_gpio(21) << 21;	//aoss pushbutton
+#elif defined(HAVE_WR650AC)
+#elif defined(HAVE_E355AC)
+#elif defined(HAVE_WR615N)
+#elif defined(HAVE_E380AC)
+#elif defined(HAVE_E325N)
+#elif defined(HAVE_DIR869)
+	sesgpio = 0x102;
+	val |= get_gpio(2) << 2;	//aoss pushbutton
 #elif defined(HAVE_DIR859)
 	sesgpio = 0x101;
 	val |= get_gpio(1) << 1;	//aoss pushbutton
@@ -1036,6 +1081,9 @@ void period_check(int sig)
 #elif defined(HAVE_DIR600)
 	sesgpio = 0x100;
 	val |= get_gpio(0);	//aoss pushbutton
+#elif defined(HAVE_WR941V6)
+	sesgpio = 0x102;
+	val |= get_gpio(2) << 2;	//aoss pushbutton
 #elif defined(HAVE_WR841V9)
 	sesgpio = 0x111;
 	val |= get_gpio(17) << 17;	//aoss pushbutton
@@ -1240,6 +1288,9 @@ void period_check(int sig)
 		sesgpio = 0x114;	// gpio 20, inversed
 		wifigpio = 0x112;	// gpio 18, inversed
 		break;
+	case ROUTER_ASUS_AC1200:
+		sesgpio = 0x109;	// gpio 9, inversed
+		break;
 	case ROUTER_ASUS_AC5300:
 		wifigpio = 0x114;	// gpio 20, inversed
 		sesgpio = 0x112;	// gpio 18, inversed
@@ -1325,6 +1376,7 @@ void period_check(int sig)
 		wifigpio = 0x105;
 		break;
 	case ROUTER_NETGEAR_R7500:
+	case ROUTER_NETGEAR_R7800:
 		wifigpio = 0x106;
 		break;
 	case ROUTER_NETGEAR_R8000:
