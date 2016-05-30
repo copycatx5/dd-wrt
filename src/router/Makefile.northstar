@@ -558,9 +558,8 @@ endif
 	rm -rf $(TARGETDIR)/lib/modules/$(KERNELRELEASE)/net
         # ------------------custormize for miwifi start. fan------------
         #overide the one built by kernel
-	cp -R ${SRCBASE}/router/outsidein/wl.ko $(TARGETDIR)/lib/modules/$(KERNELRELEASE)/
-	cp -R ${SRCBASE}/router/outsidein/emf.ko $(TARGETDIR)/lib/modules/$(KERNELRELEASE)/
-	cp -R ${SRCBASE}/router/outsidein/igs.ko $(TARGETDIR)/lib/modules/$(KERNELRELEASE)/
+	cp ${SRCBASE}/router/emf_bin/${ARCH}/emf.ko $(TARGETDIR)/lib/modules/$(KERNELRELEASE)/
+	cp ${SRCBASE}/router/emf_bin/${ARCH}/igs.ko $(TARGETDIR)/lib/modules/$(KERNELRELEASE)/
 	cp $(SRCBASE)/router/emf_bin/${ARCH}/emf $(ARCH)-uclibc/target/usr/sbin/emf
 	cp $(SRCBASE)/router/emf_bin/${ARCH}/igs $(ARCH)-uclibc/target/usr/sbin/igs
 	cp ${SRCBASE}/router/outsidein/nvram-miwifi-stock.txt $(ARCH)-uclibc/target/etc
