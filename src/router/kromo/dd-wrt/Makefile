@@ -12,7 +12,7 @@ installwebfiles:
 	install -m 644 $(wildcard *.asp) $(wildcard *.svg) $(wildcard *.css) $(wildcard *.jpg) $(wildcard *.gif) $(wildcard *.js) $(wildcard *.htm) $(wildcard *.ico) $(wildcard *.html) $(INSTALLDIR)/www
 
 	cp -a images $(INSTALLDIR)/www
-	cp -a style $(INSTALLDIR)/www
+	-cp -a style $(INSTALLDIR)/www
 	
 ifeq ($(CONFIG_DIST),"micro")
 	rm -f $(INSTALLDIR)/www/images/favicon.ico
@@ -1065,7 +1065,7 @@ ifneq ($(NO_PROCESSLANGFILES),y)
 PROCESSLANGFILES:= processlangfiles
 endif
 
-install: installwebfiles stripfiles $(PROCESSLANGFILES) optimizefiles removeobsolete makewww removepwc cleanup
+install: installwebfiles stripfiles $(PROCESSLANGFILES) removeobsolete makewww removepwc cleanup
 
 
 postinstall: installwebfiles removeobsolete removepwc cleanup
