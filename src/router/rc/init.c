@@ -611,6 +611,10 @@ int main(int argc, char **argv)
 	nvram_set("qtn_ready", "0");
 #endif
 #endif
+#ifdef HAVE_FANCTRL
+        FORK(eval("phy_tempsense"));
+#endif
+
 	int c;
 
 	/* 

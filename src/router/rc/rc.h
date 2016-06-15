@@ -158,6 +158,7 @@ extern int resetbutton_main(int argc, char **argv);
 void ntp_main(timer_t t, int arg);
 extern int ipupdate_main(int argc, char **argv);
 extern int gpio_main(int argc, char **argv);
+extern int phy_tempsense_main(int argc, char **argv);
 extern int redial_main(int argc, char **argv);
 
 extern int write_boot(const char *path, const char *mtd);

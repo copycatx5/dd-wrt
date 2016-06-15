@@ -874,6 +874,11 @@ OBJS +=wol.o
 CFLAGS += -DHAVE_WOL
 endif
 
+ifeq ($(CONFIG_FANCTRL),y)
+OBJS += phy_tempsense.o
+CFLAGS += -DHAVE_FANCTRL
+endif
+
 ifeq ($(CONFIG_NOCAT),y)
 CFLAGS += -DHAVE_NOCAT
 endif
@@ -1058,6 +1063,9 @@ endif
 	cd $(INSTALLDIR)/sbin && ln -sf rc mtd
 	cd $(INSTALLDIR)/sbin && ln -sf rc beep
 	cd $(INSTALLDIR)/sbin && ln -sf rc ledtracking
+ifeq ($(CONFIG_FANCTRL),y)
+	cd $(INSTALLDIR)/sbin && ln -sf rc phy_tempsense
+endif
 ifeq ($(CONFIG_IPV6),y)
 	cd $(INSTALLDIR)/sbin && ln -sf rc dhcp6c-state
 endif

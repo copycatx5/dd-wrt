@@ -340,6 +340,7 @@ static struct MAIN maincalls[] = {
 	{"hb_connect", "hb_connect", NULL},
 	{"hb_disconnect", "hb_disconnect", NULL},
 	{"gpio", "gpio", NULL},
+	{"phy_tempsense", NULL, &phy_tempsense_main},
 	{"beep", "beep", NULL},
 	{"ledtracking", "ledtracking", NULL},
 	// {"listen", NULL, &listen_main},
